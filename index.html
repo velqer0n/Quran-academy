@@ -127,8 +127,8 @@
     .view.active {
       display: block;
       animation: fadeIn 0.25s ease;
-      padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
-      min-height: 50vh;
+      padding-bottom: calc(2.4rem + env(safe-area-inset-bottom, 0px));
+      min-height: 0;
     }
     main {
       padding-bottom: calc(3.25rem + env(safe-area-inset-bottom, 0px));
@@ -1323,7 +1323,7 @@
       box-sizing: border-box;
     }
     body.settings-other-open #view-settings.view.active {
-      padding-bottom: calc(10rem + env(safe-area-inset-bottom, 0px)) !important;
+      padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)) !important;
     }
     body.settings-other-open main {
       padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px)) !important;
@@ -1402,15 +1402,18 @@
       position: fixed;
       bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
       right: 0.55rem;
-      z-index: 28;
+      z-index: 120;
       font-size: 0.72rem;
-      padding: 0.28rem 0.5rem;
+      padding: 0.35rem 0.55rem;
       border-radius: 999px;
-      opacity: 0.72;
+      opacity: 0.9;
       border: 1px solid var(--border);
       background: var(--bg-card);
-      color: var(--text-muted);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      pointer-events: auto;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
     #device-mode-btn:active, #device-mode-btn:hover {
       opacity: 1;
@@ -2573,8 +2576,11 @@
         '<button type="button" class="lock-submit" id="lock-unlock-btn">Разблокировать</button>' +
         '<div class="lock-error"></div>' +
         '<div id="lock-player-slot"></div>' +
-        '<button type="button" class="lock-reset-link" id="lock-reset-btn">Забыли пароль? Стереть данные устройства</button>';
-      try { renderLockPlayer(); } catch(e) {}
+        '<div style="margin-top:0.75rem;font-size:0.8rem;line-height:1.45;opacity:0.85">' +
+        '<button type="button" class="lock-reset-link" id="lock-reset-btn" style="display:block;margin:0.35rem auto">Забыли пароль приложения — стереть локальные данные</button>' +
+        '<div style="font-size:0.72rem;opacity:0.75;margin-top:0.25rem">Это не аккаунт сайта. Сброс удалит данные только на этом устройстве.</div></div>';
+      // Плеер на экране блокировки не показываем
+      try { var ps = document.getElementById('lock-player-slot'); if (ps) ps.innerHTML = ''; } catch(e) {}
       const submit = async () => {
         const pass = document.getElementById('lock-pass').value;
         const errEl = box.querySelector('.lock-error');
@@ -10086,7 +10092,18 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
-        { major: '2', v: '2.03', kinds: ['a', 'on'], date: '2026-08-04',
+        { major: '2', v: '2.04', kinds: ['f', 'b', 'a', 'on'], date: '2026-08-04',
+          a: [ 'Первый вход: выбор «гость» / регистрация / вход' ],
+          on: [ 'Справка: карточки аккаунта, входа, регистрации' ],
+          b: [ 'Обновления: по умолчанию серия 2; меньше пустого поля внизу' ],
+          f: [
+            'Кнопка Тел/ПК: выше слой (z-index), снова нажимается',
+            'Виджет намаза: Духа по умолчанию выкл',
+            'Экран блокировки: текст сброса отделён от пароля аккаунта; без плеера'
+          ],
+          d: [], ph: [], I: [], o: [], s: []
+        },
+                { major: '2', v: '2.03', kinds: ['a', 'on'], date: '2026-08-04',
           a: [ 'Онлайн-аккаунты через Supabase: регистрация, вход, сброс пароля по email' ],
           on: [ 'Supabase Auth: общий доступ с любого устройства/города' ],
           b: [], f: [], d: [], ph: [], I: [], o: [], s: []
@@ -10576,7 +10593,7 @@ function renderSalah() {
           b: [], f: [], d: [], ph: [], I: [], o: [], s: []
         }
       ];
-      if (!window._clMajor) window._clMajor = '1';
+      if (!window._clMajor) window._clMajor = '2';
       if (!window._clKind) window._clKind = 'all';
       const major = window._clMajor;
       const kind = window._clKind;
@@ -10661,6 +10678,10 @@ function renderSalah() {
       if (!el) return;
       // Справка строится от меню «Ещё» + главные вкладки. Без дублей.
       const SEC_HELP = {
+        account: 'Мой аккаунт (меню «Ещё» → Система).\n\n• Регистрация: никнейм, email, пароль (≥8, буква+цифра).\n• Вход по email и паролю (онлайн через Supabase — с любого устройства).\n• «Забыли пароль» — сброс по email (ссылка от Supabase).\n• Гость: можно пользоваться без аккаунта, данные только в браузере этого устройства.\n• Пароль приложения (экран блокировки) — отдельная защита локальных данных, это не пароль аккаунта.',
+        login: 'Вход в онлайн-аккаунт по email и паролю.',
+        register: 'Создание аккаунта: никнейм (3–20, уникальный на устройстве/метаданные), email, пароль.',
+        forgot: 'Сброс пароля аккаунта: письмо со ссылкой на email.',
         hadiths: 'Раздел хадисов из меню «Ещё».\n\n• Кнопка «Энциклопедия хадисов (HadeethEnc · RU)» — онлайн-корпус достоверных хадисов на русском.\n• Категории → список (по 20, страницы) → полный текст, степень, атрибуция, пояснение и выводы.\n• Кэш ответов API на устройстве ≈ 7 дней; интернет нужен при первой загрузке раздела/хадиса.\n• Подпись источника всегда: HadeethEnc.com (текст перевода не изменяем).\n• «Скачать хадисы» — локальные сборники в кэш; в списке «№ · источник», нажатие — полный текст.\n• Поиск по открытому материалу; тяжёлые данные не грузятся при старте сайта.\n• Не замена учёбе у знающего: сверяйте контекст.',
         ihouse: 'Материалы IslamHouse («Ещё» · Знание).\n\n• Книги, статьи, фетвы, аудио, видео на русском через API IslamHouse.\n• Список постранично → описание и ссылки на PDF/файлы (открытие на IslamHouse).\n• Кэш ≈ 3 дня; интернет при первой загрузке.\n• Источник всегда указан; текст не меняем.\n• Не замена местному учёному.',
         aqidah: 'Основы веры (акида) карточками.\n\n• Темы по столпам имана и связанным вопросам.\n• Краткий заголовок → подробный текст с аятами и смыслом.\n• Словарь терминов внизу раздела.\n• Мини-тест после тем — проверка усвоения.\n• Подсказка сверху сворачивается и запоминает состояние.\nДля углубления — к проверенным книгам и знающим.',
@@ -11254,7 +11275,7 @@ function renderSalah() {
             '<div class="card"><b>Виджет в ежедневном</b>' +
             '<div class="ayah-translation" style="margin-top:0.3rem">Необязательные времена на главном экране.</div>' +
             '<div class="setting-row"><span>Духа</span>' +
-            '<button type="button" class="btn btn-sm '+((state.settings.widgetDuha!==false)?'btn-primary':'')+'" id="pt-w-duha">'+((state.settings.widgetDuha!==false)?'Вкл':'Выкл')+'</button></div>' +
+            '<button type="button" class="btn btn-sm '+((state.settings.widgetDuha===true)?'btn-primary':'')+'" id="pt-w-duha">'+((state.settings.widgetDuha===true)?'Вкл':'Выкл')+'</button></div>' +
             '<div class="setting-row"><span>Тахаджуд</span>' +
             '<button type="button" class="btn btn-sm '+((state.settings.widgetTahajjud)?'btn-primary':'')+'" id="pt-w-tah">'+((state.settings.widgetTahajjud)?'Вкл':'Выкл')+'</button></div></div>';
 
@@ -11570,7 +11591,7 @@ let body = '';
           });
           const wDuha = document.getElementById('pt-w-duha');
           if (wDuha) wDuha.addEventListener('click', function(){
-            state.settings.widgetDuha = !(state.settings.widgetDuha !== false);
+            state.settings.widgetDuha = !(state.settings.widgetDuha === true);
             try { saveState(); } catch(e) {}
             paint(tab);
           });
@@ -11834,7 +11855,7 @@ let body = '';
           if (dayOffset === 0) state._nextPrayers = t;
           Object.keys(names).forEach(function(k) {
             if (!t[k] || t[k] === '--:--') return;
-            if (k === 'duha' && state.settings && state.settings.widgetDuha === false) return;
+            if (k === 'duha' && !(state.settings && state.settings.widgetDuha === true)) return;
             if (k === 'tahajjud' && !(state.settings && state.settings.widgetTahajjud)) return;
             if (k === 'sunrise') return; // не уведомлять о восходе по умолчанию
             const parts = String(t[k]).split(':');
@@ -15093,7 +15114,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
                 [tLabel('Магриб'), t.maghrib],
                 [tLabel('Иша'), t.isha]
               ];
-              if (state.settings && state.settings.widgetDuha !== false) {
+              if (state.settings && state.settings.widgetDuha === true) {
                 // optional: insert after sunrise
                 cells.splice(2, 0, [tLabel('Духа'), t.duha || '—']);
               }
@@ -19180,14 +19201,45 @@ function renderLibrary() {
       try { toast(getDeviceMode() === 'desktop' ? 'Версия ПК' : 'Версия телефона'); } catch(e) {}
     }
 
-function startApp() {
+
+    function showWelcomeGate() {
+      try {
+        if (localStorage.getItem('quran_welcome_done') === '1') return;
+        if (authSession() && authSession().userId) {
+          localStorage.setItem('quran_welcome_done', '1');
+          return;
+        }
+      } catch(e) {}
+      if (document.getElementById('welcome-gate')) return;
+      var ov = document.createElement('div');
+      ov.id = 'welcome-gate';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(15,23,42,0.96);display:flex;align-items:center;justify-content:center;padding:1.25rem';
+      ov.innerHTML = '<div class="card" style="max-width:22rem;width:100%">' +
+        '<h2 style="margin:0 0 0.5rem;font-size:1.15rem">Добро пожаловать</h2>' +
+        '<p class="ayah-translation" style="margin-bottom:0.85rem">Можно пользоваться как гость (данные только на этом устройстве) или создать аккаунт для входа с других устройств.</p>' +
+        '<button type="button" class="btn btn-primary" id="wg-guest" style="width:100%;margin-bottom:0.4rem">Продолжить как гость</button>' +
+        '<button type="button" class="btn" id="wg-reg" style="width:100%;margin-bottom:0.35rem">Регистрация</button>' +
+        '<button type="button" class="btn btn-sm" id="wg-login" style="width:100%">Вход</button></div>';
+      document.body.appendChild(ov);
+      function done(){ try { localStorage.setItem('quran_welcome_done','1'); } catch(e) {} ov.remove(); }
+      document.getElementById('wg-guest').onclick = function(){ done(); };
+      document.getElementById('wg-reg').onclick = function(){ done(); showView('register'); };
+      document.getElementById('wg-login').onclick = function(){ done(); showView('login'); };
+    }
+
+    function startApp() {
       try {
         try { applyDeviceMode(); } catch(e) {}
+        try { setTimeout(showWelcomeGate, 400); } catch(e) {}
         try { if (state.settings && state.settings.prayerNotif) schedulePrayerNotifications(); } catch(e) {}
         try { applyI18nDom(); } catch(e) {}
         try {
           const db = document.getElementById('device-mode-btn');
-          if (db && !db._bound) { db._bound = true; db.addEventListener('click', toggleDeviceMode); }
+          if (db) {
+            db.onclick = function(e){ e.preventDefault(); e.stopPropagation(); toggleDeviceMode(); };
+            db.style.pointerEvents = 'auto';
+            db.style.zIndex = '120';
+          }
         } catch(e) {}
         try { if (window.__quranSetupBack) window.__quranSetupBack(); } catch(e) {}
         // Минимальный старт: тема + сразу dailyhub, остальное позже
