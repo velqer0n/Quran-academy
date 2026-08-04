@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.06 2026-08-04 -->
+<!-- BUILD 2.07 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.06</title>
+  <title>Коран — Изучение · 2.07</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1744,7 +1744,7 @@
     </div>
 
     <div id="view-dailyhub" class="view">
-      <h2 class="section-title">Ежедневное <span style="font-size:0.7rem;font-weight:500;color:var(--text-muted)">v2.06</span></h2>
+      <h2 class="section-title">Ежедневное <span style="font-size:0.7rem;font-weight:500;color:var(--text-muted)">v2.07</span></h2>
       <div id="dailyhub-body"></div>
     </div>
     <div id="view-duabuilder" class="view">
@@ -1967,11 +1967,11 @@
         <button type="button" class="btn btn-sm" data-set-cat="read">Чтение</button>
         <button type="button" class="btn btn-sm" data-set-cat="offline">Офлайн</button>
         <button type="button" class="btn btn-sm" data-set-cat="other">Другое</button>
-        <button type="button" class="btn btn-sm" data-set-cat="morecfg">Ещё · меню</button>
+        <button type="button" class="btn btn-sm" data-set-cat="morecfg">Меню</button>
       </div>
       
       <div class="card set-cat" data-set-panel="morecfg" style="display:none;margin-bottom:0.75rem">
-        <b>📋 Списки и разделы «Ещё»</b>
+        <b>📋 Списки и разделы меню</b>
         <div class="ayah-translation" style="margin:0.4rem 0;font-size:0.85rem">До 8 списков. Пустой список не показывается. Скрытые разделы пропадают из меню.</div>
         <div id="morecfg-lists"></div>
         <div style="margin-top:0.75rem;display:flex;gap:0.4rem;flex-wrap:wrap">
@@ -9721,7 +9721,11 @@ function renderSalah() {
 'Коран 9:103:\n«Бери из их имущества милостыню, которой ты очистишь и возвысишь их…»' },
         { t: 'Виды садаки', b:
 '1) Имущественная: деньги, еда, одежда, жильё.\n' +
-'2) Садака джария (текущая) — награда после смерти.\nХадис (Муслим 1631):\n«Когда умирает человек, прерываются его дела, кроме трёх: текущей садаки, знания, которым пользуются, и праведного ребёнка, который делает за него дуа.»\n\n' +
+'2) Садака джария (ṣadaqa jāriya) — «текущая» милостыня: награда продолжает записываться после смерти.\n' +
+'Хадис (Муслим 1631; также Абу Дауд, Тирмизи):\n«Когда умирает сын Адама, прерывается его дело, кроме трёх: текущей садаки; знания, которым пользуются; и праведного ребёнка, который молится за него.»\n\n' +
+'Что относят к садака джария (по смыслу хадисов и объяснениям учёных):\n• колодец, источник воды, водопой;\n• мечеть, молитвенное место;\n• постройка / ремонт дороги, моста;\n• посадка дерева, сад, урожай для людей и животных;\n• книги и распространение полезного знания;\n• вакф (имущество, доход с которого идёт нуждающимся);\n• обучение Корану и шариатским наукам, если плоды остаются.\n\n' +
+'Хадис (Ахмад; Ибн Маджа — смысл): среди дел, чья награда не прерывается — тот, кто научил знанию, оставил Коран в наследство, построил мечеть, оставил пристанище путнику, прорыл реку (канал), раздал милостыню из здоровья своего.\n\n' +
+'Важно: награда — при искреннем намерении ради Аллаха; польза должна реально доходить до людей.\n\n' +
 '3) Неимущественная:\nХадис (Бухари 2989; Муслим 1009):\n«На каждом суставе человека — садака каждый день, когда восходит солнце. Справедливо рассудить двоих — садака; помочь человеку сесть на его животное или поднять на него поклажу — садака; доброе слово — садака; каждый шаг к намазу — садака; убрать с дороги то, что причиняет вред, — садака.»\n\n' +
 '4) Садака аль-фитр — перед Ид (см. «Рамадан»).\n5) Каффара и обеты — по фикху.' },
         { t: 'Кому давать', b:
@@ -10108,7 +10112,17 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
-        { major: '2', v: '2.06', kinds: ['b', 'a', 'f'], date: '2026-08-04',
+        { major: '2', v: '2.07', kinds: ['b', 'a'], date: '2026-08-04',
+          a: [ 'Группа «Онлайн» + раздел «Мой аккаунт»; кнопки Вход/Выход внизу «Ещё»' ],
+          b: [
+            'Порядок: Знание → Поклонение → Коран → Жизнь → Онлайн → Система',
+            'Система: Данные, Обновления, Справка, Настройки',
+            'Настройки: категория «Меню» (было «Ещё · меню»)',
+            'Садака: подробнее про садака джария и виды из хадисов'
+          ],
+          f: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+                { major: '2', v: '2.06', kinds: ['b', 'a', 'f'], date: '2026-08-04',
           a: [ '«Ещё»: карточка аккаунта сверху; выход в профиле' ],
           b: [
             'Порядок «Ещё»: Поклонение → Знания → Коран → Жизнь → Аккаунт и система',
@@ -16843,12 +16857,6 @@ c.addEventListener('click', () => {
 
     // 5 групп: знания → поклонение → коран → жизнь → система (в конце)
     const MORE_MENU_DEFAULT = [
-      { id:'prayertimes', icon:'🕐', label:'Время намаза и кибла', group:'worship' },
-      { id:'salah', icon:'🕌', label:'Намаз', group:'worship' },
-      { id:'adhkar', icon:'🤲', label:'Азкары и дуа', group:'worship' },
-      { id:'dhikr', icon:'🔢', label:'Зикр', group:'worship' },
-      { id:'sunnahs', icon:'🌱', label:'Сунны', group:'worship' },
-      { id:'duabuilder', icon:'🧩', label:'Дуа-конструктор', group:'worship' },
       { id:'fiqh', icon:'⚖️', label:'Фикх', group:'knowledge' },
       { id:'aqidah', icon:'🕌', label:'Акыйда', group:'knowledge' },
       { id:'hadiths', icon:'📚', label:'Хадисы', group:'knowledge' },
@@ -16856,6 +16864,12 @@ c.addEventListener('click', () => {
       { id:'sins', icon:'⚠️', label:'Грехи и тауба', group:'knowledge' },
       { id:'adab', icon:'🤝', label:'Адаб общения', group:'knowledge' },
       { id:'ihouse', icon:'🏛️', label:'Материалы IslamHouse', group:'knowledge' },
+      { id:'prayertimes', icon:'🕐', label:'Время намаза и кибла', group:'worship' },
+      { id:'salah', icon:'🕌', label:'Намаз', group:'worship' },
+      { id:'adhkar', icon:'🤲', label:'Азкары и дуа', group:'worship' },
+      { id:'dhikr', icon:'🔢', label:'Зикр', group:'worship' },
+      { id:'sunnahs', icon:'🌱', label:'Сунны', group:'worship' },
+      { id:'duabuilder', icon:'🧩', label:'Дуа-конструктор', group:'worship' },
       { id:'myreading', icon:'📖', label:'Моё чтение', group:'quran' },
       { id:'dict', icon:'📚', label:'Словари', group:'quran' },
       { id:'topics', icon:'🔗', label:'Темы и ситуации', group:'quran' },
@@ -16866,26 +16880,28 @@ c.addEventListener('click', () => {
       { id:'family', icon:'👨‍👩‍👧‍👦', label:'Права семьи', group:'life' },
       { id:'sadaqa', icon:'💝', label:'Садака', group:'life' },
       { id:'ask', icon:'❓', label:'Черновик вопроса', group:'life' },
-      { id:'account', icon:'👤', label:'Мой аккаунт', group:'system' },
+      { id:'account', icon:'👤', label:'Мой аккаунт', group:'online' },
       { id:'data', icon:'💾', label:'Данные', group:'system' },
-      { id:'settings', icon:'⚙️', label:'Настройки', group:'system' },
+      { id:'changelog', icon:'🆕', label:'Обновления', group:'system' },
       { id:'help', icon:'❓', label:'Справка', group:'system' },
-      { id:'changelog', icon:'🆕', label:'Обновления', group:'system' }
+      { id:'settings', icon:'⚙️', label:'Настройки', group:'system' }
     ];
     const MORE_GROUP_DEFAULTS = [
+      { id:'knowledge', label:'Знание', hidden:false },
       { id:'worship', label:'Поклонение', hidden:false },
-      { id:'knowledge', label:'Знания', hidden:false },
-      { id:'quran', label:'Коран и чтение', hidden:false },
-      { id:'life', label:'Жизнь и практика', hidden:false },
-      { id:'system', label:'Аккаунт и система', hidden:false }
+      { id:'quran', label:'Коран', hidden:false },
+      { id:'life', label:'Жизнь', hidden:false },
+      { id:'online', label:'Онлайн', hidden:false },
+      { id:'system', label:'Система', hidden:false }
     ];
     const MORE_GROUP_LABELS = {
+      knowledge: 'Знание',
       worship: 'Поклонение',
-      knowledge: 'Знания',
-      quran: 'Коран и чтение',
-      life: 'Жизнь и практика',
-      system: 'Аккаунт и система'
-    };
+      quran: 'Коран',
+      life: 'Жизнь',
+      online: 'Онлайн',
+      system: 'Система'
+    }
     // --- Управление списками и скрытием разделов «Ещё» ---
     function getMoreLists() {
       try {
@@ -16893,7 +16909,7 @@ c.addEventListener('click', () => {
         if (raw) {
           const arr = JSON.parse(raw);
           if (Array.isArray(arr) && arr.length) {
-            return arr.filter(function(g){ return g && g.id !== 'online'; }).slice(0, 8);
+            return arr.filter(function(g){ return g && g.id; }).slice(0, 8);
           }
         }
       } catch(e) {}
@@ -16937,10 +16953,10 @@ c.addEventListener('click', () => {
     function getMoreOrder() {
       let ordered = null;
       try {
-        // один раз применить новый порядок по умолчанию (v2.06)
-        if (localStorage.getItem('quran_more_order_v206') !== '1') {
+        // один раз применить новый порядок по умолчанию (v2.07)
+        if (localStorage.getItem('quran_more_order_v208') !== '1') {
           localStorage.removeItem('quran_more_order');
-          localStorage.setItem('quran_more_order_v206', '1');
+          localStorage.setItem('quran_more_order_v208', '1');
         }
       } catch(e) {}
       try {
@@ -17207,10 +17223,38 @@ c.addEventListener('click', () => {
           (cols > 1 ? '<button type="button" class="btn btn-sm" data-right="'+idx+'" title="Вправо">→</button>' : '') +
           '</div></div>';
       });
+      // низ: вход / выход
+      try {
+        var sessB = (typeof authSession === 'function') ? authSession() : null;
+        html += '<div style="margin-top:1.1rem;padding-top:0.75rem;border-top:1px solid var(--border);width:100%;grid-column:1/-1">';
+        if (sessB && sessB.nick) {
+          html += '<div class="ayah-translation" style="margin-bottom:0.4rem">Вы вошли: <b>'+String(sessB.nick).replace(/</g,'&lt;')+'</b></div>';
+          html += '<button type="button" class="btn" id="more-btn-account" style="width:100%;margin-bottom:0.35rem">Мой аккаунт</button>';
+          html += '<button type="button" class="btn btn-primary" id="more-btn-logout" style="width:100%">Выйти</button>';
+        } else {
+          html += '<button type="button" class="btn btn-primary" id="more-btn-login" style="width:100%;margin-bottom:0.35rem">Вход</button>';
+          html += '<button type="button" class="btn" id="more-btn-register" style="width:100%">Регистрация</button>';
+        }
+        html += '</div>';
+      } catch(e) {}
       el.innerHTML = html;
       try {
-        var ac = document.getElementById('more-acc-card');
-        if (ac) ac.addEventListener('click', function(){ showView('account'); });
+        var bAcc = document.getElementById('more-btn-account');
+        if (bAcc) bAcc.addEventListener('click', function(){ showView('account'); });
+        var bLogin = document.getElementById('more-btn-login');
+        if (bLogin) bLogin.addEventListener('click', function(){ showView('login'); });
+        var bReg = document.getElementById('more-btn-register');
+        if (bReg) bReg.addEventListener('click', function(){ showView('register'); });
+        var bOut = document.getElementById('more-btn-logout');
+        if (bOut) bOut.addEventListener('click', async function() {
+          try {
+            var sb = (typeof getSb === 'function') ? getSb() : null;
+            if (sb) await sb.auth.signOut();
+          } catch(e) {}
+          try { if (typeof authSetSession === 'function') authSetSession(null); } catch(e) {}
+          toast('Вы вышли');
+          renderMoreMenu();
+        });
       } catch(e) {}
       // Перемещение целой группы
       el.querySelectorAll('[data-gup],[data-gdown]').forEach(btn => {
@@ -19254,7 +19298,7 @@ function renderLibrary() {
       ov.id = 'welcome-gate';
       ov.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(15,23,42,0.96);display:flex;align-items:center;justify-content:center;padding:1.25rem';
       ov.innerHTML = '<div class="card" style="max-width:22rem;width:100%">' +
-        '<h2 style="margin:0 0 0.5rem;font-size:1.15rem">Добро пожаловать · v2.06</h2>' +
+        '<h2 style="margin:0 0 0.5rem;font-size:1.15rem">Добро пожаловать · v2.07</h2>' +
         '<p class="ayah-translation" style="margin-bottom:0.85rem">Можно пользоваться как гость (данные только на этом устройстве) или создать аккаунт для входа с других устройств.</p>' +
         '<button type="button" class="btn btn-primary" id="wg-guest" style="width:100%;margin-bottom:0.4rem">Продолжить как гость</button>' +
         '<button type="button" class="btn" id="wg-reg" style="width:100%;margin-bottom:0.35rem">Регистрация</button>' +
