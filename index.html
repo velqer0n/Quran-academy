@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.04 2026-08-04 -->
+<!-- BUILD 2.05 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.04</title>
+  <title>Коран — Изучение · 2.05</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1744,7 +1744,7 @@
     </div>
 
     <div id="view-dailyhub" class="view">
-      <h2 class="section-title">Ежедневное <span style="font-size:0.7rem;font-weight:500;color:var(--text-muted)">v2.04</span></h2>
+      <h2 class="section-title">Ежедневное <span style="font-size:0.7rem;font-weight:500;color:var(--text-muted)">v2.05</span></h2>
       <div id="dailyhub-body"></div>
     </div>
     <div id="view-duabuilder" class="view">
@@ -2590,8 +2590,11 @@
           // если пароль пустой или верный — скрыть; если введён — проверить
           if (!pass) {
             document.getElementById('lock-screen').classList.add('hidden');
-            try { renderLockPlayer(); } catch(e) {}
-            try { renderLastAudio(); } catch(e) {}
+            try {
+              var v = (typeof viewStack !== 'undefined' && viewStack.length) ? viewStack[viewStack.length-1] : 'dailyhub';
+              if (typeof showView === 'function') showView(v, true);
+              else if (typeof startApp === 'function') startApp();
+            } catch(e) {}
             return;
           }
         }
@@ -2606,10 +2609,13 @@
           if (plain !== 'quran-lock-check') throw new Error('mismatch');
           cryptoKey = key;
           // если приложение уже запущено — только снять оверлей
-          if (document.getElementById('view-home')) {
+          if (document.getElementById('view-home') || document.getElementById('view-dailyhub')) {
             document.getElementById('lock-screen').classList.add('hidden');
-            try { renderLockPlayer(); } catch(e) {}
-            try { renderLastAudio(); } catch(e) {}
+            try {
+              var v = (typeof viewStack !== 'undefined' && viewStack.length) ? viewStack[viewStack.length-1] : 'dailyhub';
+              if (typeof showView === 'function') showView(v || 'dailyhub', true);
+              else if (typeof startApp === 'function') startApp();
+            } catch(e) { try { startApp(); } catch(e2) {} }
             return;
           }
           const raw = await decryptMainBlob(key);
@@ -2635,11 +2641,11 @@
     function isAppLockEnabled() {
       try {
         const f = localStorage.getItem('quran_app_lock_v1');
-        if (f === '0') return false;
         if (f === '1') return true;
+        if (f === '0') return false;
       } catch(e) {}
-      // default: if salt exists, lock is on; if never set up, show setup only when appLock not explicitly off
-      return true;
+      // По умолчанию ВЫКЛ. Вкл. только в настройках (или если уже задан пароль + флаг)
+      return false;
     }
 
     function tryLoadPlainState() {
@@ -10093,7 +10099,13 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
-        { major: '2', v: '2.04', kinds: ['f', 'b', 'a', 'on'], date: '2026-08-04',
+        { major: '2', v: '2.05', kinds: ['f', 'b'], date: '2026-08-04',
+          a: [],
+          b: [ 'По умолчанию: телефон; сетка 4/6 скрыта на телефоне; блокировка приложения выкл' ],
+          f: [ 'После разблокировки снова показывается экран (не пустой фон)' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+                { major: '2', v: '2.04', kinds: ['f', 'b', 'a', 'on'], date: '2026-08-04',
           a: [ 'Первый вход: выбор «гость» / регистрация / вход' ],
           on: [ 'Справка: карточки аккаунта, входа, регистрации' ],
           b: [ 'Обновления: по умолчанию серия 2; меньше пустого поля внизу' ],
@@ -19174,10 +19186,7 @@ function renderLibrary() {
         const s = localStorage.getItem('quran_device_mode');
         if (s === 'phone' || s === 'desktop') return s;
       } catch(e) {}
-      // авто: широкий экран = ПК
-      try {
-        if (window.matchMedia && window.matchMedia('(min-width: 768px)').matches) return 'desktop';
-      } catch(e) {}
+      // по умолчанию телефон (ПК только вручную)
       return 'phone';
     }
     function applyDeviceMode(mode) {
@@ -19216,7 +19225,7 @@ function renderLibrary() {
       ov.id = 'welcome-gate';
       ov.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(15,23,42,0.96);display:flex;align-items:center;justify-content:center;padding:1.25rem';
       ov.innerHTML = '<div class="card" style="max-width:22rem;width:100%">' +
-        '<h2 style="margin:0 0 0.5rem;font-size:1.15rem">Добро пожаловать · v2.04</h2>' +
+        '<h2 style="margin:0 0 0.5rem;font-size:1.15rem">Добро пожаловать · v2.05</h2>' +
         '<p class="ayah-translation" style="margin-bottom:0.85rem">Можно пользоваться как гость (данные только на этом устройстве) или создать аккаунт для входа с других устройств.</p>' +
         '<button type="button" class="btn btn-primary" id="wg-guest" style="width:100%;margin-bottom:0.4rem">Продолжить как гость</button>' +
         '<button type="button" class="btn" id="wg-reg" style="width:100%;margin-bottom:0.35rem">Регистрация</button>' +
