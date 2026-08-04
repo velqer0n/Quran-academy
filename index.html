@@ -1497,6 +1497,7 @@
     .font-pick-list.collapsed { display: none !important; }
 
     </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -1932,6 +1933,24 @@
     <div id="view-dict" class="view">
       <h2 class="section-title" data-i18n="dict">Мой словарь</h2>
       <div id="dict-list"></div>
+    </div>
+
+    <!-- AUTH / ACCOUNT -->
+    <div id="view-account" class="view">
+      <h2 class="section-title">Мой аккаунт</h2>
+      <div id="account-body"></div>
+    </div>
+    <div id="view-login" class="view">
+      <h2 class="section-title">Вход</h2>
+      <div id="login-body"></div>
+    </div>
+    <div id="view-register" class="view">
+      <h2 class="section-title">Регистрация</h2>
+      <div id="register-body"></div>
+    </div>
+    <div id="view-forgot" class="view">
+      <h2 class="section-title">Забыли пароль</h2>
+      <div id="forgot-body"></div>
     </div>
 
     <!-- SETTINGS -->
@@ -3991,7 +4010,13 @@ async function fetchTafsir(surah, ayah) {
             showView(id);
           } else if (kind === 'data') {
             state.dataTab = id;
-            showView(id);
+            var last = viewStack[viewStack.length - 1];
+            if (last === 'cache' || last === 'export' || last === 'data') {
+              viewStack[viewStack.length - 1] = id;
+              showView(id, true);
+            } else {
+              showView(id);
+            }
           } else if (kind === 'dict') {
             state.dictMode = id;
             showView('dict');
@@ -4026,7 +4051,7 @@ async function fetchTafsir(surah, ayah) {
     function injectDataTabs(active) {
       try {
         state.dataTab = active || state.dataTab || 'cache';
-        var map = { cache: 'view-cache', export: 'Входит в «Данные» · вкладка «Экспорт / импорт».\n\n• Полный или выборочный бэкап (закладки, словарь, прогресс, настройки).' };
+        var map = { cache: 'view-cache', export: 'view-export' };
         var view = document.getElementById(map[state.dataTab] || 'view-cache');
         if (!view) return;
         var bar = view.querySelector('.cluster-tabs[data-cluster="data"]');
@@ -4040,10 +4065,12 @@ async function fetchTafsir(surah, ayah) {
           else view.insertBefore(wrap.firstChild, view.firstChild);
         }
         bindClusterTabs('data');
-        var h2 = view.querySelector('h2, .section-title');
+        var h2 = view.querySelector('.section-title, h2');
         if (h2) h2.textContent = 'Данные';
       } catch (e) {}
     }
+
+
     function applyViewAlias(name) {
       if (name === 'madhhabs') { state.fiqhTab = 'madhhabs'; return 'fiqh'; }
       if (name === 'qol') { state.topicsTab = 'life'; return 'topics'; }
@@ -4057,8 +4084,8 @@ async function fetchTafsir(surah, ayah) {
         return name;
       }
       if (name === 'data') {
-        if (!state.dataTab) state.dataTab = 'cache';
-        return state.dataTab;
+        state.dataTab = 'cache';
+        return 'cache';
       }
       if (name === 'cache' || name === 'export') {
         state.dataTab = name;
@@ -4084,7 +4111,7 @@ function showView(name, isBack) {
       } catch(e) {}
       // Запомнить глубокий раздел «Ещё» для возврата; меню «Ещё» — сброс
       try {
-        const MORE_SET = new Set(['fiqh','madhhabs','sins','aqidah','sunnahs','family','hadith','hadiths','ihouse','stories','salah','adhkar','qol','names','qdict','cache','settings','export','duabuilder','ramadan','adab','calendar','library','topics','search','changelog','help','prayertimes','more']);
+        const MORE_SET = new Set(['fiqh','madhhabs','sins','aqidah','sunnahs','family','hadith','hadiths','ihouse','stories','salah','adhkar','qol','names','qdict','cache','settings','export','duabuilder','ramadan','adab','calendar','library','topics','search','changelog','help','prayertimes','account','login','register','forgot','more']);
         if (name === 'more') {
           state.moreDeep = null;
           try { sessionStorage.removeItem('quran_more_deep'); } catch(e) {}
@@ -4218,6 +4245,7 @@ function showView(name, isBack) {
       if (name === 'export') try { renderExport(); } catch(e) {}
       if (name === 'changelog') try { renderChangelog(); } catch(e) {}
       if (name === 'help') try { renderHelp(); } catch(e) {}
+      if (name === 'account' || name === 'login' || name === 'register' || name === 'forgot') try { renderAuth(name); } catch(e) {}
       if (name === 'prayertimes') try { renderPrayerTimes(); } catch(e) {}
       if (name === 'family') try { renderFamily(); } catch(e) {}
       if (name === 'sadaqa') try { renderSadaqa(); } catch(e) {}
@@ -9792,14 +9820,298 @@ function renderSalah() {
       try { bindTipToggles(el); } catch(e) {}
 
 
+    
+    
+    // ========== AUTH (Supabase online + локальный запасной) ==========
+    var SUPABASE_URL = 'https://mmfeoizsxnazjhdeeulu.supabase.co';
+    var SUPABASE_ANON = 'sb_publishable_f6y8TyFRwlZLjHd_XuX_0g_xH10bVIZ';
+    var _sb = null;
+    function getSb() {
+      try {
+        if (_sb) return _sb;
+        if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+          _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+            auth: {
+              persistSession: true,
+              autoRefreshToken: true,
+              detectSessionInUrl: true
+            }
+          });
+        }
+      } catch (e) { console.warn('supabase init', e); }
+      return _sb;
+    }
+    // local fallback storage
+    function authUsers() {
+      try { return JSON.parse(localStorage.getItem('quran_users') || '[]'); } catch(e) { return []; }
+    }
+    function authSaveUsers(arr) {
+      try { localStorage.setItem('quran_users', JSON.stringify(arr || [])); } catch(e) {}
+    }
+    function authSession() {
+      try { return JSON.parse(localStorage.getItem('quran_session') || 'null'); } catch(e) { return null; }
+    }
+    function authSetSession(s) {
+      try {
+        if (s) localStorage.setItem('quran_session', JSON.stringify(s));
+        else localStorage.removeItem('quran_session');
+      } catch(e) {}
+    }
+    function authHash(str) {
+      var s = 'qa1:' + String(str || '');
+      var h = 2166136261;
+      for (var i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return (h >>> 0).toString(16);
+    }
+    function authValidNick(n) {
+      n = String(n || '').trim();
+      if (n.length < 3 || n.length > 20) return 'Никнейм: 3–20 символов';
+      if (!/^[a-zA-Z0-9_а-яА-ЯёЁ]+$/.test(n)) return 'Никнейм: только буквы, цифры и _';
+      return '';
+    }
+    function authValidEmail(e) {
+      e = String(e || '').trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return 'Некорректный email';
+      if (e.length > 80) return 'Email слишком длинный';
+      return '';
+    }
+    function authValidPass(p) {
+      p = String(p || '');
+      if (p.length < 8) return 'Пароль: минимум 8 символов';
+      if (p.length > 64) return 'Пароль: максимум 64 символа';
+      if (!/[A-Za-zА-Яа-яЁё]/.test(p)) return 'Пароль: нужна хотя бы одна буква';
+      if (!/[0-9]/.test(p)) return 'Пароль: нужна хотя бы одна цифра';
+      return '';
+    }
+    function authFindByNick(nick) {
+      nick = String(nick || '').trim().toLowerCase();
+      return authUsers().find(function(u){ return String(u.nick||'').toLowerCase() === nick; });
+    }
+    function authFindByEmail(email) {
+      email = String(email || '').trim().toLowerCase();
+      return authUsers().find(function(u){ return String(u.email||'').toLowerCase() === email; });
+    }
+    function authFormStyle() {
+      return 'width:100%;padding:0.55rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);margin:0.25rem 0 0.55rem;box-sizing:border-box';
+    }
+    async function authRefreshSession() {
+      var sb = getSb();
+      if (!sb) return authSession();
+      try {
+        var res = await sb.auth.getSession();
+        var sess = res && res.data && res.data.session;
+        if (sess && sess.user) {
+          var u = sess.user;
+          var meta = u.user_metadata || {};
+          var s = { userId: u.id, nick: meta.nick || meta.nickname || (u.email||'').split('@')[0], email: u.email || meta.email || '', online: true };
+          authSetSession(s);
+          return s;
+        }
+      } catch (e) {}
+      return authSession();
+    }
+    function renderAuth(which) {
+      which = which || 'account';
+      authRefreshSession().then(function(){ renderAuthSync(which); }).catch(function(){ renderAuthSync(which); });
+    }
+    function renderAuthSync(which) {
+      var sess = authSession();
+      var online = !!getSb();
+      if (which === 'account') {
+        var el = document.getElementById('account-body');
+        if (!el) return;
+        if (sess && sess.nick) {
+          el.innerHTML =
+            '<div class="card"><b>Вы вошли'+(sess.online?' (онлайн)':' (локально)')+'</b>' +
+            '<div style="margin-top:0.5rem">Никнейм: <b>'+String(sess.nick).replace(/</g,'&lt;')+'</b></div>' +
+            '<div>Email: <b>'+String(sess.email||'').replace(/</g,'&lt;')+'</b></div>' +
+            '<p class="ayah-translation" style="margin-top:0.6rem">'+(online
+              ? 'Аккаунт в Supabase: вход доступен с любого устройства.'
+              : 'Локальный режим. Онлайн-сервер недоступен.')+'</p>' +
+            '<button type="button" class="btn" id="btn-logout" style="width:100%;margin-top:0.6rem">Выйти</button></div>';
+          document.getElementById('btn-logout')?.addEventListener('click', async function() {
+            var sb = getSb();
+            if (sb) try { await sb.auth.signOut(); } catch(e) {}
+            authSetSession(null);
+            toast('Вы вышли');
+            renderAuthSync('account');
+          });
+        } else {
+          el.innerHTML =
+            '<div class="card"><p>Вы не вошли в аккаунт.</p>' +
+            '<button type="button" class="btn btn-primary" id="btn-go-login" style="width:100%;margin-top:0.5rem">Вход</button>' +
+            '<button type="button" class="btn" id="btn-go-reg" style="width:100%;margin-top:0.4rem">Регистрация</button></div>' +
+            '<div class="card"><div class="ayah-translation">Онлайн-аккаунты через Supabase. Никнейм 3–20; email уникальный; пароль ≥8, буква и цифра.</div></div>';
+          document.getElementById('btn-go-login')?.addEventListener('click', function(){ showView('login'); });
+          document.getElementById('btn-go-reg')?.addEventListener('click', function(){ showView('register'); });
+        }
+        return;
+      }
+      if (which === 'login') {
+        var el = document.getElementById('login-body');
+        if (!el) return;
+        el.innerHTML =
+          '<div class="card">' +
+          '<label>Email</label><input id="login-id" type="email" autocomplete="username" style="'+authFormStyle()+'">' +
+          '<label>Пароль</label><input id="login-pass" type="password" autocomplete="current-password" style="'+authFormStyle()+'">' +
+          '<button type="button" class="btn btn-primary" id="btn-login" style="width:100%">Войти</button>' +
+          '<button type="button" class="btn btn-sm" id="btn-to-reg" style="width:100%;margin-top:0.4rem">Регистрация</button>' +
+          '<button type="button" class="btn btn-sm" id="btn-to-forgot" style="width:100%;margin-top:0.35rem">Забыли пароль?</button>' +
+          '</div>';
+        document.getElementById('btn-to-reg')?.addEventListener('click', function(){ showView('register'); });
+        document.getElementById('btn-to-forgot')?.addEventListener('click', function(){ showView('forgot'); });
+        document.getElementById('btn-login')?.addEventListener('click', async function() {
+          var id = (document.getElementById('login-id').value || '').trim();
+          var pass = document.getElementById('login-pass').value || '';
+          if (!id || !pass) { toast('Заполните поля'); return; }
+          var sb = getSb();
+          if (sb) {
+            try {
+              var { data, error } = await sb.auth.signInWithPassword({ email: id, password: pass });
+              if (error) { toast(error.message || 'Ошибка входа'); return; }
+              var u = data.user || (data.session && data.session.user);
+              var meta = (u && u.user_metadata) || {};
+              authSetSession({ userId: u.id, nick: meta.nick || meta.nickname || id.split('@')[0], email: u.email || id, online: true });
+              toast('Добро пожаловать');
+              showView('account');
+              return;
+            } catch (e) { toast('Сеть: ' + (e.message || e)); return; }
+          }
+          // local fallback
+          var u = id.indexOf('@') >= 0 ? authFindByEmail(id) : authFindByNick(id);
+          if (!u || u.passHash !== authHash(pass)) { toast('Неверный логин или пароль'); return; }
+          authSetSession({ userId: u.id, nick: u.nick, email: u.email, online: false });
+          toast('Вход (локально)');
+          showView('account');
+        });
+        return;
+      }
+      if (which === 'register') {
+        var el = document.getElementById('register-body');
+        if (!el) return;
+        el.innerHTML =
+          '<div class="card">' +
+          '<label>Никнейм</label><input id="reg-nick" autocomplete="username" style="'+authFormStyle()+'">' +
+          '<label>Email</label><input id="reg-email" type="email" autocomplete="email" style="'+authFormStyle()+'">' +
+          '<label>Пароль</label><input id="reg-pass" type="password" autocomplete="new-password" style="'+authFormStyle()+'">' +
+          '<label>Повтор пароля</label><input id="reg-pass2" type="password" autocomplete="new-password" style="'+authFormStyle()+'">' +
+          '<div class="ayah-translation" style="margin-bottom:0.5rem">Аккаунт общий для всех устройств. Никнейм 3–20; email уникальный; пароль ≥8, буква и цифра.</div>' +
+          '<button type="button" class="btn btn-primary" id="btn-reg" style="width:100%">Создать аккаунт</button>' +
+          '<button type="button" class="btn btn-sm" id="btn-reg-login" style="width:100%;margin-top:0.4rem">Уже есть аккаунт — вход</button>' +
+          '</div>';
+        document.getElementById('btn-reg-login')?.addEventListener('click', function(){ showView('login'); });
+        document.getElementById('btn-reg')?.addEventListener('click', async function() {
+          var nick = (document.getElementById('reg-nick').value || '').trim();
+          var email = (document.getElementById('reg-email').value || '').trim().toLowerCase();
+          var pass = document.getElementById('reg-pass').value || '';
+          var pass2 = document.getElementById('reg-pass2').value || '';
+          var err = authValidNick(nick) || authValidEmail(email) || authValidPass(pass);
+          if (err) { toast(err); return; }
+          if (pass !== pass2) { toast('Пароли не совпадают'); return; }
+          var sb = getSb();
+          if (sb) {
+            try {
+              var { data, error } = await sb.auth.signUp({
+                email: email,
+                password: pass,
+                options: {
+                  data: { nick: nick, nickname: nick },
+                  emailRedirectTo: 'https://velqer0n.github.io/Quran-academy/'
+                }
+              });
+              if (error) { toast(error.message || 'Ошибка регистрации'); return; }
+              if (data.user) {
+                authSetSession({ userId: data.user.id, nick: nick, email: email, online: true });
+              }
+              if (data.session) {
+                toast('Аккаунт создан');
+                showView('account');
+              } else {
+                toast('Проверьте email для подтверждения (если включено в Supabase)');
+                showView('login');
+              }
+              return;
+            } catch (e) { toast('Сеть: ' + (e.message || e)); return; }
+          }
+          if (authFindByNick(nick)) { toast('Такой никнейм уже занят'); return; }
+          if (authFindByEmail(email)) { toast('Этот email уже зарегистрирован'); return; }
+          var users = authUsers();
+          var u = { id: 'u'+Date.now().toString(36), nick: nick, email: email, passHash: authHash(pass), created: Date.now() };
+          users.push(u);
+          authSaveUsers(users);
+          authSetSession({ userId: u.id, nick: u.nick, email: u.email, online: false });
+          toast('Аккаунт создан (локально)');
+          showView('account');
+        });
+        return;
+      }
+      if (which === 'forgot') {
+        var el = document.getElementById('forgot-body');
+        if (!el) return;
+        el.innerHTML =
+          '<div class="card">' +
+          '<p class="ayah-translation" style="margin-bottom:0.5rem">На email придёт ссылка для сброса пароля (Supabase).</p>' +
+          '<label>Email</label><input id="fg-email" type="email" style="'+authFormStyle()+'">' +
+          '<button type="button" class="btn btn-primary" id="btn-fg" style="width:100%">Отправить ссылку</button>' +
+          '<button type="button" class="btn btn-sm" id="btn-fg-login" style="width:100%;margin-top:0.4rem">Ко входу</button>' +
+          '</div>';
+        document.getElementById('btn-fg-login')?.addEventListener('click', function(){ showView('login'); });
+        document.getElementById('btn-fg')?.addEventListener('click', async function() {
+          var email = (document.getElementById('fg-email').value || '').trim().toLowerCase();
+          var err = authValidEmail(email);
+          if (err) { toast(err); return; }
+          var sb = getSb();
+          if (sb) {
+            try {
+              var { error } = await sb.auth.resetPasswordForEmail(email, {
+                redirectTo: 'https://velqer0n.github.io/Quran-academy/'
+              });
+              if (error) { toast(error.message || 'Ошибка'); return; }
+              toast('Если email есть в базе — письмо отправлено');
+              return;
+            } catch (e) { toast('Сеть: ' + (e.message || e)); return; }
+          }
+          toast('Онлайн-сброс недоступен без Supabase');
+        });
+      }
+    }
+
+
+    
     function renderChangelog() {
       const el = document.getElementById('changelog-body');
       if (!el) return;
-      // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость
+      // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
-        { major: '1', v: '1.42', kinds: ['a'], date: '2026-08-02',
-          a: [ 'Ещё: кнопки «На экран (PWA)» и «Скачать APK» — ссылка APK_URL / quran_apk_url' ],
+        { major: '2', v: '2.03', kinds: ['a', 'on'], date: '2026-08-04',
+          a: [ 'Онлайн-аккаунты через Supabase: регистрация, вход, сброс пароля по email' ],
+          on: [ 'Supabase Auth: общий доступ с любого устройства/города' ],
           b: [], f: [], d: [], ph: [], I: [], o: [], s: []
+        },
+                { major: '2', v: '2.02', kinds: ['a', 'on', 'b'], date: '2026-08-04',
+          a: [ 'Мой аккаунт: вход, регистрация, сброс пароля (никнейм, email, правила пароля)' ],
+          on: [ 'Локальные аккаунты на устройстве; готовность к онлайн-серверу позже' ],
+          b: [ 'Система по умолчанию: Данные → Справка → Обновления → Настройки → Мой аккаунт' ],
+          f: [], d: [], ph: [], I: [], o: [], s: []
+        },
+                { major: '2', v: '2.01', kinds: ['f', 'b', 'a'], date: '2026-08-04',
+          a: [ 'Экспорт: пункты 1–7, ввод номеров в 6 полях' ],
+          b: [ 'Данные: вкладки Кэш / Экспорт без залипания; назад работает' ],
+          f: [ 'Данные: исправлена навигация между кэшем и экспортом' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.00', kinds: ['a', 'on'], date: '2026-08-04',
+          a: [ 'Сайт опубликован публично (GitHub Pages)' ],
+          on: [ 'Публичный доступ: https://velqer0n.github.io/Quran-academy/' ],
+          b: [], f: [], d: [], ph: [], I: [], o: [], s: []
+        },
+                { major: '1', v: '1.42', kinds: ['b'], date: '2026-08-02',
+          a: [],
+          b: [ 'Ещё: кнопка «На экран» (веб-приложение / PWA)' ],
+          f: [], d: [], ph: [], I: [], o: [], s: []
         },
         { major: '1', v: '1.41', kinds: ['f'], date: '2026-08-02',
           a: [], b: [],
@@ -10278,7 +10590,8 @@ function renderSalah() {
         { id: 'ph', lab: '.ph фото' },
         { id: 'I', lab: '.I в работе' },
         { id: 'o', lab: '.o другое' },
-        { id: 's', lab: '.s скорость' }
+        { id: 's', lab: '.s скорость' },
+        { id: 'on', lab: '.on онлайн' }
       ];
       const filtered = log.filter(function(x){ return x.major === major; }).filter(function(x) {
         if (kind === 'all') return true;
@@ -10286,7 +10599,7 @@ function renderSalah() {
       }).filter(function(x) {
         const q = (window._clQuery || '').trim().toLowerCase();
         if (!q) return true;
-        const blob = [x.v, x.date].concat(x.a||[], x.b||[], x.f||[], x.d||[], x.ph||[], x.I||[], x.o||[], x.s||[]).join(' ').toLowerCase();
+        const blob = [x.v, x.date].concat(x.a||[], x.b||[], x.f||[], x.d||[], x.ph||[], x.I||[], x.o||[], x.s||[], x.on||[]).join(' ').toLowerCase();
         return blob.indexOf(q) >= 0;
       });
       let lastDate = null;
@@ -10306,7 +10619,7 @@ function renderSalah() {
             dateSep = '<div class="surah-meta" style="margin:0.85rem 0 0.35rem;width:100%">'+(function(){ try { if (/^\d{4}-\d{2}-\d{2}/.test(dt)) { const p=dt.split('-'); return p[2]+'.'+p[1]+'.'+p[0]; } if (/^\d{4}-\d{2}$/.test(dt)) { const p=dt.split('-'); return p[1]+'.'+p[0]; } if (/^\d{4}$/.test(dt)) return dt; return formatDateRu(dt); } catch(e){ return dt; } })()+'</div>';
           }
           const blocks = [];
-          [['a','Новое',x.a],['b','Изменения',x.b],['f','Фикс',x.f],['d','Дизайн',x.d],['ph','Фото',x.ph],['I','В работе',x.I],['o','Другое',x.o],['s','Скорость',x.s]].forEach(function(row) {
+          [['a','Новое',x.a],['b','Изменения',x.b],['f','Фикс',x.f],['d','Дизайн',x.d],['ph','Фото',x.ph],['I','В работе',x.I],['o','Другое',x.o],['s','Скорость',x.s],['on','Онлайн',x.on]].forEach(function(row) {
             if (kind !== 'all' && kind !== row[0]) return;
             if (!row[2] || !row[2].length) return;
             blocks.push('<div style="margin-top:0.45rem"><b style="color:var(--accent)">.'+row[0]+' · '+row[1]+'</b><ul style="margin:0.25rem 0 0 1.1rem;color:var(--text-muted);font-size:0.9rem;line-height:1.5">' +
@@ -11623,18 +11936,29 @@ let body = '';
       const el = document.getElementById('export-body');
       if (!el) return;
       const packs = [
-        { id: 'full', label: 'Всё (полный бэкап)', keys: null },
-        { id: 'bookmarks', label: 'Только закладки', keys: ['bookmarks', 'bookmarkFolders'] },
-        { id: 'dict', label: 'Только словарь', keys: ['dictionary', 'dictFolders', 'dictSrs'] },
-        { id: 'bookmarks_dict', label: 'Закладки + словарь', keys: ['bookmarks', 'bookmarkFolders', 'dictionary', 'dictFolders', 'dictSrs'] },
-        { id: 'progress', label: 'Прогресс (академия, намаз, хатм)', keys: ['academyProgress', 'prayerLog', 'dhikr', 'khatm', 'ramadan'] },
-        { id: 'settings', label: 'Только настройки', keys: ['settings'] },
-        { id: 'duas', label: 'Свои дуа', keys: ['customDuas', 'duaOrder'] }
+        { n: 0, id: 'full', label: 'Всё (полный бэкап)', keys: null },
+        { n: 1, id: 'bookmarks', label: 'Закладки', keys: ['bookmarks', 'bookmarkFolders'] },
+        { n: 2, id: 'dict', label: 'Словарь', keys: ['dictionary', 'dictFolders', 'dictSrs'] },
+        { n: 3, id: 'progress', label: 'Прогресс (академия, намаз, хатм, рамадан, зикр)', keys: ['academyProgress', 'prayerLog', 'dhikr', 'khatm', 'ramadan'] },
+        { n: 4, id: 'settings', label: 'Настройки', keys: ['settings'] },
+        { n: 5, id: 'duas', label: 'Свои дуа', keys: ['customDuas', 'duaOrder'] },
+        { n: 6, id: 'ask', label: 'Черновики вопросов', keys: ['askDrafts'] },
+        { n: 7, id: 'more', label: 'Меню «Ещё» (списки и порядок)', keys: ['moreLayout', 'moreOrder'] }
       ];
+      var listHtml = packs.filter(function(p){ return p.n > 0; }).map(function(p){
+        return '<div style="margin:0.28rem 0;line-height:1.4"><b style="color:var(--accent)">'+p.n+'.</b> '+p.label+'</div>';
+      }).join('');
+      var fieldsHtml = '';
+      for (var fi = 0; fi < 6; fi++) {
+        fieldsHtml += '<input type="number" min="0" max="7" inputmode="numeric" class="exp-num" placeholder="№" style="width:2.75rem;padding:0.45rem 0.25rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:center">';
+      }
       el.innerHTML =
-        '<div class="card"><b>Экспорт</b><div class="ayah-translation" style="margin:0.4rem 0">Выберите, что сохранить. Пароль шифрования не экспортируется.</div>' +
-        packs.map(p => '<label style="display:flex;gap:0.45rem;align-items:center;margin:0.35rem 0;cursor:pointer"><input type="radio" name="exp-pack" value="'+p.id+'" '+(p.id==='full'?'checked':'')+'> <span>'+p.label+'</span></label>').join('') +
-        '<button type="button" class="btn btn-primary" id="btn-do-export" style="width:100%;margin-top:0.6rem">Скачать JSON</button></div>' +
+        '<div class="card"><b>Экспорт</b>' +
+        '<div class="ayah-translation" style="margin:0.4rem 0">Впишите в поля номера того, что нужно сохранить (можно несколько разных). Пароль не экспортируется.</div>' +
+        '<div style="margin:0.55rem 0;font-size:0.92rem">'+listHtml+'</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin:0.55rem 0;align-items:center">'+fieldsHtml+'</div>' +
+        '<label style="display:flex;gap:0.45rem;align-items:center;margin:0.4rem 0;cursor:pointer"><input type="checkbox" id="exp-full"> <span><b>0</b> — всё (полный бэкап)</span></label>' +
+        '<button type="button" class="btn btn-primary" id="btn-do-export" style="width:100%;margin-top:0.55rem">Скачать JSON</button></div>' +
         '<div class="card"><b>Импорт</b><div class="ayah-translation" style="margin:0.4rem 0">Вставьте JSON или файл. Можно объединить с текущими данными или заменить выбранные разделы.</div>' +
         '<label style="display:flex;gap:0.45rem;margin:0.35rem 0"><input type="radio" name="imp-mode" value="merge" checked> Объединить</label>' +
         '<label style="display:flex;gap:0.45rem;margin:0.35rem 0"><input type="radio" name="imp-mode" value="replace"> Заменить совпадающие ключи</label>' +
@@ -11642,9 +11966,8 @@ let body = '';
         '<input type="file" id="import-file" accept="application/json,.json" style="margin:0.3rem 0">' +
         '<button type="button" class="btn btn-primary" id="btn-do-import" style="width:100%">Импортировать</button></div>';
 
-      const collect = (packId) => {
-        const pack = packs.find(p => p.id === packId) || packs[0];
-        const all = {
+      const allData = function() {
+        return {
           dictionary: state.dictionary || [],
           bookmarks: state.bookmarks || [],
           academyProgress: state.academyProgress || {},
@@ -11662,24 +11985,45 @@ let body = '';
           moreLayout: (typeof getMoreLayout === 'function' ? getMoreLayout() : null),
           moreOrder: (function(){ try { return localStorage.getItem('quran_more_order'); } catch(e){ return null; } })()
         };
-        let data = { v: 3, at: Date.now(), pack: packId };
-        if (!pack.keys) {
+      };
+      const collectByNumbers = function(nums) {
+        const all = allData();
+        const uniq = [];
+        nums.forEach(function(n) {
+          n = +n;
+          if (!n || uniq.indexOf(n) >= 0) return;
+          if (n >= 1 && n <= 7) uniq.push(n);
+        });
+        const full = !uniq.length || nums.indexOf(0) >= 0 || (document.getElementById('exp-full') && document.getElementById('exp-full').checked);
+        let data = { v: 3, at: Date.now(), pack: full ? 'full' : uniq.join('+') };
+        if (full) {
           Object.assign(data, all);
-        } else {
-          pack.keys.forEach(k => { if (all[k] !== undefined) data[k] = all[k]; });
+          return data;
         }
+        uniq.forEach(function(n) {
+          const pack = packs.find(function(p){ return p.n === n; });
+          if (pack && pack.keys) pack.keys.forEach(function(k){ if (all[k] !== undefined) data[k] = all[k]; });
+        });
         return data;
       };
 
       document.getElementById('btn-do-export')?.addEventListener('click', () => {
-        const packId = (el.querySelector('input[name="exp-pack"]:checked') || {}).value || 'full';
-        const data = collect(packId);
+        const nums = Array.prototype.map.call(el.querySelectorAll('.exp-num'), function(inp) {
+          const v = String(inp.value || '').trim();
+          return v === '' ? null : +v;
+        }).filter(function(x){ return x !== null && !isNaN(x); });
+        if (document.getElementById('exp-full') && document.getElementById('exp-full').checked) nums.push(0);
+        if (!nums.length) {
+          toast('Введите номера пунктов (1–7) или отметьте «Всё»');
+          return;
+        }
+        const data = collectByNumbers(nums);
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'quran-'+packId+'-'+new Date().toISOString().slice(0,10)+'.json';
+        a.download = 'quran-'+(data.pack||'export')+'-'+new Date().toISOString().slice(0,10)+'.json';
         a.click();
-        toast('Экспорт: ' + packId);
+        toast('Экспорт: ' + (data.pack || ''));
       });
       document.getElementById('import-file')?.addEventListener('change', (e) => {
         const f = e.target.files && e.target.files[0];
@@ -16471,9 +16815,10 @@ c.addEventListener('click', () => {
       { id:'calendar', icon:'🌙', label:'Духовный календарь', group:'life' },
       { id:'ask', icon:'❓', label:'Черновик вопроса', group:'life' },
       { id:'data', icon:'💾', label:'Данные', group:'system' },
-      { id:'changelog', icon:'🆕', label:'Обновления', group:'system' },
       { id:'help', icon:'❓', label:'Справка', group:'system' },
-      { id:'settings', icon:'⚙️', label:'Настройки', group:'system' }
+      { id:'changelog', icon:'🆕', label:'Обновления', group:'system' },
+      { id:'settings', icon:'⚙️', label:'Настройки', group:'system' },
+      { id:'account', icon:'👤', label:'Мой аккаунт', group:'system' }
     ];
     const MORE_GROUP_DEFAULTS = [
       { id:'knowledge', label:'Знание', hidden:false },
