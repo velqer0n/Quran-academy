@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.05 2026-08-04 -->
+<!-- BUILD 2.06 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.05</title>
+  <title>Коран — Изучение · 2.06</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1744,7 +1744,7 @@
     </div>
 
     <div id="view-dailyhub" class="view">
-      <h2 class="section-title">Ежедневное <span style="font-size:0.7rem;font-weight:500;color:var(--text-muted)">v2.05</span></h2>
+      <h2 class="section-title">Ежедневное <span style="font-size:0.7rem;font-weight:500;color:var(--text-muted)">v2.06</span></h2>
       <div id="dailyhub-body"></div>
     </div>
     <div id="view-duabuilder" class="view">
@@ -9926,6 +9926,15 @@ function renderSalah() {
       } catch (e) {}
       return authSession();
     }
+    function navigateAuth(name) {
+      try {
+        viewStack = (viewStack || []).filter(function(v) {
+          return ['login','register','forgot','account'].indexOf(v) < 0;
+        });
+        showView(name, true);
+        if (viewStack[viewStack.length-1] !== name) viewStack.push(name);
+      } catch (e) { showView(name); }
+    }
     function renderAuth(which) {
       which = which || 'account';
       authRefreshSession().then(function(){ renderAuthSync(which); }).catch(function(){ renderAuthSync(which); });
@@ -9989,7 +9998,7 @@ function renderSalah() {
               var meta = (u && u.user_metadata) || {};
               authSetSession({ userId: u.id, nick: meta.nick || meta.nickname || id.split('@')[0], email: u.email || id, online: true });
               toast('Добро пожаловать');
-              showView('account');
+              navigateAuth('account');
               return;
             } catch (e) { toast('Сеть: ' + (e.message || e)); return; }
           }
@@ -9998,7 +10007,7 @@ function renderSalah() {
           if (!u || u.passHash !== authHash(pass)) { toast('Неверный логин или пароль'); return; }
           authSetSession({ userId: u.id, nick: u.nick, email: u.email, online: false });
           toast('Вход (локально)');
-          showView('account');
+          navigateAuth('account');
         });
         return;
       }
@@ -10041,10 +10050,10 @@ function renderSalah() {
               }
               if (data.session) {
                 toast('Аккаунт создан');
-                showView('account');
+                navigateAuth('account');
               } else {
                 toast('Проверьте email для подтверждения (если включено в Supabase)');
-                showView('login');
+                navigateAuth('login');
               }
               return;
             } catch (e) { toast('Сеть: ' + (e.message || e)); return; }
@@ -10057,7 +10066,7 @@ function renderSalah() {
           authSaveUsers(users);
           authSetSession({ userId: u.id, nick: u.nick, email: u.email, online: false });
           toast('Аккаунт создан (локально)');
-          showView('account');
+          navigateAuth('account');
         });
         return;
       }
@@ -10099,7 +10108,16 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
-        { major: '2', v: '2.05', kinds: ['f', 'b'], date: '2026-08-04',
+        { major: '2', v: '2.06', kinds: ['b', 'a', 'f'], date: '2026-08-04',
+          a: [ '«Ещё»: карточка аккаунта сверху; выход в профиле' ],
+          b: [
+            'Порядок «Ещё»: Поклонение → Знания → Коран → Жизнь → Аккаунт и система',
+            'Система: Мой аккаунт первым; удобные подписи групп'
+          ],
+          f: [ 'После регистрации/входа «Назад» не возвращает на форму регистрации' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+                { major: '2', v: '2.05', kinds: ['f', 'b'], date: '2026-08-04',
           a: [],
           b: [ 'По умолчанию: телефон; сетка 4/6 скрыта на телефоне; блокировка приложения выкл' ],
           f: [ 'После разблокировки снова показывается экран (не пустой фон)' ],
@@ -16825,48 +16843,48 @@ c.addEventListener('click', () => {
 
     // 5 групп: знания → поклонение → коран → жизнь → система (в конце)
     const MORE_MENU_DEFAULT = [
-      { id:'hadiths', icon:'📚', label:'Хадисы', group:'knowledge' },
-      { id:'ihouse', icon:'🏛️', label:'Материалы IslamHouse', group:'knowledge' },
-      { id:'aqidah', icon:'🕌', label:'Акыйда', group:'knowledge' },
+      { id:'prayertimes', icon:'🕐', label:'Время намаза и кибла', group:'worship' },
+      { id:'salah', icon:'🕌', label:'Намаз', group:'worship' },
+      { id:'adhkar', icon:'🤲', label:'Азкары и дуа', group:'worship' },
+      { id:'dhikr', icon:'🔢', label:'Зикр', group:'worship' },
+      { id:'sunnahs', icon:'🌱', label:'Сунны', group:'worship' },
+      { id:'duabuilder', icon:'🧩', label:'Дуа-конструктор', group:'worship' },
       { id:'fiqh', icon:'⚖️', label:'Фикх', group:'knowledge' },
+      { id:'aqidah', icon:'🕌', label:'Акыйда', group:'knowledge' },
+      { id:'hadiths', icon:'📚', label:'Хадисы', group:'knowledge' },
       { id:'stories', icon:'📜', label:'История ислама', group:'knowledge' },
       { id:'sins', icon:'⚠️', label:'Грехи и тауба', group:'knowledge' },
       { id:'adab', icon:'🤝', label:'Адаб общения', group:'knowledge' },
-      { id:'salah', icon:'🕌', label:'Намаз', group:'worship' },
-      { id:'adhkar', icon:'🤲', label:'Азкары и дуа', group:'worship' },
-      { id:'duabuilder', icon:'🧩', label:'Дуа-конструктор', group:'worship' },
-      { id:'dhikr', icon:'🔢', label:'Зикр', group:'worship' },
-      { id:'sunnahs', icon:'🌱', label:'Сунны', group:'worship' },
-      { id:'prayertimes', icon:'🕐', label:'Время намаза и кибла', group:'worship' },
+      { id:'ihouse', icon:'🏛️', label:'Материалы IslamHouse', group:'knowledge' },
       { id:'myreading', icon:'📖', label:'Моё чтение', group:'quran' },
       { id:'dict', icon:'📚', label:'Словари', group:'quran' },
       { id:'topics', icon:'🔗', label:'Темы и ситуации', group:'quran' },
       { id:'ramadan', icon:'🌙', label:'Рамадан', group:'life' },
       { id:'hajj', icon:'🕋', label:'Хадж и Умра', group:'life' },
+      { id:'names', icon:'✨', label:'99 имён Аллаха', group:'life' },
+      { id:'calendar', icon:'📅', label:'Духовный календарь', group:'life' },
       { id:'family', icon:'👨‍👩‍👧‍👦', label:'Права семьи', group:'life' },
       { id:'sadaqa', icon:'💝', label:'Садака', group:'life' },
-      { id:'names', icon:'✨', label:'99 имён Аллаха', group:'life' },
-      { id:'calendar', icon:'🌙', label:'Духовный календарь', group:'life' },
       { id:'ask', icon:'❓', label:'Черновик вопроса', group:'life' },
+      { id:'account', icon:'👤', label:'Мой аккаунт', group:'system' },
       { id:'data', icon:'💾', label:'Данные', group:'system' },
-      { id:'help', icon:'❓', label:'Справка', group:'system' },
-      { id:'changelog', icon:'🆕', label:'Обновления', group:'system' },
       { id:'settings', icon:'⚙️', label:'Настройки', group:'system' },
-      { id:'account', icon:'👤', label:'Мой аккаунт', group:'system' }
+      { id:'help', icon:'❓', label:'Справка', group:'system' },
+      { id:'changelog', icon:'🆕', label:'Обновления', group:'system' }
     ];
     const MORE_GROUP_DEFAULTS = [
-      { id:'knowledge', label:'Знание', hidden:false },
       { id:'worship', label:'Поклонение', hidden:false },
-      { id:'quran', label:'Коран', hidden:false },
-      { id:'life', label:'Жизнь', hidden:false },
-      { id:'system', label:'Система', hidden:false }
+      { id:'knowledge', label:'Знания', hidden:false },
+      { id:'quran', label:'Коран и чтение', hidden:false },
+      { id:'life', label:'Жизнь и практика', hidden:false },
+      { id:'system', label:'Аккаунт и система', hidden:false }
     ];
     const MORE_GROUP_LABELS = {
-      knowledge: 'Знание',
       worship: 'Поклонение',
-      quran: 'Коран',
-      life: 'Жизнь',
-      system: 'Система'
+      knowledge: 'Знания',
+      quran: 'Коран и чтение',
+      life: 'Жизнь и практика',
+      system: 'Аккаунт и система'
     };
     // --- Управление списками и скрытием разделов «Ещё» ---
     function getMoreLists() {
@@ -16918,6 +16936,13 @@ c.addEventListener('click', () => {
     let moreEditMode = false;
     function getMoreOrder() {
       let ordered = null;
+      try {
+        // один раз применить новый порядок по умолчанию (v2.06)
+        if (localStorage.getItem('quran_more_order_v206') !== '1') {
+          localStorage.removeItem('quran_more_order');
+          localStorage.setItem('quran_more_order_v206', '1');
+        }
+      } catch(e) {}
       try {
         const raw = localStorage.getItem('quran_more_order');
         if (raw) {
@@ -17183,6 +17208,10 @@ c.addEventListener('click', () => {
           '</div></div>';
       });
       el.innerHTML = html;
+      try {
+        var ac = document.getElementById('more-acc-card');
+        if (ac) ac.addEventListener('click', function(){ showView('account'); });
+      } catch(e) {}
       // Перемещение целой группы
       el.querySelectorAll('[data-gup],[data-gdown]').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -19225,7 +19254,7 @@ function renderLibrary() {
       ov.id = 'welcome-gate';
       ov.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(15,23,42,0.96);display:flex;align-items:center;justify-content:center;padding:1.25rem';
       ov.innerHTML = '<div class="card" style="max-width:22rem;width:100%">' +
-        '<h2 style="margin:0 0 0.5rem;font-size:1.15rem">Добро пожаловать · v2.05</h2>' +
+        '<h2 style="margin:0 0 0.5rem;font-size:1.15rem">Добро пожаловать · v2.06</h2>' +
         '<p class="ayah-translation" style="margin-bottom:0.85rem">Можно пользоваться как гость (данные только на этом устройстве) или создать аккаунт для входа с других устройств.</p>' +
         '<button type="button" class="btn btn-primary" id="wg-guest" style="width:100%;margin-bottom:0.4rem">Продолжить как гость</button>' +
         '<button type="button" class="btn" id="wg-reg" style="width:100%;margin-bottom:0.35rem">Регистрация</button>' +
