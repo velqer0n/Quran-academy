@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.09 2026-08-04 -->
+<!-- BUILD 2.10 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.09</title>
+  <title>Коран — Изучение · 2.10</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1403,7 +1403,7 @@
       position: fixed;
       bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
       right: 0.55rem;
-      z-index: 120;
+      z-index: 9999;
       font-size: 0.72rem;
       padding: 0.35rem 0.55rem;
       border-radius: 999px;
@@ -2879,6 +2879,15 @@
         if (saved.settings) state.settings = Object.assign({}, state.settings, saved.settings);
         if (!state.settings.lang) state.settings.lang = 'ru';
         if (!state.settings.translation) state.settings.translation = 'ru.kuliev';
+        // язык русский → перевод не должен оставаться казахским «по умолчанию»
+        try {
+          if (state.settings.lang === 'ru' && String(state.settings.translation || '').indexOf('kk.') === 0) {
+            state.settings.translation = 'ru.kuliev';
+          }
+          if (state.settings.lang === 'kk' && String(state.settings.translation || '').indexOf('ru.') === 0) {
+            /* казахский UI может оставлять выбранный перевод */
+          }
+        } catch(e) {}
         if (!state.settings.tafsir) state.settings.tafsir = 'ru-tafseer-al-saddi';
         ['bookmarks','bookmarkFolders','learnedSurahs','learnedAyahs','notes','dictionary','hifz','stats','library','libraryFolders','sunnahLog','lastAudio','academyProgress','prayerLoc'].forEach(k => {
           if (saved[k] != null) state[k] = saved[k];
@@ -10118,7 +10127,7 @@ function renderSalah() {
     function renderAppUpdate() {
       var el = document.getElementById('appupdate-body');
       if (!el) return;
-      var ver = '2.09';
+      var ver = '2.10';
       try {
         var t = document.title || '';
         var m = t.match(/2\.\d+/);
@@ -10140,6 +10149,17 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.10', kinds: ['f', 'b'], date: '2026-08-05',
+          a: [],
+          b: [ 'Справка: карточки «Обновить приложение» и «Статистика»' ],
+          f: [
+            'Язык RU: если перевод был kk.* — сброс на Кулиева',
+            'Блокировка по умолчанию выкл (повторный сброс флага)',
+            'Режим телефона по умолчанию; кнопка Тел/ПК z-index 9999',
+            'Статистика: снят возможный hide из меню'
+          ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.09', kinds: ['f', 'a', 's'], date: '2026-08-05',
           a: [ 'Система → «Обновить приложение»: сброс кэша и загрузка последней версии с GitHub' ],
           f: [ 'Service Worker: HTML грузится с сети (не залипает старая копия)' ],
@@ -10757,6 +10777,8 @@ function renderSalah() {
       if (!el) return;
       // Справка строится от меню «Ещё» + главные вкладки. Без дублей.
       const SEC_HELP = {
+        appupdate: 'Обновить приложение.\n\n• Сбрасывает Service Worker и кэш оболочки.\n• Заново качает последнюю версию index.html с GitHub.\n• Закладки, настройки, аккаунт и словарь НЕ удаляются.\n• Если не помогло: инкогнито или очистка данных сайта velqer0n.github.io.',
+        stats: 'Статистика (Онлайн).\n\n• Локальная: аяты, закладки, время прослушивания.\n• Общая (только админ): список пользователей (ники), посещения разделов — всего и за сегодня.\n• Не показывает, кто именно в какой раздел заходил.\n• Админ: SQL update profiles set is_admin = true where email = …',
         account: 'Мой аккаунт (меню «Ещё» → Система).\n\n• Регистрация: никнейм, email, пароль (≥8, буква+цифра).\n• Вход по email и паролю (онлайн через Supabase — с любого устройства).\n• «Забыли пароль» — сброс по email (ссылка от Supabase).\n• Гость: можно пользоваться без аккаунта, данные только в браузере этого устройства.\n• Пароль приложения (экран блокировки) — отдельная защита локальных данных, это не пароль аккаунта.',
         login: 'Вход в онлайн-аккаунт по email и паролю.',
         register: 'Создание аккаунта: никнейм (3–20, уникальный на устройстве/метаданные), email, пароль.',
@@ -10795,7 +10817,7 @@ function renderSalah() {
         cache: 'Входит в «Данные» → вкладка «Кэш».\n\n• Офлайн-суры, скачанные хадисы, кэш HadeethEnc и IslamHouse.\n• PDF IslamHouse не хранятся на сайте — только ссылки.\n• Очистка по блокам.',
         export: 'Входит в «Данные» → вкладка «Экспорт / импорт».\n\n• Полный или частичный бэкап: закладки, словарь, прогресс, настройки.\n• Файл на устройство и обратный импорт.',
         changelog: 'Обновления.\n\n• Версии с датами; типы .a .b .f .d .ph .I .o .s.\n• Поиск по тексту журнала.\n• Фильтры по серии и типу правки.',
-        help: 'Справка (этот раздел).\n\n• Вкладки: Главное + ваши списки меню «Ещё».\n• Порядок и состав как в меню; скрытые разделы не показываются.\n• Поиск по тексту карточек.\n• Кратко в подзаголовке, подробно по нажатию.',
+        help: 'Справка — описание всех разделов сайта.\n\n• Вкладки: Главное + ваши списки меню «Ещё».\n• Порядок и состав как в меню; скрытые разделы не показываются.\n• Поиск по тексту карточек.\n• Кратко в подзаголовке, подробно по нажатию.',
         settings: 'Настройки.\n\n• Язык и перевод Корана.\n• Аудио: чтец Корана; чтец азана (суннит.) + проверка звука.\n• Вид и шрифты: размеры, семейства шрифтов (список по нажатию), тема (в т.ч. ночное чтение).\n• Чтение и тафсир.\n• Офлайн и кэш.\n• «Ещё · меню»: списки (до 8), скрыть разделы, порядок, сброс — это здесь, не отдельный пункт справки.\n• Другое: мазхаб, режим только Коран и пр.'
       };
       const MAIN_HELP = [
@@ -19451,6 +19473,12 @@ function renderLibrary() {
       // по умолчанию телефон (ПК только вручную)
       return 'phone';
     }
+    function lockBtnVisibility() {
+      try {
+        var b = document.getElementById('btn-lock-app');
+        if (b) b.style.display = isAppLockEnabled() ? '' : 'none';
+      } catch(e) {}
+    }
     function applyDeviceMode(mode) {
       mode = mode || getDeviceMode();
       document.body.classList.remove('mode-phone', 'mode-desktop');
@@ -19461,12 +19489,26 @@ function renderLibrary() {
         btn.title = mode === 'desktop' ? 'Версия для компьютера (нажмите — телефон)' : 'Версия для телефона (нажмите — ПК)';
         let show = true;
         try {
-          if (state && state.settings && state.settings.hideDeviceBtn) show = false;
+          if (state && state.settings && state.settings.hideDeviceBtn === true) show = false;
         } catch(e) {}
         btn.style.display = show ? '' : 'none';
       }
       try { localStorage.setItem('quran_device_mode', mode); } catch(e) {}
+      try { lockBtnVisibility(); } catch(e) {}
     }
+    try {
+      if (!document.documentElement.dataset.deviceDelegate) {
+        document.documentElement.dataset.deviceDelegate = '1';
+        document.addEventListener('click', function(ev) {
+          var t = ev.target;
+          if (t && (t.id === 'device-mode-btn' || (t.closest && t.closest('#device-mode-btn')))) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            toggleDeviceMode();
+          }
+        }, true);
+      }
+    } catch(e) {}
     function toggleDeviceMode() {
       const cur = getDeviceMode();
       applyDeviceMode(cur === 'desktop' ? 'phone' : 'desktop');
@@ -19501,7 +19543,24 @@ function renderLibrary() {
 
     function startApp() {
       try {
-        try { applyDeviceMode(); } catch(e) {}
+        try {
+          if (localStorage.getItem('quran_lock_default_v210') !== '1') {
+            localStorage.setItem('quran_app_lock_v1', '0');
+            localStorage.setItem('quran_lock_default_v210', '1');
+          }
+          if (localStorage.getItem('quran_phone_default_v210') !== '1') {
+            localStorage.setItem('quran_device_mode', 'phone');
+            localStorage.setItem('quran_phone_default_v210', '1');
+            try {
+              if (localStorage.getItem('quran_unhide_stats_v210') !== '1') {
+                var hid = JSON.parse(localStorage.getItem('quran_more_hidden') || '{}');
+                if (hid && hid.stats) { delete hid.stats; localStorage.setItem('quran_more_hidden', JSON.stringify(hid)); }
+                localStorage.setItem('quran_unhide_stats_v210', '1');
+              }
+            } catch(e) {}
+          }
+        } catch(e) {}
+        try { applyDeviceMode('phone'); } catch(e) {}
         try { setTimeout(showWelcomeGate, 400); } catch(e) {}
         try { if (state.settings && state.settings.prayerNotif) schedulePrayerNotifications(); } catch(e) {}
         try { applyI18nDom(); } catch(e) {}
@@ -19510,7 +19569,7 @@ function renderLibrary() {
           if (db) {
             db.onclick = function(e){ e.preventDefault(); e.stopPropagation(); toggleDeviceMode(); };
             db.style.pointerEvents = 'auto';
-            db.style.zIndex = '120';
+            db.style.zIndex = '9999'; db.style.pointerEvents = 'auto';
           }
         } catch(e) {}
         try { if (window.__quranSetupBack) window.__quranSetupBack(); } catch(e) {}
