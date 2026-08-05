@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.10 2026-08-04 -->
+<!-- BUILD 2.11 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.10</title>
+  <title>Коран — Изучение · 2.11</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -10127,7 +10127,7 @@ function renderSalah() {
     function renderAppUpdate() {
       var el = document.getElementById('appupdate-body');
       if (!el) return;
-      var ver = '2.10';
+      var ver = '2.11';
       try {
         var t = document.title || '';
         var m = t.match(/2\.\d+/);
@@ -10149,6 +10149,12 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.11', kinds: ['f', 'b'], date: '2026-08-05',
+          a: [],
+          b: [ 'Группа «Онлайн» как обычный список в «Ещё»: Мой аккаунт + Статистика' ],
+          f: [ 'Убран фильтр, который скрывал online/account из меню «Ещё»' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.10', kinds: ['f', 'b'], date: '2026-08-05',
           a: [],
           b: [ 'Справка: карточки «Обновить приложение» и «Статистика»' ],
@@ -17161,9 +17167,9 @@ c.addEventListener('click', () => {
       let ordered = null;
       try {
         // один раз применить новый порядок по умолчанию (v2.09)
-        if (localStorage.getItem('quran_more_order_v208') !== '1') {
+        if (localStorage.getItem('quran_more_order_v211') !== '1') {
           localStorage.removeItem('quran_more_order');
-          localStorage.setItem('quran_more_order_v208', '1');
+          localStorage.setItem('quran_more_order_v211', '1');
         }
       } catch(e) {}
       try {
@@ -17182,7 +17188,7 @@ c.addEventListener('click', () => {
       } catch(e) {}
       // Скрытые разделы
       try {
-        ordered = ordered.filter(function(it){ return it && !isSectionHidden(it.id) && it.group !== 'online' && !['ustats','mentor','aihelp','askscholar','account'].includes(it.id); });
+        ordered = ordered.filter(function(it){ return it && !isSectionHidden(it.id); });
       } catch(e) {}
       // Списки: порядок и скрытие пустых/скрытых
       try {
