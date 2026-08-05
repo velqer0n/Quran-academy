@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.07 2026-08-04 -->
+<!-- BUILD 2.09 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.07</title>
+  <title>Коран — Изучение · 2.09</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1744,7 +1744,7 @@
     </div>
 
     <div id="view-dailyhub" class="view">
-      <h2 class="section-title">Ежедневное <span style="font-size:0.7rem;font-weight:500;color:var(--text-muted)">v2.07</span></h2>
+      <h2 class="section-title">Ежедневное <span style="font-size:0.7rem;font-weight:500;color:var(--text-muted)">v2.09</span></h2>
       <div id="dailyhub-body"></div>
     </div>
     <div id="view-duabuilder" class="view">
@@ -1841,6 +1841,10 @@
       <div id="names-list"></div>
     </div>
 
+    <div id="view-appupdate" class="view">
+      <h2 class="section-title">Обновить приложение</h2>
+      <div id="appupdate-body"></div>
+    </div>
     <div id="view-stats" class="view">
       <h2 class="section-title" data-i18n="stats">Статистика</h2>
       <div id="stats-body"></div>
@@ -4259,6 +4263,9 @@ function showView(name, isBack) {
       if (name === 'changelog') try { renderChangelog(); } catch(e) {}
       if (name === 'help') try { renderHelp(); } catch(e) {}
       if (name === 'account' || name === 'login' || name === 'register' || name === 'forgot') try { renderAuth(name); } catch(e) {}
+      if (name === 'stats') try { renderStats(); } catch(e) {}
+      if (name === 'appupdate') try { renderAppUpdate(); } catch(e) {}
+      try { if (typeof trackSectionVisit === 'function') trackSectionVisit(name); } catch(e) {}
       if (name === 'prayertimes') try { renderPrayerTimes(); } catch(e) {}
       if (name === 'family') try { renderFamily(); } catch(e) {}
       if (name === 'sadaqa') try { renderSadaqa(); } catch(e) {}
@@ -10107,11 +10114,38 @@ function renderSalah() {
 
 
     
+    
+    function renderAppUpdate() {
+      var el = document.getElementById('appupdate-body');
+      if (!el) return;
+      var ver = '2.09';
+      try {
+        var t = document.title || '';
+        var m = t.match(/2\.\d+/);
+        if (m) ver = m[0];
+      } catch(e) {}
+      el.innerHTML =
+        '<div class="card"><b>Текущая сборка: v'+ver+'</b>' +
+        '<p class="ayah-translation" style="margin-top:0.5rem">Браузер и офлайн-кэш часто держат <b>старую</b> копию сайта. Поэтому после загрузки нового index.html на GitHub вы можете не видеть изменений.</p></div>' +
+        '<div class="card"><b>Обновить до последней</b>' +
+        '<p class="ayah-translation" style="margin:0.4rem 0">Сбросит только кэш приложения и Service Worker. Закладки, настройки и аккаунт <b>не удалятся</b>.</p>' +
+        '<button type="button" class="btn btn-primary" id="btn-force-update" style="width:100%">🔄 Обновить до последней версии</button></div>' +
+        '<div class="card"><b>Если кнопка не помогла</b>' +
+        '<div class="ayah-translation">1) Режим инкогнито<br>2) Очистить данные сайта для velqer0n.github.io<br>3) Удалить «установленное» PWA с экрана и открыть сайт снова</div></div>';
+      document.getElementById('btn-force-update')?.addEventListener('click', function(){ forceUpdateApp(); });
+    }
+
     function renderChangelog() {
       const el = document.getElementById('changelog-body');
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.09', kinds: ['f', 'a', 's'], date: '2026-08-05',
+          a: [ 'Система → «Обновить приложение»: сброс кэша и загрузка последней версии с GitHub' ],
+          f: [ 'Service Worker: HTML грузится с сети (не залипает старая копия)' ],
+          s: [ 'Кнопка обновления внизу «Ещё»' ],
+          b: [], d: [], ph: [], I: [], o: [], on: []
+        },
         { major: '2', v: '2.07', kinds: ['b', 'a'], date: '2026-08-04',
           a: [ 'Группа «Онлайн» + раздел «Мой аккаунт»; кнопки Вход/Выход внизу «Ещё»' ],
           b: [
@@ -12790,39 +12824,46 @@ function renderDict() {
     window.addEventListener('offline', () => { updateOnlineStatus(); toast('Нет сети — доступен офлайн-кэш'); });
     updateOnlineStatus();
 
-    // Service Worker for offline app shell
+    // Service Worker: network-first for HTML (обновления с GitHub не залипают)
     if ('serviceWorker' in navigator) {
       const swCode = `
-        const CACHE = 'quran-app-shell-v1';
-        const ASSETS = [self.location.href.replace(/sw\.js.*/, 'quran-study-app.html'), './quran-study-app.html'];
-        self.addEventListener('install', e => {
-          e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./quran-study-app.html']).catch(()=>{})));
-          self.skipWaiting();
+        const CACHE = 'quran-app-shell-v3';
+        self.addEventListener('install', e => { self.skipWaiting(); });
+        self.addEventListener('activate', e => {
+          e.waitUntil((async () => {
+            const keys = await caches.keys();
+            await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+            await self.clients.claim();
+          })());
         });
-        self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
         self.addEventListener('fetch', e => {
-          const url = e.request.url;
-          // Network-first for API, cache-first for app
-          if (url.includes('api.alquran.cloud') || url.includes('cdn.islamic')) {
-            e.respondWith(
-              fetch(e.request).then(r => {
-                const clone = r.clone();
-                caches.open(CACHE).then(c => c.put(e.request, clone)).catch(()=>{});
-                return r;
-              }).catch(() => caches.match(e.request))
-            );
-          } else {
-            e.respondWith(
-              caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
-                const clone = resp.clone();
-                caches.open(CACHE).then(c => c.put(e.request, clone)).catch(()=>{});
-                return resp;
-              }).catch(() => caches.match('./quran-study-app.html')))
-            );
+          const req = e.request;
+          const url = req.url;
+          if (req.method !== 'GET') return;
+          if (url.includes('api.alquran.cloud') || url.includes('cdn.islamic') || url.includes('supabase.co') || url.includes('muftyat')) {
+            e.respondWith(fetch(req).catch(() => caches.match(req)));
+            return;
           }
+          const isDoc = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html') || /index\\.html($|\\?)/.test(url);
+          if (isDoc) {
+            e.respondWith(
+              fetch(req).then(r => {
+                const clone = r.clone();
+                caches.open(CACHE).then(c => c.put(req, clone)).catch(()=>{});
+                return r;
+              }).catch(() => caches.match(req))
+            );
+            return;
+          }
+          e.respondWith(
+            caches.match(req).then(r => r || fetch(req).then(resp => {
+              const clone = resp.clone();
+              caches.open(CACHE).then(c => c.put(req, clone)).catch(()=>{});
+              return resp;
+            }))
+          );
         });
       `;
-      // Register via blob so single-file app works without separate sw.js
       try {
         const blob = new Blob([swCode], { type: 'application/javascript' });
         const swUrl = URL.createObjectURL(blob);
@@ -12830,8 +12871,30 @@ function renderDict() {
       } catch (e) {}
     }
 
+    /** Сброс SW и кэша → последняя версия с GitHub (закладки/настройки не трогаем) */
+    async function forceUpdateApp() {
+      try { toast('Обновляем до последней версии…'); } catch(e) {}
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const r of regs) await r.unregister();
+        }
+      } catch(e) {}
+      try {
+        if (window.caches && caches.keys) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+      } catch(e) {}
+      try {
+        const path = location.pathname || '/';
+        location.replace(path + '?v=' + Date.now());
+      } catch(e) {
+        try { location.reload(true); } catch(e2) { location.reload(); }
+      }
+    }
 
-    // ========== SEARCH IN QURAN TEXT ==========
+// ========== SEARCH IN QURAN TEXT ==========
     let searchTimer = null;
     document.getElementById('search-text')?.addEventListener('input', e => {
       clearTimeout(searchTimer);
@@ -14200,7 +14263,78 @@ function playArabicAudio(text, fallbackRu, opts) {
       state.stats.listenSeconds = (state.stats.listenSeconds || 0) + sec;
       saveState();
     }
-    function renderStats() {
+    
+    function getVisitorKey() {
+      try {
+        var s = authSession();
+        if (s && s.userId) return 'u:' + s.userId;
+      } catch(e) {}
+      try {
+        var k = localStorage.getItem('quran_vid');
+        if (!k) {
+          k = 'a:' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+          localStorage.setItem('quran_vid', k);
+        }
+        return k;
+      } catch(e) { return 'a:unknown'; }
+    }
+    async function upsertMyProfile() {
+      var sb = getSb();
+      if (!sb) return;
+      try {
+        var res = await sb.auth.getUser();
+        var user = res && res.data && res.data.user;
+        if (!user) return;
+        var meta = user.user_metadata || {};
+        var nick = meta.nick || meta.nickname || (user.email || '').split('@')[0] || 'user';
+        await sb.from('profiles').upsert({
+          id: user.id,
+          nick: nick,
+          email: user.email || '',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      } catch (e) { console.warn('profile', e); }
+    }
+    async function trackSectionVisit(sectionId) {
+      if (!sectionId) return;
+      var skip = { dailyhub:1, home:1, learn:1, games:1, more:1, login:1, register:1, forgot:1, account:1, stats:1, settings:1, reader:1 };
+      if (skip[sectionId]) return;
+      var day = new Date().toISOString().slice(0, 10);
+      var key = 'trk_' + sectionId + '_' + day;
+      try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch(e) {}
+      var sb = getSb();
+      if (!sb) return;
+      try {
+        await sb.from('section_visitors').upsert({
+          section_id: sectionId,
+          visitor_key: getVisitorKey(),
+          day: day
+        }, { onConflict: 'section_id,visitor_key,day', ignoreDuplicates: true });
+      } catch (e) {}
+    }
+    async function isAdminUser() {
+      var sb = getSb();
+      if (!sb) return false;
+      try {
+        var res = await sb.auth.getUser();
+        var user = res && res.data && res.data.user;
+        if (!user) return false;
+        var q = await sb.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
+        if (q && q.data && q.data.is_admin) return true;
+      } catch (e) {}
+      return false;
+    }
+    var SECTION_STAT_LABELS = {
+      fiqh: 'Фикх', aqidah: 'Акыйда', hadiths: 'Хадисы', stories: 'История ислама',
+      sins: 'Грехи и тауба', adab: 'Адаб', ihouse: 'IslamHouse',
+      prayertimes: 'Время намаза', salah: 'Намаз', adhkar: 'Азкары и дуа',
+      dhikr: 'Зикр', sunnahs: 'Сунны', duabuilder: 'Дуа-конструктор',
+      myreading: 'Моё чтение', dict: 'Словари', topics: 'Темы и ситуации',
+      ramadan: 'Рамадан', hajj: 'Хадж и Умра', names: '99 имён', calendar: 'Календарь',
+      family: 'Права семьи', sadaqa: 'Садака', ask: 'Черновик вопроса',
+      data: 'Данные', help: 'Справка', changelog: 'Обновления', export: 'Экспорт', cache: 'Кэш'
+    };
+async function renderStats() {
       const el = document.getElementById('stats-body');
       if (!el) return;
       const s = state.stats || {};
@@ -14208,13 +14342,62 @@ function playArabicAudio(text, fallbackRu, opts) {
       const learned = Object.keys(state.learnedAyahs || {}).length;
       const bm = (state.bookmarks || []).length;
       const notes = Object.keys(state.notes || {}).length;
-      el.innerHTML =
-        '<div class="card"><strong>Открыто аятов</strong><div class="surah-meta">'+(s.openedAyahs||0)+'</div></div>' +
-        '<div class="card"><strong>Время прослушивания</strong><div class="surah-meta">'+mins+' мин</div></div>' +
-        '<div class="card"><strong>Выучено аятов</strong><div class="surah-meta">'+learned+'</div></div>' +
-        '<div class="card"><strong>Закладок</strong><div class="surah-meta">'+bm+'</div></div>' +
-        '<div class="card"><strong>Заметок</strong><div class="surah-meta">'+notes+'</div></div>' +
-        '<div class="card"><strong>Последний вход</strong><div class="surah-meta">'+(s.lastOpen ? new Date(s.lastOpen).toLocaleString('ru') : '—')+'</div></div>';
+      const personal =
+        '<div class="card"><b>Ваша локальная статистика</b>' +
+        '<div class="surah-meta" style="margin-top:0.35rem">Аятов открыто: '+(s.openedAyahs||0)+' · Слушали: '+mins+' мин · Выучено: '+learned+' · Закладок: '+bm+' · Заметок: '+notes+'</div></div>';
+
+      el.innerHTML = '<div class="card">Загрузка…</div>';
+      var sb = (typeof getSb === 'function') ? getSb() : null;
+      var sess = (typeof authSession === 'function') ? authSession() : null;
+      if (!sb || !sess || !sess.userId) {
+        el.innerHTML = personal +
+          '<div class="card"><b>Статистика сайта (админ)</b><p class="ayah-translation">Войдите в аккаунт администратора, чтобы видеть пользователей и посещения разделов.</p>' +
+          '<button type="button" class="btn btn-primary" id="st-login" style="width:100%;margin-top:0.45rem">Войти</button></div>';
+        document.getElementById('st-login')?.addEventListener('click', function(){ showView('login'); });
+        return;
+      }
+      var admin = false;
+      try { admin = await isAdminUser(); } catch(e) {}
+      if (!admin) {
+        el.innerHTML = personal +
+          '<div class="card"><b>Доступ к общей статистике ограничен</b><p class="ayah-translation">Раздел с пользователями и посещениями виден только администраторам.</p></div>';
+        return;
+      }
+      try {
+        try { await upsertMyProfile(); } catch(e) {}
+        var usersRes = await sb.from('profiles').select('nick,email,created_at,is_admin').order('created_at', { ascending: false }).limit(500);
+        var users = (usersRes && usersRes.data) || [];
+        if (usersRes && usersRes.error) throw usersRes.error;
+        var visRes = await sb.from('section_visitors').select('section_id,visitor_key,day').limit(10000);
+        var rows = (visRes && visRes.data) || [];
+        if (visRes && visRes.error) throw visRes.error;
+        var today = new Date().toISOString().slice(0, 10);
+        var bySec = {};
+        rows.forEach(function(r) {
+          if (!bySec[r.section_id]) bySec[r.section_id] = { all: {}, today: {} };
+          bySec[r.section_id].all[r.visitor_key] = 1;
+          if (r.day === today) bySec[r.section_id].today[r.visitor_key] = 1;
+        });
+        var labels = (typeof SECTION_STAT_LABELS !== 'undefined') ? SECTION_STAT_LABELS : {};
+        var secHtml = Object.keys(bySec).sort().map(function(sid) {
+          var lab = labels[sid] || sid;
+          var a = Object.keys(bySec[sid].all).length;
+          var t = Object.keys(bySec[sid].today).length;
+          return '<div style="display:flex;justify-content:space-between;gap:0.5rem;padding:0.35rem 0;border-bottom:1px solid var(--border)"><span>'+lab+'</span><span style="color:var(--text-muted);font-size:0.85rem">всего <b>'+a+'</b> · сегодня <b>'+t+'</b></span></div>';
+        }).join('') || '<p class="ayah-translation">Пока нет посещений разделов.</p>';
+        var userHtml = users.map(function(u) {
+          return '<div style="padding:0.3rem 0;border-bottom:1px solid var(--border)"><b>'+String(u.nick||'—').replace(/</g,'&lt;')+'</b>'+(u.is_admin?' <span style="color:var(--accent);font-size:0.75rem">админ</span>':'')+
+            '<div class="ayah-translation">'+String(u.email||'').replace(/</g,'&lt;')+'</div></div>';
+        }).join('') || '<p class="ayah-translation">Нет профилей в таблице profiles.</p>';
+        el.innerHTML = personal +
+          '<div class="card"><b>Пользователи сайта</b><div style="margin-top:0.35rem">Всего: <b>'+users.length+'</b></div>' +
+          '<div style="margin-top:0.55rem;max-height:14rem;overflow:auto">'+userHtml+'</div></div>' +
+          '<div class="card"><b>По разделам</b><div class="ayah-translation" style="margin:0.35rem 0">Уникальные посетители (сколько человек), без списка «кто куда заходил».</div>'+secHtml+'</div>';
+      } catch (e) {
+        el.innerHTML = personal +
+          '<div class="card"><b>Общая статистика: ошибка</b><p class="ayah-translation">'+String(e.message||e).replace(/</g,'&lt;')+'</p>' +
+          '<p class="ayah-translation">Выполните SQL из обновления 2.08 в Supabase (таблицы profiles и section_visitors).</p></div>';
+      }
     }
 
     // ========== ASBAB (reasons of revelation) — selected well-known ==========
@@ -16881,10 +17064,12 @@ c.addEventListener('click', () => {
       { id:'sadaqa', icon:'💝', label:'Садака', group:'life' },
       { id:'ask', icon:'❓', label:'Черновик вопроса', group:'life' },
       { id:'account', icon:'👤', label:'Мой аккаунт', group:'online' },
+      { id:'stats', icon:'📊', label:'Статистика', group:'online' },
       { id:'data', icon:'💾', label:'Данные', group:'system' },
       { id:'changelog', icon:'🆕', label:'Обновления', group:'system' },
       { id:'help', icon:'❓', label:'Справка', group:'system' },
-      { id:'settings', icon:'⚙️', label:'Настройки', group:'system' }
+      { id:'settings', icon:'⚙️', label:'Настройки', group:'system' },
+      { id:'appupdate', icon:'🔄', label:'Обновить приложение', group:'system' }
     ];
     const MORE_GROUP_DEFAULTS = [
       { id:'knowledge', label:'Знание', hidden:false },
@@ -16953,7 +17138,7 @@ c.addEventListener('click', () => {
     function getMoreOrder() {
       let ordered = null;
       try {
-        // один раз применить новый порядок по умолчанию (v2.07)
+        // один раз применить новый порядок по умолчанию (v2.09)
         if (localStorage.getItem('quran_more_order_v208') !== '1') {
           localStorage.removeItem('quran_more_order');
           localStorage.setItem('quran_more_order_v208', '1');
@@ -17230,10 +17415,12 @@ c.addEventListener('click', () => {
         if (sessB && sessB.nick) {
           html += '<div class="ayah-translation" style="margin-bottom:0.4rem">Вы вошли: <b>'+String(sessB.nick).replace(/</g,'&lt;')+'</b></div>';
           html += '<button type="button" class="btn" id="more-btn-account" style="width:100%;margin-bottom:0.35rem">Мой аккаунт</button>';
-          html += '<button type="button" class="btn btn-primary" id="more-btn-logout" style="width:100%">Выйти</button>';
+          html += '<button type="button" class="btn btn-primary" id="more-btn-logout" style="width:100%;margin-bottom:0.35rem">Выйти</button>';
+          html += '<button type="button" class="btn btn-sm" id="more-btn-force-update" style="width:100%">🔄 Обновить приложение</button>';
         } else {
           html += '<button type="button" class="btn btn-primary" id="more-btn-login" style="width:100%;margin-bottom:0.35rem">Вход</button>';
-          html += '<button type="button" class="btn" id="more-btn-register" style="width:100%">Регистрация</button>';
+          html += '<button type="button" class="btn" id="more-btn-register" style="width:100%;margin-bottom:0.35rem">Регистрация</button>';
+          html += '<button type="button" class="btn btn-sm" id="more-btn-force-update" style="width:100%">🔄 Обновить приложение</button>';
         }
         html += '</div>';
       } catch(e) {}
@@ -17246,6 +17433,8 @@ c.addEventListener('click', () => {
         var bReg = document.getElementById('more-btn-register');
         if (bReg) bReg.addEventListener('click', function(){ showView('register'); });
         var bOut = document.getElementById('more-btn-logout');
+        var bUp = document.getElementById('more-btn-force-update');
+        if (bUp) bUp.addEventListener('click', function(){ forceUpdateApp(); });
         if (bOut) bOut.addEventListener('click', async function() {
           try {
             var sb = (typeof getSb === 'function') ? getSb() : null;
@@ -19298,7 +19487,7 @@ function renderLibrary() {
       ov.id = 'welcome-gate';
       ov.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(15,23,42,0.96);display:flex;align-items:center;justify-content:center;padding:1.25rem';
       ov.innerHTML = '<div class="card" style="max-width:22rem;width:100%">' +
-        '<h2 style="margin:0 0 0.5rem;font-size:1.15rem">Добро пожаловать · v2.07</h2>' +
+        '<h2 style="margin:0 0 0.5rem;font-size:1.15rem">Добро пожаловать · v2.09</h2>' +
         '<p class="ayah-translation" style="margin-bottom:0.85rem">Можно пользоваться как гость (данные только на этом устройстве) или создать аккаунт для входа с других устройств.</p>' +
         '<button type="button" class="btn btn-primary" id="wg-guest" style="width:100%;margin-bottom:0.4rem">Продолжить как гость</button>' +
         '<button type="button" class="btn" id="wg-reg" style="width:100%;margin-bottom:0.35rem">Регистрация</button>' +
