@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.14 2026-08-04 -->
+<!-- BUILD 2.15 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.14</title>
+  <title>Коран — Изучение · 2.15</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -10149,7 +10149,7 @@ function renderSalah() {
     function renderAppUpdate() {
       var el = document.getElementById('appupdate-body');
       if (!el) return;
-      var ver = '2.14';
+      var ver = '2.15';
       try {
         var t = document.title || '';
         var m = t.match(/2\.\d+/);
@@ -10171,6 +10171,13 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.15', kinds: ['f', 'b', 'd'], date: '2026-08-07',
+          a: [],
+          b: [ 'Статистика: выбор месяца стрелками; режим 30 дней / календарный месяц' ],
+          f: [ 'Сегодня/неделя по локальной дате; после обновления приложения возврат в Ещё' ],
+          d: [ 'ПК: viewport desktop-site (ширина 1100 + масштаб под телефон)' ],
+          ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.14', kinds: ['a', 'b', 'd'], date: '2026-08-07',
           a: [ 'Статистика по спискам: Все / Знание / Поклонение / …' ],
           b: [ 'Режим ПК с телефона: шире экран, сетка «Ещё» 2–3 колонки' ],
@@ -12943,6 +12950,17 @@ function renderDict() {
     async function forceUpdateApp() {
       try { toast('Обновляем до последней версии…'); } catch(e) {}
       try {
+        var last = 'more';
+        try {
+          if (typeof viewStack !== 'undefined' && viewStack.length)
+            last = viewStack[viewStack.length - 1] || 'more';
+        } catch(e) {}
+        if (last === 'appupdate') last = 'more';
+        sessionStorage.setItem('quran_last_view', last);
+        localStorage.setItem('quran_last_view_persist', last);
+        localStorage.setItem('quran_from_update', '1');
+      } catch(e) {}
+      try {
         if ('serviceWorker' in navigator) {
           const regs = await navigator.serviceWorker.getRegistrations();
           for (const r of regs) await r.unregister();
@@ -12961,6 +12979,8 @@ function renderDict() {
         try { location.reload(true); } catch(e2) { location.reload(); }
       }
     }
+
+
 
 // ========== SEARCH IN QURAN TEXT ==========
     let searchTimer = null;
@@ -14365,7 +14385,8 @@ function playArabicAudio(text, fallbackRu, opts) {
     }
     async function dayKey(d) {
       d = d || new Date();
-      return d.toISOString().slice(0, 10);
+      var y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+      return y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
     }
     function ensureRichStats() {
       if (!state.stats) state.stats = {};
@@ -14390,18 +14411,42 @@ function playArabicAudio(text, fallbackRu, opts) {
       } catch(e) {}
     }
     function sumInRange(map, daysBack) {
-      // map: { day: number }, daysBack: 0=today only, 6=week, 29=month, 364=year, null=all
       if (!map) return 0;
+      if (daysBack == null) {
+        var t = 0;
+        Object.keys(map).forEach(function(d) { t += (+map[d] || 0); });
+        return t;
+      }
       var total = 0;
       var now = new Date();
-      Object.keys(map).forEach(function(d) {
-        if (daysBack == null) { total += (+map[d] || 0); return; }
-        var dt = new Date(d + 'T12:00:00');
-        var diff = Math.floor((now - dt) / 86400000);
-        if (diff >= 0 && diff <= daysBack) total += (+map[d] || 0);
-      });
+      var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      for (var i = 0; i <= daysBack; i++) {
+        var d = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() - i);
+        var key = dayKey(d);
+        total += (+map[key] || 0);
+      }
+      if (total === 0) {
+        Object.keys(map).forEach(function(d) {
+          var p = String(d).split('-');
+          if (p.length !== 3) return;
+          var dt = new Date(+p[0], +p[1] - 1, +p[2]);
+          if (isNaN(dt.getTime())) return;
+          var diff = Math.floor((todayStart - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 86400000);
+          if (diff >= 0 && diff <= daysBack) total += (+map[d] || 0);
+        });
+      }
       return total;
     }
+    function sumInMonth(map, year, month) {
+      if (!map) return 0;
+      var t = 0;
+      var prefix = year + '-' + String(month + 1).padStart(2, '0') + '-';
+      Object.keys(map).forEach(function(d) {
+        if (String(d).indexOf(prefix) === 0) t += (+map[d] || 0);
+      });
+      return t;
+    }
+
     async function trackSectionVisit(sectionId) {
       if (!sectionId) return;
       var skip = { login:1, register:1, forgot:1, appupdate:1 };
@@ -14490,14 +14535,25 @@ async function renderStats() {
           '</div>';
       }
       function rangeRow(title, mapVisits, mapSec) {
-        var vT = sumInRange(mapVisits, 0), vW = sumInRange(mapVisits, 6), vM = sumInRange(mapVisits, 29), vY = sumInRange(mapVisits, 364), vA = sumInRange(mapVisits, null);
-        var sT = sumInRange(mapSec, 0), sW = sumInRange(mapSec, 6), sM = sumInRange(mapSec, 29), sY = sumInRange(mapSec, 364), sA = sumInRange(mapSec, null);
+        var vT = sumInRange(mapVisits, 0), vW = sumInRange(mapVisits, 6), vA = sumInRange(mapVisits, null);
+        var sT = sumInRange(mapSec, 0), sW = sumInRange(mapSec, 6), sA = sumInRange(mapSec, null);
+        var vM, sM, mLabel = 'месяц';
+        if (window._statsPeriod === 'month' && window._statsMonth) {
+          vM = sumInMonth(mapVisits, window._statsMonth.y, window._statsMonth.m);
+          sM = sumInMonth(mapSec, window._statsMonth.y, window._statsMonth.m);
+          var mn = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+          mLabel = mn[window._statsMonth.m] + ' ' + String(window._statsMonth.y).slice(2);
+        } else {
+          vM = sumInRange(mapVisits, 29);
+          sM = sumInRange(mapSec, 29);
+        }
+        var vY = sumInRange(mapVisits, 364), sY = sumInRange(mapSec, 364);
         return '<div style="padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
           '<div style="font-weight:600;margin-bottom:0.35rem">' + title + '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.25rem;font-size:0.72rem;text-align:center">' +
           '<div><div style="color:var(--text-muted)">сегодня</div><b>' + vT + '</b><div style="color:var(--text-muted)">' + fmtSec(sT) + '</div></div>' +
           '<div><div style="color:var(--text-muted)">неделя</div><b>' + vW + '</b><div style="color:var(--text-muted)">' + fmtSec(sW) + '</div></div>' +
-          '<div><div style="color:var(--text-muted)">месяц</div><b>' + vM + '</b><div style="color:var(--text-muted)">' + fmtSec(sM) + '</div></div>' +
+          '<div><div style="color:var(--text-muted)">' + mLabel + '</div><b>' + vM + '</b><div style="color:var(--text-muted)">' + fmtSec(sM) + '</div></div>' +
           '<div><div style="color:var(--text-muted)">год</div><b>' + vY + '</b><div style="color:var(--text-muted)">' + fmtSec(sY) + '</div></div>' +
           '<div><div style="color:var(--text-muted)">всего</div><b>' + vA + '</b><div style="color:var(--text-muted)">' + fmtSec(sA) + '</div></div>' +
           '</div></div>';
@@ -14592,6 +14648,20 @@ async function renderStats() {
         '<div class="card"><b>📂 По разделам</b>' +
         '<div class="ayah-translation" style="margin:0.35rem 0 0.15rem">Фильтр по списку меню. «Все» — без деления.</div>' +
         tabsHtml +
+        (function(){
+        var now = new Date();
+        if (!window._statsMonth) window._statsMonth = { y: now.getFullYear(), m: now.getMonth() };
+        var mn = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+        var lab = mn[window._statsMonth.m] + ' ' + window._statsMonth.y;
+        var activeM = window._statsPeriod === 'month';
+        return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.35rem;margin:0 0 0.55rem">' +
+          '<span class="ayah-translation" style="font-size:0.75rem">Месяц:</span>' +
+          '<button type="button" class="btn btn-sm" id="stats-m-prev">←</button>' +
+          '<button type="button" class="btn btn-sm" id="stats-m-pick" style="' + (activeM ? 'background:var(--accent);color:#fff' : '') + '">' + lab + '</button>' +
+          '<button type="button" class="btn btn-sm" id="stats-m-next">→</button>' +
+          '<button type="button" class="btn btn-sm" id="stats-m-rolling" style="' + (!activeM ? 'background:var(--accent);color:#fff' : '') + '">30 дней</button>' +
+          '</div>';
+      })() +
         '<div class="ayah-translation" style="margin:0 0 0.5rem;font-size:0.75rem">Заходы и время: сегодня · неделя · месяц · год · всего</div>' +
         secHtml + '</div>';
 
@@ -14602,6 +14672,26 @@ async function renderStats() {
           window._statsGroup = btn.getAttribute('data-sg') || 'all';
           renderStats();
         });
+      });
+      function shiftMonth(delta) {
+        var now = new Date();
+        if (!window._statsMonth) window._statsMonth = { y: now.getFullYear(), m: now.getMonth() };
+        var m = window._statsMonth.m + delta, y = window._statsMonth.y;
+        while (m < 0) { m += 12; y--; }
+        while (m > 11) { m -= 12; y++; }
+        window._statsMonth = { y: y, m: m };
+        window._statsPeriod = 'month';
+        renderStats();
+      }
+      document.getElementById('stats-m-prev')?.addEventListener('click', function(){ shiftMonth(-1); });
+      document.getElementById('stats-m-next')?.addEventListener('click', function(){ shiftMonth(1); });
+      document.getElementById('stats-m-pick')?.addEventListener('click', function(){
+        window._statsPeriod = 'month';
+        renderStats();
+      });
+      document.getElementById('stats-m-rolling')?.addEventListener('click', function(){
+        window._statsPeriod = 'rolling';
+        renderStats();
       });
 
       var sb = (typeof getSb === 'function') ? getSb() : null;
@@ -19696,9 +19786,30 @@ function renderLibrary() {
         btn.style.zIndex = '9999';
         btn.style.pointerEvents = 'auto';
       }
+      try {
+        var vp = document.querySelector('meta[name="viewport"]');
+        if (!vp) {
+          vp = document.createElement('meta');
+          vp.name = 'viewport';
+          document.head.appendChild(vp);
+        }
+        if (!window._vpPhone) {
+          window._vpPhone = vp.getAttribute('content') || 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+        }
+        if (mode === 'desktop') {
+          var deskW = 1100;
+          var dw = Math.max(320, window.screen.width || window.innerWidth || 360);
+          var scale = Math.min(1, Math.round((dw / deskW) * 100) / 100);
+          if (scale < 0.25) scale = 0.25;
+          vp.setAttribute('content', 'width=' + deskW + ', initial-scale=' + scale + ', minimum-scale=0.25, maximum-scale=3, user-scalable=yes, viewport-fit=cover');
+          document.documentElement.classList.add('desktop-site');
+        } else {
+          vp.setAttribute('content', window._vpPhone);
+          document.documentElement.classList.remove('desktop-site');
+        }
+      } catch(e) {}
       try { localStorage.setItem('quran_device_mode', mode); } catch(e) {}
       try { lockBtnVisibility(); } catch(e) {}
-      // В режиме ПК удобнее сетка 3 в «Ещё»; на телефоне — список/2
       try {
         if (mode === 'desktop') {
           if (!localStorage.getItem('quran_more_layout_user')) {
@@ -19706,13 +19817,13 @@ function renderLibrary() {
           }
         }
         if (typeof renderMoreMenu === 'function') {
-          var moreEl = document.getElementById('more-menu');
-          if (moreEl && document.getElementById('view-more') && document.getElementById('view-more').classList.contains('active')) {
+          if (document.getElementById('view-more') && document.getElementById('view-more').classList.contains('active')) {
             renderMoreMenu();
           }
         }
       } catch(e) {}
     }
+
     try {
       if (!document.documentElement.dataset.deviceDelegate) {
         document.documentElement.dataset.deviceDelegate = '1';
@@ -19821,6 +19932,13 @@ function renderLibrary() {
           } else if (deep && document.getElementById('view-' + deep)) {
             restoreView = deep;
             state.moreDeep = deep;
+          }
+        } catch(e) {}
+        try {
+          if (localStorage.getItem('quran_from_update') === '1') {
+            localStorage.removeItem('quran_from_update');
+            restoreView = localStorage.getItem('quran_last_view_persist') || 'more';
+            if (restoreView === 'appupdate' || restoreView === 'reader') restoreView = 'more';
           }
         } catch(e) {}
         showView(restoreView);
