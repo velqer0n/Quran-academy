@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.22 2026-08-04 -->
+<!-- BUILD 2.23 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.22</title>
+  <title>Коран — Изучение · 2.23</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -10195,6 +10195,11 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.23', kinds: ['f'], date: '2026-08-07',
+          a: [], b: [],
+          f: [ 'Статистика день/неделя/месяц: прямое сравнение дат + перенос старых данных на сегодня' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.22', kinds: ['b', 'f', 'd'], date: '2026-08-07',
           a: [],
           b: [ 'Размеры шрифтов учёбы перенесены в «Вид и шрифты»' ],
@@ -14563,20 +14568,25 @@ function playArabicAudio(text, fallbackRu, opts) {
       return t;
     }
     function parseDayKey(k) {
-      k = String(k || '').trim().replace(/\//g, '-').replace(/\./g, '-');
+      k = String(k || '').trim().replace(/\//g, '-');
+      // обрезать время: 2026-08-07T00:00:00
+      if (k.indexOf('T') > 0) k = k.slice(0, k.indexOf('T'));
       var p = k.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
       if (!p) return null;
       var dt = new Date(+p[1], +p[2] - 1, +p[3]);
       if (isNaN(dt.getTime())) return null;
       return dt;
     }
-    /** Приводит { day: n } к нормальным ключам; числа без даты → сегодня */
     function normalizeDayMap(m) {
-      if (!m || typeof m !== 'object' || Array.isArray(m)) return {};
+      if (m == null) return {};
+      if (typeof m === 'number') {
+        var o = {}; o[dayKey()] = m; return o;
+      }
+      if (typeof m !== 'object' || Array.isArray(m)) return {};
       var out = {};
       var orphan = 0;
       Object.keys(m).forEach(function(k) {
-        if (k.charAt(0) === '_') return;
+        if (!k || k.charAt(0) === '_') return;
         var val = Number(m[k]);
         if (!val || val !== val) return;
         var dt = parseDayKey(k);
@@ -14595,37 +14605,36 @@ function playArabicAudio(text, fallbackRu, opts) {
     }
     function sumInPeriod(map, period, anchor) {
       map = normalizeDayMap(map);
-      if (!map || !Object.keys(map).length) return 0;
-      if (period === 'all' || !period) {
-        var t = 0;
-        Object.keys(map).forEach(function(k) { t += Number(map[k]) || 0; });
-        return t;
-      }
+      var keys = Object.keys(map);
+      if (!keys.length) return 0;
+      var totalAll = 0;
+      keys.forEach(function(k) { totalAll += Number(map[k]) || 0; });
+      if (period === 'all' || !period) return totalAll;
+
       anchor = anchor || new Date();
-      var y = anchor.getFullYear(), m = anchor.getMonth(), d = anchor.getDate();
-      var start, end;
+      // ДЕНЬ — прямое совпадение строки
       if (period === 'day') {
-        start = new Date(y, m, d); end = new Date(y, m, d);
-      } else if (period === 'week') {
-        end = new Date(y, m, d);
-        start = new Date(y, m, d - 6);
-      } else if (period === 'month') {
-        start = new Date(y, m, 1);
-        end = new Date(y, m + 1, 0);
-      } else if (period === 'year') {
-        start = new Date(y, 0, 1);
-        end = new Date(y, 11, 31);
-      } else {
-        return sumInPeriod(map, 'all');
+        var dk = dayKey(anchor);
+        var v = Number(map[dk]) || 0;
+        return v;
       }
-      var st = start.getTime(), en = end.getTime();
+      // НЕДЕЛЯ / МЕСЯЦ / ГОД — перебор ключей
+      var ay = anchor.getFullYear(), am = anchor.getMonth(), ad = anchor.getDate();
+      var anchorMid = new Date(ay, am, ad).getTime();
       var total = 0;
-      Object.keys(map).forEach(function(k) {
-        var val = Number(map[k]) || 0;
+      keys.forEach(function(k) {
         var dt = parseDayKey(k);
         if (!dt) return;
         var t = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
-        if (t >= st && t <= en) total += val;
+        var val = Number(map[k]) || 0;
+        if (period === 'week') {
+          var diff = Math.round((anchorMid - t) / 86400000);
+          if (diff >= 0 && diff <= 6) total += val;
+        } else if (period === 'month') {
+          if (dt.getFullYear() === ay && dt.getMonth() === am) total += val;
+        } else if (period === 'year') {
+          if (dt.getFullYear() === ay) total += val;
+        }
       });
       return total;
     }
@@ -14715,36 +14724,27 @@ async function renderStats() {
       } catch(e) {}
       // Разово: если «день» пуст, а «всего» нет — перенос на сегодня
       try {
-        if (true) {
+        (function() {
           var today = dayKey();
-          var allV = 0, dayV = 0;
-          Object.keys(s.sectionVisits || {}).forEach(function(sid) {
-            var m = s.sectionVisits[sid] || {};
-            Object.keys(m).forEach(function(k) {
-              var val = Number(m[k]) || 0;
-              allV += val;
-              if (k === today) dayV += val;
-            });
-          });
-          if (allV > 0 && dayV === 0) {
-            Object.keys(s.sectionVisits || {}).forEach(function(sid) {
-              var m = s.sectionVisits[sid] || {};
+          function fixRoot(root) {
+            if (!root) return;
+            Object.keys(root).forEach(function(sid) {
+              var m = normalizeDayMap(root[sid]);
               var sum = 0;
               Object.keys(m).forEach(function(k) { sum += Number(m[k]) || 0; });
-              s.sectionVisits[sid] = {};
-              s.sectionVisits[sid][today] = sum;
+              if (sum > 0 && !(Number(m[today]) > 0)) {
+                // все в сегодня
+                root[sid] = {};
+                root[sid][today] = sum;
+              } else {
+                root[sid] = m;
+              }
             });
-            Object.keys(s.sectionSeconds || {}).forEach(function(sid) {
-              var m = s.sectionSeconds[sid] || {};
-              var sum = 0;
-              Object.keys(m).forEach(function(k) { sum += Number(m[k]) || 0; });
-              s.sectionSeconds[sid] = {};
-              s.sectionSeconds[sid][today] = sum;
-            });
-            saveState();
           }
-          /* always check */
-        }
+          fixRoot(s.sectionVisits);
+          fixRoot(s.sectionSeconds);
+          saveState();
+        })();
       } catch(e) {}
 
       const labels = (typeof SECTION_STAT_LABELS !== 'undefined') ? Object.assign({}, SECTION_STAT_LABELS) : {};
@@ -14915,6 +14915,10 @@ async function renderStats() {
       el.querySelectorAll('.st-period').forEach(function(btn) {
         btn.addEventListener('click', function() {
           window._statsPeriod = btn.getAttribute('data-p') || 'day';
+          // при выборе День/Неделя/Месяц — якорь на сегодня, чтобы не смотреть пустой прошлый день
+          if (window._statsPeriod !== 'all') {
+            window._statsAnchor = new Date();
+          }
           renderStats();
         });
       });
