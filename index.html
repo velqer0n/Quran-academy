@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.28 2026-08-04 -->
+<!-- BUILD 2.29 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.28</title>
+  <title>Коран — Изучение · 2.29</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1540,14 +1540,12 @@
         <div class="logo">📖 <span>Коран</span></div>
         <button type="button" class="lock-btn-header" id="btn-lock-app" title="Заблокировать приложение">🔒</button>
       </div>
-      <nav>
+      <nav id="main-nav">
         <button data-view="dailyhub" class="active">Ежедневное</button>
         <button data-view="home">Суры</button>
         <button data-view="learn">Теория</button>
         <button data-view="games">Практика</button>
-        <button data-view="bookmarks">Закладки</button>
-        <button data-view="progress">Прогресс</button>
-        <button data-view="settings">Ещё</button>
+        <button data-view="more">Ещё</button>
       </nav>
     </div>
   </header>
@@ -4169,6 +4167,12 @@ async function fetchTafsir(surah, ayah) {
 
 function showView(name, isBack) {
       try { name = applyViewAlias(name); } catch (e) {}
+      // Повторное нажатие «Ещё» — всегда корневое меню Ещё
+      if (name === 'more' && !isBack) {
+        try { state.moreDeep = null; sessionStorage.removeItem('quran_more_deep'); } catch(e) {}
+        try { viewStack = ['more']; } catch(e) {}
+      }
+
       if (!isBack) {
         const cur = viewStack[viewStack.length - 1];
         if (cur !== name) {
@@ -6563,19 +6567,35 @@ CVC: + сукун → بَتْ مِنْ كُتْ
 
     // Слоги для практики (CV и CVC)
     const ARTICULATION = {
-      'ع': 'Гортань (глотка): стенки глотки сближаются, есть голос.',
-      'ح': 'Гортань: выдох без голоса, глубже обычного «х».',
-      'غ': 'Корень языка + мягкое нёбо, с голосом (как фр. r).',
-      'خ': 'Там же, без голоса.',
-      'ق': 'Корень языка поднимается к мягкому нёбу (не «к» у зубов).',
-      'ص': 'Кончик языка у верхних зубов/дёсен + язык оттянут назад.',
-      'ض': 'Боковой край языка у коренных; эмфаза.',
-      'ط': 'Кончик у верхних дёсен + эмфаза (язык назад).',
-      'ظ': 'Межзубный + эмфаза.',
-      'ث': 'Кончик между зубами, без голоса.',
-      'ذ': 'Кончик между зубами, с голосом.',
-      'و': 'Губы трубочкой (как «у»), не зубы на губу.'
-    };
+      'ا': 'Язык и губы спокойны. Звук «а» или носитель хамзы. Горло не напрягать.',
+      'ب': 'Губы плотно смыкаются, затем резко открываются с голосом. Как русское «б», без смягчения.',
+      'ت': 'Кончик языка касается верхних зубов/дёсен. Краткий «т» без придыхания.',
+      'ث': 'Кончик языка МЕЖДУ передними зубами, воздух проходит с шипением (как английский think). Не «с» и не «т».',
+      'ج': 'Средняя часть языка поднимается к нёбу, смычка и слив «дж». Не раздельно «д+ж».',
+      'ح': 'Середина горла (глотка): сильный выдох БЕЗ голоса. Представьте запотевшее зеркало — тёплый воздух. Не русское «х».',
+      'خ': 'Ближе к началу горла / мягкое нёбо: хриплое «х» без голоса (как лёгкое хрипение).',
+      'د': 'Кончик языка у верхних зубов, звонкий «д». Не соединяется слева.',
+      'ذ': 'Кончик языка между зубами, звонкий (как the в английском). Есть голос.',
+      'ر': 'Кончик языка слегка дрожит у верхних дёсен — раскатистая «р».',
+      'ز': 'Кончик языка у зубов, звонкий «з».',
+      'س': 'Кончик языка у нижних/верхних зубов, свистящий «с».',
+      'ش': 'Передняя часть языка близко к нёбу, «ш».',
+      'ص': 'Как «с», но язык ОТТЯНУТ назад и чуть приподнят — «толстый» звук.',
+      'ض': 'Край языка прижат к верхним коренным, «толстый» звонкий. Один из сложных звуков — учите со слуха.',
+      'ط': 'Как «т», но язык оттянут назад, «толстый» т.',
+      'ظ': 'Как «з/ð», но с оттянутым назад языком — эмфатический межзубный.',
+      'ع': 'Середина горла СО СМЫЧКОЙ и голосом. Не «а» и не хамза. Тренируйте: عَ عِ عُ.',
+      'غ': 'Близко к «х̮», но С голосом (как французское r или украинское г).',
+      'ف': 'Верхние зубы на нижней губе, «ф».',
+      'ق': 'КОРЕНЬ языка поднимается к мягкому нёбу. Глубокая «қ», не зубная «к».',
+      'ك': 'Задняя часть языка к мягкому нёбу ближе к центру — обычная «к».',
+      'ل': 'Кончик языка у верхних дёсен, «л».',
+      'م': 'Губы сомкнуты, голос идёт в нос, «м».',
+      'ن': 'Кончик языка у дёсен, голос в нос, «н».',
+      'ه': 'Лёгкий выдох из горла, мягче чем «х». Как выдох на стекло, но тише чем ح.',
+      'و': 'Губы трубочкой, как «у». НЕ зубы на губу (это было бы «в»).',
+      'ي': 'Средняя часть языка к нёбу, как «й» или долгий «и».'
+    };;
 
     // Короткие суры для изучения (номер, имя, число аятов)
     const STUDY_SURAHS_META = [
@@ -10240,6 +10260,12 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.29', kinds: ['f', 'a', 'b'], date: '2026-08-07',
+          a: [ 'Первый заход: окно регистрации или гость' ],
+          b: [ 'ПК: убраны Закладки/Прогресс из шапки; Ещё → more; повторное Ещё открывает меню' ],
+          f: [ 'Экспорт: чекбоксы без повторов; навигация Ещё' ],
+          d: [], ph: [], I: ['Видео букв и смена главных разделов — доработка'], o: [], s: [], on: []
+        },
         { major: '2', v: '2.28', kinds: ['f', 'b', 'a'], date: '2026-08-07',
           a: [],
           b: [ 'Экспорт: выбор из списка без повторов' ],
@@ -10984,6 +11010,10 @@ function renderSalah() {
       if (!el) return;
       // Справка строится от меню «Ещё» + главные вкладки. Без дублей.
       const SEC_HELP = {
+        export: 'Экспорт и импорт данных.\n\n• Отметьте галочками разделы (закладки, словарь, настройки…).\n• Каждый пункт выбирается один раз — повторов нет.\n• «0 — всё» — полный бэкап.\n• Пароль аккаунта и PIN блокировки не экспортируются.\n• Импорт: вставьте JSON или файл.',
+        more: 'Меню «Ещё».\n\n• Списки разделов (знание, поклонение…).\n• Повторное нажатие «Ещё» всегда возвращает к списку меню.\n• На ПК в шапке те же 5 пунктов: Ежедневное, Суры, Теория, Практика, Ещё.',
+        account: 'Мой аккаунт.\n\n• Регистрация и вход через email.\n• При первом заходе предлагается войти или продолжить как гость.\n• Ник виден в статистике; email не показывается другим.',
+
         appupdate: 'Обновить приложение.\n\n• Сбрасывает Service Worker и кэш оболочки.\n• Заново качает последнюю версию index.html с GitHub.\n• Закладки, настройки, аккаунт и словарь НЕ удаляются.\n• Если не помогло: инкогнито или очистка данных сайта velqer0n.github.io.',
         stats: 'Статистика (Онлайн).\n\n• Локальная: аяты, закладки, время прослушивания.\n• Общая (только админ): список пользователей (ники), посещения разделов — всего и за сегодня.\n• Не показывает, кто именно в какой раздел заходил.\n• Админ: SQL update profiles set is_admin = true where email = …',
         account: 'Мой аккаунт (меню «Ещё» → Система).\n\n• Регистрация: никнейм, email, пароль (≥8, буква+цифра).\n• Вход по email и паролю (онлайн через Supabase — с любого устройства).\n• «Забыли пароль» — сброс по email (ссылка от Supabase).\n• Гость: можно пользоваться без аккаунта, данные только в браузере этого устройства.\n• Пароль приложения (экран блокировки) — отдельная защита локальных данных, это не пароль аккаунта.',
@@ -12331,15 +12361,14 @@ let body = '';
       var listHtml = packs.filter(function(p){ return p.n > 0; }).map(function(p){
         return '<div style="margin:0.28rem 0;line-height:1.4"><b style="color:var(--accent)">'+p.n+'.</b> '+p.label+'</div>';
       }).join('');
-      var fieldsHtml = '';
-      for (var fi = 0; fi < 6; fi++) {
-        fieldsHtml += '<input type="number" min="0" max="7" inputmode="numeric" class="exp-num" placeholder="№" style="width:2.75rem;padding:0.45rem 0.25rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:center">';
-      }
+      var chips = packs.filter(function(p){ return p.n > 0; }).map(function(p){
+        return '<label class="exp-chip" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.4rem 0.65rem;border:1px solid var(--border);border-radius:999px;cursor:pointer;margin:0.2rem;font-size:0.88rem">' +
+          '<input type="checkbox" class="exp-num" value="'+p.n+'" style="accent-color:var(--accent)"> <span>'+p.n+'. '+p.label+'</span></label>';
+      }).join('');
       el.innerHTML =
         '<div class="card"><b>Экспорт</b>' +
-        '<div class="ayah-translation" style="margin:0.4rem 0">Впишите в поля номера того, что нужно сохранить (можно несколько разных). Пароль не экспортируется.</div>' +
-        '<div style="margin:0.55rem 0;font-size:0.92rem">'+listHtml+'</div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin:0.55rem 0;align-items:center">'+fieldsHtml+'</div>' +
+        '<div class="ayah-translation" style="margin:0.4rem 0">Отметьте нужные разделы (как список). Повторы невозможны — каждый пункт один раз. Пароль не экспортируется.</div>' +
+        '<div style="margin:0.55rem 0">'+chips+'</div>' +
         '<label style="display:flex;gap:0.45rem;align-items:center;margin:0.4rem 0;cursor:pointer"><input type="checkbox" id="exp-full"> <span><b>0</b> — всё (полный бэкап)</span></label>' +
         '<button type="button" class="btn btn-primary" id="btn-do-export" style="width:100%;margin-top:0.55rem">Скачать JSON</button></div>' +
         '<div class="card"><b>Импорт</b><div class="ayah-translation" style="margin:0.4rem 0">Вставьте JSON или файл. Можно объединить с текущими данными или заменить выбранные разделы.</div>' +
@@ -12415,16 +12444,10 @@ let body = '';
         sel.addEventListener('change', refreshExpSelects);
       });
       getElementById('btn-do-export')?.addEventListener('click', () => {
-        var nums = Array.prototype.map.call(el.querySelectorAll('.exp-num'), function(inp) {
-          var v = String(inp.value || '').trim();
-          return v === '' ? null : +v;
-        }).filter(function(x){ return x !== null && !isNaN(x); });
-        // убрать дубликаты
-        var seen = {};
-        nums = nums.filter(function(n) {
-          if (seen[n]) return false;
-          seen[n] = true;
-          return true;
+        var nums = [];
+        el.querySelectorAll('.exp-num:checked').forEach(function(inp) {
+          var n = +inp.value;
+          if (!isNaN(n) && nums.indexOf(n) < 0) nums.push(n);
         });
         if (document.getElementById('exp-full') && document.getElementById('exp-full').checked) nums = [0];
         if (!nums.length) {
@@ -12862,10 +12885,31 @@ function renderDict() {
     document.getElementById('setting-app-lock')?.addEventListener('change', async e => {
       const wantLock = e.target.value === '1';
       if (wantLock) {
+        var p1 = prompt('Придумайте пароль для входа (мин. 4 символа):');
+        if (!p1 || p1.length < 4) {
+          e.target.value = '0';
+          toast('Пароль слишком короткий или отменён');
+          return;
+        }
+        var p2 = prompt('Повторите пароль:');
+        if (p1 !== p2) {
+          e.target.value = '0';
+          toast('Пароли не совпали');
+          return;
+        }
+        try {
+          if (typeof setupAppLockPassword === 'function') await setupAppLockPassword(p1);
+          else {
+            // простой хэш в localStorage если нет crypto-функции
+            localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1))));
+          }
+        } catch(err) {
+          try { localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1)))); } catch(e2) {}
+        }
         state.settings.appLock = true;
         try { localStorage.setItem('quran_app_lock_v1', '1'); } catch(err) {}
         saveState();
-        toast('Пароль при входе включён. При следующем запуске потребуется пароль.');
+        toast('Пароль установлен. При следующем входе потребуется пароль.');
         return;
       }
       // turn off
@@ -14945,18 +14989,43 @@ async function renderStats() {
           return;
         }
         try {
-          var ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(100);
-          var count = (ur && ur.count != null) ? ur.count : ((ur && ur.data) ? ur.data.length : 0);
+          var ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(500);
+          if (ur && ur.error) throw ur.error;
           var list = (ur && ur.data) || [];
+          var count = (ur && ur.count != null) ? ur.count : list.length;
+          function dayKeyLocal(d) {
+            d = d || new Date();
+            return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+          }
+          var today = dayKeyLocal();
+          var weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-6);
+          var monthStart = new Date(); monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
+          var yearStart = new Date(new Date().getFullYear(), 0, 1);
+          function inRange(iso, from) {
+            if (!iso) return false;
+            var t = new Date(iso).getTime();
+            return t >= from.getTime();
+          }
+          var nToday = list.filter(function(u){ return String(u.created_at||'').slice(0,10) === today; }).length;
+          var nWeek = list.filter(function(u){ return inRange(u.created_at, weekAgo); }).length;
+          var nMonth = list.filter(function(u){ return inRange(u.created_at, monthStart); }).length;
+          var nYear = list.filter(function(u){ return inRange(u.created_at, yearStart); }).length;
           var rows = list.map(function(u) {
-            var nick = (u.nick || '—').replace(/</g, '&lt;');
+            var nick = (u.nick || 'гость').replace(/</g, '&lt;');
             var dt = u.created_at ? String(u.created_at).slice(0, 10) : '';
             return '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.88rem">' +
               '<span>' + nick + '</span><span style="color:var(--text-muted)">' + dt + '</span></div>';
           }).join('') || '<p class="ayah-translation">Пока нет зарегистрированных.</p>';
-          if (box) box.innerHTML = '<div style="font-size:1.4rem;font-weight:700;color:var(--accent);margin-bottom:0.5rem">' + count + ' польз.</div>' + rows;
+          if (box) box.innerHTML =
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-bottom:0.65rem">' +
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Всего</div><div style="font-size:1.35rem;font-weight:700;color:var(--accent)">'+count+'</div></div>' +
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Сегодня</div><div style="font-size:1.35rem;font-weight:700;color:var(--accent)">'+nToday+'</div></div>' +
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Неделя</div><div style="font-size:1.15rem;font-weight:700">'+nWeek+'</div></div>' +
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Месяц / Год</div><div style="font-size:1.05rem;font-weight:700">'+nMonth+' / '+nYear+'</div></div></div>' +
+            '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">Только ники (без email)</div>' + rows;
         } catch(e) {
-          if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;');
+          if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;') +
+            '<p class="ayah-translation" style="margin-top:0.5rem">Если 0 — проверьте RLS: чтение profiles для anon/authenticated.</p>';
         }
         return;
       }
@@ -20238,6 +20307,37 @@ function startApp() {
           }
         } catch(e) {}
         showView(restoreView);
+        // Первый заход — предложить регистрацию
+        try {
+          if (!localStorage.getItem('quran_first_gate_done')) {
+            setTimeout(function() {
+              try {
+                if (typeof getSb === 'function' && getSb() && !(state.user && state.user.id)) {
+                  var box = document.createElement('div');
+                  box.id = 'first-gate';
+                  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+                  box.innerHTML = '<div class="card" style="max-width:22rem;width:100%"><b>Добро пожаловать</b>' +
+                    '<p class="ayah-translation" style="margin:0.5rem 0">Можно войти или зарегистрироваться — прогресс сохранится. Либо продолжить как гость (данные только на этом устройстве).</p>' +
+                    '<button type="button" class="btn btn-primary" id="fg-reg" style="width:100%;margin:0.35rem 0">Регистрация / Вход</button>' +
+                    '<button type="button" class="btn" id="fg-guest" style="width:100%">Продолжить как гость</button></div>';
+                  document.body.appendChild(box);
+                  document.getElementById('fg-guest').onclick = function() {
+                    localStorage.setItem('quran_first_gate_done', '1');
+                    box.remove();
+                  };
+                  document.getElementById('fg-reg').onclick = function() {
+                    localStorage.setItem('quran_first_gate_done', '1');
+                    box.remove();
+                    try { showView('account'); } catch(e) {}
+                  };
+                } else {
+                  localStorage.setItem('quran_first_gate_done', '1');
+                }
+              } catch(e) {}
+            }, 600);
+          }
+        } catch(e) {}
+
         setTimeout(() => {
           try { if (typeof applySettings === 'function') applySettings(); } catch(e) {}
           try { if (typeof applyLanguage === 'function') applyLanguage(); } catch(e) {}
