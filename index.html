@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.19 2026-08-04 -->
+<!-- BUILD 2.20 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.19</title>
+  <title>Коран — Изучение · 2.20</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -10188,6 +10188,13 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.20', kinds: ['f', 'b', 'd'], date: '2026-08-07',
+          a: [],
+          b: [ 'Статистика: одна панель периода; блоки «Моя» и «По сайту»' ],
+          f: [ 'Старые данные без даты → сегодня; кнопки пред/след снова работают' ],
+          d: [ 'Более читаемый вид статистики' ],
+          ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.19', kinds: ['f'], date: '2026-08-07',
           a: [], b: [],
           f: [
@@ -14537,19 +14544,42 @@ function playArabicAudio(text, fallbackRu, opts) {
       return t;
     }
     function parseDayKey(k) {
-      k = String(k || '').trim().replace(/\//g, '-');
+      k = String(k || '').trim().replace(/\//g, '-').replace(/\./g, '-');
       var p = k.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
       if (!p) return null;
-      return new Date(+p[1], +p[2] - 1, +p[3]);
+      var dt = new Date(+p[1], +p[2] - 1, +p[3]);
+      if (isNaN(dt.getTime())) return null;
+      return dt;
+    }
+    /** Приводит { day: n } к нормальным ключам; числа без даты → сегодня */
+    function normalizeDayMap(m) {
+      if (!m || typeof m !== 'object' || Array.isArray(m)) return {};
+      var out = {};
+      var orphan = 0;
+      Object.keys(m).forEach(function(k) {
+        if (k.charAt(0) === '_') return;
+        var val = Number(m[k]);
+        if (!val || val !== val) return;
+        var dt = parseDayKey(k);
+        if (dt) {
+          var nk = dayKey(dt);
+          out[nk] = (out[nk] || 0) + val;
+        } else {
+          orphan += val;
+        }
+      });
+      if (orphan > 0) {
+        var t = dayKey();
+        out[t] = (out[t] || 0) + orphan;
+      }
+      return out;
     }
     function sumInPeriod(map, period, anchor) {
-      if (!map || typeof map !== 'object') return 0;
+      map = normalizeDayMap(map);
+      if (!map || !Object.keys(map).length) return 0;
       if (period === 'all' || !period) {
         var t = 0;
-        Object.keys(map).forEach(function(k) {
-          var val = Number(map[k]);
-          if (val && val === val) t += val;
-        });
+        Object.keys(map).forEach(function(k) { t += Number(map[k]) || 0; });
         return t;
       }
       anchor = anchor || new Date();
@@ -14572,27 +14602,15 @@ function playArabicAudio(text, fallbackRu, opts) {
       var st = start.getTime(), en = end.getTime();
       var total = 0;
       Object.keys(map).forEach(function(k) {
-        var val = Number(map[k]);
-        if (!val || val !== val) return;
+        var val = Number(map[k]) || 0;
         var dt = parseDayKey(k);
-        if (!dt || isNaN(dt.getTime())) return;
+        if (!dt) return;
         var t = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
         if (t >= st && t <= en) total += val;
       });
       return total;
     }
-
-function sumInMonth(map, year, month) {
-      if (!map) return 0;
-      var t = 0;
-      var prefix = year + '-' + String(month + 1).padStart(2, '0') + '-';
-      Object.keys(map).forEach(function(d) {
-        if (String(d).indexOf(prefix) === 0) t += (+map[d] || 0);
-      });
-      return t;
-    }
-
-    async function trackSectionVisit(sectionId) {
+async function trackSectionVisit(sectionId) {
       if (!sectionId) return;
       var skip = { login:1, register:1, forgot:1, appupdate:1 };
       if (skip[sectionId]) return;
@@ -14660,38 +14678,24 @@ async function isAdminUser() {
 async function renderStats() {
       const el = document.getElementById('stats-body');
       if (!el) return;
-      flushSectionTime();
+      try { flushSectionTime(); } catch(e) {}
       const s = ensureRichStats();
+      // Нормализация ключей дат (старые данные без YYYY-MM-DD → сегодня)
       try {
-        var locToday = dayKey();
-        var utcToday = new Date().toISOString().slice(0, 10);
-        if (locToday !== utcToday && s.sectionVisits) {
+        if (s.sectionVisits) {
           Object.keys(s.sectionVisits).forEach(function(sid) {
-            var m = s.sectionVisits[sid];
-            if (m && m[utcToday] && !m[locToday]) {
-              m[locToday] = m[utcToday];
-              delete m[utcToday];
-            } else if (m && m[utcToday] && m[locToday]) {
-              m[locToday] += m[utcToday];
-              delete m[utcToday];
-            }
+            s.sectionVisits[sid] = normalizeDayMap(s.sectionVisits[sid]);
           });
         }
-        if (locToday !== utcToday && s.sectionSeconds) {
+        if (s.sectionSeconds) {
           Object.keys(s.sectionSeconds).forEach(function(sid) {
-            var m = s.sectionSeconds[sid];
-            if (m && m[utcToday] && !m[locToday]) {
-              m[locToday] = m[utcToday];
-              delete m[utcToday];
-            } else if (m && m[utcToday] && m[locToday]) {
-              m[locToday] += m[utcToday];
-              delete m[utcToday];
-            }
+            s.sectionSeconds[sid] = normalizeDayMap(s.sectionSeconds[sid]);
           });
         }
+        saveState();
       } catch(e) {}
 
-      const labels = (typeof SECTION_STAT_LABELS !== 'undefined') ? SECTION_STAT_LABELS : {};
+      const labels = (typeof SECTION_STAT_LABELS !== 'undefined') ? Object.assign({}, SECTION_STAT_LABELS) : {};
       labels.dailyhub = labels.dailyhub || 'Ежедневное';
       labels.home = labels.home || 'Суры';
       labels.learn = labels.learn || 'Теория';
@@ -14700,6 +14704,9 @@ async function renderStats() {
       labels.reader = labels.reader || 'Чтение';
       labels.account = labels.account || 'Аккаунт';
       labels.stats = labels.stats || 'Статистика';
+      labels.prayertimes = labels.prayertimes || 'Время намаза';
+      labels.appupdate = labels.appupdate || 'Обновить приложение';
+      labels.fiqh = labels.fiqh || 'Фикх';
 
       function fmtSec(sec) {
         sec = Math.max(0, Math.round(+sec || 0));
@@ -14709,129 +14716,74 @@ async function renderStats() {
         if (h > 0) return h + ' ч ' + m + ' мин';
         return m + ' мин';
       }
-      function metricCard(title, val, sub) {
-        return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.65rem 0.75rem;min-width:0">' +
-          '<div style="font-size:0.72rem;color:var(--text-muted)">' + title + '</div>' +
-          '<div style="font-size:1.25rem;font-weight:700;margin-top:0.15rem;color:var(--accent)">' + val + '</div>' +
-          (sub ? '<div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.15rem">' + sub + '</div>' : '') +
-          '</div>';
-      }
-      function rangeRow(title, mapVisits, mapSec) {
-        var vT = sumInRange(mapVisits, 0), vW = sumInRange(mapVisits, 6), vA = sumInRange(mapVisits, null);
-        var sT = sumInRange(mapSec, 0), sW = sumInRange(mapSec, 6), sA = sumInRange(mapSec, null);
-        var vM, sM, mLabel = 'месяц';
-        if (window._statsPeriod === 'month' && window._statsMonth) {
-          vM = sumInMonth(mapVisits, window._statsMonth.y, window._statsMonth.m);
-          sM = sumInMonth(mapSec, window._statsMonth.y, window._statsMonth.m);
-          var mn = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-          mLabel = mn[window._statsMonth.m] + ' ' + String(window._statsMonth.y).slice(2);
-        } else {
-          vM = sumInRange(mapVisits, 29);
-          sM = sumInRange(mapSec, 29);
+      if (!window._statsPeriod) window._statsPeriod = 'day';
+      if (!window._statsAnchor) window._statsAnchor = new Date();
+      if (!window._statsGroup) window._statsGroup = 'all';
+
+      var pCur = window._statsPeriod;
+      var anchor = window._statsAnchor;
+      var mn = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+      function periodLabel() {
+        var a = anchor, p = pCur;
+        if (p === 'day') return a.getDate() + ' ' + mn[a.getMonth()] + ' ' + a.getFullYear();
+        if (p === 'week') {
+          var s0 = new Date(a.getFullYear(), a.getMonth(), a.getDate() - 6);
+          return s0.getDate() + ' ' + mn[s0.getMonth()] + ' – ' + a.getDate() + ' ' + mn[a.getMonth()];
         }
-        var vY = sumInRange(mapVisits, 364), sY = sumInRange(mapSec, 364);
-        // защита: период не может быть больше «всего»
-        if (vT > vA) vT = vA; if (vW > vA) vW = vA; if (vM > vA) vM = vA; if (vY > vA) vY = vA;
-        if (sT > sA) sT = sA; if (sW > sA) sW = sA; if (sM > sA) sM = sA; if (sY > sA) sY = sA;
-        return '<div style="padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
-          '<div style="font-weight:600;margin-bottom:0.35rem">' + title + '</div>' +
-          '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.25rem;font-size:0.72rem;text-align:center">' +
-          '<div><div style="color:var(--text-muted)">сегодня</div><b>' + vT + '</b><div style="color:var(--text-muted)">' + fmtSec(sT) + '</div></div>' +
-          '<div><div style="color:var(--text-muted)">неделя</div><b>' + vW + '</b><div style="color:var(--text-muted)">' + fmtSec(sW) + '</div></div>' +
-          '<div><div style="color:var(--text-muted)">' + mLabel + '</div><b>' + vM + '</b><div style="color:var(--text-muted)">' + fmtSec(sM) + '</div></div>' +
-          '<div><div style="color:var(--text-muted)">год</div><b>' + vY + '</b><div style="color:var(--text-muted)">' + fmtSec(sY) + '</div></div>' +
-          '<div><div style="color:var(--text-muted)">всего</div><b>' + vA + '</b><div style="color:var(--text-muted)">' + fmtSec(sA) + '</div></div>' +
-          '</div></div>';
+        if (p === 'month') return mn[a.getMonth()] + ' ' + a.getFullYear();
+        if (p === 'year') return String(a.getFullYear());
+        return 'всё время';
       }
 
-      // aggregate all sections visits/time
+      // aggregate
       var allV = {}, allS = {};
       Object.keys(s.sectionVisits || {}).forEach(function(sid) {
-        Object.keys(s.sectionVisits[sid] || {}).forEach(function(d) {
-          allV[d] = (allV[d] || 0) + (s.sectionVisits[sid][d] || 0);
-        });
+        var m = normalizeDayMap(s.sectionVisits[sid]);
+        Object.keys(m).forEach(function(d) { allV[d] = (allV[d] || 0) + m[d]; });
       });
       Object.keys(s.sectionSeconds || {}).forEach(function(sid) {
-        Object.keys(s.sectionSeconds[sid] || {}).forEach(function(d) {
-          allS[d] = (allS[d] || 0) + (s.sectionSeconds[sid][d] || 0);
-        });
+        var m = normalizeDayMap(s.sectionSeconds[sid]);
+        Object.keys(m).forEach(function(d) { allS[d] = (allS[d] || 0) + m[d]; });
       });
+
+      var ovV = sumInPeriod(allV, pCur, anchor);
+      var ovS = sumInPeriod(allS, pCur, anchor);
+      var ovVAll = sumInPeriod(allV, 'all');
+      var ovSAll = sumInPeriod(allS, 'all');
 
       var dictN = (state.dictionary || []).length;
       var bmN = (state.bookmarks || []).length;
       var notesN = Object.keys(state.notes || {}).length;
       var learnedN = Object.keys(state.learnedAyahs || {}).length;
       var learnedS = Object.keys(state.learnedSurahs || {}).length;
-      var listenMin = Math.round((s.listenSeconds || 0) / 60);
+      var listenMin = Math.round(((s.listenSeconds) || 0) / 60);
       var foldersN = (state.bookmarkFolders || []).length;
 
-      var secIds = {};
-      Object.keys(s.sectionVisits || {}).forEach(function(k){ secIds[k] = 1; });
-      Object.keys(s.sectionSeconds || {}).forEach(function(k){ secIds[k] = 1; });
-      var secList = Object.keys(secIds).sort(function(a, b) {
-        return sumInRange(s.sectionVisits[b], null) - sumInRange(s.sectionVisits[a], null);
-      });
-      if (!window._statsPeriod) window._statsPeriod = 'day';
-      if (!window._statsAnchor) window._statsAnchor = new Date();
-      if (!window._statsGroup) window._statsGroup = 'all';
+      var periodBtns = ['day','week','month','year','all'].map(function(pid) {
+        var lab = { day:'День', week:'Неделя', month:'Месяц', year:'Год', all:'Всё' }[pid];
+        var on = pid === pCur;
+        return '<button type="button" class="btn btn-sm st-period" data-p="' + pid + '" style="border-radius:999px;' +
+          (on ? 'background:var(--accent);color:#fff;border-color:var(--accent)' : '') + '">' + lab + '</button>';
+      }).join('');
 
-      function periodLabel() {
-        var a = window._statsAnchor || new Date();
-        var p = window._statsPeriod || 'day';
-        var mn = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-        if (p === 'day') return a.getDate() + ' ' + mn[a.getMonth()] + ' ' + a.getFullYear();
-        if (p === 'week') {
-          var s0 = new Date(a.getFullYear(), a.getMonth(), a.getDate() - 6);
-          return s0.getDate() + ' ' + mn[s0.getMonth()] + ' – ' + a.getDate() + ' ' + mn[a.getMonth()] + ' ' + a.getFullYear();
-        }
-        if (p === 'month') return mn[a.getMonth()] + ' ' + a.getFullYear();
-        if (p === 'year') return String(a.getFullYear());
-        return 'всё время';
-      }
-      function rangeRow(title, mapVisits, mapSec) {
-        var p = window._statsPeriod || 'day';
-        var a = window._statsAnchor || new Date();
-        var v = sumInPeriod(mapVisits, p, a);
-        var sec = sumInPeriod(mapSec, p, a);
-        var vAll = sumInPeriod(mapVisits, 'all');
-        var sAll = sumInPeriod(mapSec, 'all');
-        return '<div style="padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
-          '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:0.5rem">' +
-          '<div style="font-weight:600">' + title + '</div>' +
-          '<div style="text-align:right"><b style="color:var(--accent)">' + v + '</b> <span style="font-size:0.8rem;color:var(--text-muted)">заход.</span>' +
-          '<div style="font-size:0.75rem;color:var(--text-muted)">' + fmtSec(sec) + '</div></div></div>' +
-          '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.2rem">всего: ' + vAll + ' · ' + fmtSec(sAll) + '</div></div>';
-      }
-
-      var periods = [
-        { id:'day', label:'День' }, { id:'week', label:'Неделя' }, { id:'month', label:'Месяц' },
-        { id:'year', label:'Год' }, { id:'all', label:'Всё время' }
-      ];
-      var pCur = window._statsPeriod || 'day';
-      var periodTabs = '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin:0.45rem 0">' +
-        periods.map(function(t) {
-          var on = t.id === pCur;
-          return '<button type="button" class="btn btn-sm stats-p-tab" data-sp="' + t.id + '" style="' +
-            (on ? 'background:var(--accent);color:#fff;border-color:var(--accent)' : '') + '">' + t.label + '</button>';
-        }).join('') + '</div>';
-      var navHtml = (pCur === 'all') ? '' : (
-        '<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;margin:0.35rem 0 0.55rem">' +
-        '<button type="button" class="btn btn-sm" id="stats-p-prev">← пред</button>' +
-        '<span style="font-size:0.9rem;font-weight:600;min-width:9rem;text-align:center">' + periodLabel() + '</span>' +
-        '<button type="button" class="btn btn-sm" id="stats-p-next">след →</button></div>'
+      var navHtml = pCur === 'all' ? '' : (
+        '<div style="display:flex;align-items:center;justify-content:center;gap:0.6rem;margin:0.5rem 0">' +
+        '<button type="button" class="btn btn-sm st-prev">←</button>' +
+        '<span style="font-weight:600;font-size:0.95rem">' + periodLabel() + '</span>' +
+        '<button type="button" class="btn btn-sm st-next">→</button></div>'
       );
 
-      var groupTabs = [{ id: 'all', label: 'Все списки' }];
+      var groupTabs = [{ id:'all', label:'Все' }];
       try {
         ((typeof MORE_GROUP_DEFAULTS !== 'undefined') ? MORE_GROUP_DEFAULTS : []).forEach(function(g) {
           if (g && g.id) groupTabs.push({ id: g.id, label: (MORE_GROUP_LABELS && MORE_GROUP_LABELS[g.id]) || g.label || g.id });
         });
       } catch(e) {}
-      groupTabs.push({ id: 'main', label: 'Главное' });
+      groupTabs.push({ id:'main', label:'Главное' });
       var curG = window._statsGroup || 'all';
       function sectionGroupOf(sid) {
         try {
-          var items = (typeof MORE_MENU_DEFAULT !== 'undefined') ? MORE_MENU_DEFAULT : [];
+          var items = MORE_MENU_DEFAULT || [];
           for (var ii = 0; ii < items.length; ii++) {
             if (items[ii].id === sid) return items[ii].group || 'other';
           }
@@ -14839,66 +14791,90 @@ async function renderStats() {
         if (['dailyhub','home','learn','games','more','reader'].indexOf(sid) >= 0) return 'main';
         return 'other';
       }
-      var filtered = secList.filter(function(sid) {
+
+      var secIds = {};
+      Object.keys(s.sectionVisits || {}).forEach(function(k){ secIds[k]=1; });
+      Object.keys(s.sectionSeconds || {}).forEach(function(k){ secIds[k]=1; });
+      var secList = Object.keys(secIds).filter(function(sid) {
         if (curG === 'all') return true;
         return sectionGroupOf(sid) === curG;
+      }).sort(function(a,b) {
+        return sumInPeriod(s.sectionVisits[b], 'all') - sumInPeriod(s.sectionVisits[a], 'all');
       });
-      var secHtml = filtered.map(function(sid) {
-        return rangeRow(labels[sid] || sid, s.sectionVisits[sid], s.sectionSeconds[sid]);
-      }).join('') || '<p class="ayah-translation">В этой группе пока нет данных.</p>';
 
-      var tabsHtml = '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin:0.5rem 0 0.35rem">' +
-        groupTabs.map(function(t) {
-          var on = t.id === curG;
-          return '<button type="button" class="btn btn-sm stats-g-tab" data-sg="' + t.id + '" style="' +
-            (on ? 'background:var(--accent);color:#fff;border-color:var(--accent)' : '') + '">' + t.label + '</button>';
-        }).join('') + '</div>';
+      var secRows = secList.map(function(sid) {
+        var v = sumInPeriod(s.sectionVisits[sid], pCur, anchor);
+        var sec = sumInPeriod(s.sectionSeconds[sid], pCur, anchor);
+        var vA = sumInPeriod(s.sectionVisits[sid], 'all');
+        var sA = sumInPeriod(s.sectionSeconds[sid], 'all');
+        return '<div style="display:grid;grid-template-columns:1fr auto;gap:0.25rem 0.75rem;padding:0.65rem 0;border-bottom:1px solid var(--border)">' +
+          '<div style="font-weight:600">' + (labels[sid] || sid) + '</div>' +
+          '<div style="text-align:right;font-weight:700;color:var(--accent)">' + v + '</div>' +
+          '<div style="font-size:0.78rem;color:var(--text-muted)">' + fmtSec(sec) + ' за период</div>' +
+          '<div style="font-size:0.75rem;color:var(--text-muted);text-align:right">всего ' + vA + ' · ' + fmtSec(sA) + '</div></div>';
+      }).join('') || '<p class="ayah-translation" style="padding:0.5rem 0">Пока нет заходов. Откройте разделы — здесь появятся цифры.</p>';
 
-      var ovV = sumInPeriod(allV, pCur, window._statsAnchor);
-      var ovS = sumInPeriod(allS, pCur, window._statsAnchor);
-      var ovVAll = sumInPeriod(allV, 'all');
-      var ovSAll = sumInPeriod(allS, 'all');
+      var gTabs = groupTabs.map(function(t) {
+        var on = t.id === curG;
+        return '<button type="button" class="btn btn-sm st-group" data-g="' + t.id + '" style="border-radius:999px;' +
+          (on ? 'background:var(--accent);color:#fff' : '') + '">' + t.label + '</button>';
+      }).join('');
 
       var html =
-        '<div class="card"><b>📊 Обзор</b>' + periodTabs + navHtml +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.4rem">' +
-        metricCard(pCur === 'all' ? 'Всё время' : periodLabel(), ovV + ' заход.', fmtSec(ovS)) +
-        metricCard('Накоплено', ovVAll + ' заход.', fmtSec(ovSAll)) +
-        '</div></div>' +
+        '<div class="card" style="margin-bottom:0.75rem">' +
+        '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">МОЯ СТАТИСТИКА</div>' +
+        '<b style="font-size:1.05rem">📊 Обзор</b>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin:0.55rem 0 0.15rem">' + periodBtns + '</div>' +
+        navHtml +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.35rem">' +
+        '<div style="background:var(--bg);border-radius:0.75rem;padding:0.75rem;text-align:center">' +
+        '<div style="font-size:0.75rem;color:var(--text-muted)">' + (pCur === 'all' ? 'Всего' : periodLabel()) + '</div>' +
+        '<div style="font-size:1.5rem;font-weight:700;color:var(--accent);margin:0.2rem 0">' + ovV + '</div>' +
+        '<div style="font-size:0.8rem;color:var(--text-muted)">заходов · ' + fmtSec(ovS) + '</div></div>' +
+        '<div style="background:var(--bg);border-radius:0.75rem;padding:0.75rem;text-align:center">' +
+        '<div style="font-size:0.75rem;color:var(--text-muted)">Накоплено</div>' +
+        '<div style="font-size:1.5rem;font-weight:700;color:var(--accent);margin:0.2rem 0">' + ovVAll + '</div>' +
+        '<div style="font-size:0.8rem;color:var(--text-muted)">заходов · ' + fmtSec(ovSAll) + '</div></div></div></div>' +
 
-        '<div class="card"><b>📚 Ваша активность</b>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.6rem">' +
-        metricCard('Словарь', dictN, 'слов') +
-        metricCard('Избранное', bmN, 'закладок') +
-        metricCard('Папки закладок', foldersN, '') +
-        metricCard('Заметки', notesN, '') +
-        metricCard('Выучено аятов', learnedN, 'сур: ' + learnedS) +
-        metricCard('Открыто аятов', s.openedAyahs || 0, '') +
-        metricCard('Прослушивание', listenMin + ' мин', 'аудио') +
-        metricCard('Всего времени', fmtSec(ovSAll), 'в разделах') +
-        '</div></div>' +
+        '<div class="card" style="margin-bottom:0.75rem">' +
+        '<b>📚 Активность</b>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;margin-top:0.55rem">' +
+        [['Словарь', dictN],['Избранное', bmN],['Папки', foldersN],['Заметки', notesN],
+         ['Выучено аятов', learnedN],['Открыто аятов', s.openedAyahs||0],
+         ['Аудио, мин', listenMin],['Время в разделах', fmtSec(ovSAll)]].map(function(row) {
+          return '<div style="background:var(--bg);border-radius:0.65rem;padding:0.55rem 0.65rem">' +
+            '<div style="font-size:0.72rem;color:var(--text-muted)">' + row[0] + '</div>' +
+            '<div style="font-size:1.15rem;font-weight:700;margin-top:0.1rem">' + row[1] + '</div></div>';
+        }).join('') + '</div></div>' +
 
-        '<div class="card"><b>📂 По разделам</b>' +
-        '<div class="ayah-translation" style="margin:0.35rem 0 0.15rem">Фильтр списка + период (← пред / след →)</div>' +
-        tabsHtml + periodTabs + navHtml +
-        secHtml + '</div>';
+        '<div class="card" style="margin-bottom:0.75rem">' +
+        '<b>📂 По разделам</b>' +
+        '<div style="font-size:0.78rem;color:var(--text-muted);margin:0.35rem 0">Тот же период, что сверху</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.45rem">' + gTabs + '</div>' +
+        secRows + '</div>' +
 
-      // Global public stats from Supabase (best effort)
-      el.innerHTML = html + '<div class="card" id="stats-global">Загрузка общей статистики…</div>';
-      el.querySelectorAll('.stats-g-tab').forEach(function(btn) {
+        '<div class="card" id="stats-global" style="margin-bottom:0.5rem">' +
+        '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">ПО САЙТУ (все пользователи)</div>' +
+        '<div class="ayah-translation">Загрузка…</div></div>';
+
+      el.innerHTML = html;
+
+      // один набор обработчиков
+      el.querySelectorAll('.st-period').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          window._statsGroup = btn.getAttribute('data-sg') || 'all';
+          window._statsPeriod = btn.getAttribute('data-p') || 'day';
           renderStats();
         });
       });
-      el.querySelectorAll('.stats-p-tab').forEach(function(btn) {
+      el.querySelectorAll('.st-group').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          window._statsPeriod = btn.getAttribute('data-sp') || 'day';
-          if (!window._statsAnchor) window._statsAnchor = new Date();
+          window._statsGroup = btn.getAttribute('data-g') || 'all';
           renderStats();
         });
       });
-      document.getElementById('stats-p-prev')?.addEventListener('click', function() {
+      var prev = el.querySelector('.st-prev');
+      var next = el.querySelector('.st-next');
+      if (prev) prev.addEventListener('click', function() {
         var a = window._statsAnchor || new Date();
         var p = window._statsPeriod || 'day';
         if (p === 'day') a = new Date(a.getFullYear(), a.getMonth(), a.getDate() - 1);
@@ -14908,7 +14884,7 @@ async function renderStats() {
         window._statsAnchor = a;
         renderStats();
       });
-      document.getElementById('stats-p-next')?.addEventListener('click', function() {
+      if (next) next.addEventListener('click', function() {
         var a = window._statsAnchor || new Date();
         var p = window._statsPeriod || 'day';
         if (p === 'day') a = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 1);
@@ -14918,59 +14894,45 @@ async function renderStats() {
         window._statsAnchor = a;
         renderStats();
       });
+
+      // global
       var sb = (typeof getSb === 'function') ? getSb() : null;
       if (!sb) {
         var g = document.getElementById('stats-global');
-        if (g) g.innerHTML = '<b>🌐 Общая статистика сайта</b><p class="ayah-translation">Нужен интернет / Supabase. Локальная статистика выше уже работает.</p>';
+        if (g) g.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">ПО САЙТУ</div><p class="ayah-translation">Нужен интернет (Supabase).</p>';
         return;
       }
       try {
         var visRes = await sb.from('section_visitors').select('section_id,visitor_key,day').limit(10000);
         var rows = (visRes && visRes.data) || [];
         if (visRes && visRes.error) throw visRes.error;
-        var today = dayKey();
-        var now = new Date();
-        function inDays(dayStr, back) {
-          var dt = new Date(dayStr + 'T12:00:00');
-          var diff = Math.floor((now - dt) / 86400000);
-          return diff >= 0 && diff <= back;
-        }
         var bySec = {};
         rows.forEach(function(r) {
-          if (!bySec[r.section_id]) bySec[r.section_id] = { t: {}, w: {}, m: {}, y: {}, a: {} };
-          var b = bySec[r.section_id];
-          b.a[r.visitor_key] = 1;
-          if (r.day === today) b.t[r.visitor_key] = 1;
-          if (inDays(r.day, 6)) b.w[r.visitor_key] = 1;
-          if (inDays(r.day, 29)) b.m[r.visitor_key] = 1;
-          if (inDays(r.day, 364)) b.y[r.visitor_key] = 1;
+          if (!bySec[r.section_id]) bySec[r.section_id] = {};
+          bySec[r.section_id][r.visitor_key] = 1;
         });
-        var gHtml = Object.keys(bySec).sort(function(a,b){
-          return Object.keys(bySec[b].a).length - Object.keys(bySec[a].a).length;
-        }).map(function(sid) {
-          var b = bySec[sid];
-          return '<div style="display:flex;justify-content:space-between;gap:0.4rem;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.85rem">' +
-            '<span>' + (labels[sid] || sid) + '</span>' +
-            '<span style="color:var(--text-muted);text-align:right;font-size:0.75rem">' +
-            'сегодня <b>' + Object.keys(b.t).length + '</b> · нед. <b>' + Object.keys(b.w).length + '</b><br>' +
-            'мес. <b>' + Object.keys(b.m).length + '</b> · год <b>' + Object.keys(b.y).length + '</b> · всего <b>' + Object.keys(b.a).length + '</b></span></div>';
-        }).join('') || '<p class="ayah-translation">Пока нет данных.</p>';
-
         var usersN = '—';
         try {
           var ur = await sb.from('profiles').select('id', { count: 'exact', head: true });
-          rsN = ur.count;
+          if (ur && ur.count != null) usersN = ur.count;
         } catch(e) {}
+        var gHtml = Object.keys(bySec).sort(function(a,b){
+          return Object.keys(bySec[b]).length - Object.keys(bySec[a]).length;
+        }).map(function(sid) {
+          return '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.88rem">' +
+            '<span>' + (labels[sid] || sid) + '</span><b>' + Object.keys(bySec[sid]).length + '</b></div>';
+        }).join('') || '<p class="ayah-translation">Пока нет данных.</p>';
         var g = document.getElementById('stats-global');
-        if (g) g.innerHTML = '<b>🌐 По сайту (все пользователи)</b>' +
-          '<div class="ayah-translation" style="margin:0.35rem 0">Уникальные посетители разделов. Регистраций (профилей): <b>' + usersN + '</b></div>' + gHtml;
+        if (g) g.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">ПО САЙТУ (все пользователи)</div>' +
+          '<div style="margin-bottom:0.45rem">Регистраций: <b>' + usersN + '</b></div>' + gHtml;
       } catch (e) {
         var g = document.getElementById('stats-global');
-        if (g) g.innerHTML = '<b>🌐 Общая статистика</b><p class="ayah-translation">' + String(e.message || e).replace(/</g, '&lt;') + '</p>';
+        if (g) g.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted)">ПО САЙТУ</div><p class="ayah-translation">' +
+          String(e.message || e).replace(/</g, '&lt;') + '</p>';
       }
     }
 
-// ========== ASBAB (reasons of revelation) — selected well-known ==========
+
     const ASBAB = {
       '2:186': 'Ниспослан, когда сподвижники спросили Пророка ﷺ: «Близок ли наш Господь, или нам взывать громко?»',
       '2:222': 'О очищении после менструации — ответ на вопрос сподвижников.',
