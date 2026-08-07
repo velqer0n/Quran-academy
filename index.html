@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.26 2026-08-04 -->
+<!-- BUILD 2.27 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.26</title>
+  <title>Коран — Изучение · 2.27</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -5991,27 +5991,51 @@ function showView(name, isBack) {
 
     function speakLetter(l) {
       if (!l) return;
-      try { if (window._letterAudio) { window._letterAudio.pause(); } } catch(e) {}
-      if (l.audio) {
-        try {
-          var a = new Audio(LETTER_AUDIO_BASE + l.audio);
+      try { if (window._letterAudio) { window._letterAudio.pause(); window._letterAudio = null; } } catch(e) {}
+      try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
+      var file = l.audio || '';
+      if (file) {
+        var bases = [
+          'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/',
+          'https://raw.githubusercontent.com/adnan/Arabic-Alphabet/master/sounds/'
+        ];
+        var tryPlay = function(bi) {
+          if (bi >= bases.length) {
+            // не TTS по латинице — произносим арабское имя буквы, если есть
+            speakLetterArabicName(l);
+            return;
+          }
+          var a = new Audio(bases[bi] + file);
           window._letterAudio = a;
-          a.play().catch(function(){ speakLetterTTS(l); });
-          return;
-        } catch(e) {}
+          var done = false;
+          a.onerror = function() { if (!done) { done = true; tryPlay(bi + 1); } };
+          a.play().then(function(){ done = true; }).catch(function() {
+            if (!done) { done = true; tryPlay(bi + 1); }
+          });
+        };
+        tryPlay(0);
+        return;
       }
-      speakLetterTTS(l);
+      speakLetterArabicName(l);
     }
-    function speakLetterTTS(l) {
+    function speakLetterArabicName(l) {
+      // Только как запасной вариант: полное арабское имя, не латинская «ha»
+      var namesAr = {
+        'ا':'ألف','ب':'باء','ت':'تاء','ث':'ثاء','ج':'جيم','ح':'حاء','خ':'خاء',
+        'د':'دال','ذ':'ذال','ر':'راء','ز':'زاي','س':'سين','ش':'شين','ص':'صاد',
+        'ض':'ضاد','ط':'طاء','ظ':'ظاء','ع':'عين','غ':'غين','ف':'فاء','ق':'قاف',
+        'ك':'كاف','ل':'لام','م':'ميم','ن':'نون','ه':'هاء','و':'واو','ي':'ياء'
+      };
+      var phrase = namesAr[l.ch] || l.ch || '';
       try {
         if (!window.speechSynthesis) return;
-        window.speechSynthesis.cancel();
-        var u = new SpeechSynthesisUtterance((l && l.ch) || '');
+        var u = new SpeechSynthesisUtterance(phrase);
         u.lang = 'ar-SA';
-        u.rate = 0.85;
+        u.rate = 0.8;
         window.speechSynthesis.speak(u);
       } catch(e) {}
     }
+
 function speakLetter(ch, name) {
       if (ch && typeof ch === 'object') {
         name = ch.name || name || '';
@@ -6120,7 +6144,7 @@ function speakLetter(ch, name) {
     }
 
     // ========== ARABIC ALPHABET ==========
-    const LETTER_AUDIO_BASE = 'https://raw.githubusercontent.com/adnan/Arabic-Alphabet/master/sounds/';
+    const LETTER_AUDIO_BASE = 'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
     const ARABIC_LETTERS = [
       {ch:'ا', name:'Алиф', tr:'ā / a', audio:'1_alif.mp3', forms:['ا','ا','ـا','ـا'], note:'Не соединяется слева. Часто читается как долгий гласный «а».'},
       {ch:'ب', name:'Ба', tr:'b', audio:'2_baa.mp3', forms:['ب','بـ','ـبـ','ـب'], note:'Губы вместе. Звук «б», без русской мягкости.'},
@@ -8042,6 +8066,36 @@ function renderMistakes() {
     }
 
 
+    const ARABIC_RULES = [
+      {title:'اتجاه الكتابة · Направление', ar:'العربية تُكتب من اليمين إلى اليسار.', ru:'Арабский пишется справа налево. Книги открываются «с другой стороны».'},
+      {title:'ربط الحروف · Соединение', ar:'معظم الحروف تتصل بما بعدها. الحروف ا د ذ ر ز و لا تتصل بما بعدها.', ru:'Большинство букв соединяются с соседними. Буквы ا د ذ ر ز و не соединяются со следующей буквой (той, что слева от них при письме).'},
+      {title:'أشكال الحرف · Четыре формы', ar:'لكل حرف حتى ٤ أشكال: منفصل، ابتدائي، وسطي، نهائي.', ru:'У каждой буквы до 4 форм: изолированная, начальная, срединная, конечная. Форма зависит от позиции в слове.'},
+      {title:'الحركات · Огласовки', ar:'الفتحة َ = a · الكسرة ِ = i · الضمة ُ = u · السكون ْ · الشدة ّ', ru:'Краткие гласные — значки над/под буквой: фатха َ = а, касра ِ = и, дамма ُ = у, сукун ْ = нет гласной, шадда ّ = удвоение.'},
+      {title:'الألف والهمزة', ar:'ى ألف مقصورة في آخر الكلمة تُقرأ «а». الهمزة ء صوت في الحلق.', ru:'ى (алиф максура) в конце слова читается как «а». Хамза ء — гортанная смычка (на алифе, ваве или йа).'},
+      {title:'الشمسية والقمرية', ar:'بعد ال: الشمسية تدغم اللام (الشمس). القمرية تُظهر اللام (القمر).', ru:'После артикля ال: солнечные буквы «съедают» лям (аш-шамс). Лунные сохраняют лям (аль-камар).'},
+      {title:'التنوين · Танвин', ar:'ً ٍ ٌ في آخر الاسم علامة التنكير.', ru:'Двойная огласовка в конце слова: ً ٍ ٌ (ан / ин / ун) — признак неопределённости существительного.'},
+      {title:'التاء المربوطة', ar:'ة في آخر الكلمة غالباً للتأنيث. تُقرأ «а» أو «т» عند الوصل.', ru:'ة в конце часто обозначает женский род. Читается как «а» (или «т» при соединении со следующим словом).'}
+    ];
+
+    const TAJWEED_RULES = [
+      {title:'إخفاء · Ихфа', ar:'إخفاء النون الساكنة أو التنوين عند ١٥ حرفاً مع غنة.', ru:'Скрытое произношение нун с сукуном/танвина перед 15 буквами. Звук «н» слегка носовой, язык не касается нёба.',
+        example:'مِنْ شَرِّ', exampleHtml:'مِ<span class="tj-ghunna">نْ شَ</span>رِّ', exampleNote:'н перед ش — ихфа с гунной'},
+      {title:'إدغام · Идгам', ar:'إدغام النون الساكنة في ي ر م ل و ن.', ru:'Слияние: нун с сукуном сливается со следующей буквой (й, р, м, л, в, н). С гунной или без.',
+        example:'مِن رَّبِّهِمْ', exampleHtml:'مِ<span class="tj-idgham">ن رَّ</span>بِّهِمْ', exampleNote:'н + р → слияние (без гунны для р/л)'},
+      {title:'إقلاب · Иклаб', ar:'قلب النون ميماً قبل الباء مع غنة.', ru:'Нун с сукуном перед ب превращается в звук, близкий к «м», с лёгкой гунной.',
+        example:'مِنْ بَعْدِ', exampleHtml:'مِ<span class="tj-ghunna">نْ بَ</span>عْدِ', exampleNote:'н перед ب ≈ м с гунной'},
+      {title:'إظهار · Изхар', ar:'إظهار النون عند ء ه ع ح غ خ.', ru:'Чёткое произношение нун перед гортанными буквами ء ه ع ح غ خ — без слияния.',
+        example:'مَنْ آمَنَ', exampleHtml:'مَنْ آمَنَ', exampleNote:'н перед ء читается чётко'},
+      {title:'قلقلة · Калькаля', ar:'قلقلة ق ط ب ج د إذا سكنت.', ru:'«Отскок» при произнесении ق ط ب ج د с сукуном. Звук слегка «подпрыгивает».',
+        example:'قَدْ', exampleHtml:'قَ<span class="tj-qalqala">دْ</span>', exampleNote:'д с сукуном — лёгкий отскок'},
+      {title:'مد · Мадд', ar:'إطالة الصوت. المد الطبيعي حركتان، واللازم ٤–٦.', ru:'Удлинение гласного. Естественный мадд — 2 счёта. Обязательный — 4–6 счётов.',
+        example:'قَالَ', exampleHtml:'قَ<span class="tj-madd">ا</span>لَ', exampleNote:'алиф после фатхи — 2 счёта'},
+      {title:'غنة · Гунна', ar:'صوت أنفي بمقدار حركتين.', ru:'Носовой призвук (примерно 2 счёта) при идгаме с гунной и при нун/мим с шаддой.',
+        example:'إِنَّ', exampleHtml:'إِ<span class="tj-ghunna">نَّ</span>', exampleNote:'н с шаддой — гунна 2 счёта'},
+      {title:'وقف · Вакф', ar:'م لازم · لا ممنوع · ج جائز.', ru:'Знаки остановки: م — обязательно остановиться, لا — не останавливаться, ج — допустимо.',
+        example:'…۝', exampleHtml:'…۝', exampleNote:'в конце аята — естественная остановка'}
+    ];
+
     function renderRules() {
       let el = document.getElementById('learn-rules');
       const parent = document.getElementById('acad-rules');
@@ -8057,11 +8111,17 @@ function renderMistakes() {
         el.innerHTML = '<div class="empty-state">Нет правил</div>';
         return;
       }
-      el.innerHTML = rules.map(r =>
-        '<div class="rule-card"><h3>'+r.title+'</h3>' +
-        (r.ar ? '<div class="rule-ar" dir="rtl">'+r.ar+'</div>' : '') +
-        '<div class="rule-ru">'+(r.ru||r.body||'')+'</div></div>'
-      ).join('');
+      el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">Базовые правила письма. Кратко → «Подробнее».</p>' +
+        rules.map(function(r) {
+          var ru = r.ru || r.body || '';
+          var short = ru.slice(0, 120) + (ru.length > 120 ? '…' : '');
+          return '<div class="rule-card" style="margin-bottom:0.65rem">' +
+            '<h3 dir="ltr">'+r.title+'</h3>' +
+            (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.15rem;margin:0.35rem 0">'+r.ar+'</div>' : '') +
+            '<div class="les-short ayah-translation" dir="ltr">'+short+'</div>' +
+            '<button type="button" class="btn btn-sm les-more-btn" style="margin:0.35rem 0">📖 Подробнее</button>' +
+            '<div class="les-full ayah-translation" dir="ltr" style="display:none;white-space:pre-wrap;margin-top:0.35rem">'+ru+'</div></div>';
+        }).join('');
     }
     function renderTajweed() {
       let el = document.getElementById('learn-tajweed');
@@ -8078,11 +8138,20 @@ function renderMistakes() {
         el.innerHTML = '<div class="empty-state">Нет правил таджвида</div>';
         return;
       }
-      el.innerHTML = rules.map(r =>
-        '<div class="rule-card"><h3>'+r.title+'</h3>' +
-        (r.ar ? '<div class="rule-ar" dir="rtl">'+r.ar+'</div>' : '') +
-        '<div class="rule-ru">'+(r.ru||'')+'</div></div>'
-      ).join('');
+      el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">Правила таджвида для начинающих. Кратко → «Подробнее».</p>' +
+        rules.map(function(r) {
+          var short = (r.ru || '').slice(0, 130) + ((r.ru||'').length > 130 ? '…' : '');
+          var full = (r.ru || '');
+          if (r.example) full += '\n\nПример: ' + r.example;
+          if (r.letters) full += '\n\nБуквы: ' + r.letters;
+          return '<div class="rule-card" style="margin-bottom:0.65rem">' +
+            '<h3 dir="ltr">'+r.title+'</h3>' +
+            (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.1rem;margin:0.35rem 0">'+r.ar+'</div>' : '') +
+            (r.exampleHtml ? '<div dir="rtl" lang="ar" style="font-size:1.25rem;margin:0.35rem 0;font-family:Amiri,serif">'+r.exampleHtml+'</div>' : '') +
+            '<div class="les-short ayah-translation" dir="ltr">'+short+'</div>' +
+            '<button type="button" class="btn btn-sm les-more-btn" style="margin:0.35rem 0">📖 Подробнее</button>' +
+            '<div class="les-full ayah-translation" dir="ltr" style="display:none;white-space:pre-wrap;margin-top:0.35rem">'+full+'</div></div>';
+        }).join('');
     }
 
     function renderRulesList(containerId, items) {
@@ -10135,6 +10204,15 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.27', kinds: ['f', 'a'], date: '2026-08-07',
+          a: [],
+          b: [],
+          f: [
+            'Правила и Таджвид: восстановлены данные ARABIC_RULES / TAJWEED_RULES',
+            'Озвучка букв: mp3 человека (jsDelivr), TTS только как запас с арабским именем'
+          ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.26', kinds: ['a', 'f', 'd'], date: '2026-08-07',
           a: [ 'Аудио каждой буквы (mp3); теория групп букв — кратко/подробно' ],
           b: [],
