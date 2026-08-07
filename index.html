@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.11 2026-08-04 -->
+<!-- BUILD 2.12 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.11</title>
+  <title>Коран — Изучение · 2.12</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -10127,7 +10127,7 @@ function renderSalah() {
     function renderAppUpdate() {
       var el = document.getElementById('appupdate-body');
       if (!el) return;
-      var ver = '2.11';
+      var ver = '2.12';
       try {
         var t = document.title || '';
         var m = t.match(/2\.\d+/);
@@ -10149,6 +10149,12 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.12', kinds: ['b', 'a', 'f'], date: '2026-08-06',
+          a: [ 'Статистика: сегодня/неделя/месяц/год, время в разделах, словарь, закладки, избранное' ],
+          b: [ 'Статистика общедоступна (не только админ); удобные карточки' ],
+          f: [ 'Убраны дубли кнопок «Мой аккаунт» и «Обновить» внизу «Ещё»' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.11', kinds: ['f', 'b'], date: '2026-08-05',
           a: [],
           b: [ 'Группа «Онлайн» как обычный список в «Ещё»: Мой аккаунт + Статистика' ],
@@ -14323,24 +14329,78 @@ function playArabicAudio(text, fallbackRu, opts) {
         }, { onConflict: 'id' });
       } catch (e) { console.warn('profile', e); }
     }
+    async function dayKey(d) {
+      d = d || new Date();
+      return d.toISOString().slice(0, 10);
+    }
+    function ensureRichStats() {
+      if (!state.stats) state.stats = {};
+      var s = state.stats;
+      if (!s.sectionVisits) s.sectionVisits = {}; // { sectionId: { 'YYYY-MM-DD': n } }
+      if (!s.sectionSeconds) s.sectionSeconds = {}; // { sectionId: { 'YYYY-MM-DD': sec } }
+      if (!s._activeSection) s._activeSection = null;
+      if (!s._activeSince) s._activeSince = null;
+      return s;
+    }
+    function flushSectionTime() {
+      try {
+        var s = ensureRichStats();
+        if (!s._activeSection || !s._activeSince) return;
+        var sec = Math.max(0, Math.round((Date.now() - s._activeSince) / 1000));
+        if (sec < 1) { s._activeSince = Date.now(); return; }
+        var day = dayKey();
+        if (!s.sectionSeconds[s._activeSection]) s.sectionSeconds[s._activeSection] = {};
+        s.sectionSeconds[s._activeSection][day] = (s.sectionSeconds[s._activeSection][day] || 0) + sec;
+        s._activeSince = Date.now();
+        try { saveState(); } catch(e) {}
+      } catch(e) {}
+    }
+    function sumInRange(map, daysBack) {
+      // map: { day: number }, daysBack: 0=today only, 6=week, 29=month, 364=year, null=all
+      if (!map) return 0;
+      var total = 0;
+      var now = new Date();
+      Object.keys(map).forEach(function(d) {
+        if (daysBack == null) { total += (+map[d] || 0); return; }
+        var dt = new Date(d + 'T12:00:00');
+        var diff = Math.floor((now - dt) / 86400000);
+        if (diff >= 0 && diff <= daysBack) total += (+map[d] || 0);
+      });
+      return total;
+    }
     async function trackSectionVisit(sectionId) {
       if (!sectionId) return;
-      var skip = { dailyhub:1, home:1, learn:1, games:1, more:1, login:1, register:1, forgot:1, account:1, stats:1, settings:1, reader:1 };
+      var skip = { login:1, register:1, forgot:1 };
       if (skip[sectionId]) return;
-      var day = new Date().toISOString().slice(0, 10);
-      var key = 'trk_' + sectionId + '_' + day;
+      try {
+        flushSectionTime();
+        var s = ensureRichStats();
+        s._activeSection = sectionId;
+        s._activeSince = Date.now();
+        var day = dayKey();
+        if (!s.sectionVisits[sectionId]) s.sectionVisits[sectionId] = {};
+        s.sectionVisits[sectionId][day] = (s.sectionVisits[sectionId][day] || 0) + 1;
+        s.sessions = (s.sessions || 0) + (sectionId === 'dailyhub' ? 0 : 0);
+        s.lastOpen = Date.now();
+        try { saveState(); } catch(e) {}
+      } catch(e) {}
+      // сервер: уникальный посетитель раздела за день
+      var skipSrv = { dailyhub:1, home:1, learn:1, games:1, more:1, login:1, register:1, forgot:1, account:1, stats:1, settings:1, reader:1, appupdate:1 };
+      if (skipSrv[sectionId]) return;
+      var key = 'trk_' + sectionId + '_' + dayKey();
       try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch(e) {}
-      var sb = getSb();
+      var sb = (typeof getSb === 'function') ? getSb() : null;
       if (!sb) return;
       try {
         await sb.from('section_visitors').upsert({
           section_id: sectionId,
           visitor_key: getVisitorKey(),
-          day: day
+          day: dayKey()
         }, { onConflict: 'section_id,visitor_key,day', ignoreDuplicates: true });
       } catch (e) {}
     }
-    async function isAdminUser() {
+
+async function isAdminUser() {
       var sb = getSb();
       if (!sb) return false;
       try {
@@ -14365,68 +14425,160 @@ function playArabicAudio(text, fallbackRu, opts) {
 async function renderStats() {
       const el = document.getElementById('stats-body');
       if (!el) return;
-      const s = state.stats || {};
-      const mins = Math.round((s.listenSeconds || 0) / 60);
-      const learned = Object.keys(state.learnedAyahs || {}).length;
-      const bm = (state.bookmarks || []).length;
-      const notes = Object.keys(state.notes || {}).length;
-      const personal =
-        '<div class="card"><b>Ваша локальная статистика</b>' +
-        '<div class="surah-meta" style="margin-top:0.35rem">Аятов открыто: '+(s.openedAyahs||0)+' · Слушали: '+mins+' мин · Выучено: '+learned+' · Закладок: '+bm+' · Заметок: '+notes+'</div></div>';
+      flushSectionTime();
+      const s = ensureRichStats();
+      const labels = (typeof SECTION_STAT_LABELS !== 'undefined') ? SECTION_STAT_LABELS : {};
+      labels.dailyhub = labels.dailyhub || 'Ежедневное';
+      labels.home = labels.home || 'Суры';
+      labels.learn = labels.learn || 'Теория';
+      labels.games = labels.games || 'Практика';
+      labels.more = labels.more || 'Ещё';
+      labels.reader = labels.reader || 'Чтение';
+      labels.account = labels.account || 'Аккаунт';
+      labels.stats = labels.stats || 'Статистика';
 
-      el.innerHTML = '<div class="card">Загрузка…</div>';
-      var sb = (typeof getSb === 'function') ? getSb() : null;
-      var sess = (typeof authSession === 'function') ? authSession() : null;
-      if (!sb || !sess || !sess.userId) {
-        el.innerHTML = personal +
-          '<div class="card"><b>Статистика сайта (админ)</b><p class="ayah-translation">Войдите в аккаунт администратора, чтобы видеть пользователей и посещения разделов.</p>' +
-          '<button type="button" class="btn btn-primary" id="st-login" style="width:100%;margin-top:0.45rem">Войти</button></div>';
-        document.getElementById('st-login')?.addEventListener('click', function(){ showView('login'); });
-        return;
+      function fmtSec(sec) {
+        sec = Math.max(0, Math.round(+sec || 0));
+        if (sec < 60) return sec + ' с';
+        var m = Math.floor(sec / 60), h = Math.floor(m / 60);
+        m = m % 60;
+        if (h > 0) return h + ' ч ' + m + ' мин';
+        return m + ' мин';
       }
-      var admin = false;
-      try { admin = await isAdminUser(); } catch(e) {}
-      if (!admin) {
-        el.innerHTML = personal +
-          '<div class="card"><b>Доступ к общей статистике ограничен</b><p class="ayah-translation">Раздел с пользователями и посещениями виден только администраторам.</p></div>';
+      function metricCard(title, val, sub) {
+        return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.65rem 0.75rem;min-width:0">' +
+          '<div style="font-size:0.72rem;color:var(--text-muted)">' + title + '</div>' +
+          '<div style="font-size:1.25rem;font-weight:700;margin-top:0.15rem;color:var(--accent)">' + val + '</div>' +
+          (sub ? '<div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.15rem">' + sub + '</div>' : '') +
+          '</div>';
+      }
+      function rangeRow(title, mapVisits, mapSec) {
+        var vT = sumInRange(mapVisits, 0), vW = sumInRange(mapVisits, 6), vM = sumInRange(mapVisits, 29), vY = sumInRange(mapVisits, 364), vA = sumInRange(mapVisits, null);
+        var sT = sumInRange(mapSec, 0), sW = sumInRange(mapSec, 6), sM = sumInRange(mapSec, 29), sY = sumInRange(mapSec, 364), sA = sumInRange(mapSec, null);
+        return '<div style="padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
+          '<div style="font-weight:600;margin-bottom:0.35rem">' + title + '</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.25rem;font-size:0.72rem;text-align:center">' +
+          '<div><div style="color:var(--text-muted)">сегодня</div><b>' + vT + '</b><div style="color:var(--text-muted)">' + fmtSec(sT) + '</div></div>' +
+          '<div><div style="color:var(--text-muted)">неделя</div><b>' + vW + '</b><div style="color:var(--text-muted)">' + fmtSec(sW) + '</div></div>' +
+          '<div><div style="color:var(--text-muted)">месяц</div><b>' + vM + '</b><div style="color:var(--text-muted)">' + fmtSec(sM) + '</div></div>' +
+          '<div><div style="color:var(--text-muted)">год</div><b>' + vY + '</b><div style="color:var(--text-muted)">' + fmtSec(sY) + '</div></div>' +
+          '<div><div style="color:var(--text-muted)">всего</div><b>' + vA + '</b><div style="color:var(--text-muted)">' + fmtSec(sA) + '</div></div>' +
+          '</div></div>';
+      }
+
+      // aggregate all sections visits/time
+      var allV = {}, allS = {};
+      Object.keys(s.sectionVisits || {}).forEach(function(sid) {
+        Object.keys(s.sectionVisits[sid] || {}).forEach(function(d) {
+          allV[d] = (allV[d] || 0) + (s.sectionVisits[sid][d] || 0);
+        });
+      });
+      Object.keys(s.sectionSeconds || {}).forEach(function(sid) {
+        Object.keys(s.sectionSeconds[sid] || {}).forEach(function(d) {
+          allS[d] = (allS[d] || 0) + (s.sectionSeconds[sid][d] || 0);
+        });
+      });
+
+      var dictN = (state.dictionary || []).length;
+      var bmN = (state.bookmarks || []).length;
+      var notesN = Object.keys(state.notes || {}).length;
+      var learnedN = Object.keys(state.learnedAyahs || {}).length;
+      var learnedS = Object.keys(state.learnedSurahs || {}).length;
+      var listenMin = Math.round((s.listenSeconds || 0) / 60);
+      var foldersN = (state.bookmarkFolders || []).length;
+
+      var secIds = {};
+      Object.keys(s.sectionVisits || {}).forEach(function(k){ secIds[k] = 1; });
+      Object.keys(s.sectionSeconds || {}).forEach(function(k){ secIds[k] = 1; });
+      var secList = Object.keys(secIds).sort(function(a, b) {
+        return sumInRange(s.sectionVisits[b], null) - sumInRange(s.sectionVisits[a], null);
+      });
+      var secHtml = secList.map(function(sid) {
+        return rangeRow(labels[sid] || sid, s.sectionVisits[sid], s.sectionSeconds[sid]);
+      }).join('') || '<p class="ayah-translation">Заходите в разделы — здесь появятся заходы и время.</p>';
+
+      var html =
+        '<div class="card"><b>📊 Обзор</b>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.6rem">' +
+        metricCard('Заходы сегодня', sumInRange(allV, 0), 'неделя: ' + sumInRange(allV, 6)) +
+        metricCard('Время сегодня', fmtSec(sumInRange(allS, 0)), 'неделя: ' + fmtSec(sumInRange(allS, 6))) +
+        metricCard('За месяц', sumInRange(allV, 29) + ' заход.', fmtSec(sumInRange(allS, 29))) +
+        metricCard('За год', sumInRange(allV, 364) + ' заход.', fmtSec(sumInRange(allS, 364))) +
+        '</div></div>' +
+
+        '<div class="card"><b>📚 Ваша активность</b>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.6rem">' +
+        metricCard('Словарь', dictN, 'слов') +
+        metricCard('Избранное', bmN, 'закладок') +
+        metricCard('Папки закладок', foldersN, '') +
+        metricCard('Заметки', notesN, '') +
+        metricCard('Выучено аятов', learnedN, 'сур: ' + learnedS) +
+        metricCard('Открыто аятов', s.openedAyahs || 0, '') +
+        metricCard('Прослушивание', listenMin + ' мин', 'аудио') +
+        metricCard('Всего времени', fmtSec(sumInRange(allS, null)), 'в разделах') +
+        '</div></div>' +
+
+        '<div class="card"><b>📂 По разделам</b>' +
+        '<div class="ayah-translation" style="margin:0.35rem 0 0.5rem">Заходы и время: сегодня · неделя · месяц · год · всего</div>' +
+        secHtml + '</div>';
+
+      // Global public stats from Supabase (best effort)
+      el.innerHTML = html + '<div class="card" id="stats-global">Загрузка общей статистики…</div>';
+
+      var sb = (typeof getSb === 'function') ? getSb() : null;
+      if (!sb) {
+        var g = document.getElementById('stats-global');
+        if (g) g.innerHTML = '<b>🌐 Общая статистика сайта</b><p class="ayah-translation">Нужен интернет / Supabase. Локальная статистика выше уже работает.</p>';
         return;
       }
       try {
-        try { await upsertMyProfile(); } catch(e) {}
-        var usersRes = await sb.from('profiles').select('nick,email,created_at,is_admin').order('created_at', { ascending: false }).limit(500);
-        var users = (usersRes && usersRes.data) || [];
-        if (usersRes && usersRes.error) throw usersRes.error;
         var visRes = await sb.from('section_visitors').select('section_id,visitor_key,day').limit(10000);
         var rows = (visRes && visRes.data) || [];
         if (visRes && visRes.error) throw visRes.error;
-        var today = new Date().toISOString().slice(0, 10);
+        var today = dayKey();
+        var now = new Date();
+        function inDays(dayStr, back) {
+          var dt = new Date(dayStr + 'T12:00:00');
+          var diff = Math.floor((now - dt) / 86400000);
+          return diff >= 0 && diff <= back;
+        }
         var bySec = {};
         rows.forEach(function(r) {
-          if (!bySec[r.section_id]) bySec[r.section_id] = { all: {}, today: {} };
-          bySec[r.section_id].all[r.visitor_key] = 1;
-          if (r.day === today) bySec[r.section_id].today[r.visitor_key] = 1;
+          if (!bySec[r.section_id]) bySec[r.section_id] = { t: {}, w: {}, m: {}, y: {}, a: {} };
+          var b = bySec[r.section_id];
+          b.a[r.visitor_key] = 1;
+          if (r.day === today) b.t[r.visitor_key] = 1;
+          if (inDays(r.day, 6)) b.w[r.visitor_key] = 1;
+          if (inDays(r.day, 29)) b.m[r.visitor_key] = 1;
+          if (inDays(r.day, 364)) b.y[r.visitor_key] = 1;
         });
-        var labels = (typeof SECTION_STAT_LABELS !== 'undefined') ? SECTION_STAT_LABELS : {};
-        var secHtml = Object.keys(bySec).sort().map(function(sid) {
-          var lab = labels[sid] || sid;
-          var a = Object.keys(bySec[sid].all).length;
-          var t = Object.keys(bySec[sid].today).length;
-          return '<div style="display:flex;justify-content:space-between;gap:0.5rem;padding:0.35rem 0;border-bottom:1px solid var(--border)"><span>'+lab+'</span><span style="color:var(--text-muted);font-size:0.85rem">всего <b>'+a+'</b> · сегодня <b>'+t+'</b></span></div>';
-        }).join('') || '<p class="ayah-translation">Пока нет посещений разделов.</p>';
-        var userHtml = users.map(function(u) {
-          return '<div style="padding:0.3rem 0;border-bottom:1px solid var(--border)"><b>'+String(u.nick||'—').replace(/</g,'&lt;')+'</b>'+(u.is_admin?' <span style="color:var(--accent);font-size:0.75rem">админ</span>':'')+
-            '<div class="ayah-translation">'+String(u.email||'').replace(/</g,'&lt;')+'</div></div>';
-        }).join('') || '<p class="ayah-translation">Нет профилей в таблице profiles.</p>';
-        el.innerHTML = personal +
-          '<div class="card"><b>Пользователи сайта</b><div style="margin-top:0.35rem">Всего: <b>'+users.length+'</b></div>' +
-          '<div style="margin-top:0.55rem;max-height:14rem;overflow:auto">'+userHtml+'</div></div>' +
-          '<div class="card"><b>По разделам</b><div class="ayah-translation" style="margin:0.35rem 0">Уникальные посетители (сколько человек), без списка «кто куда заходил».</div>'+secHtml+'</div>';
+        var gHtml = Object.keys(bySec).sort(function(a,b){
+          return Object.keys(bySec[b].a).length - Object.keys(bySec[a].a).length;
+        }).map(function(sid) {
+          var b = bySec[sid];
+          return '<div style="display:flex;justify-content:space-between;gap:0.4rem;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.85rem">' +
+            '<span>' + (labels[sid] || sid) + '</span>' +
+            '<span style="color:var(--text-muted);text-align:right;font-size:0.75rem">' +
+            'сегодня <b>' + Object.keys(b.t).length + '</b> · нед. <b>' + Object.keys(b.w).length + '</b><br>' +
+            'мес. <b>' + Object.keys(b.m).length + '</b> · год <b>' + Object.keys(b.y).length + '</b> · всего <b>' + Object.keys(b.a).length + '</b></span></div>';
+        }).join('') || '<p class="ayah-translation">Пока нет данных.</p>';
+
+        var usersN = '—';
+        try {
+          var ur = await sb.from('profiles').select('id', { count: 'exact', head: true });
+          if (ur && ur.count != null) usersN = ur.count;
+        } catch(e) {}
+
+        var g = document.getElementById('stats-global');
+        if (g) g.innerHTML = '<b>🌐 По сайту (все пользователи)</b>' +
+          '<div class="ayah-translation" style="margin:0.35rem 0">Уникальные посетители разделов. Регистраций (профилей): <b>' + usersN + '</b></div>' + gHtml;
       } catch (e) {
-        el.innerHTML = personal +
-          '<div class="card"><b>Общая статистика: ошибка</b><p class="ayah-translation">'+String(e.message||e).replace(/</g,'&lt;')+'</p>' +
-          '<p class="ayah-translation">Выполните SQL из обновления 2.08 в Supabase (таблицы profiles и section_visitors).</p></div>';
+        var g = document.getElementById('stats-global');
+        if (g) g.innerHTML = '<b>🌐 Общая статистика</b><p class="ayah-translation">' + String(e.message || e).replace(/</g, '&lt;') +
+          '</p><p class="ayah-translation">Если таблицы ещё не созданы — SQL из обновления 2.08. Для публичного чтения: policy SELECT для anon на section_visitors.</p>';
       }
     }
+
 
     // ========== ASBAB (reasons of revelation) — selected well-known ==========
     const ASBAB = {
@@ -17436,43 +17588,7 @@ c.addEventListener('click', () => {
           (cols > 1 ? '<button type="button" class="btn btn-sm" data-right="'+idx+'" title="Вправо">→</button>' : '') +
           '</div></div>';
       });
-      // низ: вход / выход
-      try {
-        var sessB = (typeof authSession === 'function') ? authSession() : null;
-        html += '<div style="margin-top:1.1rem;padding-top:0.75rem;border-top:1px solid var(--border);width:100%;grid-column:1/-1">';
-        if (sessB && sessB.nick) {
-          html += '<div class="ayah-translation" style="margin-bottom:0.4rem">Вы вошли: <b>'+String(sessB.nick).replace(/</g,'&lt;')+'</b></div>';
-          html += '<button type="button" class="btn" id="more-btn-account" style="width:100%;margin-bottom:0.35rem">Мой аккаунт</button>';
-          html += '<button type="button" class="btn btn-primary" id="more-btn-logout" style="width:100%;margin-bottom:0.35rem">Выйти</button>';
-          html += '<button type="button" class="btn btn-sm" id="more-btn-force-update" style="width:100%">🔄 Обновить приложение</button>';
-        } else {
-          html += '<button type="button" class="btn btn-primary" id="more-btn-login" style="width:100%;margin-bottom:0.35rem">Вход</button>';
-          html += '<button type="button" class="btn" id="more-btn-register" style="width:100%;margin-bottom:0.35rem">Регистрация</button>';
-          html += '<button type="button" class="btn btn-sm" id="more-btn-force-update" style="width:100%">🔄 Обновить приложение</button>';
-        }
-        html += '</div>';
-      } catch(e) {}
       el.innerHTML = html;
-      try {
-        var bAcc = document.getElementById('more-btn-account');
-        if (bAcc) bAcc.addEventListener('click', function(){ showView('account'); });
-        var bLogin = document.getElementById('more-btn-login');
-        if (bLogin) bLogin.addEventListener('click', function(){ showView('login'); });
-        var bReg = document.getElementById('more-btn-register');
-        if (bReg) bReg.addEventListener('click', function(){ showView('register'); });
-        var bOut = document.getElementById('more-btn-logout');
-        var bUp = document.getElementById('more-btn-force-update');
-        if (bUp) bUp.addEventListener('click', function(){ forceUpdateApp(); });
-        if (bOut) bOut.addEventListener('click', async function() {
-          try {
-            var sb = (typeof getSb === 'function') ? getSb() : null;
-            if (sb) await sb.auth.signOut();
-          } catch(e) {}
-          try { if (typeof authSetSession === 'function') authSetSession(null); } catch(e) {}
-          toast('Вы вышли');
-          renderMoreMenu();
-        });
-      } catch(e) {}
       // Перемещение целой группы
       el.querySelectorAll('[data-gup],[data-gdown]').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -19547,6 +19663,22 @@ function renderLibrary() {
       document.getElementById('wg-login').onclick = function(){ done(); showView('login'); };
     }
 
+    try {
+      if (!window._statsHeartbeat) {
+        window._statsHeartbeat = setInterval(function() {
+          try { if (typeof flushSectionTime === 'function') flushSectionTime(); } catch(e) {}
+        }, 30000);
+        document.addEventListener('visibilitychange', function() {
+          try {
+            if (document.hidden) flushSectionTime();
+            else {
+              var s = ensureRichStats();
+              s._activeSince = Date.now();
+            }
+          } catch(e) {}
+        });
+      }
+    } catch(e) {}
     function startApp() {
       try {
         try {
