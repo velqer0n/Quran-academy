@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.40 2026-08-07 -->
+<!-- BUILD 2.41 2026-08-07 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.40</title>
+  <title>Коран — Изучение · 2.41</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1406,7 +1406,17 @@
     body.hide-ui-hints #more-edit-hint,
     body.hide-ui-hints .reveal-hint,
     body.hide-ui-hints .flashcard .hint,
-    body.hide-ui-hints #audio-mode-tip {
+    body.hide-ui-hints #audio-mode-tip,
+    body.hide-ui-hints .theory-intro,
+    body.hide-ui-hints .section-hint,
+    body.hide-ui-hints [data-ui-hint] {
+      display: none !important;
+    }
+    /* подробности только по клику */
+    .exp-detail[hidden],
+    .les-full[hidden],
+    .exp-detail[style*="display: none"],
+    .exp-detail[style*="display:none"] {
       display: none !important;
     }
     body.app-locked #btn-site-help,
@@ -1421,96 +1431,85 @@
     #site-tour-overlay {
       position: fixed;
       inset: 0;
-      z-index: 200;
-      background: rgba(8, 12, 20, 0.42);
+      z-index: 10050;
+      background: rgba(6, 10, 18, 0.45);
       display: none;
-      align-items: flex-end;
+      align-items: center;
       justify-content: center;
-      padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+      padding: 1rem 0.85rem calc(5.8rem + env(safe-area-inset-bottom, 0px));
       box-sizing: border-box;
-      /* не ломает fixed bottom-nav при скролле */
-      overscroll-behavior: none;
+      overscroll-behavior: contain;
     }
-    #site-tour-overlay.open { display: flex; }
+    #site-tour-overlay.open { display: flex !important; }
     #site-tour-card {
       position: relative;
-      z-index: 210;
+      z-index: 10051;
       width: 100%;
       max-width: 28rem;
+      max-height: min(55vh, 26rem);
       background: var(--card);
       color: var(--text);
       border: 1px solid var(--border);
       border-radius: 1rem;
-      padding: 1rem 1.1rem 0.85rem;
-      box-shadow: 0 16px 48px rgba(0,0,0,0.45);
-      max-height: min(70vh, 34rem);
+      padding: 0.85rem 1rem 0.7rem;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.55);
       display: flex;
       flex-direction: column;
-      opacity: 1;
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-    }
-    #site-tour-card .tour-body {
-      overflow-y: auto;
-      flex: 1 1 auto;
-      min-height: 0;
-      -webkit-overflow-scrolling: touch;
-    }
-    #site-tour-card .tour-actions {
-      flex-shrink: 0;
-      position: sticky;
-      bottom: 0;
-      background: var(--card);
-      padding-top: 0.55rem;
-      margin-top: 0.5rem;
-      border-top: 1px solid var(--border);
-    }
-    body.tour-active {
-      overflow: hidden !important;
-    }
-    body.tour-active main {
-      pointer-events: none;
+      pointer-events: auto;
     }
     #site-tour-card h3 {
-      margin: 0 0 0.45rem;
+      margin: 0 0 0.4rem;
       font-size: 1.05rem;
       color: var(--accent);
+      flex-shrink: 0;
+    }
+    #site-tour-card .tour-progress {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+      flex-shrink: 0;
     }
     #site-tour-card .tour-body {
       font-size: 0.92rem;
       line-height: 1.55;
       color: var(--text);
       white-space: pre-wrap;
-    }
-    #site-tour-card .tour-progress {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-bottom: 0.5rem;
+      overflow-y: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: 32vh;
+      -webkit-overflow-scrolling: touch;
     }
     #site-tour-card .tour-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      margin-top: 0.85rem;
+      display: flex !important;
+      flex-wrap: nowrap;
+      gap: 0.35rem;
+      margin-top: 0.55rem;
+      padding-top: 0.55rem;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--card);
     }
-    #site-tour-card .tour-actions .btn { flex: 1 1 auto; min-width: 5rem; }
+    #site-tour-card .tour-actions .btn {
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 2.6rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    body.tour-active main { pointer-events: none; }
+    body.tour-active #site-tour-overlay,
+    body.tour-active #site-tour-card,
+    body.tour-active #site-tour-card * { pointer-events: auto; }
     body.tour-active #device-mode-btn { display: none !important; }
     body.tour-active .bottom-nav {
       pointer-events: none;
-      z-index: 205;
-    }
-    body.tour-active #main-nav button {
-      pointer-events: none;
+      z-index: 10040;
     }
     body.tour-active .bottom-nav button[data-view].tour-highlight {
-      pointer-events: none;
       box-shadow: 0 0 0 2px var(--accent);
       border-radius: 0.65rem;
       background: var(--card);
-    }
-    body.tour-active #main-nav button[data-view].tour-highlight {
-      pointer-events: none;
-      box-shadow: 0 0 0 2px var(--accent);
     }
 
     .settings-bottom-spacer {
@@ -1705,7 +1704,7 @@
     </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
+<body class="hide-ui-hints">
 
   <div id="lock-screen">
     <div class="lock-box" id="lock-box">
@@ -5292,13 +5291,16 @@ function getMainTabOrder() {
       try {
         const data = await fetchSurah(surah);
         attachFallbackAudio(data, surah);
-        const queue = data.ayahs.map(a => ({
+        let queue = data.ayahs.map(a => ({
           url: a.audio || ayahAudioUrl(surah, a.number),
           title: (typeof surahTitle === 'function' ? surahTitle(surah, data.meta && data.meta.englishName) : ('Сура ' + surah)) + ' · аят ' + a.number,
           ayah: a.number,
           surah: surah
         }));
         if (!queue.length) return false;
+        var rev = false;
+        try { rev = !!readerReversed; } catch(e) {}
+        if (rev) queue = queue.slice().reverse();
         let idx = queue.findIndex(x => x.ayah === +ayahNum);
         if (idx < 0) idx = 0;
         audioQueue = queue;
@@ -5355,7 +5357,8 @@ function getMainTabOrder() {
         const t = audioQueue[i]; audioQueue[i] = audioQueue[j]; audioQueue[j] = t;
       }
     }
-    async function loadSurahQueue(surah, mode, startAyah) {
+    async function loadSurahQueue(surah, mode, startAyah, opts) {
+      opts = opts || {};
       mode = mode || 'surah';
       audioPlayMode = mode;
       try { updateAudioModeButtons(); } catch(e) {}
@@ -5368,8 +5371,10 @@ function getMainTabOrder() {
         surah: surah
       }));
       if (!queue.length) return false;
+      var rev = false;
+      try { rev = !!readerReversed; } catch(e) {}
+      if (rev) queue = queue.slice().reverse();
       if (mode === 'random') {
-        // shuffle but keep structure
         for (let i = queue.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           const t = queue[i]; queue[i] = queue[j]; queue[j] = t;
@@ -5377,13 +5382,16 @@ function getMainTabOrder() {
       }
       audioQueue = queue;
       let idx = 0;
-      if (startAyah && mode !== 'random') {
+      if (rev && mode !== 'random' && (startAyah == null || startAyah === 1)) {
+        // с конца: начинаем с первого элемента обратной очереди (= последний аят)
+        idx = 0;
+      } else if (startAyah && mode !== 'random') {
         const found = queue.findIndex(x => x.ayah === +startAyah);
         if (found >= 0) idx = found;
       }
       audioQueueIdx = idx;
       audioRepeatTotal = getRepeatCount();
-      playQueueItem(audioQueueIdx);
+      if (!opts.noPlay) playQueueItem(audioQueueIdx);
       return true;
     }
 
@@ -5501,6 +5509,13 @@ function getMainTabOrder() {
     document.getElementById('audio-prev-surah')?.addEventListener('click', () => playPrevSurah());
     document.getElementById('audio-next-surah')?.addEventListener('click', () => playNextSurah());
     document.getElementById('audio-play-pause').addEventListener('click', () => {
+      // TTS (азкары/дуа)
+      if (window._ttsPlaying) {
+        try { window.speechSynthesis.cancel(); } catch(e) {}
+        window._ttsPlaying = false;
+        document.getElementById('audio-play-pause').textContent = '▶';
+        return;
+      }
       if (audioEl.paused) {
         audioEl.play();
         document.getElementById('audio-play-pause').textContent = '⏸';
@@ -5557,10 +5572,28 @@ function getMainTabOrder() {
         const pos = currentPlayPos();
         const s = pos.s || state.currentSurah || 1;
         const a = pos.a || 1;
-        const t = wasPlaying ? audioEl.currentTime : 0;
-        await loadSurahQueue(s, mode, a);
-        if (wasPlaying && audioEl) {
-          try { audioEl.currentTime = Math.min(t, audioEl.duration || t); audioEl.play().catch(()=>{}); } catch(e) {}
+        // Если уже играет этот аят — только меняем режим, без перезагрузки (убирает микропаузу)
+        var same = audioQueue && audioQueue.length > 1 && audioQueue[0] && +audioQueue[0].surah === +s;
+        if (same) {
+          audioPlayMode = mode;
+          try { updateAudioSub(); updateAudioModeButtons(); } catch(e) {}
+          toast(labels[mode] || mode);
+        } else {
+          const t = wasPlaying ? audioEl.currentTime : 0;
+          await loadSurahQueue(s, mode, a, { noPlay: !!wasPlaying });
+          if (wasPlaying && audioEl) {
+            try {
+              // доиграть текущий файл, не сбрасывая
+              if (audioEl.src && !audioEl.paused) { /* keep */ }
+              else {
+                audioEl.currentTime = Math.min(t, audioEl.duration || t);
+                audioEl.play().catch(function(){});
+              }
+            } catch(e) {}
+          } else if (!wasPlaying) {
+            /* loadSurahQueue уже play если noPlay false */
+          }
+          toast(labels[mode] || mode);
         }
       } else {
         try { updateAudioSub(); } catch(e) {}
@@ -5663,8 +5696,11 @@ function getMainTabOrder() {
     // Full surah sequential
     document.getElementById('btn-play-surah').addEventListener('click', async () => {
       if (!state.currentSurah) return;
-      const ok = await loadSurahQueue(state.currentSurah, 'surah', 1);
-      if (ok) toast('Вся сура (без перехода к следующей)');
+      var rev = false;
+      try { rev = !!readerReversed; } catch(e) {}
+      // с конца — без startAyah=1, очередь начнётся с последнего аята
+      const ok = await loadSurahQueue(state.currentSurah, 'surah', rev ? null : 1);
+      if (ok) toast(rev ? 'Сура с конца → к началу' : 'Вся сура (без перехода к следующей)');
       else toast('Нет аудио');
     });
 
@@ -10961,6 +10997,17 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.41', kinds: ['a', 'b', 'f'], date: '2026-08-07',
+          a: [],
+          b: [ 'Кнопка «С конца» влияет на очередь плеера' ],
+          f: [
+            'Сура «с конца»: очередь и воспроизведение с последнего аята',
+            'Режим «Сура» в плеере без микропаузы при уже полной очереди',
+            'Азкары/дуа: озвучка + нижний плеер, стоп по ⏸',
+            'Тур: карточка по центру, кнопки всегда на экране (z-index)'
+          ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.40', kinds: ['a', 'b', 'f'], date: '2026-08-07',
           a: [ 'Справка «Главное»: карточка про кнопку «?» и тур' ],
           b: [
@@ -15258,53 +15305,81 @@ function playArabicAudio(text, fallbackRu, opts) {
 
     function speakArabicFallback(t, fallbackRu) {
       t = String(t || '').trim();
+      if (!t && !fallbackRu) { toast('Нет текста'); return; }
       if (!window.speechSynthesis) {
-        toast(fallbackRu || (t ? 'Озвучка недоступна' : 'Нет текста'));
+        toast(fallbackRu || 'Озвучка недоступна на этом устройстве');
         return;
       }
       try { window.speechSynthesis.cancel(); } catch(e) {}
+      try { if (audioEl) { audioEl.pause(); } } catch(e) {}
+
+      var title = (fallbackRu ? String(fallbackRu).slice(0, 56) : 'Азкар / дуа');
+      try {
+        if (typeof audioBar !== 'undefined' && audioBar) audioBar.classList.add('visible');
+        var at = document.getElementById('audio-title');
+        if (at) at.textContent = title;
+        var ap = document.getElementById('audio-play-pause');
+        if (ap) ap.textContent = '⏸';
+        var asub = document.getElementById('audio-sub');
+        if (asub) asub.textContent = 'озвучка';
+        window._ttsPlaying = true;
+        window._audioCtx = 'adhkar';
+        audioQueue = [{ url: '', title: title, ar: t, adhkar: true, surah: null, ayah: null }];
+        audioQueueIdx = 0;
+        audioPlayMode = 'single';
+        try { updateAudioModeButtons(); } catch(e) {}
+      } catch(e) {}
+
       var voices = [];
       try { voices = window.speechSynthesis.getVoices() || []; } catch(e) {}
       if (!voices.length) {
-        try { window.speechSynthesis.getVoices(); voices = window.speechSynthesis.getVoices() || []; } catch(e) {}
+        try {
+          window.speechSynthesis.getVoices();
+          voices = window.speechSynthesis.getVoices() || [];
+        } catch(e) {}
       }
       var arVoice = voices.find(function(v){ return /^ar(-|$)/i.test(v.lang); })
-        || voices.find(function(v){ return /arab/i.test(v.name); });
-      // длинный текст — кусками по ~120 символов
+        || voices.find(function(v){ return /arab/i.test(v.name||''); });
+
       var parts = [];
-      var rest = t;
+      var rest = t || String(fallbackRu || '');
       while (rest.length) {
-        if (rest.length <= 140) { parts.push(rest); break; }
-        var cut = rest.lastIndexOf(' ', 140);
-        if (cut < 30) cut = 140;
+        if (rest.length <= 160) { parts.push(rest); break; }
+        var cut = rest.lastIndexOf(' ', 160);
+        if (cut < 40) cut = 160;
         parts.push(rest.slice(0, cut));
         rest = rest.slice(cut).trim();
       }
-      if (!parts.length && fallbackRu) parts = [String(fallbackRu)];
-      if (!parts.length) { toast('Нет текста для озвучки'); return; }
+      if (!parts.length) { toast('Нет текста'); return; }
+
       var i = 0;
+      function doneUi() {
+        window._ttsPlaying = false;
+        try {
+          var ap = document.getElementById('audio-play-pause');
+          if (ap) ap.textContent = '▶';
+        } catch(e) {}
+      }
       function speakNext() {
-        if (i >= parts.length) return;
+        if (i >= parts.length) { doneUi(); return; }
         var u = new SpeechSynthesisUtterance(parts[i]);
         u.lang = arVoice ? (arVoice.lang || 'ar-SA') : 'ar-SA';
         u.rate = 0.85;
         u.volume = 1;
-        if (arVoice) u.voice = arVoice;
+        if (arVoice) try { u.voice = arVoice; } catch(e) {}
         u.onend = function() { i++; speakNext(); };
-        u.onerror = function() {
-          i++;
-          if (i >= parts.length && fallbackRu) toast(String(fallbackRu).slice(0, 80));
-          else speakNext();
-        };
+        u.onerror = function() { i++; if (i >= parts.length) doneUi(); else speakNext(); };
         try {
           window.speechSynthesis.speak(u);
           if (window.speechSynthesis.paused) window.speechSynthesis.resume();
         } catch(e) {
-          if (fallbackRu) toast(fallbackRu);
+          doneUi();
+          toast(fallbackRu || 'Ошибка озвучки');
         }
       }
-      toast('▶ Озвучка' + (arVoice ? '' : ' (голос устройства)'));
-      speakNext();
+      toast('▶ ' + title);
+      // Android: нужен небольшой kick после user gesture
+      setTimeout(speakNext, 30);
     }
 
 
@@ -16340,8 +16415,23 @@ async function renderStats() {
     let readerReversed = false;
     document.getElementById('btn-reverse-ayahs')?.addEventListener('click', () => {
       readerReversed = !readerReversed;
+      var btn = document.getElementById('btn-reverse-ayahs');
+      if (btn) {
+        btn.classList.toggle('btn-primary', readerReversed);
+        btn.title = readerReversed ? 'Сейчас: с конца' : 'С конца';
+      }
       if (state.currentSurah) openSurah(state.currentSurah);
-      toast(readerReversed ? 'Порядок: с конца' : 'Порядок: с начала');
+      // если играет эта сура — пересобрать очередь в новом порядке
+      try {
+        if (audioQueue && audioQueue.length && audioQueue[0] && +audioQueue[0].surah === +state.currentSurah) {
+          var mode = audioPlayMode || 'surah';
+          var was = audioEl && !audioEl.paused;
+          loadSurahQueue(state.currentSurah, mode, null, { noPlay: !was }).then(function(){
+            if (was) { /* playQueueItem already if noPlay false */ }
+          });
+        }
+      } catch(e) {}
+      toast(readerReversed ? 'Порядок: с конца (и в плеере)' : 'Порядок: с начала');
     });
 
     document.getElementById('btn-loop-range')?.addEventListener('click', async () => {
