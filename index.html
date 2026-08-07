@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.27 2026-08-04 -->
+<!-- BUILD 2.28 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.27</title>
+  <title>Коран — Изучение · 2.28</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -8050,16 +8050,28 @@ function renderMistakes() {
             '<div class="ayah-translation" dir="ltr" style="text-align:center;unicode-bidi:isolate">'+(l.note||'')+'</div>' +
             ((typeof ARTICULATION !== 'undefined' && ARTICULATION[l.ch]) ? '<div style="margin-top:0.4rem;font-size:0.85rem;color:var(--accent);text-align:center" dir="ltr" style="unicode-bidi:isolate">🗣️ '+ARTICULATION[l.ch]+'</div>' : '') +
             (l.forms ? '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.5rem;font-size:1.5rem;font-family:Amiri,serif" dir="rtl" lang="ar">'+l.forms.map(f=>'<span dir="rtl">'+f+'</span>').join(' ')+'</div>' : '') +
-            '<button type="button" class="btn btn-primary btn-sm" style="margin-top:0.75rem;width:100%" id="btn-speak-letter">🔊 Произнести</button>';
-          document.getElementById('btn-speak-letter')?.addEventListener('click', () => {
-            if (typeof speakLetter === 'function') speakLetter(l);
-            else {
-              try {
-                const u = new SpeechSynthesisUtterance(l.ch);
-                u.lang = 'ar-SA';
-                speechSynthesis.speak(u);
-              } catch(e) {}
+            '<button type="button" class="btn btn-primary btn-sm" style="margin-top:0.75rem;width:100%" id="btn-speak-letter">🔊 Произнести (запись)</button>';
+          (function(){
+            var base = (typeof LETTER_AUDIO_BASE !== 'undefined') ? LETTER_AUDIO_BASE : 'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
+            if (l.audio) {
+              var au = document.createElement('audio');
+              au.id = 'letter-audio-el';
+              au.preload = 'auto';
+              au.src = base + l.audio;
+              det.appendChild(au);
             }
+          })();
+          document.getElementById('btn-speak-letter')?.addEventListener('click', function() {
+            var elA = document.getElementById('letter-audio-el');
+            if (elA && elA.src) {
+              try {
+                elA.pause();
+                elA.currentTime = 0;
+                elA.play().catch(function(){ if (typeof speakLetter === 'function') speakLetter(l); });
+                return;
+              } catch(err) {}
+            }
+            if (typeof speakLetter === 'function') speakLetter(l);
           });
         });
       });
@@ -8067,33 +8079,57 @@ function renderMistakes() {
 
 
     const ARABIC_RULES = [
-      {title:'اتجاه الكتابة · Направление', ar:'العربية تُكتب من اليمين إلى اليسار.', ru:'Арабский пишется справа налево. Книги открываются «с другой стороны».'},
-      {title:'ربط الحروف · Соединение', ar:'معظم الحروف تتصل بما بعدها. الحروف ا د ذ ر ز و لا تتصل بما بعدها.', ru:'Большинство букв соединяются с соседними. Буквы ا د ذ ر ز و не соединяются со следующей буквой (той, что слева от них при письме).'},
-      {title:'أشكال الحرف · Четыре формы', ar:'لكل حرف حتى ٤ أشكال: منفصل، ابتدائي، وسطي، نهائي.', ru:'У каждой буквы до 4 форм: изолированная, начальная, срединная, конечная. Форма зависит от позиции в слове.'},
-      {title:'الحركات · Огласовки', ar:'الفتحة َ = a · الكسرة ِ = i · الضمة ُ = u · السكون ْ · الشدة ّ', ru:'Краткие гласные — значки над/под буквой: фатха َ = а, касра ِ = и, дамма ُ = у, сукун ْ = нет гласной, шадда ّ = удвоение.'},
-      {title:'الألف والهمزة', ar:'ى ألف مقصورة في آخر الكلمة تُقرأ «а». الهمزة ء صوت في الحلق.', ru:'ى (алиф максура) в конце слова читается как «а». Хамза ء — гортанная смычка (на алифе, ваве или йа).'},
-      {title:'الشمسية والقمرية', ar:'بعد ال: الشمسية تدغم اللام (الشمس). القمرية تُظهر اللام (القمر).', ru:'После артикля ال: солнечные буквы «съедают» лям (аш-шамс). Лунные сохраняют лям (аль-камар).'},
-      {title:'التنوين · Танвин', ar:'ً ٍ ٌ في آخر الاسم علامة التنكير.', ru:'Двойная огласовка в конце слова: ً ٍ ٌ (ан / ин / ун) — признак неопределённости существительного.'},
-      {title:'التاء المربوطة', ar:'ة في آخر الكلمة غالباً للتأنيث. تُقرأ «а» أو «т» عند الوصل.', ru:'ة в конце часто обозначает женский род. Читается как «а» (или «т» при соединении со следующим словом).'}
+      {title:'اتجاه الكتابة · Направление', ar:'من اليمين إلى اليسار',
+        short:'Арабский пишется и читается справа налево.',
+        detail:'Строка начинается справа. Мушаф открывается с другой стороны относительно русской книги. Практика: ведите пальцем справа налево.'},
+      {title:'ربط الحروف · Соединение', ar:'ا د ذ ر ز و لا تتصل',
+        short:'Большинство букв соединяются. Не соединяются со следующей: алиф даль заль ра зай вав.',
+        detail:'После этих шести букв следующая пишется в начальной или изолированной форме. Пример: дараса.'},
+      {title:'أشكال الحرف · Четыре формы', ar:'٤ أشكال',
+        short:'До 4 форм: изолированная, начальная, срединная, конечная.',
+        detail:'Одна и та же буква меняет вид в зависимости от места в слове. Смотрите вкладку «Буквы».'},
+      {title:'الحركات · Огласовки', ar:'فتحة كسرة ضمة',
+        short:'Фатха — а, касра — и, дамма — у; сукун — нет гласного; шадда — удвоение.',
+        detail:'Фатха над буквой — краткий а. Касра под буквой — и. Дамма над буквой — у. Сукун — без гласного. Шадда — удвоение.'},
+      {title:'التنوين · Танвин', ar:'فتحتان كسرتان ضمتان',
+        short:'Танвин — окончание ан / ин / ун (две огласовки).',
+        detail:'Двойная огласовка в конце слова. При остановке в конце аята часто читается без н.'},
+      {title:'ال · Алиф-лям', ar:'ال التعريف',
+        short:'Артикль «аль». Солнечные буквы съедают лям, лунные — нет.',
+        detail:'Перед солнечными буквами лям не читается, следующая буква с шаддой (аш-шамс). Перед лунными лям читается (аль-китаб).'},
+      {title:'همزة · Хамза', ar:'ء',
+        short:'Хамза — гортанная смычка. Не путать с айн.',
+        detail:'Может стоять на алиф, вав, йа или отдельно. В начале многих слов: инна, ахад.'},
+      {title:'التاء المربوطة · Та марбута', ar:'ة',
+        short:'Та марбута: с огласовкой — т, при остановке — һ.',
+        detail:'Типичное окончание женского рода. При вақфе звучит как һа. Пример: рахма.'}
     ];
 
     const TAJWEED_RULES = [
-      {title:'إخفاء · Ихфа', ar:'إخفاء النون الساكنة أو التنوين عند ١٥ حرفاً مع غنة.', ru:'Скрытое произношение нун с сукуном/танвина перед 15 буквами. Звук «н» слегка носовой, язык не касается нёба.',
-        example:'مِنْ شَرِّ', exampleHtml:'مِ<span class="tj-ghunna">نْ شَ</span>رِّ', exampleNote:'н перед ش — ихфа с гунной'},
-      {title:'إدغام · Идгам', ar:'إدغام النون الساكنة في ي ر م ل و ن.', ru:'Слияние: нун с сукуном сливается со следующей буквой (й, р, м, л, в, н). С гунной или без.',
-        example:'مِن رَّبِّهِمْ', exampleHtml:'مِ<span class="tj-idgham">ن رَّ</span>بِّهِمْ', exampleNote:'н + р → слияние (без гунны для р/л)'},
-      {title:'إقلاب · Иклаб', ar:'قلب النون ميماً قبل الباء مع غنة.', ru:'Нун с сукуном перед ب превращается в звук, близкий к «м», с лёгкой гунной.',
-        example:'مِنْ بَعْدِ', exampleHtml:'مِ<span class="tj-ghunna">نْ بَ</span>عْدِ', exampleNote:'н перед ب ≈ м с гунной'},
-      {title:'إظهار · Изхар', ar:'إظهار النون عند ء ه ع ح غ خ.', ru:'Чёткое произношение нун перед гортанными буквами ء ه ع ح غ خ — без слияния.',
-        example:'مَنْ آمَنَ', exampleHtml:'مَنْ آمَنَ', exampleNote:'н перед ء читается чётко'},
-      {title:'قلقلة · Калькаля', ar:'قلقلة ق ط ب ج د إذا سكنت.', ru:'«Отскок» при произнесении ق ط ب ج د с сукуном. Звук слегка «подпрыгивает».',
-        example:'قَدْ', exampleHtml:'قَ<span class="tj-qalqala">دْ</span>', exampleNote:'д с сукуном — лёгкий отскок'},
-      {title:'مد · Мадд', ar:'إطالة الصوت. المد الطبيعي حركتان، واللازم ٤–٦.', ru:'Удлинение гласного. Естественный мадд — 2 счёта. Обязательный — 4–6 счётов.',
-        example:'قَالَ', exampleHtml:'قَ<span class="tj-madd">ا</span>لَ', exampleNote:'алиф после фатхи — 2 счёта'},
-      {title:'غنة · Гунна', ar:'صوت أنفي بمقدار حركتين.', ru:'Носовой призвук (примерно 2 счёта) при идгаме с гунной и при нун/мим с шаддой.',
-        example:'إِنَّ', exampleHtml:'إِ<span class="tj-ghunna">نَّ</span>', exampleNote:'н с шаддой — гунна 2 счёта'},
-      {title:'وقف · Вакф', ar:'م لازم · لا ممنوع · ج جائز.', ru:'Знаки остановки: م — обязательно остановиться, لا — не останавливаться, ج — допустимо.',
-        example:'…۝', exampleHtml:'…۝', exampleNote:'в конце аята — естественная остановка'}
+      {title:'إخفاء · Ихфа', ar:'إخفاء النون الساكنة أو التنوين',
+        short:'Нун с сукуном (или танвин) перед 15 буквами читается «скрыто», с лёгкой гунной.',
+        detail:'Ихфа — «сокрытие». После нун с сукуном или танвина одна из 15 букв: не полное «н», звук в нос (гунна ~2 счёта). Пример: мин шарри. Не путать с идгамом.'},
+      {title:'إدغام · Идгам', ar:'إدغام النون الساكنة',
+        short:'Нун с сукуном сливается со следующей буквой: йа, ра, мим, лям, вав, нун.',
+        detail:'Идгам — слияние. С гунной: йа вав мим нун. Без гунны: лям ра. Пример: мин раббихим. Отдельный звук «н» не оставляют.'},
+      {title:'إقلاب · Иклаб', ar:'قلب النون ميماً قبل الباء',
+        short:'Перед ба нун с сукуном звучит почти как «м», с гунной.',
+        detail:'Иклаб только перед ба. Нун плюс ба даёт звук близкий к «м» с гунной. Пример: мин баъди.'},
+      {title:'إظهار · Изхар', ar:'إظهار النون عند حروف الحلق',
+        short:'Перед гортанными хамза ха айн ха гайн ха нун читается чётко.',
+        detail:'Изхар — ясное «н» перед гортанными буквами. Пример: ман амана. Без слияния и без лишней гунны.'},
+      {title:'قلقلة · Калькаля', ar:'قلقلة ق ط ب ج د',
+        short:'Каф та ба джим даль с сукуном — с лёгким отскоком.',
+        detail:'Калькаля — вибрация на сукуне у каф та ба джим даль. Пример: кад. Сильнее на конце аята.'},
+      {title:'مد · Мадд', ar:'إطالة حروف المد',
+        short:'Продление гласного через алиф вав йа (обычно 2 счёта).',
+        detail:'Естественный мадд — 2 счёта. Более длинные (4–6) при хамзе или сукуне после мадда — учите с учителем. Пример: каля.'},
+      {title:'غنة · Гунна', ar:'الغنة في الميم والنون',
+        short:'Носовой звук на мим и нун с шаддой и в ихфа/иклаб/идгам (~2 счёта).',
+        detail:'Гунна обязательна при удвоенных мим и нун, а также в ихфа, иклаб и идгам с гунной. Воздух через нос.'},
+      {title:'شدة · Шадда', ar:'التشديد',
+        short:'Шадда — буква читается удвоенно.',
+        detail:'Сначала как с сукуном, затем с огласовкой. Пример: рабби. На удвоенных нун и мим — гунна.'}
     ];
 
     function renderRules() {
@@ -8113,8 +8149,8 @@ function renderMistakes() {
       }
       el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">Базовые правила письма. Кратко → «Подробнее».</p>' +
         rules.map(function(r) {
-          var ru = r.ru || r.body || '';
-          var short = ru.slice(0, 120) + (ru.length > 120 ? '…' : '');
+          var short = r.short || (r.ru || r.body || '').slice(0, 100);
+          var ru = r.detail || r.ru || r.body || '';
           return '<div class="rule-card" style="margin-bottom:0.65rem">' +
             '<h3 dir="ltr">'+r.title+'</h3>' +
             (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.15rem;margin:0.35rem 0">'+r.ar+'</div>' : '') +
@@ -8140,8 +8176,8 @@ function renderMistakes() {
       }
       el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">Правила таджвида для начинающих. Кратко → «Подробнее».</p>' +
         rules.map(function(r) {
-          var short = (r.ru || '').slice(0, 130) + ((r.ru||'').length > 130 ? '…' : '');
-          var full = (r.ru || '');
+          var short = r.short || (r.ru || '').slice(0, 100);
+          var full = r.detail || r.ru || '';
           if (r.example) full += '\n\nПример: ' + r.example;
           if (r.letters) full += '\n\nБуквы: ' + r.letters;
           return '<div class="rule-card" style="margin-bottom:0.65rem">' +
@@ -10204,6 +10240,15 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.28', kinds: ['f', 'b', 'a'], date: '2026-08-07',
+          a: [],
+          b: [ 'Экспорт: выбор из списка без повторов' ],
+          f: [
+            'Правила/Таджвид: разный текст кратко и подробно',
+            'Озвучка букв: HTML audio + mp3 записи (не латиница TTS)'
+          ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.27', kinds: ['f', 'a'], date: '2026-08-07',
           a: [],
           b: [],
@@ -12345,14 +12390,45 @@ let body = '';
         return data;
       };
 
-      document.getElementById('btn-do-export')?.addEventListener('click', () => {
-        const nums = Array.prototype.map.call(el.querySelectorAll('.exp-num'), function(inp) {
-          const v = String(inp.value || '').trim();
+      document.querySelectorAll('.exp-num').forEach(function(sel) {
+        // initial fill + change handler
+      });
+      function refreshExpSelects() {
+        var selected = {};
+        el.querySelectorAll('.exp-num').forEach(function(sel) {
+          var v = sel.value;
+          if (v) selected[v] = true;
+        });
+        el.querySelectorAll('.exp-num').forEach(function(sel) {
+          var cur = sel.value;
+          var html = '<option value="">—</option>';
+          packs.filter(function(p){ return p.n > 0; }).forEach(function(p) {
+            if (selected[String(p.n)] && String(p.n) !== cur) return; // уже выбрано в другом поле
+            html += '<option value="'+p.n+'"'+(String(p.n)===cur?' selected':'')+'>'+p.n+'. '+p.label+'</option>';
+          });
+          sel.innerHTML = html;
+          if (cur) sel.value = cur;
+        });
+      }
+      refreshExpSelects();
+      el.querySelectorAll('.exp-num').forEach(function(sel) {
+        sel.addEventListener('change', refreshExpSelects);
+      });
+      getElementById('btn-do-export')?.addEventListener('click', () => {
+        var nums = Array.prototype.map.call(el.querySelectorAll('.exp-num'), function(inp) {
+          var v = String(inp.value || '').trim();
           return v === '' ? null : +v;
         }).filter(function(x){ return x !== null && !isNaN(x); });
-        if (document.getElementById('exp-full') && document.getElementById('exp-full').checked) nums.push(0);
+        // убрать дубликаты
+        var seen = {};
+        nums = nums.filter(function(n) {
+          if (seen[n]) return false;
+          seen[n] = true;
+          return true;
+        });
+        if (document.getElementById('exp-full') && document.getElementById('exp-full').checked) nums = [0];
         if (!nums.length) {
-          toast('Введите номера пунктов (1–7) или отметьте «Всё»');
+          toast('Выберите пункты из списка или отметьте «Всё»');
           return;
         }
         const data = collectByNumbers(nums);
