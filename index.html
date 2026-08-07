@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.33 2026-08-07 -->
+<!-- BUILD 2.34 2026-08-07 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.33</title>
+  <title>Коран — Изучение · 2.34</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1378,10 +1378,17 @@
     .exp-detail br + br { display: block; margin-top: 0.35rem; }
     .settings-bottom-spacer {
       display: block !important;
-      height: 8rem !important;
-      min-height: 8rem !important;
+      height: 0.75rem;
+      min-height: 0.75rem;
       width: 100%;
       pointer-events: none;
+    }
+    #view-settings .set-cat[data-set-panel="other"] .settings-bottom-spacer {
+      height: 0.5rem !important;
+      min-height: 0.5rem !important;
+    }
+    body.settings-other-open #view-settings.view.active {
+      padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)) !important;
     }
     #view-settings .tabs-row {
       position: sticky;
@@ -2335,7 +2342,7 @@
             <option value="0">Выкл</option>
           </select>
         </div>
-        <div class="settings-bottom-spacer" style="height:1.5rem;flex-shrink:0" aria-hidden="true"></div>
+        <div class="settings-bottom-spacer" style="height:0.5rem;flex-shrink:0" aria-hidden="true"></div>
 
         <p class="cache-info" id="cache-info">Загруженные суры сохраняются для чтения без интернета.</p>
         <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap">
@@ -2350,7 +2357,7 @@
         Данные хранятся только в вашем браузере.<br>
         Текст и аудио — AlQuran.Cloud · Тафсир — spa5k
       </p>
-      <div class="settings-bottom-spacer" style="height:4rem;min-height:4rem" aria-hidden="true"></div>
+      <div class="settings-bottom-spacer" style="height:3rem;min-height:3rem" aria-hidden="true"></div>
     </div>
   </main>
 
@@ -8410,6 +8417,64 @@ function renderMistakes() {
         detail:'Шадда (ّ) — удвоение согласной.\n\n1) Сначала буква как с сукуном, затем с своей огласовкой: ربّ = раб-б.\n2) На удвоенных ن и م обязательна гунна.\n3) Шадда не «пропуск», а полноценное удвоение.\n4) Пример: رَبِّ (рабби), إِنَّ (инна).\n5) В идгаме следующая буква часто получает шадду — это след слияния.\n6) Ошибка: читать одну букву вместо двух или разрывать удвоение паузой.\n7) Практика: рабби, сумма — чёткое удвоение.'}
     ];
 
+
+    function bindLesMore(root) {
+      (root || document).querySelectorAll('.les-more-btn').forEach(function(btn) {
+        if (btn._lesBound) return;
+        btn._lesBound = true;
+        btn.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          var card = btn.closest('.rule-card') || btn.closest('.card') || btn.parentElement;
+          if (!card) return;
+          var full = card.querySelector('.les-full');
+          var short = card.querySelector('.les-short');
+          if (!full) return;
+          var isHidden = full.hasAttribute('hidden') || full.style.display === 'none' || getComputedStyle(full).display === 'none';
+          if (isHidden) {
+            full.removeAttribute('hidden');
+            full.style.display = 'block';
+            if (short) short.style.display = 'none';
+            btn.textContent = '📕 Скрыть подробности';
+          } else {
+            full.setAttribute('hidden', '');
+            full.style.display = 'none';
+            if (short) short.style.display = 'block';
+            btn.textContent = '📖 Подробнее';
+          }
+        });
+      });
+    }
+    // Глобально (на случай если startApp ещё не вызван)
+    if (!window._lesMoreGlobal) {
+      window._lesMoreGlobal = true;
+      document.addEventListener('click', function(ev) {
+        var btn = ev.target && ev.target.closest && ev.target.closest('.les-more-btn, [data-les-toggle]');
+        if (!btn) return;
+        // если уже bound индивидуально — не дублировать
+        if (btn._lesBound) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        var card = btn.closest('.rule-card') || btn.closest('.card') || btn.parentElement;
+        if (!card) return;
+        var full = card.querySelector('.les-full');
+        var short = card.querySelector('.les-short');
+        if (!full) return;
+        var isHidden = full.hasAttribute('hidden') || full.style.display === 'none' || getComputedStyle(full).display === 'none';
+        if (isHidden) {
+          full.removeAttribute('hidden');
+          full.style.display = 'block';
+          if (short) short.style.display = 'none';
+          btn.textContent = '📕 Скрыть подробности';
+        } else {
+          full.setAttribute('hidden', '');
+          full.style.display = 'none';
+          if (short) short.style.display = 'block';
+          btn.textContent = '📖 Подробнее';
+        }
+      }, true);
+    }
+
     function renderRules() {
       let el = document.getElementById('learn-rules');
       const parent = document.getElementById('acad-rules');
@@ -8426,16 +8491,17 @@ function renderMistakes() {
         return;
       }
       el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">Базовые правила письма. Кратко → «Подробнее».</p>' +
-        rules.map(function(r) {
+        rules.map(function(r, ri) {
           var short = r.short || (r.ru || r.body || '').slice(0, 100);
           var ru = r.detail || r.ru || r.body || '';
-          return '<div class="rule-card" style="margin-bottom:0.65rem">' +
+          return '<div class="rule-card" style="margin-bottom:0.65rem" data-rule-i="'+ri+'">' +
             '<h3 dir="ltr">'+r.title+'</h3>' +
             (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.15rem;margin:0.35rem 0">'+r.ar+'</div>' : '') +
             '<div class="les-short ayah-translation" dir="ltr">'+short+'</div>' +
-            '<button type="button" class="btn btn-sm les-more-btn" style="margin:0.35rem 0">📖 Подробнее</button>' +
-            '<div class="les-full ayah-translation" dir="ltr" style="display:none;white-space:pre-wrap;margin-top:0.35rem">'+ru+'</div></div>';
+            '<button type="button" class="btn btn-sm les-more-btn" data-les-toggle="1" style="margin:0.35rem 0;direction:ltr">📖 Подробнее</button>' +
+            '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55">'+String(ru).replace(/</g,'&lt;')+'</div></div>';
         }).join('');
+      try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
     }
     function renderTajweed() {
       let el = document.getElementById('learn-tajweed');
@@ -8453,19 +8519,20 @@ function renderMistakes() {
         return;
       }
       el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">Правила таджвида для начинающих. Кратко → «Подробнее».</p>' +
-        rules.map(function(r) {
+        rules.map(function(r, ri) {
           var short = r.short || (r.ru || '').slice(0, 100);
           var full = r.detail || r.ru || '';
           if (r.example) full += '\n\nПример: ' + r.example;
           if (r.letters) full += '\n\nБуквы: ' + r.letters;
-          return '<div class="rule-card" style="margin-bottom:0.65rem">' +
+          return '<div class="rule-card" style="margin-bottom:0.65rem" data-rule-i="'+ri+'">' +
             '<h3 dir="ltr">'+r.title+'</h3>' +
             (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.1rem;margin:0.35rem 0">'+r.ar+'</div>' : '') +
             (r.exampleHtml ? '<div dir="rtl" lang="ar" style="font-size:1.25rem;margin:0.35rem 0;font-family:Amiri,serif">'+r.exampleHtml+'</div>' : '') +
             '<div class="les-short ayah-translation" dir="ltr">'+short+'</div>' +
-            '<button type="button" class="btn btn-sm les-more-btn" style="margin:0.35rem 0">📖 Подробнее</button>' +
-            '<div class="les-full ayah-translation" dir="ltr" style="display:none;white-space:pre-wrap;margin-top:0.35rem">'+full+'</div></div>';
+            '<button type="button" class="btn btn-sm les-more-btn" data-les-toggle="1" style="margin:0.35rem 0;direction:ltr">📖 Подробнее</button>' +
+            '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55">'+String(full).replace(/</g,'&lt;')+'</div></div>';
         }).join('');
+      try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
     }
 
     function renderRulesList(containerId, items) {
@@ -8490,8 +8557,8 @@ function renderMistakes() {
         document.getElementById('learn-rules').style.display = tab === 'rules' ? 'block' : 'none';
         document.getElementById('learn-tajweed').style.display = tab === 'tajweed' ? 'block' : 'none';
         if (tab === 'alphabet') renderAlphabet();
-        if (tab === 'rules') renderRulesList('learn-rules', ARABIC_RULES);
-        if (tab === 'tajweed') renderRulesList('learn-tajweed', TAJWEED_RULES);
+        if (tab === 'rules') { if (typeof renderRules === 'function') renderRules(); else renderRulesList('learn-rules', ARABIC_RULES); }
+        if (tab === 'tajweed') { if (typeof renderTajweed === 'function') renderTajweed(); else renderRulesList('learn-tajweed', TAJWEED_RULES); }
       });
     });
 
@@ -10506,6 +10573,18 @@ function renderSalah() {
               if (error) { toast(error.message || 'Ошибка регистрации'); return; }
               if (data.user) {
                 authSetSession({ userId: data.user.id, nick: nick, email: email, online: true });
+                // локальная копия (чтобы вход работал и офлайн)
+                try {
+                  var users = authUsers();
+                  if (!authFindByEmail(email) && !authFindByNick(nick)) {
+                    users.push({ id: data.user.id, nick: nick, email: email, passHash: authHash(pass), created: Date.now(), onlineId: data.user.id });
+                    authSaveUsers(users);
+                  }
+                } catch(e) {}
+                // профиль для статистики регистраций
+                try {
+                  await sb.from('profiles').upsert({ id: data.user.id, nick: nick, created_at: new Date().toISOString() }, { onConflict: 'id' });
+                } catch(e) { console.warn('profile upsert', e); }
               }
               if (data.session) {
                 toast('Аккаунт создан');
@@ -10588,6 +10667,20 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.34', kinds: ['a', 'b', 'f', 'd'], date: '2026-08-07',
+          a: [],
+          b: [
+            'Имя Аллаха в «Ежедневном»: нажатие открывает раздел 99 имён и это имя',
+            'Регистрация: профиль в Supabase + локальная копия для входа'
+          ],
+          f: [
+            '«Подробнее» в Правилах и Таджвиде — отдельный обработчик',
+            'Категория «Другое»: убран принудительный отступ 8rem',
+            'Обновление приложения: таймаут, без долгого зависания'
+          ],
+          d: [ 'Меньше пустоты внизу настроек «Другое»' ],
+          ph: [], I: [ 'Видео/фото букв', 'Добавление сур и аятов в теорию' ], o: [], s: [], on: []
+        },
         { major: '2', v: '2.33', kinds: ['a', 'b', 'f', 'd'], date: '2026-08-07',
           a: [],
           b: [
@@ -13741,36 +13834,44 @@ function renderDict() {
 
     /** Сброс SW и кэша → последняя версия с GitHub (закладки/настройки не трогаем) */
     async function forceUpdateApp() {
-      try { toast('Обновляем до последней версии…'); } catch(e) {}
+      try { toast('Обновляем…'); } catch(e) {}
       try {
-        var last = 'more';
-        try {
-          if (typeof viewStack !== 'undefined' && viewStack.length)
-            last = viewStack[viewStack.length - 1] || 'more';
-        } catch(e) {}
-        /* после обновления остаёмся на appupdate; назад → Ещё */
+        var last = 'appupdate';
         sessionStorage.setItem('quran_last_view', last);
         localStorage.setItem('quran_last_view_persist', last);
         localStorage.setItem('quran_from_update', '1');
       } catch(e) {}
-      try {
-        if ('serviceWorker' in navigator) {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          for (const r of regs) await r.unregister();
+      // быстрый сброс: не ждём бесконечно
+      var done = false;
+      function go() {
+        if (done) return;
+        done = true;
+        try {
+          const path = location.pathname || '/';
+          location.replace(path + '?v=' + Date.now());
+        } catch(e) {
+          try { location.reload(); } catch(e2) {}
         }
-      } catch(e) {}
-      try {
-        if (window.caches && caches.keys) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map(k => caches.delete(k)));
-        }
-      } catch(e) {}
-      try {
-        const path = location.pathname || '/';
-        location.replace(path + '?v=' + Date.now());
-      } catch(e) {
-        try { location.reload(true); } catch(e2) { location.reload(); }
       }
+      setTimeout(go, 1200); // страховка: не зависать
+      try {
+        var tasks = [];
+        if ('serviceWorker' in navigator) {
+          tasks.push(navigator.serviceWorker.getRegistrations().then(function(regs) {
+            return Promise.all(regs.map(function(r){ return r.unregister(); }));
+          }));
+        }
+        if (window.caches && caches.keys) {
+          tasks.push(caches.keys().then(function(keys) {
+            return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+          }));
+        }
+        await Promise.race([
+          Promise.all(tasks).catch(function(){}),
+          new Promise(function(res){ setTimeout(res, 800); })
+        ]);
+      } catch(e) {}
+      go();
     }
 
 
@@ -15500,9 +15601,17 @@ async function renderStats() {
         }
         try {
           var ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(500);
+          if (ur && ur.error) {
+            console.warn('profiles', ur.error);
+            // fallback: try without order
+            ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).limit(500);
+          }
           if (ur && ur.error) throw ur.error;
           var list = (ur && ur.data) || [];
           var count = (ur && ur.count != null) ? ur.count : list.length;
+          // локальные пользователи (этот браузер) — доп. строка
+          var localN = 0;
+          try { localN = (authUsers() || []).length; } catch(e) {}
           function dayKeyLocal(d) {
             d = d || new Date();
             return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -15535,7 +15644,7 @@ async function renderStats() {
             '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">Только ники (без email)</div>' + rows;
         } catch(e) {
           if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;') +
-            '<p class="ayah-translation" style="margin-top:0.5rem">Если 0 — проверьте RLS: чтение profiles для anon/authenticated.</p>';
+            '<p class="ayah-translation" style="margin-top:0.5rem">Если 0: таблица profiles пуста или RLS запрещает чтение. Нужен INSERT профиля при регистрации и политика SELECT для anon. Локальные аккаунты (только этот браузер) в Supabase не видны.</p>';
         }
         return;
       }
@@ -16644,7 +16753,9 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         if (typeof ALLAH_NAMES !== 'undefined' && ALLAH_NAMES.length) {
           const n = pickDaily('name', ALLAH_NAMES, dailyOffsets.name||0) || ALLAH_NAMES[0];
           const mean = (typeof nameMeanLocal === 'function') ? nameMeanLocal(n) : (n.mean||'');
-          nameCard = '<div class="card"><div style="display:flex;justify-content:space-between"><b>🌟 Имя Аллаха</b><button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="next">→</button></div><div class="arabic" style="font-size:1.6rem;margin:0.5rem 0">'+n.ar+'</div><div>'+(n.tr||'')+' — '+mean+'</div></div>';
+          var nameIdx = ALLAH_NAMES.indexOf(n);
+          if (nameIdx < 0) nameIdx = 0;
+          nameCard = '<div class="card" style="cursor:pointer" data-go-name="'+nameIdx+'" title="Открыть в разделе 99 имён"><div style="display:flex;justify-content:space-between;align-items:center;gap:0.35rem;flex-wrap:wrap"><b>🌟 Имя Аллаха</b><span><button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="next">→</button></span></div><div class="arabic" style="font-size:1.6rem;margin:0.5rem 0">'+n.ar+'</div><div>'+(n.tr||'')+' — '+mean+'</div><div class="surah-meta" style="margin-top:0.35rem">Нажмите — открыть имя →</div></div>';
         }
       } catch(e) {}
       let       prayerMini = '';
@@ -16711,6 +16822,28 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       try { renderStoryOfDay(); } catch(e) {}
     
       el.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => showView(b.dataset.go)));
+      el.querySelectorAll('[data-go-name]').forEach(function(card) {
+        card.addEventListener('click', function(ev) {
+          if (ev.target.closest('[data-daily-next]')) return;
+          var idx = +card.getAttribute('data-go-name');
+          try { sessionStorage.setItem('quran_open_name_i', String(idx)); } catch(e) {}
+          showView('names');
+          setTimeout(function() {
+            try {
+              if (typeof renderNames === 'function') renderNames();
+              var target = document.querySelector('.name-card[data-name-i="'+idx+'"]');
+              if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setTimeout(function() {
+                  var y = target.getBoundingClientRect().top + window.pageYOffset - 72;
+                  window.scrollTo({ top: y, behavior: 'smooth' });
+                  target.click();
+                }, 350);
+              }
+            } catch(e) {}
+          }, 120);
+        });
+      });
       
 }
 
@@ -20736,8 +20869,8 @@ function renderLibrary() {
         const vs = document.getElementById('view-settings');
         if (vs) {
           vs.style.paddingBottom = cat === 'other'
-            ? 'calc(6.5rem + env(safe-area-inset-bottom, 0px))'
-            : 'calc(5.5rem + env(safe-area-inset-bottom, 0px))';
+            ? 'calc(4.5rem + env(safe-area-inset-bottom, 0px))'
+            : 'calc(4.5rem + env(safe-area-inset-bottom, 0px))';
         }
       } catch(err) {}
     });
