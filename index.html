@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.30 2026-08-04 -->
+<!-- BUILD 2.31 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.30</title>
+  <title>Коран — Изучение · 2.31</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -415,6 +415,10 @@
       padding: 1.25rem;
     }
     #lock-screen.hidden { display: none; }
+    body.app-locked .audio-bar { display: none !important; }
+    body.app-locked #audio-player { display: none !important; }
+    #lock-screen { z-index: 10050; }
+    .audio-bar { z-index: 35; }
     .lock-box {
       width: 100%;
       max-width: 360px;
@@ -2305,6 +2309,10 @@
           <span>Сменить пароль блокировки</span>
           <button type="button" class="btn btn-sm" id="btn-change-lock-pin">Изменить</button>
         </div>
+        <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.4rem">
+          <span>Порядок главных разделов<br><small style="color:var(--text-muted);font-weight:400">Кроме «Ещё». Перетащите ↑ ↓</small></span>
+          <div id="main-tabs-order" style="display:flex;flex-direction:column;gap:0.35rem"></div>
+        </div>
         <div class="settings-bottom-spacer" style="height:6rem;flex-shrink:0" aria-hidden="true"></div>
 
         <p class="cache-info" id="cache-info">Загруженные суры сохраняются для чтения без интернета.</p>
@@ -2603,7 +2611,7 @@
           localStorage.setItem(CHECK_KEY, JSON.stringify(check));
           cryptoKey = key;
           try { localStorage.setItem('quran_app_lock_v1', '1'); } catch(e) {}
-          document.getElementById('lock-screen').classList.add('hidden');
+          document.getElementById('lock-screen').classList.add('hidden'); try{document.body.classList.remove('app-locked');}catch(e){};
           loadState(null);
           startApp();
         } catch (e) {
@@ -2629,13 +2637,14 @@
       // Плеер на экране блокировки не показываем
       try { var ps = document.getElementById('lock-player-slot'); if (ps) ps.innerHTML = ''; } catch(e) {}
       const submit = async () => {
+        try{wrapPasswordEye('lock-pass');}catch(e){}
         const pass = document.getElementById('lock-pass').value;
         const errEl = box.querySelector('.lock-error');
         // Уже разблокировано в этой сессии (мягкая блокировка) — просто закрыть оверлей
         if (cryptoKey && typeof startApp === 'function' && document.getElementById('view-home')) {
           // если пароль пустой или верный — скрыть; если введён — проверить
           if (!pass) {
-            document.getElementById('lock-screen').classList.add('hidden');
+            document.getElementById('lock-screen').classList.add('hidden'); try{document.body.classList.remove('app-locked');}catch(e){};
             try {
               var v = (typeof viewStack !== 'undefined' && viewStack.length) ? viewStack[viewStack.length-1] : 'dailyhub';
               if (typeof showView === 'function') showView(v, true);
@@ -2656,7 +2665,7 @@
           cryptoKey = key;
           // если приложение уже запущено — только снять оверлей
           if (document.getElementById('view-home') || document.getElementById('view-dailyhub')) {
-            document.getElementById('lock-screen').classList.add('hidden');
+            document.getElementById('lock-screen').classList.add('hidden'); try{document.body.classList.remove('app-locked');}catch(e){};
             try {
               var v = (typeof viewStack !== 'undefined' && viewStack.length) ? viewStack[viewStack.length-1] : 'dailyhub';
               if (typeof showView === 'function') showView(v || 'dailyhub', true);
@@ -2665,7 +2674,7 @@
             return;
           }
           const raw = await decryptMainBlob(key);
-          document.getElementById('lock-screen').classList.add('hidden');
+          document.getElementById('lock-screen').classList.add('hidden'); try{document.body.classList.remove('app-locked');}catch(e){};
           loadState(raw);
           startApp();
         } catch (e) {
@@ -4184,7 +4193,103 @@ async function fetchTafsir(surah, ayah) {
       return name;
     }
 
-function showView(name, isBack) {
+function getMainTabOrder() {
+      var def = ['dailyhub','home','learn','games'];
+      try {
+        var o = JSON.parse(localStorage.getItem('quran_main_tabs_order') || 'null');
+        if (Array.isArray(o) && o.length) {
+          var ok = o.filter(function(id){ return def.indexOf(id) >= 0; });
+          def.forEach(function(id){ if (ok.indexOf(id) < 0) ok.push(id); });
+          return ok;
+        }
+      } catch(e) {}
+      return def;
+    }
+    function applyMainTabsOrder() {
+      var order = getMainTabOrder();
+      var labels = { dailyhub:'Ежедневное', home:'Суры', learn:'Теория', games:'Практика', more:'Ещё' };
+      function reorder(container, attr) {
+        if (!container) return;
+        var map = {};
+        Array.prototype.forEach.call(container.querySelectorAll('['+attr+']'), function(btn) {
+          map[btn.getAttribute(attr)] = btn;
+        });
+        order.concat(['more']).forEach(function(id) {
+          if (map[id]) container.appendChild(map[id]);
+        });
+      }
+      reorder(document.getElementById('main-nav'), 'data-view');
+      reorder(document.querySelector('.bottom-nav'), 'data-view');
+    }
+    function renderMainTabsOrder() {
+      var el = document.getElementById('main-tabs-order');
+      if (!el) return;
+      var labels = { dailyhub:'Ежедневное', home:'Суры', learn:'Теория', games:'Практика' };
+      var order = getMainTabOrder();
+      el.innerHTML = order.map(function(id, idx) {
+        return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:0.45rem;background:var(--bg)">' +
+          '<span style="flex:1">'+labels[id]+'</span>' +
+          '<button type="button" class="btn btn-sm mt-up" data-i="'+idx+'" '+(idx===0?'disabled':'')+'>↑</button>' +
+          '<button type="button" class="btn btn-sm mt-dn" data-i="'+idx+'" '+(idx===order.length-1?'disabled':'')+'>↓</button></div>';
+      }).join('');
+      el.querySelectorAll('.mt-up').forEach(function(btn) {
+        btn.onclick = function() {
+          var i = +btn.getAttribute('data-i');
+          if (i <= 0) return;
+          var o = getMainTabOrder();
+          var t = o[i-1]; o[i-1] = o[i]; o[i] = t;
+          localStorage.setItem('quran_main_tabs_order', JSON.stringify(o));
+          renderMainTabsOrder();
+          applyMainTabsOrder();
+        };
+      });
+      el.querySelectorAll('.mt-dn').forEach(function(btn) {
+        btn.onclick = function() {
+          var i = +btn.getAttribute('data-i');
+          var o = getMainTabOrder();
+          if (i >= o.length-1) return;
+          var t = o[i+1]; o[i+1] = o[i]; o[i] = t;
+          localStorage.setItem('quran_main_tabs_order', JSON.stringify(o));
+          renderMainTabsOrder();
+          applyMainTabsOrder();
+        };
+      });
+    }
+    function setAppLocked(on) {
+      try {
+        document.body.classList.toggle('app-locked', !!on);
+        var ls = document.getElementById('lock-screen');
+        if (ls) {
+          if (on) ls.classList.remove('hidden');
+          else ls.classList.add('hidden');
+        }
+        var bar = document.querySelector('.audio-bar');
+        if (bar && on) bar.style.display = 'none';
+      } catch(e) {}
+    }
+    
+    function wrapPasswordEye(inputId) {
+      var inp = document.getElementById(inputId);
+      if (!inp || inp.dataset.eye === '1') return;
+      inp.dataset.eye = '1';
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'position:relative;width:100%';
+      inp.parentNode.insertBefore(wrap, inp);
+      wrap.appendChild(inp);
+      inp.style.paddingRight = '2.5rem';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.setAttribute('aria-label', 'Показать пароль');
+      btn.textContent = '👁';
+      btn.style.cssText = 'position:absolute;right:0.4rem;top:50%;transform:translateY(-50%);border:none;background:transparent;cursor:pointer;font-size:1.1rem;line-height:1;padding:0.25rem;color:var(--text-muted)';
+      btn.addEventListener('click', function() {
+        if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+        else { inp.type = 'password'; btn.textContent = '👁'; }
+      });
+      wrap.appendChild(btn);
+    }
+
+    function showView(name, isBack) {
       try { name = applyViewAlias(name); } catch (e) {}
       // Повторное нажатие «Ещё» — всегда корневое меню Ещё
       if (name === 'more' && !isBack) {
@@ -4228,6 +4333,14 @@ function showView(name, isBack) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       const el = document.getElementById('view-' + name);
       if (el) el.classList.add('active');
+      try {
+        window.scrollTo(0, 0);
+        var mainEl = document.querySelector('main');
+        if (mainEl) mainEl.scrollTop = 0;
+        if (el) el.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      } catch(e) {}
       document.body.classList.toggle('view-reader', name === 'reader');
       try {
         if (name && name !== 'reader') sessionStorage.setItem('quran_last_view', name);
@@ -8065,6 +8178,45 @@ function renderMistakes() {
         grid.innerHTML = '<div class="empty-state">Нет данных алфавита</div>';
         return;
       }
+      var alphaWrap = document.getElementById('learn-alphabet') || grid.parentNode;
+      if (alphaWrap && !document.getElementById('btn-dl-all-letters')) {
+        var bar = document.createElement('div');
+        bar.style.cssText = 'margin:0 0 0.65rem';
+        bar.innerHTML = '<button type="button" class="btn btn-sm" id="btn-dl-all-letters" style="width:100%">💾 Скачать все буквы (аудио в кэш)</button>' +
+          '<p class="ayah-translation" style="margin:0.35rem 0 0;font-size:0.8rem">Нужен интернет один раз. Потом «Произнести» работает офлайн.</p>';
+        grid.parentNode.insertBefore(bar, grid);
+        document.getElementById('btn-dl-all-letters').onclick = async function() {
+          var btn = this;
+          btn.disabled = true;
+          var base = (typeof LETTER_AUDIO_BASE !== 'undefined') ? LETTER_AUDIO_BASE : 'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
+          var map = {};
+          try { map = JSON.parse(localStorage.getItem('quran_letter_audio_cache') || '{}'); } catch(e) {}
+          var ok = 0, fail = 0;
+          for (var i = 0; i < ARABIC_LETTERS.length; i++) {
+            var L = ARABIC_LETTERS[i];
+            if (!L.audio) continue;
+            btn.textContent = 'Загрузка '+(i+1)+'/'+ARABIC_LETTERS.length+'…';
+            try {
+              var res = await fetch(base + L.audio);
+              var blob = await res.blob();
+              var dataUrl = await new Promise(function(resolve, reject) {
+                var r = new FileReader();
+                r.onload = function(){ resolve(r.result); };
+                r.onerror = reject;
+                r.readAsDataURL(blob);
+              });
+              map[L.ch] = dataUrl;
+              ok++;
+            } catch(e) { fail++; }
+          }
+          try { localStorage.setItem('quran_letter_audio_cache', JSON.stringify(map)); } catch(e) {
+            toast('Кэш переполнен — сохранено частично');
+          }
+          btn.disabled = false;
+          btn.textContent = '💾 Скачать все буквы (аудио в кэш)';
+          toast('Готово: '+ok+' букв'+(fail ? ', ошибок '+fail : ''));
+        };
+      }
       grid.innerHTML = ARABIC_LETTERS.map((l, i) =>
         '<div class="letter-card" data-i="'+i+'"><div class="char" dir="rtl">'+l.ch+'</div><div class="name">'+l.name+'</div><div style="font-size:0.75rem;color:var(--text-muted)">'+(l.tr||'')+'</div></div>'
       ).join('');
@@ -8169,7 +8321,7 @@ function renderMistakes() {
     const TAJWEED_RULES = [
       {title:'إخفاء · Ихфа', ar:'إخفاء النون الساكنة أو التنوين',
         short:'Нун с сукуном (или танвин) перед 15 буквами читается «скрыто», с лёгкой гунной.',
-        detail:'Ихфа — «сокрытие». После нун с сукуном или танвина одна из 15 букв: не полное «н», звук в нос (гунна ~2 счёта). Пример: мин шарри. Не путать с идгамом.'},
+        detail:'Ихфа — «сокрытие».\n\n1) Когда: после нун с сукуном (نْ) или танвина идёт одна из 15 букв (не из групп изхар / идгам / иклаб).\n2) Как: язык не ставит полное касание для «н», звук уходит в нос.\n3) Гунна: около двух счётов.\n4) Пример: مِنْ شَرِّ (мин шарри).\n5) Ошибка: либо чёткое «н» (как изхар), либо полное слияние (как идгам) — оба неверны для ихфа.\n6) Практика: читайте медленно мин + шин, чувствуя носовой звук без удара языка.'},
       {title:'إدغام · Идгам', ar:'إدغام النون الساكنة',
         short:'Нун с сукуном сливается со следующей буквой: йа, ра, мим, лям, вав, нун.',
         detail:'Идгам — слияние. С гунной: йа вав мим нун. Без гунны: лям ра. Пример: мин раббихим. Отдельный звук «н» не оставляют.'},
@@ -10211,6 +10363,7 @@ function renderSalah() {
           '</div>';
         document.getElementById('btn-to-reg')?.addEventListener('click', function(){ showView('register'); });
         document.getElementById('btn-to-forgot')?.addEventListener('click', function(){ showView('forgot'); });
+        try{wrapPasswordEye('login-pass');}catch(e){}
         document.getElementById('btn-login')?.addEventListener('click', async function() {
           var id = (document.getElementById('login-id').value || '').trim();
           var pass = document.getElementById('login-pass').value || '';
@@ -10355,6 +10508,21 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.31', kinds: ['a', 'b', 'f', 'd'], date: '2026-08-07',
+          a: [
+            'Порядок главных разделов (↑↓) в настройках, кроме «Ещё»',
+            'Скачать все буквы (аудио) в теории',
+            'Глаз показать/скрыть пароль (вход, регистрация, блокировка)'
+          ],
+          b: [
+            'Экспорт: «Всё» блокирует остальные галочки и наоборот',
+            'Плеер скрыт на экране блокировки',
+            'При входе в раздел прокрутка сверху (Данные и др.)'
+          ],
+          f: [ 'Плеер не перекрывает окно пароля' ],
+          d: [ 'body.app-locked скрывает .audio-bar' ],
+          ph: [], I: [ 'Видео/фото букв; добавление сур в теорию — дальше' ], o: [], s: [], on: []
+        },
         { major: '2', v: '2.30', kinds: ['a', 'b', 'f', 'd'], date: '2026-08-07',
           a: [ 'Смена ника/пароля/email аккаунта; смена пароля блокировки; кэш аудио букв' ],
           b: [ 'Экспорт: список пунктов с новой строки; ПК шире (меньше пустых полей)' ],
@@ -12543,10 +12711,23 @@ let body = '';
         });
       }
       refreshExpSelects();
-      el.querySelectorAll('.exp-num').forEach(function(sel) {
-        sel.addEventListener('change', refreshExpSelects);
+      // checkbox export + mutex с «Всё»
+      var expFull = document.getElementById('exp-full');
+      function syncExpMutex() {
+        var full = !!(expFull && expFull.checked);
+        el.querySelectorAll('.exp-num').forEach(function(cb) {
+          cb.disabled = full;
+          if (full) cb.checked = false;
+        });
+      }
+      if (expFull) expFull.addEventListener('change', syncExpMutex);
+      el.querySelectorAll('.exp-num').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+          if (cb.checked && expFull) expFull.checked = false;
+          syncExpMutex();
+        });
       });
-      getElementById('btn-do-export')?.addEventListener('click', () => {
+      document.getElementById('btn-do-export')?.addEventListener('click', () => {
         var nums = [];
         el.querySelectorAll('.exp-num:checked').forEach(function(inp) {
           var n = +inp.value;
@@ -20432,6 +20613,7 @@ function startApp() {
             }
           }
         } catch(e) {}
+        try{applyMainTabsOrder();}catch(e){}
         showView(restoreView);
         // Первый заход — предложить регистрацию
         try {
