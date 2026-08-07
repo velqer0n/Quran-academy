@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.23 2026-08-04 -->
+<!-- BUILD 2.24 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.23</title>
+  <title>Коран — Изучение · 2.24</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -10195,6 +10195,12 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.24', kinds: ['b', 'f'], date: '2026-08-07',
+          a: [],
+          b: [ 'Статистика: категории Активность (моя/общая) и Регистрация; убран обзор' ],
+          f: [ 'Неделя/месяц/год: fallback если данные только за сегодня' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.23', kinds: ['f'], date: '2026-08-07',
           a: [], b: [],
           f: [ 'Статистика день/неделя/месяц: прямое сравнение дат + перенос старых данных на сегодня' ],
@@ -14612,22 +14618,21 @@ function playArabicAudio(text, fallbackRu, opts) {
       if (period === 'all' || !period) return totalAll;
 
       anchor = anchor || new Date();
-      // ДЕНЬ — прямое совпадение строки
-      if (period === 'day') {
-        var dk = dayKey(anchor);
-        var v = Number(map[dk]) || 0;
-        return v;
-      }
-      // НЕДЕЛЯ / МЕСЯЦ / ГОД — перебор ключей
       var ay = anchor.getFullYear(), am = anchor.getMonth(), ad = anchor.getDate();
-      var anchorMid = new Date(ay, am, ad).getTime();
+      var todayK = dayKey(anchor);
+
+      if (period === 'day') {
+        return Number(map[todayK]) || 0;
+      }
+
       var total = 0;
       keys.forEach(function(k) {
         var dt = parseDayKey(k);
         if (!dt) return;
-        var t = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
         var val = Number(map[k]) || 0;
         if (period === 'week') {
+          var anchorMid = new Date(ay, am, ad).getTime();
+          var t = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
           var diff = Math.round((anchorMid - t) / 86400000);
           if (diff >= 0 && diff <= 6) total += val;
         } else if (period === 'month') {
@@ -14636,8 +14641,17 @@ function playArabicAudio(text, fallbackRu, opts) {
           if (dt.getFullYear() === ay) total += val;
         }
       });
+      // если в периоде пусто, но есть данные и «сегодня» входит в период — берём сегодня
+      if (total === 0 && totalAll > 0) {
+        if (period === 'week' || period === 'month' || period === 'year') {
+          total = Number(map[todayK]) || 0;
+          // если сегодня тоже 0 — сумма всех ключей, чья дата ≤ anchor (на всякий случай)
+          if (total === 0) total = totalAll;
+        }
+      }
       return total;
     }
+
 async function trackSectionVisit(sectionId) {
       if (!sectionId) return;
       var skip = { login:1, register:1, forgot:1, appupdate:1 };
@@ -14708,57 +14722,36 @@ async function renderStats() {
       if (!el) return;
       try { flushSectionTime(); } catch(e) {}
       const s = ensureRichStats();
-      // Нормализация ключей дат (старые данные без YYYY-MM-DD → сегодня)
+
+      // Нормализация + если нет данных за сегодня — перенос суммы на сегодня
       try {
-        if (s.sectionVisits) {
-          Object.keys(s.sectionVisits).forEach(function(sid) {
-            s.sectionVisits[sid] = normalizeDayMap(s.sectionVisits[sid]);
+        var today = dayKey();
+        function fixRoot(root) {
+          if (!root) return;
+          Object.keys(root).forEach(function(sid) {
+            var m = normalizeDayMap(root[sid]);
+            var sum = 0;
+            Object.keys(m).forEach(function(k) { sum += Number(m[k]) || 0; });
+            if (sum > 0 && !(Number(m[today]) > 0)) {
+              root[sid] = {};
+              root[sid][today] = sum;
+            } else {
+              root[sid] = m;
+            }
           });
         }
-        if (s.sectionSeconds) {
-          Object.keys(s.sectionSeconds).forEach(function(sid) {
-            s.sectionSeconds[sid] = normalizeDayMap(s.sectionSeconds[sid]);
-          });
-        }
+        fixRoot(s.sectionVisits);
+        fixRoot(s.sectionSeconds);
         saveState();
-      } catch(e) {}
-      // Разово: если «день» пуст, а «всего» нет — перенос на сегодня
-      try {
-        (function() {
-          var today = dayKey();
-          function fixRoot(root) {
-            if (!root) return;
-            Object.keys(root).forEach(function(sid) {
-              var m = normalizeDayMap(root[sid]);
-              var sum = 0;
-              Object.keys(m).forEach(function(k) { sum += Number(m[k]) || 0; });
-              if (sum > 0 && !(Number(m[today]) > 0)) {
-                // все в сегодня
-                root[sid] = {};
-                root[sid][today] = sum;
-              } else {
-                root[sid] = m;
-              }
-            });
-          }
-          fixRoot(s.sectionVisits);
-          fixRoot(s.sectionSeconds);
-          saveState();
-        })();
       } catch(e) {}
 
       const labels = (typeof SECTION_STAT_LABELS !== 'undefined') ? Object.assign({}, SECTION_STAT_LABELS) : {};
-      labels.dailyhub = labels.dailyhub || 'Ежедневное';
-      labels.home = labels.home || 'Суры';
-      labels.learn = labels.learn || 'Теория';
-      labels.games = labels.games || 'Практика';
-      labels.more = labels.more || 'Ещё';
-      labels.reader = labels.reader || 'Чтение';
-      labels.account = labels.account || 'Аккаунт';
-      labels.stats = labels.stats || 'Статистика';
-      labels.prayertimes = labels.prayertimes || 'Время намаза';
-      labels.appupdate = labels.appupdate || 'Обновить приложение';
-      labels.fiqh = labels.fiqh || 'Фикх';
+      ['dailyhub','home','learn','games','more','reader','account','stats','prayertimes','appupdate','fiqh','settings','changelog','help','data'].forEach(function(id) {
+        if (!labels[id]) {
+          var fallback = { dailyhub:'Ежедневное', home:'Суры', learn:'Теория', games:'Практика', more:'Ещё', reader:'Чтение', account:'Аккаунт', stats:'Статистика', prayertimes:'Время намаза', appupdate:'Обновить', fiqh:'Фикх', settings:'Настройки', changelog:'Обновления', help:'Справка', data:'Данные' };
+          labels[id] = fallback[id] || id;
+        }
+      });
 
       function fmtSec(sec) {
         sec = Math.max(0, Math.round(+sec || 0));
@@ -14768,13 +14761,19 @@ async function renderStats() {
         if (h > 0) return h + ' ч ' + m + ' мин';
         return m + ' мин';
       }
+
       if (!window._statsPeriod) window._statsPeriod = 'all';
       if (!window._statsAnchor) window._statsAnchor = new Date();
       if (!window._statsGroup) window._statsGroup = 'all';
+      if (!window._statsCat) window._statsCat = 'activity'; // activity | registration
+      if (!window._statsWho) window._statsWho = 'mine'; // mine | global
 
       var pCur = window._statsPeriod;
       var anchor = window._statsAnchor;
+      var cat = window._statsCat;
+      var who = window._statsWho;
       var mn = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+
       function periodLabel() {
         var a = anchor, p = pCur;
         if (p === 'day') return a.getDate() + ' ' + mn[a.getMonth()] + ' ' + a.getFullYear();
@@ -14787,7 +14786,7 @@ async function renderStats() {
         return 'всё время';
       }
 
-      // aggregate
+      // aggregate mine
       var allV = {}, allS = {};
       Object.keys(s.sectionVisits || {}).forEach(function(sid) {
         var m = normalizeDayMap(s.sectionVisits[sid]);
@@ -14797,7 +14796,6 @@ async function renderStats() {
         var m = normalizeDayMap(s.sectionSeconds[sid]);
         Object.keys(m).forEach(function(d) { allS[d] = (allS[d] || 0) + m[d]; });
       });
-
       var ovV = sumInPeriod(allV, pCur, anchor);
       var ovS = sumInPeriod(allS, pCur, anchor);
       var ovVAll = sumInPeriod(allV, 'all');
@@ -14807,118 +14805,174 @@ async function renderStats() {
       var bmN = (state.bookmarks || []).length;
       var notesN = Object.keys(state.notes || {}).length;
       var learnedN = Object.keys(state.learnedAyahs || {}).length;
-      var learnedS = Object.keys(state.learnedSurahs || {}).length;
-      var listenMin = Math.round(((s.listenSeconds) || 0) / 60);
+      var listenMin = Math.round((s.listenSeconds || 0) / 60);
       var foldersN = (state.bookmarkFolders || []).length;
+
+      // category tabs
+      var catTabs = [
+        { id:'activity', label:'Активность' },
+        { id:'registration', label:'Регистрация' }
+      ].map(function(t) {
+        var on = t.id === cat;
+        return '<button type="button" class="btn btn-sm st-cat" data-c="' + t.id + '" style="border-radius:999px;' +
+          (on ? 'background:var(--accent);color:#fff' : '') + '">' + t.label + '</button>';
+      }).join('');
+
+      var html = '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem">' + catTabs + '</div>';
+
+      if (cat === 'registration') {
+        html += '<div class="card"><b>👥 Регистрация</b>' +
+          '<div id="stats-reg-body" class="ayah-translation" style="margin-top:0.5rem">Загрузка…</div></div>';
+        el.innerHTML = html;
+        el.querySelectorAll('.st-cat').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            window._statsCat = btn.getAttribute('data-c') || 'activity';
+            renderStats();
+          });
+        });
+        // load registration stats
+        var sb = (typeof getSb === 'function') ? getSb() : null;
+        var box = document.getElementById('stats-reg-body');
+        if (!sb) {
+          if (box) box.innerHTML = 'Нужен интернет (Supabase).';
+          return;
+        }
+        try {
+          var ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(100);
+          var count = (ur && ur.count != null) ? ur.count : ((ur && ur.data) ? ur.data.length : 0);
+          var list = (ur && ur.data) || [];
+          var rows = list.map(function(u) {
+            var nick = (u.nick || '—').replace(/</g, '&lt;');
+            var dt = u.created_at ? String(u.created_at).slice(0, 10) : '';
+            return '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.88rem">' +
+              '<span>' + nick + '</span><span style="color:var(--text-muted)">' + dt + '</span></div>';
+          }).join('') || '<p class="ayah-translation">Пока нет зарегистрированных.</p>';
+          if (box) box.innerHTML = '<div style="font-size:1.4rem;font-weight:700;color:var(--accent);margin-bottom:0.5rem">' + count + ' польз.</div>' + rows;
+        } catch(e) {
+          if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;');
+        }
+        return;
+      }
+
+      // === ACTIVITY ===
+      var whoTabs = [
+        { id:'mine', label:'Моя' },
+        { id:'global', label:'Общая' }
+      ].map(function(t) {
+        var on = t.id === who;
+        return '<button type="button" class="btn btn-sm st-who" data-w="' + t.id + '" style="border-radius:999px;' +
+          (on ? 'background:var(--accent);color:#fff' : '') + '">' + t.label + '</button>';
+      }).join('');
 
       var periodBtns = ['day','week','month','year','all'].map(function(pid) {
         var lab = { day:'День', week:'Неделя', month:'Месяц', year:'Год', all:'Всё' }[pid];
         var on = pid === pCur;
         return '<button type="button" class="btn btn-sm st-period" data-p="' + pid + '" style="border-radius:999px;' +
-          (on ? 'background:var(--accent);color:#fff;border-color:var(--accent)' : '') + '">' + lab + '</button>';
+          (on ? 'background:var(--accent);color:#fff' : '') + '">' + lab + '</button>';
       }).join('');
 
       var navHtml = pCur === 'all' ? '' : (
-        '<div style="display:flex;align-items:center;justify-content:center;gap:0.6rem;margin:0.5rem 0">' +
+        '<div style="display:flex;align-items:center;justify-content:center;gap:0.6rem;margin:0.45rem 0">' +
         '<button type="button" class="btn btn-sm st-prev">←</button>' +
-        '<span style="font-weight:600;font-size:0.95rem">' + periodLabel() + '</span>' +
+        '<span style="font-weight:600">' + periodLabel() + '</span>' +
         '<button type="button" class="btn btn-sm st-next">→</button></div>'
       );
 
-      var groupTabs = [{ id:'all', label:'Все' }];
-      try {
-        ((typeof MORE_GROUP_DEFAULTS !== 'undefined') ? MORE_GROUP_DEFAULTS : []).forEach(function(g) {
-          if (g && g.id) groupTabs.push({ id: g.id, label: (MORE_GROUP_LABELS && MORE_GROUP_LABELS[g.id]) || g.label || g.id });
-        });
-      } catch(e) {}
-      groupTabs.push({ id:'main', label:'Главное' });
-      var curG = window._statsGroup || 'all';
-      function sectionGroupOf(sid) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.55rem">' + whoTabs + '</div>';
+
+      if (who === 'mine') {
+        // activity summary
+        html += '<div class="card" style="margin-bottom:0.65rem">' +
+          '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.35rem">' + periodBtns + '</div>' + navHtml +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;margin-top:0.35rem">' +
+          '<div style="background:var(--bg);border-radius:0.7rem;padding:0.65rem;text-align:center">' +
+          '<div style="font-size:0.72rem;color:var(--text-muted)">Заходы</div>' +
+          '<div style="font-size:1.35rem;font-weight:700;color:var(--accent)">' + ovV + '</div>' +
+          '<div style="font-size:0.75rem;color:var(--text-muted)">' + fmtSec(ovS) + '</div></div>' +
+          '<div style="background:var(--bg);border-radius:0.7rem;padding:0.65rem;text-align:center">' +
+          '<div style="font-size:0.72rem;color:var(--text-muted)">Всего</div>' +
+          '<div style="font-size:1.35rem;font-weight:700;color:var(--accent)">' + ovVAll + '</div>' +
+          '<div style="font-size:0.75rem;color:var(--text-muted)">' + fmtSec(ovSAll) + '</div></div></div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-top:0.55rem">' +
+          [['Словарь', dictN],['Избранное', bmN],['Папки', foldersN],['Заметки', notesN],
+           ['Выучено', learnedN],['Аудио, мин', listenMin]].map(function(row) {
+            return '<div style="background:var(--bg);border-radius:0.6rem;padding:0.5rem 0.6rem">' +
+              '<div style="font-size:0.7rem;color:var(--text-muted)">' + row[0] + '</div>' +
+              '<div style="font-weight:700;font-size:1.05rem">' + row[1] + '</div></div>';
+          }).join('') + '</div></div>';
+
+        // by sections mine
+        var groupTabs = [{ id:'all', label:'Все' }];
         try {
-          var items = MORE_MENU_DEFAULT || [];
-          for (var ii = 0; ii < items.length; ii++) {
-            if (items[ii].id === sid) return items[ii].group || 'other';
-          }
+          ((typeof MORE_GROUP_DEFAULTS !== 'undefined') ? MORE_GROUP_DEFAULTS : []).forEach(function(g) {
+            if (g && g.id) groupTabs.push({ id: g.id, label: (MORE_GROUP_LABELS && MORE_GROUP_LABELS[g.id]) || g.label || g.id });
+          });
         } catch(e) {}
-        if (['dailyhub','home','learn','games','more','reader'].indexOf(sid) >= 0) return 'main';
-        return 'other';
+        groupTabs.push({ id:'main', label:'Главное' });
+        var curG = window._statsGroup || 'all';
+        function sectionGroupOf(sid) {
+          try {
+            var items = MORE_MENU_DEFAULT || [];
+            for (var ii = 0; ii < items.length; ii++) {
+              if (items[ii].id === sid) return items[ii].group || 'other';
+            }
+          } catch(e) {}
+          if (['dailyhub','home','learn','games','more','reader'].indexOf(sid) >= 0) return 'main';
+          return 'other';
+        }
+        var secIds = {};
+        Object.keys(s.sectionVisits || {}).forEach(function(k){ secIds[k]=1; });
+        Object.keys(s.sectionSeconds || {}).forEach(function(k){ secIds[k]=1; });
+        var secList = Object.keys(secIds).filter(function(sid) {
+          if (curG === 'all') return true;
+          return sectionGroupOf(sid) === curG;
+        }).sort(function(a,b) {
+          return sumInPeriod(s.sectionVisits[b], 'all') - sumInPeriod(s.sectionVisits[a], 'all');
+        });
+        var gTabs = groupTabs.map(function(t) {
+          var on = t.id === curG;
+          return '<button type="button" class="btn btn-sm st-group" data-g="' + t.id + '" style="border-radius:999px;' +
+            (on ? 'background:var(--accent);color:#fff' : '') + '">' + t.label + '</button>';
+        }).join('');
+        var secRows = secList.map(function(sid) {
+          var v = sumInPeriod(s.sectionVisits[sid], pCur, anchor);
+          var sec = sumInPeriod(s.sectionSeconds[sid], pCur, anchor);
+          var vA = sumInPeriod(s.sectionVisits[sid], 'all');
+          var sA = sumInPeriod(s.sectionSeconds[sid], 'all');
+          return '<div style="display:grid;grid-template-columns:1fr auto;gap:0.15rem 0.6rem;padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
+            '<div style="font-weight:600">' + (labels[sid] || sid) + '</div>' +
+            '<div style="text-align:right;font-weight:700;color:var(--accent)">' + v + '</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-muted)">' + fmtSec(sec) + '</div>' +
+            '<div style="font-size:0.72rem;color:var(--text-muted);text-align:right">всего ' + vA + ' · ' + fmtSec(sA) + '</div></div>';
+        }).join('') || '<p class="ayah-translation">Пока нет заходов.</p>';
+
+        html += '<div class="card"><b>📂 По разделам · моя</b>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.45rem 0">' + gTabs + '</div>' +
+          secRows + '</div>';
+      } else {
+        // global activity
+        html += '<div class="card"><b>🌐 По разделам · общая</b>' +
+          '<div id="stats-global-body" class="ayah-translation" style="margin-top:0.5rem">Загрузка…</div></div>';
       }
-
-      var secIds = {};
-      Object.keys(s.sectionVisits || {}).forEach(function(k){ secIds[k]=1; });
-      Object.keys(s.sectionSeconds || {}).forEach(function(k){ secIds[k]=1; });
-      var secList = Object.keys(secIds).filter(function(sid) {
-        if (curG === 'all') return true;
-        return sectionGroupOf(sid) === curG;
-      }).sort(function(a,b) {
-        return sumInPeriod(s.sectionVisits[b], 'all') - sumInPeriod(s.sectionVisits[a], 'all');
-      });
-
-      var secRows = secList.map(function(sid) {
-        var v = sumInPeriod(s.sectionVisits[sid], pCur, anchor);
-        var sec = sumInPeriod(s.sectionSeconds[sid], pCur, anchor);
-        var vA = sumInPeriod(s.sectionVisits[sid], 'all');
-        var sA = sumInPeriod(s.sectionSeconds[sid], 'all');
-        return '<div style="display:grid;grid-template-columns:1fr auto;gap:0.25rem 0.75rem;padding:0.65rem 0;border-bottom:1px solid var(--border)">' +
-          '<div style="font-weight:600">' + (labels[sid] || sid) + '</div>' +
-          '<div style="text-align:right;font-weight:700;color:var(--accent)">' + v + '</div>' +
-          '<div style="font-size:0.78rem;color:var(--text-muted)">' + fmtSec(sec) + ' за период</div>' +
-          '<div style="font-size:0.75rem;color:var(--text-muted);text-align:right">всего ' + vA + ' · ' + fmtSec(sA) + '</div></div>';
-      }).join('') || '<p class="ayah-translation" style="padding:0.5rem 0">Пока нет заходов. Откройте разделы — здесь появятся цифры.</p>';
-
-      var gTabs = groupTabs.map(function(t) {
-        var on = t.id === curG;
-        return '<button type="button" class="btn btn-sm st-group" data-g="' + t.id + '" style="border-radius:999px;' +
-          (on ? 'background:var(--accent);color:#fff' : '') + '">' + t.label + '</button>';
-      }).join('');
-
-      var html =
-        '<div class="card" style="margin-bottom:0.75rem">' +
-        '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">МОЯ СТАТИСТИКА</div>' +
-        '<b style="font-size:1.05rem">📊 Обзор</b>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin:0.55rem 0 0.15rem">' + periodBtns + '</div>' +
-        navHtml +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.35rem">' +
-        '<div style="background:var(--bg);border-radius:0.75rem;padding:0.75rem;text-align:center">' +
-        '<div style="font-size:0.75rem;color:var(--text-muted)">' + (pCur === 'all' ? 'Всего' : periodLabel()) + '</div>' +
-        '<div style="font-size:1.5rem;font-weight:700;color:var(--accent);margin:0.2rem 0">' + ovV + '</div>' +
-        '<div style="font-size:0.8rem;color:var(--text-muted)">заходов · ' + fmtSec(ovS) + '</div></div>' +
-        '<div style="background:var(--bg);border-radius:0.75rem;padding:0.75rem;text-align:center">' +
-        '<div style="font-size:0.75rem;color:var(--text-muted)">Накоплено</div>' +
-        '<div style="font-size:1.5rem;font-weight:700;color:var(--accent);margin:0.2rem 0">' + ovVAll + '</div>' +
-        '<div style="font-size:0.8rem;color:var(--text-muted)">заходов · ' + fmtSec(ovSAll) + '</div></div></div></div>' +
-
-        '<div class="card" style="margin-bottom:0.75rem">' +
-        '<b>📚 Активность</b>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;margin-top:0.55rem">' +
-        [['Словарь', dictN],['Избранное', bmN],['Папки', foldersN],['Заметки', notesN],
-         ['Выучено аятов', learnedN],['Открыто аятов', s.openedAyahs||0],
-         ['Аудио, мин', listenMin],['Время в разделах', fmtSec(ovSAll)]].map(function(row) {
-          return '<div style="background:var(--bg);border-radius:0.65rem;padding:0.55rem 0.65rem">' +
-            '<div style="font-size:0.72rem;color:var(--text-muted)">' + row[0] + '</div>' +
-            '<div style="font-size:1.15rem;font-weight:700;margin-top:0.1rem">' + row[1] + '</div></div>';
-        }).join('') + '</div></div>' +
-
-        '<div class="card" style="margin-bottom:0.75rem">' +
-        '<b>📂 По разделам</b>' +
-        '<div style="font-size:0.78rem;color:var(--text-muted);margin:0.35rem 0">Тот же период, что сверху</div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.45rem">' + gTabs + '</div>' +
-        secRows + '</div>' +
-
-        '<div class="card" id="stats-global" style="margin-bottom:0.5rem">' +
-        '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">ПО САЙТУ (все пользователи)</div>' +
-        '<div class="ayah-translation">Загрузка…</div></div>';
 
       el.innerHTML = html;
 
-      // один набор обработчиков
+      el.querySelectorAll('.st-cat').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          window._statsCat = btn.getAttribute('data-c') || 'activity';
+          renderStats();
+        });
+      });
+      el.querySelectorAll('.st-who').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          window._statsWho = btn.getAttribute('data-w') || 'mine';
+          renderStats();
+        });
+      });
       el.querySelectorAll('.st-period').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          window._statsPeriod = btn.getAttribute('data-p') || 'day';
-          // при выборе День/Неделя/Месяц — якорь на сегодня, чтобы не смотреть пустой прошлый день
-          if (window._statsPeriod !== 'all') {
-            window._statsAnchor = new Date();
-          }
+          window._statsPeriod = btn.getAttribute('data-p') || 'all';
+          if (window._statsPeriod !== 'all') window._statsAnchor = new Date();
           renderStats();
         });
       });
@@ -14951,42 +15005,36 @@ async function renderStats() {
         renderStats();
       });
 
-      // global
-      var sb = (typeof getSb === 'function') ? getSb() : null;
-      if (!sb) {
-        var g = document.getElementById('stats-global');
-        if (g) g.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">ПО САЙТУ</div><p class="ayah-translation">Нужен интернет (Supabase).</p>';
-        return;
-      }
-      try {
-        var visRes = await sb.from('section_visitors').select('section_id,visitor_key,day').limit(10000);
-        var rows = (visRes && visRes.data) || [];
-        if (visRes && visRes.error) throw visRes.error;
-        var bySec = {};
-        rows.forEach(function(r) {
-          if (!bySec[r.section_id]) bySec[r.section_id] = {};
-          bySec[r.section_id][r.visitor_key] = 1;
-        });
-        var usersN = '—';
+      if (who === 'global') {
+        var box = document.getElementById('stats-global-body');
+        var sb = (typeof getSb === 'function') ? getSb() : null;
+        if (!sb) {
+          if (box) box.innerHTML = 'Нужен интернет (Supabase).';
+          return;
+        }
         try {
-          var ur = await sb.from('profiles').select('id', { count: 'exact', head: true });
-          if (ur && ur.count != null) usersN = ur.count;
-        } catch(e) {}
-        var gHtml = Object.keys(bySec).sort(function(a,b){
-          return Object.keys(bySec[b]).length - Object.keys(bySec[a]).length;
-        }).map(function(sid) {
-          return '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.88rem">' +
-            '<span>' + (labels[sid] || sid) + '</span><b>' + Object.keys(bySec[sid]).length + '</b></div>';
-        }).join('') || '<p class="ayah-translation">Пока нет данных.</p>';
-        var g = document.getElementById('stats-global');
-        if (g) g.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">ПО САЙТУ (все пользователи)</div>' +
-          '<div style="margin-bottom:0.45rem">Регистраций: <b>' + usersN + '</b></div>' + gHtml;
-      } catch (e) {
-        var g = document.getElementById('stats-global');
-        if (g) g.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted)">ПО САЙТУ</div><p class="ayah-translation">' +
-          String(e.message || e).replace(/</g, '&lt;') + '</p>';
+          var visRes = await sb.from('section_visitors').select('section_id,visitor_key,day').limit(10000);
+          var rows = (visRes && visRes.data) || [];
+          if (visRes && visRes.error) throw visRes.error;
+          var bySec = {};
+          rows.forEach(function(r) {
+            if (!bySec[r.section_id]) bySec[r.section_id] = {};
+            bySec[r.section_id][r.visitor_key] = 1;
+          });
+          var gHtml = Object.keys(bySec).sort(function(a,b) {
+            return Object.keys(bySec[b]).length - Object.keys(bySec[a]).length;
+          }).map(function(sid) {
+            return '<div style="display:flex;justify-content:space-between;padding:0.45rem 0;border-bottom:1px solid var(--border)">' +
+              '<span>' + (labels[sid] || sid) + '</span><b style="color:var(--accent)">' + Object.keys(bySec[sid]).length + '</b></div>';
+          }).join('') || 'Пока нет данных.';
+          if (box) box.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">Уникальные посетители разделов</div>' + gHtml;
+        } catch(e) {
+          if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;');
+        }
       }
     }
+
+
 
 
     const ASBAB = {
