@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.42 2026-08-07 -->
+<!-- BUILD 2.43 2026-08-07 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.42</title>
+  <title>Коран — Изучение · 2.43</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1411,6 +1411,13 @@
     body.hide-ui-hints .section-hint,
     body.hide-ui-hints [data-ui-hint] {
       display: none !important;
+    }
+    body.hide-ui-hints [data-tip-toggle] .tip-body {
+      display: none !important;
+    }
+    body.hide-ui-hints [data-tip-toggle].tip-open .tip-body,
+    body.hide-ui-hints [data-tip-toggle] .tip-body.tip-shown {
+      display: block !important;
     }
     /* подробности только по клику */
     .exp-detail[hidden],
@@ -11001,6 +11008,19 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.43', kinds: ['a', 'b', 'f'], date: '2026-08-07',
+          a: [],
+          b: [
+            'Тур: снова подробные тексты (плеер, ежедневное, настройки)',
+            'Финал тура: арабский + транскрипция + перевод 20:114'
+          ],
+          f: [
+            'Дуа-конструктор: убран Google TTS — была ошибка «Не удалось воспроизвести»',
+            '«Слушать все» дуа через озвучку устройства',
+            'Подсказки 💡 свёрнуты по умолчанию (сброс старого localStorage)'
+          ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.42', kinds: ['a', 'b', 'f'], date: '2026-08-07',
           a: [],
           b: [
@@ -17440,20 +17460,14 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       DUA_SITUATIONS.forEach(s => { byId[s.id] = s; });
       const ordered = order.map(id => byId[id]).filter(Boolean);
 
-      const speakDua = (ar) => {
+      const speakDua = (ar, ru) => {
         if (!ar) { toast('Нет текста'); return; }
-        try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
-        // Сразу online TTS в плеер — надёжнее на телефоне, чем speechSynthesis
-        const chunk = String(ar).length > 180 ? String(ar).slice(0, 180) : String(ar);
-        const url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + encodeURIComponent(chunk);
-        if (typeof playAudio === 'function') {
-          try {
-            playAudio(url, 'Дуа', { mode: 'single', repeat: 1 });
-            return;
-          } catch(e) {}
+        if (typeof playArabicAudio === 'function') {
+          playArabicAudio(ar, ru || 'Дуа', { adhkar: true, dua: true });
+          return;
         }
-        if (typeof speakArText === 'function') {
-          speakArText(ar, 0.7);
+        if (typeof speakArabicFallback === 'function') {
+          speakArabicFallback(ar, ru || 'Дуа');
           return;
         }
         toast('Озвучка недоступна');
@@ -17538,7 +17552,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
               ev.preventDefault();
               try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
               const d = duas[+b.dataset.duaSpeak];
-              if (d) speakDua(d.ar);
+              if (d) speakDua(d.ar, d.ru);
             });
           });
           document.getElementById('dua-speak-all')?.addEventListener('click', (ev) => {
@@ -17546,27 +17560,19 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
             const texts = duas.map(d => (d.ar || '').trim()).filter(Boolean);
             if (!texts.length) { toast('Нет текста'); return; }
             try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
-            // Очередь в аудио-баре через online TTS
-            const queue = texts.map((t, i) => {
-              const chunk = t.length > 180 ? t.slice(0, 180) : t;
-              return {
-                url: 'https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + encodeURIComponent(chunk),
-                title: 'Дуа ' + (i + 1) + '/' + texts.length,
-                adhkar: true
-              };
-            });
-            if (typeof playAudio === 'function' && queue[0]) {
-              audioPlayMode = 'surah';
-              try { updateAudioModeButtons(); } catch(e) {}
-              playAudio(queue[0].url, queue[0].title, { queue: queue, queueIdx: 0, mode: 'surah', repeat: 1 });
-              toast('▶ Все дуа (' + texts.length + ')');
+            if (typeof speakArabicFallback === 'function') {
+              speakArabicFallback(texts.join(' … '), 'Дуа · ' + texts.length);
+              return;
+            }
+            if (typeof playArabicAudio === 'function') {
+              playArabicAudio(texts[0], 'Дуа 1/' + texts.length, { adhkar: true, dua: true });
               return;
             }
             // Fallback: по одному через speakArText
             let i = 0;
             const next = () => {
               if (i >= texts.length) return;
-              speakDua(texts[i]);
+              speakDua(texts[i], 'Дуа');
               i++;
               if (i < texts.length) setTimeout(next, Math.min(12000, 2000 + texts[i-1].length * 80));
             };
@@ -17592,7 +17598,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         ).join('');
         box.querySelectorAll('[data-cdua-speak]').forEach(b => b.addEventListener('click', () => {
           const d = state.customDuas[+b.dataset.cduaSpeak];
-          if (d) speakDua(d.ar);
+          if (d) speakDua(d.ar, d.ru);
         }));
         box.querySelectorAll('[data-cdua-del]').forEach(b => b.addEventListener('click', () => {
           state.customDuas.splice(+b.dataset.cduaDel, 1);
@@ -20545,17 +20551,18 @@ function renderFiqh() {
       (root || document).querySelectorAll('[data-tip-toggle]').forEach(function(card) {
         const b = card.querySelector('.tip-body');
         if (b) {
-          // по умолчанию ЗАКРЫТО
-          const open = (window._tipOpen[key] === true);
+          const open = (window._tipOpen[key] === true); // закрыто, пока юзер не открыл
           b.style.display = open ? 'block' : 'none';
+          if (open) card.classList.add('tip-open'); else card.classList.remove('tip-open');
         }
         card.onclick = function(e) {
           if (e.target.closest('a,button,input,select')) return;
           const body = card.querySelector('.tip-body');
           if (!body) return;
-          const willHide = body.style.display !== 'none';
-          body.style.display = willHide ? 'none' : 'block';
-          window._tipOpen[key] = !willHide;
+          const willOpen = body.style.display === 'none' || !card.classList.contains('tip-open');
+          body.style.display = willOpen ? 'block' : 'none';
+          card.classList.toggle('tip-open', willOpen);
+          window._tipOpen[key] = willOpen;
           try { localStorage.setItem('quran_tip_open', JSON.stringify(window._tipOpen)); } catch(err) {}
         };
       });
@@ -20565,12 +20572,12 @@ function renderFiqh() {
       const card = e.target.closest && e.target.closest('[data-tip-toggle]');
       if (!card) return;
       if (e.target.closest('a,button,input,select')) return;
-      // если bindTipToggles уже повесил onclick — не дублируем
       if (card.onclick) return;
       const b = card.querySelector('.tip-body');
       if (!b) return;
-      const willHide = b.style.display !== 'none';
-      b.style.display = willHide ? 'none' : 'block';
+      const willOpen = b.style.display === 'none' || !card.classList.contains('tip-open');
+      b.style.display = willOpen ? 'block' : 'none';
+      card.classList.toggle('tip-open', willOpen);
       try {
         if (!window._tipOpen) window._tipOpen = {};
         const key = card.getAttribute('data-tip-key') || 'global';
@@ -21601,30 +21608,60 @@ function startApp() {
     function buildSiteTourSteps() {
       var labels = { dailyhub:'Ежедневное', home:'Суры', learn:'Теория', games:'Практика', more:'Ещё' };
       var texts = {
-        dailyhub: 'Главный экран дня.\n\n• Времена намаза (город — в «Время намаза»).\n• Аят: нажмите — контекст до/после.\n• Дуа, хадис, сунна, слово, история — ← →.\n• 99 имён Аллаха — нажмите карточку имени.\n\nУдобно утром и вечером.',
-        home: 'Список 114 сур.\n\n• Сура → чтение, перевод, аудио.\n• Плеер внизу: ▶/⏸, ←→ аят, ⏮⏭ сура.\n• Режимы: 1 аят · 🔁1 · Сура · 🔁сура · 🔀.\n• «С конца» — очередь с последнего аята.\n• Скачать суры офлайн; закладки на устройстве.',
-        learn: 'Обучение.\n\n• Академия, буквы, огласовки, правила, таджвид.\n• Махаридж — где выходит звук.\n• Суры и аяты по словам.\n\nВкладки сверху; «Путь» — порядок.',
-        games: 'Практика и тесты.\n\n• Буквы, произношение, правила.\n• Сначала режим — потом ответы.',
-        more: 'Меню «Ещё».\n\n• Знание, поклонение, Коран, жизнь, система.\n• Настройки, аккаунт, справка, обновления.\n\nПорядок — Настройки → Меню.'
+        dailyhub: 'Главный экран дня.\n\n• Виджет времён намаза — город настраивается в «Время намаза».\n• Аят часа/дня: нажмите на аят — увидите контекст (аяты до и после).\n• Дуа, хадис, сунна, слово дня, история — листайте стрелками ← →.\n• Имя из 99 имён Аллаха: нажмите карточку — откроется раздел с этим именем.\n• История дня — короткий рассказ; можно листать.\n\nСюда удобно заходить утром и вечером.',
+        home: 'Список всех 114 сур Корана.\n\n• Нажмите суру — чтение с переводом и аудио.\n• Нижний плеер: ▶/⏸, предыдущий/следующий аят, крайние кнопки — суры.\n• Режимы плеера: «1 аят», «🔁 1» (повтор аята), «Сура» (подряд), «🔁 сура», «🔀» случайно.\n• Кнопка «↕ С конца» в чтении: список и очередь плеера идут с последнего аята к первому; «🔁 сура» тоже с конца.\n• Можно скачать суры для офлайна. Закладки и прогресс — на этом устройстве.\n\nВкладка «Суры» внизу всегда возвращает к этому списку.',
+        learn: 'Обучение чтению и правилам.\n\n• Путь академии подсказывает порядок модулей.\n• Буквы, огласовки, правила, таджвид — карточки с «подробнее».\n• Махаридж — 5 зон (джауф, горло, язык, губы, нос): схемы и ссылки на видео.\n• Суры и аяты по словам для разбора.\n\nВкладки сверху переключают темы.',
+        games: 'Практика и тесты.\n\n• Проверка букв, произношения, правил таджвида.\n• Тренировка закрепляет теорию.\n\nСначала выберите режим, затем отвечайте на вопросы — так материал лучше запоминается.',
+        more: 'Меню «Ещё» — все остальные разделы.\n\n• Знание: фикх, акида, хадисы, история, грехи и тауба, адаб…\n• Поклонение: намаз, азкар, сунны, дуа-конструктор, имена Аллаха…\n• Коран и жизнь: словари, темы, моё чтение…\n• Система: настройки, аккаунт, справка, обновления, статистика.\n\nПорядок пунктов меняется в Настройки → Меню. Повторное нажатие «Ещё» возвращает к списку.'
       };
       var steps = [];
-      steps.push({ view: null, title: 'Добро пожаловать',
-        text: 'Короткий тур.\n\nГлавные вкладки, настройки, аккаунт.\n«Далее» — следующий шаг.\n«Пропустить» — выход.' });
+      steps.push({
+        view: null,
+        title: 'Добро пожаловать',
+        text: 'Короткий тур по сайту.\n\nПокажем главные вкладки внизу, настройки и аккаунт.\nНажимайте «Далее» — без этого следующий шаг не откроется.\nВ любой момент можно «Пропустить».'
+      });
       var order = (typeof getMainTabOrder === 'function') ? getMainTabOrder() : ['dailyhub','home','learn','games'];
       order.forEach(function(id) {
-        steps.push({ view: id, highlight: id, title: labels[id] || id, text: texts[id] || ('Раздел «'+(labels[id]||id)+'».') });
+        steps.push({
+          view: id,
+          highlight: id,
+          title: labels[id] || id,
+          text: texts[id] || ('Раздел «'+(labels[id]||id)+'».')
+        });
       });
-      steps.push({ view: 'more', highlight: 'more', title: 'Ещё', text: texts.more });
-      steps.push({ view: 'settings', title: 'Настройки',
-        text: '• Язык и перевод\n• Аудио: чтец, скорость\n• Вид / ночной режим; шрифты\n• Чтение, офлайн-кэш\n• Пароли (блокировка)\n• Меню: порядок вкладок\n\nКатегории — сверху.' });
-      steps.push({ view: 'account', title: 'Мой аккаунт',
-        text: 'Вход: email или локально.\n\n• Прогресс с аккаунтом\n• Ник и пароль\n• Без входа сайт работает\n\n🔒 в шапке — отдельный PIN.' });
-      steps.push({ view: 'more', highlight: 'more', title: 'Справка и обновления',
-        text: 'В «Ещё»:\n• Справка — тексты разделов\n• Обновления — сборки\n\n«?» слева внизу — этот тур.' });
-      steps.push({ view: null, title: 'О внешних материалах',
-        text: 'Ссылки на видео и схемы других авторов — только для учёбы. Я не претендую на эти материалы.' });
-      steps.push({ view: 'dailyhub', highlight: 'dailyhub', title: 'Успехов в обучении',
-        text: 'Пусть Аллах облегчит заучивание и понимание Книги.\n\nرَبِّ زِدْنِي عِلْمًا\nRabbi zidnī ʿilmā\n«Господи! Увеличь мои знания» (20:114).\n\nАминь.' });
+      steps.push({
+        view: 'more',
+        highlight: 'more',
+        title: 'Ещё',
+        text: texts.more
+      });
+      steps.push({
+        view: 'settings',
+        title: 'Настройки',
+        text: 'Главное, что можно изменить:\n\n• Язык интерфейса и перевод Корана.\n• Аудио: чтец, скорость.\n• Вид: тема, ночной режим; отдельно — шрифты арабского.\n• Чтение: перевод, транскрипция.\n• Офлайн: кэш сур.\n• Пароли: блокировка приложения и смена пароля.\n• Меню: порядок главных вкладок и пунктов «Ещё».\n• Другое: мазхаб для намаза, скрыть кнопку «?», режим «только Коран».\n\nКатегории — кнопками сверху экрана настроек.'
+      });
+      steps.push({
+        view: 'account',
+        title: 'Мой аккаунт',
+        text: 'Вход и регистрация (онлайн по email или локально на устройстве).\n\n• При входе прогресс можно связать с аккаунтом.\n• Смена ника и пароля.\n• Без аккаунта сайт работает — данные остаются в браузере.\n\nПароль блокировки приложения (замок 🔒 в шапке) — отдельно от пароля аккаунта.'
+      });
+      steps.push({
+        view: 'more',
+        highlight: 'more',
+        title: 'Справка и обновления',
+        text: 'Снова меню «Ещё».\n\n• Справка — текстовые описания разделов (есть поиск). В «Главное» есть карточка про кнопку «?».\n• Обновления — что нового в сборках.\n\nКнопка «?» слева внизу снова запускает этот тур (её можно скрыть в Настройки → Другое).'
+      });
+      steps.push({
+        view: null,
+        title: 'О внешних материалах',
+        text: 'На сайте есть ссылки на видео, схемы и статьи других авторов (YouTube, учебные сайты).\n\nЯ не претендую на эти материалы: они принадлежат своим создателям. Ссылки даны только для обучения.\n\nСобственный текст и код приложения отдельны от чужого контента.'
+      });
+      steps.push({
+        view: 'dailyhub',
+        highlight: 'dailyhub',
+        title: 'Успехов в обучении',
+        text: 'Пусть Аллах облегчит вам заучивание и понимание Своей Книги, сделает намерение искренним и примет старание.\n\nرَبِّ زِدْنِي عِلْمًا\nRabbi zidnī ʿilmā\n«Господи! Увеличь мои знания» (Коран 20:114).\n\nАминь. Можно начинать с «Ежедневного» или открыть суру.'
+      });
       return steps;
     }
 
@@ -21755,6 +21792,7 @@ function startApp() {
 
     try { applyHelpBtnVisibility(); } catch(e) {}
     try { document.body.classList.add('hide-ui-hints'); } catch(e) {}
+    try { /* подсказки свёрнуты */ if (!localStorage.getItem('quran_tips_default_v2')) { localStorage.removeItem('quran_tip_open'); localStorage.setItem('quran_tips_default_v2','1'); window._tipOpen = {}; } } catch(e) {}
     initLockScreen();
   </script>
 </body>
