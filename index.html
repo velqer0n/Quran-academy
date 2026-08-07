@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.13 2026-08-04 -->
+<!-- BUILD 2.14 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.13</title>
+  <title>Коран — Изучение · 2.14</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1378,23 +1378,45 @@
     
     /* Режим телефона / компьютера */
     body.mode-desktop {
-      --content-max: 720px;
+      --content-max: 1100px;
     }
     body.mode-desktop .app-shell,
     body.mode-desktop #app,
-    body.mode-desktop main {
-      max-width: var(--content-max, 720px);
+    body.mode-desktop main,
+    body.mode-desktop .view.active {
+      max-width: var(--content-max, 1100px);
       margin-left: auto;
       margin-right: auto;
     }
     body.mode-desktop .bottom-nav {
-      max-width: var(--content-max, 720px);
+      max-width: var(--content-max, 1100px);
       left: 50%;
       transform: translateX(-50%);
       width: 100%;
     }
     body.mode-desktop .arabic {
-      font-size: 1.35em;
+      font-size: 1.45em;
+    }
+    /* С телефона в режиме ПК: шире сетка «Ещё», 2–3 колонки карточек */
+    body.mode-desktop .more-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 0.55rem;
+    }
+    body.mode-desktop .more-grid-3 {
+      display: grid !important;
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 0.5rem;
+    }
+    body.mode-desktop .card {
+      max-width: none;
+    }
+    body.mode-desktop .section-title {
+      font-size: 1.35rem;
+    }
+    body.mode-desktop #device-mode-btn {
+      font-size: 0.85rem;
+      padding: 0.45rem 0.75rem;
     }
     body.mode-phone .bottom-nav {
       /* as is */
@@ -10127,7 +10149,7 @@ function renderSalah() {
     function renderAppUpdate() {
       var el = document.getElementById('appupdate-body');
       if (!el) return;
-      var ver = '2.13';
+      var ver = '2.14';
       try {
         var t = document.title || '';
         var m = t.match(/2\.\d+/);
@@ -10149,6 +10171,12 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.14', kinds: ['a', 'b', 'd'], date: '2026-08-07',
+          a: [ 'Статистика по спискам: Все / Знание / Поклонение / …' ],
+          b: [ 'Режим ПК с телефона: шире экран, сетка «Ещё» 2–3 колонки' ],
+          d: [ 'CSS mode-desktop до 1100px' ],
+          f: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.13', kinds: ['f', 'b'], date: '2026-08-07',
           a: [],
           b: [ 'Убран номер версии из заголовка «Ежедневное»' ],
@@ -14502,9 +14530,43 @@ async function renderStats() {
       var secList = Object.keys(secIds).sort(function(a, b) {
         return sumInRange(s.sectionVisits[b], null) - sumInRange(s.sectionVisits[a], null);
       });
-      var secHtml = secList.map(function(sid) {
+      // Группы меню для вкладок статистики
+      var groupTabs = [{ id: 'all', label: 'Все' }];
+      try {
+        var gdefs = (typeof MORE_GROUP_DEFAULTS !== 'undefined') ? MORE_GROUP_DEFAULTS : [];
+        gdefs.forEach(function(g) {
+          if (g && g.id) groupTabs.push({ id: g.id, label: (MORE_GROUP_LABELS && MORE_GROUP_LABELS[g.id]) || g.label || g.id });
+        });
+      } catch(e) {}
+      groupTabs.push({ id: 'main', label: 'Главное' });
+      var curG = window._statsGroup || 'all';
+      if (!groupTabs.some(function(t){ return t.id === curG; })) curG = 'all';
+
+      function sectionGroupOf(sid) {
+        try {
+          var items = (typeof MORE_MENU_DEFAULT !== 'undefined') ? MORE_MENU_DEFAULT : [];
+          for (var i = 0; i < items.length; i++) {
+            if (items[i].id === sid) return items[i].group || 'other';
+          }
+        } catch(e) {}
+        if (['dailyhub','home','learn','games','more','reader'].indexOf(sid) >= 0) return 'main';
+        return 'other';
+      }
+
+      var filtered = secList.filter(function(sid) {
+        if (curG === 'all') return true;
+        return sectionGroupOf(sid) === curG;
+      });
+      var secHtml = filtered.map(function(sid) {
         return rangeRow(labels[sid] || sid, s.sectionVisits[sid], s.sectionSeconds[sid]);
-      }).join('') || '<p class="ayah-translation">Заходите в разделы — здесь появятся заходы и время.</p>';
+      }).join('') || '<p class="ayah-translation">В этой группе пока нет данных. Откройте разделы — появятся заходы и время.</p>';
+
+      var tabsHtml = '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin:0.5rem 0 0.65rem">' +
+        groupTabs.map(function(t) {
+          var on = t.id === curG;
+          return '<button type="button" class="btn btn-sm stats-g-tab" data-sg="' + t.id + '" style="' +
+            (on ? 'background:var(--accent);color:#fff;border-color:var(--accent)' : '') + '">' + t.label + '</button>';
+        }).join('') + '</div>';
 
       var html =
         '<div class="card"><b>📊 Обзор</b>' +
@@ -14528,11 +14590,19 @@ async function renderStats() {
         '</div></div>' +
 
         '<div class="card"><b>📂 По разделам</b>' +
-        '<div class="ayah-translation" style="margin:0.35rem 0 0.5rem">Заходы и время: сегодня · неделя · месяц · год · всего</div>' +
+        '<div class="ayah-translation" style="margin:0.35rem 0 0.15rem">Фильтр по списку меню. «Все» — без деления.</div>' +
+        tabsHtml +
+        '<div class="ayah-translation" style="margin:0 0 0.5rem;font-size:0.75rem">Заходы и время: сегодня · неделя · месяц · год · всего</div>' +
         secHtml + '</div>';
 
       // Global public stats from Supabase (best effort)
       el.innerHTML = html + '<div class="card" id="stats-global">Загрузка общей статистики…</div>';
+      el.querySelectorAll('.stats-g-tab').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          window._statsGroup = btn.getAttribute('data-sg') || 'all';
+          renderStats();
+        });
+      });
 
       var sb = (typeof getSb === 'function') ? getSb() : null;
       if (!sb) {
@@ -19623,9 +19693,25 @@ function renderLibrary() {
           if (state && state.settings && state.settings.hideDeviceBtn === true) show = false;
         } catch(e) {}
         btn.style.display = show ? '' : 'none';
+        btn.style.zIndex = '9999';
+        btn.style.pointerEvents = 'auto';
       }
       try { localStorage.setItem('quran_device_mode', mode); } catch(e) {}
       try { lockBtnVisibility(); } catch(e) {}
+      // В режиме ПК удобнее сетка 3 в «Ещё»; на телефоне — список/2
+      try {
+        if (mode === 'desktop') {
+          if (!localStorage.getItem('quran_more_layout_user')) {
+            localStorage.setItem('quran_more_layout', 'grid3');
+          }
+        }
+        if (typeof renderMoreMenu === 'function') {
+          var moreEl = document.getElementById('more-menu');
+          if (moreEl && document.getElementById('view-more') && document.getElementById('view-more').classList.contains('active')) {
+            renderMoreMenu();
+          }
+        }
+      } catch(e) {}
     }
     try {
       if (!document.documentElement.dataset.deviceDelegate) {
