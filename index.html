@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.44 2026-08-07 -->
+<!-- BUILD 2.45 2026-08-07 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.44</title>
+  <title>Коран — Изучение · 2.45</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1508,7 +1508,12 @@
     body.tour-active #site-tour-card,
     body.tour-active #site-tour-card * { pointer-events: auto; }
     body.tour-active #device-mode-btn { display: none !important; }
-    body.tour-active .bottom-nav { pointer-events: none; z-index: 10040; }
+    body.tour-active .bottom-nav {
+      pointer-events: none;
+      z-index: 10040;
+      /* не «просвечивать» другой цвет при overscroll */
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.35);
+    }
     body.tour-active .bottom-nav button[data-view].tour-highlight {
       box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--accent), 0 0 20px rgba(46, 204, 113, 0.65);
       border-radius: 0.75rem;
@@ -1517,6 +1522,16 @@
       transform: translateY(-3px) scale(1.05);
       position: relative;
       z-index: 10045;
+    }
+    /* перекрытие зоны над нижним меню, чтобы не мигал фон */
+    body.tour-active #site-tour-overlay::after {
+      content: '';
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      height: calc(4.2rem + env(safe-area-inset-bottom, 0px));
+      background: rgba(4, 8, 16, 0.8);
+      pointer-events: none;
+      z-index: 10039;
     }
     body.tour-active #site-tour-overlay {
       isolation: isolate;
@@ -1693,16 +1708,86 @@
       body.mode-desktop .more-grid-6 { grid-template-columns: repeat(6, 1fr); }
     }
     
-    body.night-read {
-      --bg: #1c1917 !important;
-      --bg-card: #292524 !important;
-      --bg-elevated: #44403c !important;
-      --text: #e7e5e4 !important;
-      --text-muted: #a8a29e !important;
-      --border: #57534e !important;
-      --accent: #d6b27c !important;
+    body.theme-night, body.night-read {
+      --bg: #1c1917;
+      --bg-card: #292524;
+      --bg-elevated: #44403c;
+      --text: #e7e5e4;
+      --text-muted: #a8a29e;
+      --border: #57534e;
+      --accent: #d6b27c;
+      --arabic: #f5e6c8;
     }
-    body.night-read .bottom-nav { background: rgba(28, 25, 23, 0.97) !important; }
+    body.theme-night header,
+    body.theme-night .bottom-nav,
+    body.theme-night .audio-bar,
+    body.night-read .bottom-nav {
+      background: rgba(28, 25, 23, 0.97);
+    }
+    /* Монохром: только серые, без цветного акцента */
+    body.theme-mono {
+      --bg: #111111;
+      --bg-card: #1a1a1a;
+      --bg-elevated: #242424;
+      --text: #f0f0f0;
+      --text-muted: #9a9a9a;
+      --border: #333333;
+      --accent: #d0d0d0;
+      --arabic: #ffffff;
+    }
+    body.theme-mono header,
+    body.theme-mono .bottom-nav,
+    body.theme-mono .audio-bar {
+      background: rgba(17, 17, 17, 0.97);
+    }
+    /* OLED: почти чёрный фон, экономия на AMOLED */
+    body.theme-oled {
+      --bg: #000000;
+      --bg-card: #0a0a0a;
+      --bg-elevated: #141414;
+      --text: #e8e8e8;
+      --text-muted: #888888;
+      --border: #222222;
+      --accent: #4ade80;
+      --arabic: #fafafa;
+    }
+    body.theme-oled header,
+    body.theme-oled .bottom-nav,
+    body.theme-oled .audio-bar {
+      background: rgba(0, 0, 0, 0.98);
+    }
+    /* Океан */
+    body.theme-ocean {
+      --bg: #0b1220;
+      --bg-card: #132037;
+      --bg-elevated: #1a2d4d;
+      --text: #e2eaf6;
+      --text-muted: #8ba3c7;
+      --border: #243b5c;
+      --accent: #38bdf8;
+      --arabic: #e0f2fe;
+    }
+    body.theme-ocean header,
+    body.theme-ocean .bottom-nav,
+    body.theme-ocean .audio-bar {
+      background: rgba(11, 18, 32, 0.96);
+    }
+    /* Лес */
+    body.theme-forest {
+      --bg: #0f1a14;
+      --bg-card: #17241c;
+      --bg-elevated: #1f3228;
+      --text: #e4efe8;
+      --text-muted: #8fad9c;
+      --border: #2a4034;
+      --accent: #4ade80;
+      --arabic: #ecfdf5;
+    }
+    body.theme-forest header,
+    body.theme-forest .bottom-nav,
+    body.theme-forest .audio-bar {
+      background: rgba(15, 26, 20, 0.96);
+    }
 
     
     .font-pick-wrap { margin-top: 0.35rem; width: 100%; }
@@ -1770,7 +1855,7 @@
     <div id="view-reader" class="view">
       <div class="reader-header">
         <div>
-          <button class="btn btn-sm" id="btn-back">'+tLabel('Назад')+'</button>
+          <button class="btn btn-sm" id="btn-back">← Назад</button>
           <div class="reader-title" id="reader-title" style="margin-top:0.5rem"></div>
           <div class="surah-meta" id="reader-meta"></div>
         </div>
@@ -2379,16 +2464,25 @@
             <option value="light">Светлая</option>
             <option value="sepia">Сепия</option>
             <option value="night">Ночное чтение</option>
+            <option value="mono">Монохром</option>
+            <option value="oled">OLED</option>
+            <option value="ocean">Океан</option>
+            <option value="forest">Лес</option>
           </select>
           <div class="size-pick-list" id="pick-theme">
             <button type="button" class="size-pick-item" data-v="dark" style="background:#0f172a;color:#e2e8f0">Тёмная</button>
             <button type="button" class="size-pick-item" data-v="light" style="background:#f8fafc;color:#0f172a">Светлая</button>
             <button type="button" class="size-pick-item" data-v="sepia" style="background:#f4ecd8;color:#3e2723">Сепия</button>
             <button type="button" class="size-pick-item" data-v="night" style="background:#1c1917;color:#d6b27c">Ночное</button>
+            <button type="button" class="size-pick-item" data-v="mono" style="background:#111;color:#ddd">Моно</button>
+            <button type="button" class="size-pick-item" data-v="oled" style="background:#000;color:#4ade80">OLED</button>
+            <button type="button" class="size-pick-item" data-v="ocean" style="background:#0b1220;color:#38bdf8">Океан</button>
+            <button type="button" class="size-pick-item" data-v="forest" style="background:#0f1a14;color:#4ade80">Лес</button>
           </div>
+          <div class="ayah-translation" style="font-size:0.8rem;margin-top:0.35rem">Тёмная — обычный тёмный интерфейс. Ночное — тёплый коричневый, мягче для глаз ночью. OLED — чёрный фон. Моно — без цветного акцента.</div>
         </div>
         <div class="setting-row">
-          <span>Ночной режим (22:00–6:00)</span>
+          <span>Авто «Тёмная» (22:00–6:00)</span>
           <select id="setting-night-auto">
             <option value="0">Выкл</option>
             <option value="1">Вкл</option>
@@ -3252,7 +3346,7 @@
         daily_title: 'Ежедневное',
         tip: 'Подсказка',
 
-        back: ''+tLabel('Назад')+'', play_surah: 'Вся сура', mark_learned: 'Выучена',
+        back: 'Назад', play_surah: 'Вся сура', mark_learned: 'Выучена',
         tafsir: 'Тафсир', notes: 'Заметки', loading: 'Загрузка…', offline: 'Офлайн',
         cache_info: 'Загруженные суры сохраняются для чтения без интернета.',
         theme: 'Тема', theme_dark: 'Тёмная', theme_light: 'Светлая',
@@ -6301,7 +6395,11 @@ function getMainTabOrder() {
         'pick-theme': (v) => {
           state.settings.theme = v;
           const s=document.getElementById('setting-theme'); if(s) s.value=v;
-          try { document.body.className = document.body.className.replace(/theme-\w+/g,''); document.body.classList.add('theme-'+v); } catch(e) {}
+          try {
+            document.body.className = document.body.className.replace(/theme-\w+/g,'').replace(/\bnight-read\b/g,'');
+            document.body.classList.add('theme-'+v);
+            if (v === 'night') document.body.classList.add('night-read');
+          } catch(e) {}
           try { localStorage.setItem('quran_theme', v); } catch(e) {}
         },
         'pick-font-ar': (v) => { state.settings.fontScaleAr = parseFloat(v); const s=document.getElementById('setting-font-ar'); if(s) s.value=v; },
@@ -8418,7 +8516,6 @@ function renderMistakes() {
         '<div class="tabs-row" style="margin-bottom:0.75rem">' +
         '<button type="button" class="btn btn-sm btn-primary" data-mist="err">Ошибки чтения</button>' +
         '<button type="button" class="btn btn-sm" data-mist="art">Артикуляция</button>' +
-        '<button type="button" class="btn btn-sm" data-mist="sur">Короткие</button>' +
         '<button type="button" class="btn btn-sm" data-mist="cache">Из кэша</button></div>' +
         '<div id="mist-panel"></div>';
       const panel = document.getElementById('mist-panel');
@@ -11019,6 +11116,22 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.45', kinds: ['a', 'b', 'f'], date: '2026-08-07',
+          a: [
+            'Темы: Монохром, OLED, Океан, Лес'
+          ],
+          b: [
+            'Настройки: пояснение «Тёмная» vs «Ночное»',
+            'Теория → Ошибки: убраны полные короткие суры (они в «Суры»)'
+          ],
+          f: [
+            'Кнопка «Назад» в чтении суры (был текст +tLabel)',
+            'Дуа: только выбранный текст, кари не из заголовка темы',
+            'Дуа: озвучка через плеер (полоска внизу)',
+            'Тур: зона над нижним меню не мигает при скролле'
+          ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.44', kinds: ['b', 'f'], date: '2026-08-07',
           a: [],
           b: [
@@ -15279,9 +15392,9 @@ function playArabicAudio(text, fallbackRu, opts) {
       try { if (_adhkarAudio) { _adhkarAudio.pause(); _adhkarAudio = null; } } catch(e) {}
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
 
-      // 1) Явная ссылка на аят Корана (настоящий кари)
+      // 1) Кари только при явной ссылке; для азкаров/дуа — не угадывать «чужие» суры
       let qRef = opts.quran || null;
-      if (!qRef) {
+      if (!qRef && !(opts.adhkar || opts.dua)) {
         const m1 = t.match(/\((\d{1,3})\s*[:：]\s*(\d{1,3})(?:\s*[–\-—]\s*(\d{1,3}))?\)/);
         if (m1) qRef = { s: +m1[1], a: +m1[2], a2: m1[3] ? +m1[3] : null };
         else if (/آيَةُ\s*الْكُرْسِي|Аятуль-Курси|аятуль.?курси/i.test(t) || /2\s*:\s*255/.test(t)) qRef = { s:2, a:255 };
@@ -15290,6 +15403,10 @@ function playArabicAudio(text, fallbackRu, opts) {
         else if (/الفلق|113\s*:/i.test(t)) qRef = { s:113, a:1, a2:5 };
         else if (/الناس|114\s*:/i.test(t)) qRef = { s:114, a:1, a2:6 };
         else if (/الفاتحة|1\s*:\s*1/i.test(t)) qRef = { s:1, a:1, a2:7 };
+      }
+      if (!qRef && (opts.adhkar || opts.dua)) {
+        const m1 = (t + ' ' + (fallbackRu || '')).match(/\((\d{1,3})\s*[:：]\s*(\d{1,3})(?:\s*[–\-—]\s*(\d{1,3}))?\)/);
+        if (m1) qRef = { s: +m1[1], a: +m1[2], a2: m1[3] ? +m1[3] : null };
       }
       if (qRef && typeof ayahAudioUrl === 'function') {
         const playRange = async (s, fromA, toA) => {
@@ -15327,7 +15444,8 @@ function playArabicAudio(text, fallbackRu, opts) {
       speakArabicFallback(t, fallbackRu);
     }
 
-        function speakArabicFallback(t, fallbackRu) {
+        function speakArabicFallback(t, fallbackRu, opts) {
+      opts = opts || {};
       t = String(t || '').trim();
       var ru = String(fallbackRu || '').trim();
       if (!t && !ru) { toast('Нет текста'); return; }
@@ -15348,13 +15466,16 @@ function playArabicAudio(text, fallbackRu, opts) {
         window._audioCtx = 'adhkar';
       } catch(e) {}
 
-      // A) Аят Корана — кари everyayah
+      // Кари ТОЛЬКО если ссылка (s:a) в самом тексте дуа/переводе, не из заголовка раздела
       var blob = t + ' ' + ru;
       var qRef = null;
-      var m1 = blob.match(/\((\d{1,3})\s*[:：]\s*(\d{1,3})(?:\s*[–\-—]\s*(\d{1,3}))?\)/);
-      if (!m1) m1 = blob.match(/\b(\d{1,3})\s*:\s*(\d{1,3})\b/);
-      if (m1) qRef = { s: +m1[1], a: +m1[2], a2: m1[3] ? +m1[3] : null };
-      if (/إِنَّا\s*لِلَّهِ|inna\s*li-?ll[aā]hi/i.test(blob) && !qRef) qRef = { s: 2, a: 156 };
+      if (!opts.noQuran) {
+        var m1 = blob.match(/\((\d{1,3})\s*[:：]\s*(\d{1,3})(?:\s*[–\-—]\s*(\d{1,3}))?\)/);
+        if (m1) {
+          var sn = +m1[1], an = +m1[2];
+          if (sn >= 1 && sn <= 114 && an >= 1 && an <= 286) qRef = { s: sn, a: an, a2: m1[3] ? +m1[3] : null };
+        }
+      }
       if (qRef && typeof ayahAudioUrl === 'function' && typeof playAudio === 'function') {
         var urls = [];
         var toA = qRef.a2 || qRef.a;
@@ -15377,53 +15498,48 @@ function playArabicAudio(text, fallbackRu, opts) {
         }
       }
 
-      // B) Google TTS кусками
-      function playGoogleChunks(textAr) {
+      // Google TTS → через основной audioEl/очередь (виден плеер)
+      function playGoogleViaPlayer(textAr) {
+        if (!textAr || !navigator.onLine) return false;
+        if (typeof playAudio !== 'function') return false;
         var parts = [];
-        var rest = String(textAr || '');
+        var rest = String(textAr);
         while (rest.length) {
-          if (rest.length <= 150) { parts.push(rest); break; }
-          var cut = rest.lastIndexOf(' ', 150);
-          if (cut < 40) cut = 150;
+          if (rest.length <= 140) { parts.push(rest); break; }
+          var cut = rest.lastIndexOf(' ', 140);
+          if (cut < 40) cut = 140;
           parts.push(rest.slice(0, cut));
           rest = rest.slice(cut).trim();
         }
         if (!parts.length) return false;
-        var qi = 0;
-        function nextChunk() {
-          if (qi >= parts.length) {
-            window._ttsPlaying = false;
-            try {
-              var ap2 = document.getElementById('audio-play-pause');
-              if (ap2) ap2.textContent = '▶';
-            } catch(e) {}
-            return;
-          }
-          var url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + encodeURIComponent(parts[qi]);
-          var a = new Audio(url);
-          window._adhkarAudio = a;
-          a.onended = function() { qi++; nextChunk(); };
-          a.onerror = function() {
-            window._adhkarAudio = null;
-            speakViaSynth(parts.slice(qi).join(' '));
+        var queue = parts.map(function(p, i) {
+          return {
+            url: 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + encodeURIComponent(p),
+            title: title + (parts.length > 1 ? (' · ' + (i+1) + '/' + parts.length) : ''),
+            ar: p,
+            adhkar: true,
+            surah: null,
+            ayah: null
           };
-          a.play().then(function() {
+        });
+        audioPlayMode = 'surah';
+        try { updateAudioModeButtons(); } catch(e) {}
+        try {
+          playAudio(queue[0].url, queue[0].title, { queue: queue, queueIdx: 0, mode: 'surah', repeat: 1 });
+          window._ttsPlaying = false;
+          toast('▶ ' + title);
+          // если файл не стартовал — через 2с synth
+          setTimeout(function() {
             try {
-              if (typeof audioBar !== 'undefined' && audioBar) audioBar.classList.add('visible');
-              var at2 = document.getElementById('audio-title');
-              if (at2) at2.textContent = title + (parts.length > 1 ? (' · ' + (qi+1) + '/' + parts.length) : '');
+              if (audioEl && audioEl.paused && (!audioEl.currentTime || audioEl.currentTime < 0.05) && audioQueue && audioQueue[0] && audioQueue[0].adhkar) {
+                speakViaSynth(textAr);
+              }
             } catch(e) {}
-          }).catch(function() {
-            window._adhkarAudio = null;
-            speakViaSynth(parts.slice(qi).join(' '));
-          });
-        }
-        nextChunk();
-        toast('▶ ' + title);
-        return true;
+          }, 2000);
+          return true;
+        } catch(e) { return false; }
       }
 
-      // C) speechSynthesis
       function speakViaSynth(textAr) {
         if (!window.speechSynthesis) {
           toast(ru || 'Озвучка недоступна');
@@ -15469,15 +15585,19 @@ function playArabicAudio(text, fallbackRu, opts) {
             if (window.speechSynthesis.paused) window.speechSynthesis.resume();
           } catch(e) { doneUi(); toast(ru || 'Ошибка озвучки'); }
         }
+        try {
+          if (typeof audioBar !== 'undefined' && audioBar) audioBar.classList.add('visible');
+        } catch(e) {}
         toast('▶ ' + title);
         setTimeout(speakNext, 40);
       }
 
       if (t && navigator.onLine) {
-        if (playGoogleChunks(t)) return;
+        if (playGoogleViaPlayer(t)) return;
       }
       speakViaSynth(t || ru);
     }
+
 
 
 
@@ -17559,12 +17679,13 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
 
       const speakDua = (ar, ru) => {
         if (!ar) { toast('Нет текста'); return; }
-        if (typeof playArabicAudio === 'function') {
-          playArabicAudio(ar, ru || 'Дуа', { adhkar: true, dua: true });
+        // не подставлять чужие аяты из заголовка темы — только текст этой дуа
+        if (typeof speakArabicFallback === 'function') {
+          speakArabicFallback(ar, ru || 'Дуа', { noQuran: false });
           return;
         }
-        if (typeof speakArabicFallback === 'function') {
-          speakArabicFallback(ar, ru || 'Дуа');
+        if (typeof playArabicAudio === 'function') {
+          playArabicAudio(ar, ru || 'Дуа', { adhkar: true, dua: true });
           return;
         }
         toast('Озвучка недоступна');
