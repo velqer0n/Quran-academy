@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.24 2026-08-04 -->
+<!-- BUILD 2.25 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.24</title>
+  <title>Коран — Изучение · 2.25</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -2892,7 +2892,7 @@
       libraryFolders: [{ id: 'default', name: 'Общие' }],
       sunnahLog: {},
       academyProgress: {}, // lessonId -> {done:true, ts}
-      prayerLoc: { lat: 43.2380, lon: 76.9450, city: 'Алматы', country: 'KZ' }
+      prayerLoc: { lat: 43.238293, lon: 76.945465, city: 'Алматы', country: 'KZ' }
     };
     // Метод расчёта по умолчанию — ДУМК
     if (!state.settings.prayerMethod) state.settings.prayerMethod = 'DUMK';
@@ -2921,8 +2921,21 @@
         if (saved.lastBookmarkFolder) state.lastBookmarkFolder = saved.lastBookmarkFolder;
         if (!state.settings.prayerMethod) state.settings.prayerMethod = 'DUMK';
         if (!state.prayerLoc || state.prayerLoc.lat == null) {
-          state.prayerLoc = { lat: 43.2380, lon: 76.9450, city: 'Алматы', country: 'KZ' };
+          state.prayerLoc = { lat: 43.238293, lon: 76.945465, city: 'Алматы', country: 'KZ' };
         }
+        // старые округлённые координаты Алматы → точные (иначе muftyat 404)
+        try {
+          if (state.prayerLoc && (state.prayerLoc.city || '').indexOf('Алмат') >= 0) {
+            var pla = +state.prayerLoc.lat, plo = +state.prayerLoc.lon;
+            if (Math.abs(pla - 43.238293) > 0.00001 || Math.abs(plo - 76.945465) > 0.00001) {
+              if (Math.abs(pla - 43.24) < 0.02 && Math.abs(plo - 76.95) < 0.02) {
+                state.prayerLoc.lat = 43.238293;
+                state.prayerLoc.lon = 76.945465;
+                try { saveState(); } catch(e) {}
+              }
+            }
+          }
+        } catch(e) {}
       } catch (e) { console.warn('loadState', e); }
     }
 
@@ -6231,24 +6244,43 @@ function showView(name, isBack) {
         id: 'm0', level: 0, title: 'Старт', icon: '🚀',
         goal: 'Понять, зачем арабский, и как устроено письмо',
         lessons: [
-          { id:'m0-1', title:'Зачем арабский для Корана', body:
-`Коран ниспослан на ясном арабском языке (12:2, 43:3). Перевод передаёт смысл, но не заменяет звучание, ритм и точность оригинала.
+          { id:'m0-1', title:'Зачем арабский для Корана',
+            short: 'Коран ниспослан на арабском. Перевод помогает понять смысл, но чтение по-арабски — это отдельная награда и точность. Учимся по шагам: буквы → огласовки → слова → аяты.',
+            body:
+`📌 Коротко
+Коран ниспослан на ясном арабском языке (сура Юсуф 12:2; аз-Зухруф 43:3). Перевод нужен, чтобы понять смысл на родном языке. Но сам текст Корана — арабский: его читают в намазе, его учат наизусть.
 
-Цель этого пути — не «выучить арабский как язык» за неделю, а научиться уверенно читать мусхаф: буквы → огласовки → слоги → слова → аяты → таджвид.
+🎯 Чему учимся на этом пути
+Не «весь арабский язык за неделю», а уверенное чтение мусхафа:
+1) буквы  2) огласовки  3) слоги  4) слова  5) аяты  6) правила таджвида (позже)
 
-Рекомендация: 15–25 минут в день. Лучше каждый день понемногу, чем раз в неделю долго.` },
-          { id:'m0-2', title:'Справа налево и формы букв', body:
-`Арабский пишется и читается справа налево.
+👶 Для детей и пожилых
+• Занимайтесь по 10–15 минут, но каждый день.
+• Сначала слушайте букву, потом повторяйте вслух.
+• Не спешите: лучше одна буква уверенно, чем десять «примерно».
 
-У большинства букв до 4 форм:
-• изолированная (одна)
-• начальная (в начале слова)
-• срединная (в середине)
-• конечная (в конце)
+⚠️ Важно
+Мы не выдумываем правила — опираемся на общепринятое обучение чтению Корана. Если есть сомнение в произношении, сверьте с учителем или надёжным чтецом.` },
+          { id:'m0-2', title:'Справа налево и формы букв',
+            short: 'Читаем справа налево. У букв до 4 форм (одна / начало / середина / конец). 6 букв не соединяются слева: ا د ذ ر ز و',
+            body:
+`📌 Коротко
+Арабский пишется и читается справа налево — как открывается книга Корана.
 
-6 букв не соединяются со следующей (той, что слева): ا د ذ ر ز و
+🔤 Формы букв (до 4 видов)
+• Изолированная — буква стоит одна
+• Начальная — в начале слова
+• Срединная — в середине
+• Конечная — в конце слова
 
-Практика: откройте вкладку «Буквы» и посмотрите формы каждой буквы.` }
+Это не «другие буквы», а одна и та же буква в разном написании — как рукописная «т» в русском может чуть меняться в слове.
+
+🚫 6 букв не соединяются со следующей (слева от них):
+ا   د   ذ   ر   ز   و
+После них следующая буква пишется «с новой», в начальной или изолированной форме.
+
+✅ Практика
+Откройте вкладку «Буквы». Нажмите букву и посмотрите все формы. Пальцем ведите справа налево.` }
         ]
       },
       {
@@ -10195,6 +10227,12 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.25', kinds: ['f', 'a', 'b'], date: '2026-08-07',
+          a: [ 'Теория: у уроков кратко + кнопка «Подробнее»' ],
+          b: [ 'Координаты городов КЗ для ДУМК — точные из api.muftyat.kz/cities' ],
+          f: [ 'Времена намаза ДУМК: перебор точных координат (больше не 404 из-за округления)' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.24', kinds: ['b', 'f'], date: '2026-08-07',
           a: [],
           b: [ 'Статистика: категории Активность (моя/общая) и Регистрация; убран обзор' ],
@@ -11085,10 +11123,10 @@ function renderSalah() {
 
     const PRAYER_COUNTRIES = {
       KZ: { name: 'Казахстан', cities: [
-        { n:'Алматы', lat:43.2380, lon:76.9450 },{ n:'Астана', lat:51.1694, lon:71.4491 },
-        { n:'Шымкент', lat:42.3417, lon:69.5901 },{ n:'Караганда', lat:49.8047, lon:73.1094 },
-        { n:'Актобе', lat:50.2839, lon:57.1670 },{ n:'Кызылорда', lat:44.8488, lon:65.4823 },
-        { n:'Атырау', lat:47.1164, lon:51.8826 },{ n:'Павлодар', lat:52.2873, lon:76.9674 }
+        { n:'Алматы', lat:43.238293, lon:76.945465 },{ n:'Астана', lat:51.133333, lon:71.433333 },
+        { n:'Шымкент', lat:42.368009, lon:69.612769 },{ n:'Караганда', lat:49.806406, lon:73.085485 },
+        { n:'Актобе', lat:50.300377, lon:57.154555 },{ n:'Кызылорда', lat:44.842544, lon:65.502563 },
+        { n:'Атырау', lat:47.116667, lon:51.883333 },{ n:'Павлодар', lat:52.315556, lon:76.956389 }
       ]},
       UZ: { name: 'Узбекистан', cities: [
         { n:'Ташкент', lat:41.2995, lon:69.2401 },{ n:'Самарканд', lat:39.6542, lon:66.9597 },
@@ -11458,7 +11496,7 @@ function renderSalah() {
       if (!el) return;
       try {
         if (!state.prayerLoc || state.prayerLoc.lat == null) {
-          state.prayerLoc = { lat: 43.2380, lon: 76.9450, city: 'Алматы', country: 'KZ' };
+          state.prayerLoc = { lat: 43.238293, lon: 76.945465, city: 'Алматы', country: 'KZ' };
         }
         // Рабочая копия: несохранённый выбор не портит сохранённое
         if (!window._ptWorking) {
@@ -19364,7 +19402,7 @@ function renderFiqh() {
         '<div class="card" style="border-color:var(--accent);margin-bottom:1rem">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">' +
         '<div><b>Путь: с нуля → чтение Корана</b>' +
-        '<div class="ayah-translation" style="margin-top:0.25rem">Уроки открываются по порядку. В конце — короткий тест.</div></div>' +
+        '<div class="ayah-translation" style="margin-top:0.25rem">Уроки по порядку. У каждого есть кратко и «Подробнее». В конце модуля — короткий тест.</div></div>' +
         '<div style="text-align:center"><div class="stat-value" style="font-size:1.5rem">'+st.pct+'%</div>' +
         '<div class="stat-label">'+st.done+' / '+st.total+'</div></div></div>' +
         '<div style="margin-top:0.75rem;height:0.45rem;background:var(--border);border-radius:1rem;overflow:hidden">' +
@@ -19431,7 +19469,13 @@ function renderFiqh() {
             box.style.display = 'block';
             const done = isLessonDone(les.id);
             box.innerHTML =
-              '<div class="ayah-translation" style="white-space:pre-wrap;line-height:1.6">'+les.body+'</div>' +
+              (function(){
+                var shortT = les.short || (les.body ? String(les.body).split('\n').slice(0,3).join(' ').slice(0,220)+'…' : '');
+                var fullT = les.body || '';
+                return '<div class="ayah-translation les-short" style="white-space:pre-wrap;line-height:1.55;margin:0.35rem 0">'+shortT+'</div>' +
+                  '<button type="button" class="btn btn-sm les-more-btn" data-mi="'+mi+'" data-li="'+li+'" style="margin:0.25rem 0 0.5rem">📖 Подробнее</button>' +
+                  '<div class="ayah-translation les-full" style="display:none;white-space:pre-wrap;line-height:1.65;margin:0.35rem 0;padding:0.65rem;background:var(--bg);border-radius:0.65rem;border:1px solid var(--border)">'+fullT+'</div>';
+              })() +
               '<div id="les-quiz-'+mi+'-'+li+'"></div>' +
               (done
                 ? '<button type="button" class="btn btn-sm" style="margin-top:0.75rem;width:100%">✓ Урок уже отмечен</button>'
@@ -20071,6 +20115,24 @@ function renderLibrary() {
 
 function startApp() {
       try {
+        // теория: кратко / подробно
+        if (!window._lesMoreBound) {
+          window._lesMoreBound = true;
+          document.addEventListener('click', function(ev) {
+            var btn = ev.target && ev.target.closest && ev.target.closest('.les-more-btn');
+            if (!btn) return;
+            var card = btn.parentElement;
+            if (!card) return;
+            var full = card.querySelector('.les-full');
+            var short = card.querySelector('.les-short');
+            if (!full) return;
+            var open = full.style.display !== 'none';
+            full.style.display = open ? 'none' : 'block';
+            if (short) short.style.display = open ? 'block' : 'none';
+            btn.textContent = open ? '📖 Подробнее' : '📕 Скрыть подробности';
+          });
+        }
+
         try { applyDeviceMode(); } catch(e) {}
         try { if (state.settings && state.settings.prayerNotif) schedulePrayerNotifications(); } catch(e) {}
         try { applyI18nDom(); } catch(e) {}
