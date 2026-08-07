@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.29 2026-08-04 -->
+<!-- BUILD 2.30 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.29</title>
+  <title>Коран — Изучение · 2.30</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1378,15 +1378,30 @@
     
     /* Режим телефона / компьютера */
     body.mode-desktop {
-      --content-max: 1100px;
+      --content-max: min(1400px, 96vw);
     }
     body.mode-desktop .app-shell,
     body.mode-desktop #app,
     body.mode-desktop main,
     body.mode-desktop .view.active {
-      max-width: var(--content-max, 1100px);
+      max-width: var(--content-max, 1400px);
+      width: 100%;
       margin-left: auto;
       margin-right: auto;
+      padding-left: 1.25rem;
+      padding-right: 1.25rem;
+      box-sizing: border-box;
+    }
+    body.mode-desktop header .header-inner {
+      max-width: var(--content-max, 1400px);
+      width: 100%;
+      margin: 0 auto;
+      padding-left: 1.25rem;
+      padding-right: 1.25rem;
+      box-sizing: border-box;
+    }
+    body.mode-desktop .card {
+      max-width: 100%;
     }
     body.mode-desktop .bottom-nav {
       max-width: var(--content-max, 1100px);
@@ -2280,11 +2295,15 @@
           </select>
         </div>
         <div class="setting-row">
-          <span>Пароль при входе<br><small style="color:var(--text-muted);font-weight:400">Шифрование заметок и прогресса</small></span>
+          <span>Пароль при входе<br><small style="color:var(--text-muted);font-weight:400">Блокировка при открытии сайта</small></span>
           <select id="setting-app-lock">
             <option value="1">Вкл</option>
             <option value="0">Выкл</option>
           </select>
+        </div>
+        <div class="setting-row">
+          <span>Сменить пароль блокировки</span>
+          <button type="button" class="btn btn-sm" id="btn-change-lock-pin">Изменить</button>
         </div>
         <div class="settings-bottom-spacer" style="height:6rem;flex-shrink:0" aria-hidden="true"></div>
 
@@ -8070,7 +8089,9 @@ function renderMistakes() {
             '<div class="ayah-translation" dir="ltr" style="text-align:center;unicode-bidi:isolate">'+(l.note||'')+'</div>' +
             ((typeof ARTICULATION !== 'undefined' && ARTICULATION[l.ch]) ? '<div style="margin-top:0.4rem;font-size:0.85rem;color:var(--accent);text-align:center" dir="ltr" style="unicode-bidi:isolate">🗣️ '+ARTICULATION[l.ch]+'</div>' : '') +
             (l.forms ? '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.5rem;font-size:1.5rem;font-family:Amiri,serif" dir="rtl" lang="ar">'+l.forms.map(f=>'<span dir="rtl">'+f+'</span>').join(' ')+'</div>' : '') +
-            '<button type="button" class="btn btn-primary btn-sm" style="margin-top:0.75rem;width:100%" id="btn-speak-letter">🔊 Произнести (запись)</button>';
+            '<button type="button" class="btn btn-primary btn-sm" style="margin-top:0.75rem;width:100%" id="btn-speak-letter">🔊 Произнести (запись)</button>' +
+            '<button type="button" class="btn btn-sm" id="btn-cache-letter-audio" style="width:100%;margin-top:0.35rem">💾 В кэш (аудио)</button>' +
+            '<div class="ayah-translation" dir="ltr" style="margin-top:0.5rem;font-size:0.82rem">Как произносить подробно — см. текст выше (язык, губы, горло). Фото/видео ракурсов добавим в следующих версиях (нужны открытые материалы).</div>';
           (function(){
             var base = (typeof LETTER_AUDIO_BASE !== 'undefined') ? LETTER_AUDIO_BASE : 'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
             if (l.audio) {
@@ -8092,6 +8113,26 @@ function renderMistakes() {
               } catch(err) {}
             }
             if (typeof speakLetter === 'function') speakLetter(l);
+          });
+          document.getElementById('btn-cache-letter-audio')?.addEventListener('click', async function() {
+            try {
+              var base = (typeof LETTER_AUDIO_BASE !== 'undefined') ? LETTER_AUDIO_BASE : 'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
+              if (!l.audio) { toast('Нет файла'); return; }
+              var url = base + l.audio;
+              var res = await fetch(url);
+              var blob = await res.blob();
+              var key = 'quran_letter_audio_'+l.ch;
+              var reader = new FileReader();
+              reader.onload = function() {
+                try {
+                  var map = JSON.parse(localStorage.getItem('quran_letter_audio_cache') || '{}');
+                  map[l.ch] = reader.result;
+                  localStorage.setItem('quran_letter_audio_cache', JSON.stringify(map));
+                  toast('Аудио буквы «'+l.name+'» в кэше');
+                } catch(e) { toast('Кэш переполнен'); }
+              };
+              reader.readAsDataURL(blob);
+            } catch(e) { toast('Не удалось скачать'); }
           });
         });
       });
@@ -10079,12 +10120,66 @@ function renderSalah() {
         if (sess && sess.nick) {
           el.innerHTML =
             '<div class="card"><b>Вы вошли'+(sess.online?' (онлайн)':' (локально)')+'</b>' +
-            '<div style="margin-top:0.5rem">Никнейм: <b>'+String(sess.nick).replace(/</g,'&lt;')+'</b></div>' +
+            '<div style="margin-top:0.5rem">Никнейм: <b id="acc-nick-view">'+String(sess.nick).replace(/</g,'&lt;')+'</b></div>' +
             '<div>Email: <b>'+String(sess.email||'').replace(/</g,'&lt;')+'</b></div>' +
             '<p class="ayah-translation" style="margin-top:0.6rem">'+(online
               ? 'Аккаунт в Supabase: вход доступен с любого устройства.'
               : 'Локальный режим. Онлайн-сервер недоступен.')+'</p>' +
+            '<button type="button" class="btn btn-sm" id="btn-acc-nick" style="width:100%;margin-top:0.4rem">Сменить ник</button>' +
+            '<button type="button" class="btn btn-sm" id="btn-acc-pass" style="width:100%;margin-top:0.35rem">Сменить пароль аккаунта</button>' +
+            '<button type="button" class="btn btn-sm" id="btn-acc-email" style="width:100%;margin-top:0.35rem">Сменить email</button>' +
             '<button type="button" class="btn" id="btn-logout" style="width:100%;margin-top:0.6rem">Выйти</button></div>';
+          document.getElementById('btn-acc-nick')?.addEventListener('click', async function() {
+            var n = prompt('Новый никнейм (3–24 символа):', sess.nick || '');
+            if (!n || n.length < 3) return;
+            n = n.trim().slice(0, 24);
+            try {
+              var sb = getSb();
+              if (sb && sess.online) {
+                var uid = (await sb.auth.getUser()).data.user.id;
+                await sb.from('profiles').update({ nick: n }).eq('id', uid);
+              }
+              sess.nick = n;
+              authSetSession(sess);
+              toast('Ник обновлён');
+              renderAuthSync('account');
+            } catch(e) { toast('Ошибка: '+(e.message||e)); }
+          });
+          document.getElementById('btn-acc-pass')?.addEventListener('click', async function() {
+            var cur = prompt('Текущий пароль:');
+            if (!cur) return;
+            var p1 = prompt('Новый пароль (мин. 6 символов):');
+            if (!p1 || p1.length < 6) { toast('Слишком короткий'); return; }
+            var p2 = prompt('Повторите новый пароль:');
+            if (p1 !== p2) { toast('Не совпали'); return; }
+            try {
+              var sb = getSb();
+              if (sb && sess.email) {
+                // re-auth then update
+                var { error: e1 } = await sb.auth.signInWithPassword({ email: sess.email, password: cur });
+                if (e1) { toast('Неверный текущий пароль'); return; }
+                var { error: e2 } = await sb.auth.updateUser({ password: p1 });
+                if (e2) { toast(e2.message||'Ошибка'); return; }
+                toast('Пароль аккаунта изменён');
+              } else toast('Нужен онлайн-аккаунт');
+            } catch(e) { toast('Ошибка: '+(e.message||e)); }
+          });
+          document.getElementById('btn-acc-email')?.addEventListener('click', async function() {
+            var cur = prompt('Текущий пароль для подтверждения:');
+            if (!cur) return;
+            var em = prompt('Новый email:');
+            if (!em || em.indexOf('@') < 0) return;
+            try {
+              var sb = getSb();
+              if (sb && sess.email) {
+                var { error: e1 } = await sb.auth.signInWithPassword({ email: sess.email, password: cur });
+                if (e1) { toast('Неверный пароль'); return; }
+                var { error: e2 } = await sb.auth.updateUser({ email: em });
+                if (e2) { toast(e2.message||'Ошибка'); return; }
+                toast('Проверьте новый email для подтверждения');
+              } else toast('Нужен онлайн-аккаунт');
+            } catch(e) { toast('Ошибка: '+(e.message||e)); }
+          });
           document.getElementById('btn-logout')?.addEventListener('click', async function() {
             var sb = getSb();
             if (sb) try { await sb.auth.signOut(); } catch(e) {}
@@ -10260,6 +10355,13 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.30', kinds: ['a', 'b', 'f', 'd'], date: '2026-08-07',
+          a: [ 'Смена ника/пароля/email аккаунта; смена пароля блокировки; кэш аудио букв' ],
+          b: [ 'Экспорт: список пунктов с новой строки; ПК шире (меньше пустых полей)' ],
+          f: [ 'ПК: шапка без закладок; пароль блокировки при включении' ],
+          d: [ 'mode-desktop: ширина до 1400px / 96vw' ],
+          ph: [], I: [ 'Видео/фото букв с ракурсов — ищем открытые материалы' ], o: [], s: [], on: []
+        },
         { major: '2', v: '2.29', kinds: ['f', 'a', 'b'], date: '2026-08-07',
           a: [ 'Первый заход: окно регистрации или гость' ],
           b: [ 'ПК: убраны Закладки/Прогресс из шапки; Ещё → more; повторное Ещё открывает меню' ],
@@ -11012,6 +11114,7 @@ function renderSalah() {
       const SEC_HELP = {
         export: 'Экспорт и импорт данных.\n\n• Отметьте галочками разделы (закладки, словарь, настройки…).\n• Каждый пункт выбирается один раз — повторов нет.\n• «0 — всё» — полный бэкап.\n• Пароль аккаунта и PIN блокировки не экспортируются.\n• Импорт: вставьте JSON или файл.',
         more: 'Меню «Ещё».\n\n• Списки разделов (знание, поклонение…).\n• Повторное нажатие «Ещё» всегда возвращает к списку меню.\n• На ПК в шапке те же 5 пунктов: Ежедневное, Суры, Теория, Практика, Ещё.',
+        settings: 'Настройки.\n\n• Язык и перевод Корана.\n• Пароль при входе: вкл/выкл и «Сменить пароль блокировки».\n• Вид, шрифты, аудио, меню «Ещё».',
         account: 'Мой аккаунт.\n\n• Регистрация и вход через email.\n• При первом заходе предлагается войти или продолжить как гость.\n• Ник виден в статистике; email не показывается другим.',
 
         appupdate: 'Обновить приложение.\n\n• Сбрасывает Service Worker и кэш оболочки.\n• Заново качает последнюю версию index.html с GitHub.\n• Закладки, настройки, аккаунт и словарь НЕ удаляются.\n• Если не помогло: инкогнито или очистка данных сайта velqer0n.github.io.',
@@ -11759,8 +11862,8 @@ let body = '';
                 return '';
               })() +
               // download card only: rebuild minimal
-              '<div class="card"><b>Скачать времена (ДУМК / muftyat.kz)</b>' +
-              '<div class="ayah-translation" style="margin-top:0.3rem">Официальный API. Интернет один раз.</div>' +
+              '<div class="card"><b>Таблица на месяц (офлайн)</b>' +
+              '<div class="ayah-translation" style="margin-top:0.3rem">Для ежедневных времён сверху скачивать не нужно — они подгружаются сами. Здесь можно сохранить таблицу на месяц в кэш (без интернета в поездке).</div>' +
               '<label style="display:block;margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted)">Месяц</label>' +
               '<select id="pt-dl-month" style="width:100%;padding:0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
               [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
@@ -12367,7 +12470,7 @@ let body = '';
       }).join('');
       el.innerHTML =
         '<div class="card"><b>Экспорт</b>' +
-        '<div class="ayah-translation" style="margin:0.4rem 0">Отметьте нужные разделы (как список). Повторы невозможны — каждый пункт один раз. Пароль не экспортируется.</div>' +
+        '<div class="ayah-translation" style="margin:0.4rem 0">Отметьте нужные разделы:<br>1. Закладки<br>2. Словарь<br>3. Прогресс<br>4. Настройки<br>5. Свои дуа<br>6. Черновики<br>7. Меню «Ещё»<br><br>Каждый пункт — один раз. Пароль не экспортируется.</div>' +
         '<div style="margin:0.55rem 0">'+chips+'</div>' +
         '<label style="display:flex;gap:0.45rem;align-items:center;margin:0.4rem 0;cursor:pointer"><input type="checkbox" id="exp-full"> <span><b>0</b> — всё (полный бэкап)</span></label>' +
         '<button type="button" class="btn btn-primary" id="btn-do-export" style="width:100%;margin-top:0.55rem">Скачать JSON</button></div>' +
@@ -12881,6 +12984,29 @@ function renderDict() {
       saveState();
       toast(state.settings.academySequential ? 'Блокировка уроков включена' : 'Блокировка уроков выключена');
       try { if (typeof renderAcademy === 'function') renderAcademy(); } catch(err) {}
+    });
+    document.getElementById('btn-change-lock-pin')?.addEventListener('click', function() {
+      var cur = prompt('Текущий пароль блокировки:');
+      if (cur == null) return;
+      var ok = false;
+      try {
+        var stored = localStorage.getItem('quran_lock_pin_v1') || '';
+        var enc = btoa(unescape(encodeURIComponent(cur)));
+        ok = (stored && stored === enc);
+        // also try plain if old format
+        if (!ok && stored === cur) ok = true;
+      } catch(e) {}
+      if (!ok && localStorage.getItem('quran_app_lock_v1') === '1') {
+        // if never set via our prompt, allow set
+        if (!localStorage.getItem('quran_lock_pin_v1')) ok = true;
+      }
+      if (!ok) { toast('Неверный текущий пароль'); return; }
+      var p1 = prompt('Новый пароль (мин. 4 символа):');
+      if (!p1 || p1.length < 4) { toast('Слишком короткий'); return; }
+      var p2 = prompt('Повторите новый пароль:');
+      if (p1 !== p2) { toast('Не совпали'); return; }
+      try { localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1)))); } catch(e) {}
+      toast('Пароль блокировки изменён');
     });
     document.getElementById('setting-app-lock')?.addEventListener('change', async e => {
       const wantLock = e.target.value === '1';
