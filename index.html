@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.34 2026-08-07 -->
+<!-- BUILD 2.36 2026-08-07 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.34</title>
+  <title>Коран — Изучение · 2.36</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1715,6 +1715,7 @@
         <button class="btn btn-sm" data-acad-tab="harakat">Огласовки</button>
         <button class="btn btn-sm" data-acad-tab="rules">Правила</button>
         <button class="btn btn-sm" data-acad-tab="tajweed">Таджвид</button>
+        <button class="btn btn-sm" data-acad-tab="makharij">Махаридж</button>
         <button class="btn btn-sm" data-acad-tab="surahs">Суры</button>
         <button class="btn btn-sm" data-acad-tab="ayahs">Аяты</button>
         <button class="btn btn-sm" data-acad-tab="mistakes">Ошибки</button>
@@ -1740,6 +1741,9 @@
       </div>
       <div id="acad-tajweed" style="display:none">
         <div id="learn-tajweed"></div>
+      </div>
+      <div id="acad-makharij" style="display:none">
+        <div id="learn-makharij"></div>
       </div>
       <div id="acad-practice-unused" style="display:none!important" style="display:none">
         <div id="learn-practice-static"></div>
@@ -3304,7 +3308,7 @@
         'Список': 'Тізім', 'Сетка 2': 'Тор 2', 'Сетка 3': 'Тор 3',
         'Изменить порядок': 'Ретін өзгерту', 'Готово': 'Дайын',
         'Путь': 'Жол', 'Буквы': 'Әріптер', 'Огласовки': 'Дауыстылар',
-        'Слоги': 'Буындар', 'Правила': 'Ережелер', 'Таджвид': 'Тәжуид',
+        'Слоги': 'Буындар', 'Правила': 'Ережелер', 'Таджвид': 'Тәжуид', 'Махаридж': 'Махаридж',
         'Суры': 'Сүрелер', 'Аяты': 'Аяттар', 'Ошибки': 'Қателер',
         'Скачать хадисы': 'Хадис жүктеу', 'Скачанные': 'Жүктелгендер',
         'Порядок по риваяту ат-Тирмизи (начиная с «Аллах»). Нажмите имя — описание, аяты, хадисы. 🔊 — произношение (качество выше при интернете).':
@@ -4330,29 +4334,43 @@ function getMainTabOrder() {
       } catch(e) {}
     }
     
-    function wrapPasswordEye(inputId) {
-      var inp = document.getElementById(inputId);
+    function wrapPasswordEye(inputIdOrEl) {
+      var inp = typeof inputIdOrEl === 'string' ? document.getElementById(inputIdOrEl) : inputIdOrEl;
       if (!inp || inp.dataset.eye === '1') return;
+      if (inp.tagName !== 'INPUT') return;
       inp.dataset.eye = '1';
       var wrap = document.createElement('div');
-      wrap.style.cssText = 'position:relative;width:100%;margin-bottom:0.65rem';
-      // переносим нижний отступ на обёртку, чтобы поле не «прыгало»
-      try { inp.style.marginBottom = '0'; } catch(e) {}
+      wrap.className = 'pwd-eye-wrap';
+      wrap.style.cssText = 'position:relative;width:100%;margin-bottom:0.55rem';
+      try {
+        var mb = inp.style.marginBottom || '';
+        inp.style.marginBottom = '0';
+        if (!mb) wrap.style.marginBottom = '0.55rem';
+      } catch(e) {}
+      if (!inp.parentNode) return;
       inp.parentNode.insertBefore(wrap, inp);
       wrap.appendChild(inp);
       inp.style.paddingRight = '2.6rem';
       inp.style.boxSizing = 'border-box';
       var btn = document.createElement('button');
       btn.type = 'button';
+      btn.className = 'pwd-eye-btn';
       btn.setAttribute('aria-label', 'Показать пароль');
       btn.textContent = '👁';
       btn.style.cssText = 'position:absolute;right:0.45rem;top:50%;transform:translateY(-50%);border:none;background:transparent;cursor:pointer;font-size:1.15rem;line-height:1;padding:0.25rem;color:var(--text-muted);z-index:2';
       btn.addEventListener('click', function(e) {
         e.preventDefault(); e.stopPropagation();
-        if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
-        else { inp.type = 'password'; btn.textContent = '👁'; }
+        if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; btn.setAttribute('aria-label', 'Скрыть пароль'); }
+        else { inp.type = 'password'; btn.textContent = '👁'; btn.setAttribute('aria-label', 'Показать пароль'); }
       });
       wrap.appendChild(btn);
+    }
+    function wrapAllPasswordEyes(root) {
+      try {
+        (root || document).querySelectorAll('input[type="password"]').forEach(function(inp) {
+          try { wrapPasswordEye(inp); } catch(e) {}
+        });
+      } catch(e) {}
     }
 
     function showView(name, isBack) {
@@ -7079,7 +7097,7 @@ CVC: + сукун → بَتْ مِنْ كُتْ
         const on = b.dataset.acadTab === tab;
         b.classList.toggle('btn-primary', on);
       });
-      ['path','alphabet','harakat','syllables','rules','tajweed','practice','surahs','ayahs','srs','mistakes'].forEach(t => {
+      ['path','alphabet','harakat','syllables','rules','tajweed','makharij','practice','surahs','ayahs','srs','mistakes'].forEach(t => {
         const el = document.getElementById('acad-' + t);
         if (el) el.style.display = (t === tab) ? '' : 'none';
       });
@@ -7089,6 +7107,7 @@ CVC: + сукун → بَتْ مِنْ كُتْ
       if (tab === 'syllables') try { renderSyllables(); } catch(e) {}
       if (tab === 'rules') try { if (typeof renderRules === 'function') renderRules(); } catch(e) {}
       if (tab === 'tajweed') try { if (typeof renderTajweed === 'function') renderTajweed(); } catch(e) {}
+      if (tab === 'makharij') try { if (typeof renderMakharij === 'function') renderMakharij(); } catch(e) {}
       if (tab === 'practice') try { renderPractice(); } catch(e) {}
       if (tab === 'surahs') {
         try { sessionStorage.removeItem('quran_study_surah'); } catch(e) {}
@@ -8532,6 +8551,121 @@ function renderMistakes() {
             '<button type="button" class="btn btn-sm les-more-btn" data-les-toggle="1" style="margin:0.35rem 0;direction:ltr">📖 Подробнее</button>' +
             '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55">'+String(full).replace(/</g,'&lt;')+'</div></div>';
         }).join('');
+      try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
+    }
+
+
+    function renderMakharij() {
+      var el = document.getElementById('learn-makharij');
+      var parent = document.getElementById('acad-makharij');
+      if (parent) parent.style.display = '';
+      if (!el && parent) {
+        parent.innerHTML = '<div id="learn-makharij"></div>';
+        el = document.getElementById('learn-makharij');
+      }
+      if (!el) return;
+      el.style.display = 'block';
+
+      var zones = [
+        {
+          id: 'jawf',
+          title: '1. Аль-Джауф (полость рта и горла)',
+          icon: '😮',
+          short: 'Пустое пространство рта и горла. Отсюда выходят буквы мадда: ا و ي при условиях удлинения.',
+          detail: 'Аль-Джауф — «пустота» рта и горла.\n\n• Алиф (ا) после фатхи: длинное «аа».\n• Вав (و) с сукуном после даммы: длинное «уу».\n• Йа (ي) с сукуном после касры: длинное «ии».\n\nЯзык при алифе расслаблен, при ваве приподнят корень и округлены губы, при йа — середина языка к нёбу. Это естественный мадд (обычно 2 счёта).',
+          videos: [
+            { t: 'Jawf / empty space (SimplyQuran context)', u: 'https://simplyquran.com/tajwid-lesson-2/' }
+          ]
+        },
+        {
+          id: 'halq',
+          title: '2. Аль-Халк (горло) — 6 букв',
+          icon: '🫁',
+          short: 'Три уровня: низ (ء ه), середина (ع ح), верх ближе к рту (غ خ).',
+          detail: 'Горло делят на три махраджа:\n\n1) Акса аль-халк (самый низ, ближе к груди): ء (хамза) и ه (ха).\n2) Васат аль-халк (середина, область «адамова яблока»): ع (айн) и ح (ха).\n3) Адна аль-халк (верх, ближе ко рту): غ (гайн) и خ (ха).\n\nПрактика: положите руку на горло и произнесите по очереди ء → ه → ع → ح → غ → خ. Ощутите, как точка «поднимается». Не сжимайте горло — звук должен быть естественным.',
+          videos: [
+            { t: 'Горло — уровень 1 (Bilal ENG)', u: 'https://www.youtube.com/watch?v=aTqdzuiLLIA' },
+            { t: 'Середина горла ع ح', u: 'https://www.youtube.com/watch?v=C-Ww6I5hTG0' },
+            { t: 'Верх горла غ خ', u: 'https://www.youtube.com/watch?v=yOzxCYAEXJI' },
+            { t: 'Мakhraj al-Halaq (араб., ~37 мин)', u: 'https://www.youtube.com/watch?v=1bABCqgjc-4' }
+          ]
+        },
+        {
+          id: 'lisan',
+          title: '3. Аль-Лисан (язык) — 18 букв, 10 точек',
+          icon: '👅',
+          short: 'Корень, середина, края и кончик языка. Самая большая группа букв.',
+          detail: 'Основные зоны языка:\n\n• Корень + мягкое нёбо → ق (каф).\n• Чуть впереди (твёрдое/мягкое нёбо) → ك (каф).\n• Середина языка + середина нёба → ج ش ي.\n• Край языка + верхние коренные → ض (дад) — одна из самых сложных букв.\n• Край/кончик → ل ن ر.\n• Кончик + корни верхних резцов → ط د ت.\n• Кончик + края верхних резцов → ث ذ ظ.\n• Кончик + нижние резцы (щель) → ص ز س.\n\nСпособ найти махрадж: поставьте сукун на букву и перед ней хамзу с фатхой (أَقْ، أَضْ).',
+          videos: [
+            { t: 'Язык — введение (араб.)', u: 'https://www.youtube.com/watch?v=tb7qK8iWRIc' },
+            { t: 'Схема зон языка', u: 'https://www.youtube.com/watch?v=rojYICD8KGk' },
+            { t: 'ق и ك', u: 'https://www.youtube.com/watch?v=Ofq57gASCgY' },
+            { t: 'ج ش ي', u: 'https://www.youtube.com/watch?v=ZE02lSmD5YI' },
+            { t: 'ض', u: 'https://www.youtube.com/watch?v=3EjM7Gz4VRI' },
+            { t: 'Край языка ض ل', u: 'https://www.youtube.com/watch?v=gCDpen0XjE8' }
+          ]
+        },
+        {
+          id: 'shafatan',
+          title: '4. Аш-Шафатан (губы)',
+          icon: '👄',
+          short: 'Б — обе губы; م — обе губы + гунна; ف — нижняя губа + верхние зубы; و — округление губ.',
+          detail: '• ب (ба) — смыкание обеих губ, затем размыкание.\n• م (мим) — смыкание губ + гунна через нос.\n• ف (фа) — внутренняя сторона нижней губы касается краёв верхних резцов.\n• و (вав согласный) — губы округлены, небольшое отверстие.\n\nГунна (носовой резонанс) у ن и م идёт из аль-хайшум (носовая полость).',
+          videos: [
+            { t: 'Губные буквы (араб.)', u: 'https://www.youtube.com/watch?v=Y509xecYwdg' }
+          ]
+        },
+        {
+          id: 'khayshum',
+          title: '5. Аль-Хайшум (нос) — гунна',
+          icon: '👃',
+          short: 'Носовая полость. Гунна у ن и م (и в правилах идгама с гунной).',
+          detail: 'Гунна — носовой звук. Зажмите нос: если звук «пропадает» или сильно меняется — это гунна.\n\nВстречается:\n• у م и ن с шаддой;\n• в идгаме с гунной (йа, вав, мим, нун);\n• в ихфа и иклябе.\n\nДлина гунны обычно ~2 счёта — слушайте чтеца.',
+          videos: []
+        }
+      ];
+
+      var videoBlock = function(list) {
+        if (!list || !list.length) return '';
+        return '<div style="margin-top:0.55rem"><div class="surah-meta" style="margin-bottom:0.3rem">Видео / материалы</div>' +
+          list.map(function(v) {
+            return '<a class="btn btn-sm" href="'+v.u+'" target="_blank" rel="noopener" style="margin:0.2rem 0.25rem 0.2rem 0;display:inline-block">▶ '+v.t+'</a>';
+          }).join('') + '</div>';
+      };
+
+      var html = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">' +
+        'Махаридж (مخارج الحروف) — точки выхода звука. 5 больших зон, обычно 17 точных махраджей. ' +
+        'Смотрите видео сбоку/схемы, повторяйте перед зеркалом.</p>';
+
+      html += '<div class="card" style="margin-bottom:0.75rem">' +
+        '<b>📌 Схемы и интерактив</b>' +
+        '<div style="margin-top:0.45rem;display:flex;flex-wrap:wrap;gap:0.35rem">' +
+        '<a class="btn btn-sm btn-primary" href="https://qariai.app/academy/makharij-chart" target="_blank" rel="noopener">3D / интерактивная схема</a>' +
+        '<a class="btn btn-sm" href="https://imamfaisal.com/articulation/" target="_blank" rel="noopener">17 точек + аудио</a>' +
+        '<a class="btn btn-sm" href="https://equrancoaching.com/tajweed-guide/makharij" target="_blank" rel="noopener">Полный гайд</a>' +
+        '<a class="btn btn-sm" href="https://www.youtube.com/playlist?list=PLbK6okQw5qKwFWuesu_o8TDRbmtasau1u" target="_blank" rel="noopener">Плейлист 21 видео (ENG)</a>' +
+        '<a class="btn btn-sm" href="https://www.youtube.com/watch?v=R4zZ91YGqGs" target="_blank" rel="noopener">Фото органов речи HQ</a>' +
+        '<a class="btn btn-sm" href="https://www.researchgate.net/publication/374040296_Anatomical_inspection_of_similar_articulations_in_Arabic_language_using_dynamic_MRI" target="_blank" rel="noopener">МРТ в разрезе (наука)</a>' +
+        '</div></div>';
+
+      zones.forEach(function(z, zi) {
+        html += '<div class="rule-card" style="margin-bottom:0.65rem" data-mk="'+z.id+'">' +
+          '<h3 dir="ltr">'+z.icon+' '+z.title+'</h3>' +
+          '<div class="les-short ayah-translation" dir="ltr">'+z.short+'</div>' +
+          '<button type="button" class="btn btn-sm les-more-btn" data-les-toggle="1" style="margin:0.35rem 0;direction:ltr">📖 Подробнее</button>' +
+          '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55">'+z.detail.replace(/</g,'&lt;')+'</div>' +
+          videoBlock(z.videos) +
+          '</div>';
+      });
+
+      html += '<div class="card" style="margin-top:0.5rem">' +
+        '<b>💡 Как тренироваться</b>' +
+        '<div class="ayah-translation" style="margin-top:0.4rem">1) Зеркало + медленное أَ + буква с сукуном (أَقْ، أَعْ، أَضْ).<br>' +
+        '2) Рука на горле для букв халк.<br>' +
+        '3) Сравните похожие: ق/ك، س/ص، ت/ط، د/ض، ه/ح، ع/ء.<br>' +
+        '4) Слушайте чтеца и повторяйте. Лучший результат — с учителем.</div></div>';
+
+      el.innerHTML = html;
       try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
     }
 
@@ -10429,24 +10563,60 @@ function renderSalah() {
               renderAuthSync('account');
             } catch(e) { toast('Ошибка: '+(e.message||e)); }
           });
-          document.getElementById('btn-acc-pass')?.addEventListener('click', async function() {
-            var cur = prompt('Текущий пароль:');
-            if (!cur) return;
-            var p1 = prompt('Новый пароль (мин. 6 символов):');
-            if (!p1 || p1.length < 6) { toast('Слишком короткий'); return; }
-            var p2 = prompt('Повторите новый пароль:');
-            if (p1 !== p2) { toast('Не совпали'); return; }
-            try {
-              var sb = getSb();
-              if (sb && sess.email) {
-                // re-auth then update
-                var { error: e1 } = await sb.auth.signInWithPassword({ email: sess.email, password: cur });
-                if (e1) { toast('Неверный текущий пароль'); return; }
-                var { error: e2 } = await sb.auth.updateUser({ password: p1 });
-                if (e2) { toast(e2.message||'Ошибка'); return; }
-                toast('Пароль аккаунта изменён');
-              } else toast('Нужен онлайн-аккаунт');
-            } catch(e) { toast('Ошибка: '+(e.message||e)); }
+          document.getElementById('btn-acc-pass')?.addEventListener('click', function() {
+            var box = document.getElementById('acc-pass-form');
+            if (box) { box.remove(); return; }
+            var form = document.createElement('div');
+            form.id = 'acc-pass-form';
+            form.className = 'card';
+            form.style.marginTop = '0.6rem';
+            form.innerHTML =
+              '<b>Смена пароля аккаунта</b>' +
+              '<label style="display:block;margin-top:0.5rem;font-size:0.85rem">Текущий пароль</label>' +
+              '<input id="acc-cur-pass" type="password" autocomplete="current-password" style="'+authFormStyle()+'">' +
+              '<label style="display:block;font-size:0.85rem">Новый пароль</label>' +
+              '<input id="acc-new-pass" type="password" autocomplete="new-password" style="'+authFormStyle()+'">' +
+              '<label style="display:block;font-size:0.85rem">Повтор нового</label>' +
+              '<input id="acc-new-pass2" type="password" autocomplete="new-password" style="'+authFormStyle()+'">' +
+              '<button type="button" class="btn btn-primary btn-sm" id="acc-pass-save" style="width:100%;margin-top:0.35rem">Сохранить</button>' +
+              '<button type="button" class="btn btn-sm" id="acc-pass-cancel" style="width:100%;margin-top:0.3rem">Отмена</button>';
+            el.appendChild(form);
+            try { wrapAllPasswordEyes(form); } catch(e) {}
+            document.getElementById('acc-pass-cancel')?.addEventListener('click', function(){ form.remove(); });
+            document.getElementById('acc-pass-save')?.addEventListener('click', async function() {
+              var cur = (document.getElementById('acc-cur-pass')||{}).value || '';
+              var p1 = (document.getElementById('acc-new-pass')||{}).value || '';
+              var p2 = (document.getElementById('acc-new-pass2')||{}).value || '';
+              if (!cur) { toast('Введите текущий пароль'); return; }
+              if (!p1 || p1.length < 6) { toast('Новый пароль: мин. 6 символов'); return; }
+              if (p1 !== p2) { toast('Пароли не совпали'); return; }
+              try {
+                var sb = getSb();
+                if (sb && sess.email) {
+                  var { error: e1 } = await sb.auth.signInWithPassword({ email: sess.email, password: cur });
+                  if (e1) { toast('Неверный текущий пароль'); return; }
+                  var { error: e2 } = await sb.auth.updateUser({ password: p1 });
+                  if (e2) { toast(e2.message||'Ошибка'); return; }
+                  // обновить локальную копию
+                  try {
+                    var users = authUsers();
+                    var u = users.find(function(x){ return x.email === sess.email || x.id === sess.userId; });
+                    if (u) { u.passHash = authHash(p1); authSaveUsers(users); }
+                  } catch(e) {}
+                  toast('Пароль аккаунта изменён');
+                  form.remove();
+                } else {
+                  // локальный аккаунт
+                  var users = authUsers();
+                  var u = users.find(function(x){ return x.email === sess.email || x.nick === sess.nick || x.id === sess.userId; });
+                  if (!u || u.passHash !== authHash(cur)) { toast('Неверный текущий пароль'); return; }
+                  u.passHash = authHash(p1);
+                  authSaveUsers(users);
+                  toast('Пароль изменён (локально)');
+                  form.remove();
+                }
+              } catch(e) { toast('Ошибка: '+(e.message||e)); }
+            });
           });
           document.getElementById('btn-acc-email')?.addEventListener('click', async function() {
             var cur = prompt('Текущий пароль для подтверждения:');
@@ -10551,6 +10721,7 @@ function renderSalah() {
           '<button type="button" class="btn btn-sm" id="btn-reg-login" style="width:100%;margin-top:0.4rem">Уже есть аккаунт — вход</button>' +
           '</div>';
         document.getElementById('btn-reg-login')?.addEventListener('click', function(){ showView('login'); });
+        try{wrapPasswordEye('reg-pass');wrapPasswordEye('reg-pass2');}catch(e){}
         document.getElementById('btn-reg')?.addEventListener('click', async function() {
           var nick = (document.getElementById('reg-nick').value || '').trim();
           var email = (document.getElementById('reg-email').value || '').trim().toLowerCase();
@@ -10667,6 +10838,24 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.36', kinds: ['a', 'on'], date: '2026-08-07',
+          a: [
+            'Теория → вкладка «Махаридж»: 5 зон (джауф, горло, язык, губы, нос)',
+            'Ссылки на видео (горло/язык сбоку) и интерактивные схемы'
+          ],
+          on: [ 'Справка: в Теории упомянут раздел Махаридж' ],
+          b: [], f: [], d: [], ph: [], I: [], o: [], s: []
+        },
+        { major: '2', v: '2.35', kinds: ['b', 'f'], date: '2026-08-07',
+          b: [
+            'Иконки: сунны 💚, 99 имён ☪️',
+            'Глаз показать/скрыть пароль на всех формах ввода пароля'
+          ],
+          f: [
+            'Смена пароля аккаунта и блокировки — форма с глазом вместо prompt'
+          ],
+          a: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.34', kinds: ['a', 'b', 'f', 'd'], date: '2026-08-07',
           a: [],
           b: [
@@ -11627,7 +11816,7 @@ function renderSalah() {
       const MAIN_HELP = [
         { t: 'Ежедневное', s: 'Главная вкладка внизу', d: 'Домашний экран после входа.\n\n• Виджет времён намаза (Фаджр…Иша; по желанию Духа/Тахаджуд) — город и метод из «Время намаза».\n• Аят дня: арабский, перевод; нажатие на аят — контекст до/после.\n• Дуа, хадис, сунна, слово — листать; у дуа 🔊.\n• Имя Аллаха из 99.\n• История / дуа / хадис / имя без повтора около 7 дней.\nВсё для быстрого взгляда утром и вечером.' },
         { t: 'Суры', s: 'Главная вкладка внизу', d: 'Список 114 сур.\n\n• Поиск по названию.\n• Поиск по тексту Корана (нужен кэш или сеть).\n• Нажатие — чтение суры.\n• Отметки прогресса учёбы, если пользовались теорией.\nОсновной вход в чтение, не в «Теорию».' },
-        { t: 'Теория', s: 'Главная вкладка внизу', d: 'Обучение чтению и правилам.\n\n• Буквы, харакаты, слоги, таджвид.\n• Суры и аяты по словам.\n• Академия: модули по порядку, тесты.\n• SRS и разбор ошибок.\n• «К списку» возвращает к выбору; блокировка «сначала предыдущий» — в настройках.\nНе путать с разделами фикха/акиды в «Ещё».' },
+        { t: 'Теория', s: 'Главная вкладка внизу', d: 'Обучение чтению и правилам.\n\n• Буквы, харакаты, правила, таджвид.\n• Махаридж: горло, язык, губы — схемы и видео.\n• Суры и аяты по словам.\n• Академия: модули по порядку, тесты.\n• SRS и разбор ошибок.\n• «К списку» возвращает к выбору; блокировка «сначала предыдущий» — в настройках.\nНе путать с разделами фикха/акиды в «Ещё».' },
         { t: 'Практика', s: 'Главная вкладка внизу', d: 'Закрепление после теории.\n\n• Викторины по буквам и таджвиду.\n• Случайный аят, хифз.\n• Ошибки уходят в разбор в теории.\nТренировка, не замена внимательного чтения Корана.' },
         { t: 'Ещё', s: 'Главная вкладка внизу', d: 'Меню разделов знания, поклонения, жизни, системы.\n\n• Состав, порядок и скрытие — Настройки → вкладка «Ещё · меню» (до 8 списков).\n• Справка на остальных вкладках повторяет только то, что у вас включено в меню.\n• Двойной тап по той же нижней вкладке — вверх экрана.' }
       ];
@@ -13463,56 +13652,105 @@ function renderDict() {
       try { if (typeof renderAcademy === 'function') renderAcademy(); } catch(err) {}
     });
     document.getElementById('btn-change-lock-pin')?.addEventListener('click', function() {
-      var cur = prompt('Текущий пароль блокировки:');
-      if (cur == null) return;
-      var ok = false;
-      try {
-        var stored = localStorage.getItem('quran_lock_pin_v1') || '';
-        var enc = btoa(unescape(encodeURIComponent(cur)));
-        ok = (stored && stored === enc);
-        // also try plain if old format
-        if (!ok && stored === cur) ok = true;
-      } catch(e) {}
-      if (!ok && localStorage.getItem('quran_app_lock_v1') === '1') {
-        // if never set via our prompt, allow set
-        if (!localStorage.getItem('quran_lock_pin_v1')) ok = true;
-      }
-      if (!ok) { toast('Неверный текущий пароль'); return; }
-      var p1 = prompt('Новый пароль (мин. 4 символа):');
-      if (!p1 || p1.length < 4) { toast('Слишком короткий'); return; }
-      var p2 = prompt('Повторите новый пароль:');
-      if (p1 !== p2) { toast('Не совпали'); return; }
-      try { localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1)))); } catch(e) {}
-      toast('Пароль блокировки изменён');
+      var host = document.querySelector('#view-settings .set-cat[data-set-panel="security"]') || document.getElementById('view-settings');
+      if (!host) return;
+      var old = document.getElementById('lock-pin-form');
+      if (old) { old.remove(); return; }
+      var form = document.createElement('div');
+      form.id = 'lock-pin-form';
+      form.className = 'card';
+      form.style.marginTop = '0.6rem';
+      form.innerHTML =
+        '<b>Смена пароля блокировки</b>' +
+        '<label style="display:block;margin-top:0.5rem;font-size:0.85rem">Текущий пароль</label>' +
+        '<input id="lp-cur" type="password" autocomplete="current-password" style="width:100%;padding:0.55rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);margin:0.25rem 0 0.55rem;box-sizing:border-box">' +
+        '<label style="display:block;font-size:0.85rem">Новый пароль (мин. 4)</label>' +
+        '<input id="lp-new" type="password" autocomplete="new-password" style="width:100%;padding:0.55rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);margin:0.25rem 0 0.55rem;box-sizing:border-box">' +
+        '<label style="display:block;font-size:0.85rem">Повтор</label>' +
+        '<input id="lp-new2" type="password" autocomplete="new-password" style="width:100%;padding:0.55rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);margin:0.25rem 0 0.55rem;box-sizing:border-box">' +
+        '<button type="button" class="btn btn-primary btn-sm" id="lp-save" style="width:100%">Сохранить</button>' +
+        '<button type="button" class="btn btn-sm" id="lp-cancel" style="width:100%;margin-top:0.3rem">Отмена</button>';
+      host.appendChild(form);
+      try { wrapAllPasswordEyes(form); } catch(e) {}
+      document.getElementById('lp-cancel')?.addEventListener('click', function(){ form.remove(); });
+      document.getElementById('lp-save')?.addEventListener('click', async function() {
+        var cur = (document.getElementById('lp-cur')||{}).value || '';
+        var p1 = (document.getElementById('lp-new')||{}).value || '';
+        var p2 = (document.getElementById('lp-new2')||{}).value || '';
+        var ok = false;
+        try {
+          var stored = localStorage.getItem('quran_lock_pin_v1') || '';
+          var enc = btoa(unescape(encodeURIComponent(cur)));
+          ok = (stored && stored === enc) || (stored === cur);
+          if (!ok && !stored) ok = true;
+          // также crypto-пароль приложения (основной lock)
+          if (!ok && typeof cryptoKey !== 'undefined' && cryptoKey && cur) {
+            try {
+              var saltB64 = localStorage.getItem(SALT_KEY);
+              if (saltB64) {
+                var key = await deriveKey(cur, b64ToBuf(saltB64));
+                var check = JSON.parse(localStorage.getItem(CHECK_KEY));
+                var plain = await decryptString(key, check);
+                if (plain === 'quran-lock-check') ok = true;
+              }
+            } catch(e) {}
+          }
+        } catch(e) {}
+        if (!ok) { toast('Неверный текущий пароль'); return; }
+        if (!p1 || p1.length < 4) { toast('Слишком короткий'); return; }
+        if (p1 !== p2) { toast('Не совпали'); return; }
+        try {
+          if (typeof setupAppLockPassword === 'function') await setupAppLockPassword(p1);
+          else localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1))));
+        } catch(e) {
+          try { localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1)))); } catch(e2) {}
+        }
+        toast('Пароль блокировки изменён');
+        form.remove();
+      });
     });
     document.getElementById('setting-app-lock')?.addEventListener('change', async e => {
       const wantLock = e.target.value === '1';
       if (wantLock) {
-        var p1 = prompt('Придумайте пароль для входа (мин. 4 символа):');
-        if (!p1 || p1.length < 4) {
-          e.target.value = '0';
-          toast('Пароль слишком короткий или отменён');
-          return;
-        }
-        var p2 = prompt('Повторите пароль:');
-        if (p1 !== p2) {
-          e.target.value = '0';
-          toast('Пароли не совпали');
-          return;
-        }
-        try {
-          if (typeof setupAppLockPassword === 'function') await setupAppLockPassword(p1);
-          else {
-            // простой хэш в localStorage если нет crypto-функции
-            localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1))));
+        e.target.value = '0'; // пока не задали пароль
+        var host = document.querySelector('#view-settings .set-cat[data-set-panel="security"]') || document.getElementById('view-settings');
+        if (!host) return;
+        var old = document.getElementById('lock-enable-form');
+        if (old) { old.remove(); return; }
+        var form = document.createElement('div');
+        form.id = 'lock-enable-form';
+        form.className = 'card';
+        form.style.marginTop = '0.6rem';
+        form.innerHTML =
+          '<b>Пароль при входе</b>' +
+          '<label style="display:block;margin-top:0.5rem;font-size:0.85rem">Придумайте пароль (мин. 4)</label>' +
+          '<input id="le-p1" type="password" autocomplete="new-password" style="width:100%;padding:0.55rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);margin:0.25rem 0 0.55rem;box-sizing:border-box">' +
+          '<label style="display:block;font-size:0.85rem">Повторите</label>' +
+          '<input id="le-p2" type="password" autocomplete="new-password" style="width:100%;padding:0.55rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);margin:0.25rem 0 0.55rem;box-sizing:border-box">' +
+          '<button type="button" class="btn btn-primary btn-sm" id="le-save" style="width:100%">Включить блокировку</button>' +
+          '<button type="button" class="btn btn-sm" id="le-cancel" style="width:100%;margin-top:0.3rem">Отмена</button>';
+        host.appendChild(form);
+        try { wrapAllPasswordEyes(form); } catch(err) {}
+        document.getElementById('le-cancel')?.addEventListener('click', function(){ form.remove(); });
+        document.getElementById('le-save')?.addEventListener('click', async function() {
+          var p1 = (document.getElementById('le-p1')||{}).value || '';
+          var p2 = (document.getElementById('le-p2')||{}).value || '';
+          if (!p1 || p1.length < 4) { toast('Пароль слишком короткий'); return; }
+          if (p1 !== p2) { toast('Пароли не совпали'); return; }
+          try {
+            if (typeof setupAppLockPassword === 'function') await setupAppLockPassword(p1);
+            else localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1))));
+          } catch(err) {
+            try { localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1)))); } catch(e2) {}
           }
-        } catch(err) {
-          try { localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1)))); } catch(e2) {}
-        }
-        state.settings.appLock = true;
-        try { localStorage.setItem('quran_app_lock_v1', '1'); } catch(err) {}
-        saveState();
-        toast('Пароль установлен. При следующем входе потребуется пароль.');
+          state.settings.appLock = true;
+          try { localStorage.setItem('quran_app_lock_v1', '1'); } catch(err) {}
+          saveState();
+          var sel = document.getElementById('setting-app-lock');
+          if (sel) sel.value = '1';
+          toast('Пароль установлен. При следующем входе потребуется пароль.');
+          form.remove();
+        });
         return;
       }
       // turn off
@@ -18506,14 +18744,14 @@ c.addEventListener('click', () => {
       { id:'salah', icon:'🙇', label:'Намаз', group:'worship' },
       { id:'adhkar', icon:'🤲', label:'Азкары и дуа', group:'worship' },
       { id:'dhikr', icon:'🔢', label:'Зикр', group:'worship' },
-      { id:'sunnahs', icon:'⭐', label:'Сунны', group:'worship' },
+      { id:'sunnahs', icon:'💚', label:'Сунны', group:'worship' },
       { id:'duabuilder', icon:'🧩', label:'Дуа-конструктор', group:'worship' },
       { id:'myreading', icon:'📖', label:'Моё чтение', group:'quran' },
       { id:'dict', icon:'🔤', label:'Словари', group:'quran' },
       { id:'topics', icon:'🔗', label:'Темы и ситуации', group:'quran' },
       { id:'ramadan', icon:'🌛', label:'Рамадан', group:'life' },
       { id:'hajj', icon:'🕌', label:'Хадж и Умра', group:'life' },
-      { id:'names', icon:'🌟', label:'99 имён Аллаха', group:'life' },
+      { id:'names', icon:'☪️', label:'99 имён Аллаха', group:'life' },
       { id:'calendar', icon:'📅', label:'Духовный календарь', group:'life' },
       { id:'family', icon:'👨‍👩‍👧‍👦', label:'Права семьи', group:'life' },
       { id:'sadaqa', icon:'🤲', label:'Садака', group:'life' },
