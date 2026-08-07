@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.36 2026-08-07 -->
+<!-- BUILD 2.37 2026-08-07 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.36</title>
+  <title>Коран — Изучение · 2.37</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1376,6 +1376,96 @@
       line-height: 1.6 !important;
     }
     .exp-detail br + br { display: block; margin-top: 0.35rem; }
+
+    /* —— Интерактивный тур «Помощь» —— */
+    #btn-site-help {
+      position: fixed;
+      z-index: 95;
+      right: 0.75rem;
+      bottom: calc(4.2rem + env(safe-area-inset-bottom, 0px));
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--accent);
+      font-size: 1.25rem;
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    body.app-locked #btn-site-help,
+    body.tour-active #btn-site-help { display: none !important; }
+    body.desktop-mode #btn-site-help {
+      bottom: 1.25rem;
+      right: 1.25rem;
+    }
+    #site-tour-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0,0,0,0.55);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+      box-sizing: border-box;
+    }
+    #site-tour-overlay.open { display: flex; }
+    #site-tour-card {
+      width: 100%;
+      max-width: 28rem;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1rem 1.1rem 1.05rem;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+      max-height: min(70vh, 32rem);
+      overflow-y: auto;
+    }
+    #site-tour-card h3 {
+      margin: 0 0 0.45rem;
+      font-size: 1.05rem;
+      color: var(--accent);
+    }
+    #site-tour-card .tour-body {
+      font-size: 0.92rem;
+      line-height: 1.55;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+    #site-tour-card .tour-progress {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+    #site-tour-card .tour-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.85rem;
+    }
+    #site-tour-card .tour-actions .btn { flex: 1 1 auto; min-width: 5rem; }
+    body.tour-active .bottom-nav,
+    body.tour-active #main-nav button,
+    body.tour-active #device-mode-btn {
+      pointer-events: none;
+    }
+    body.tour-active .bottom-nav button[data-view].tour-highlight,
+    body.tour-active #main-nav button[data-view].tour-highlight {
+      pointer-events: none;
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 0.5rem;
+      position: relative;
+      z-index: 201;
+    }
+
     .settings-bottom-spacer {
       display: block !important;
       height: 0.75rem;
@@ -2428,6 +2518,19 @@
     </button>
   </nav>
 
+  <button type="button" id="btn-site-help" title="Помощь — тур по сайту" aria-label="Помощь">?</button>
+  <div id="site-tour-overlay" role="dialog" aria-modal="true" aria-labelledby="site-tour-title">
+    <div id="site-tour-card">
+      <div class="tour-progress" id="site-tour-progress"></div>
+      <h3 id="site-tour-title"></h3>
+      <div class="tour-body" id="site-tour-body"></div>
+      <div class="tour-actions">
+        <button type="button" class="btn btn-sm" id="site-tour-skip">Пропустить</button>
+        <button type="button" class="btn btn-sm" id="site-tour-back">Назад</button>
+        <button type="button" class="btn btn-sm btn-primary" id="site-tour-next">Далее</button>
+      </div>
+    </div>
+  </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="quran-offline-data.js" onerror="console.warn('offline data file optional')"></script>
@@ -10838,6 +10941,15 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.37', kinds: ['a', 'on'], date: '2026-08-07',
+          a: [
+            'Кнопка «?» — интерактивный тур по сайту',
+            'Тур: главные вкладки (в вашем порядке), настройки, аккаунт',
+            'В конце тура — отказ от претензий на внешние ссылки'
+          ],
+          on: [ 'Справка: тур отдельно от текстовой справки в «Ещё»' ],
+          b: [], f: [], d: [], ph: [], I: [], o: [], s: []
+        },
         { major: '2', v: '2.36', kinds: ['a', 'on'], date: '2026-08-07',
           a: [
             'Теория → вкладка «Махаридж»: 5 зон (джауф, горло, язык, губы, нос)',
@@ -11810,7 +11922,7 @@ function renderSalah() {
         cache: 'Входит в «Данные» → вкладка «Кэш».\n\n• Офлайн-суры, скачанные хадисы, кэш HadeethEnc и IslamHouse.\n• PDF IslamHouse не хранятся на сайте — только ссылки.\n• Очистка по блокам.',
         export: 'Входит в «Данные» → вкладка «Экспорт / импорт».\n\n• Полный или частичный бэкап: закладки, словарь, прогресс, настройки.\n• Файл на устройство и обратный импорт.',
         changelog: 'Обновления.\n\n• Версии с датами; типы .a .b .f .d .ph .I .o .s.\n• Поиск по тексту журнала.\n• Фильтры по серии и типу правки.',
-        help: 'Справка — описание всех разделов сайта.\n\n• Вкладки: Главное + ваши списки меню «Ещё».\n• Порядок и состав как в меню; скрытые разделы не показываются.\n• Поиск по тексту карточек.\n• Кратко в подзаголовке, подробно по нажатию.',
+        help: 'Справка — описание всех разделов сайта.\n\n• Вкладки: Главное + ваши списки меню «Ещё».\n• Порядок и состав как в меню; скрытые разделы не показываются.\n• Поиск по тексту карточек.\n• Кратко в подзаголовке, подробно по нажатию.\n• Кнопка «?» внизу справа — пошаговый тур по главным экранам.',
         settings: 'Настройки.\n\n• Язык и перевод Корана.\n• Аудио: чтец Корана; чтец азана (суннит.) + проверка звука.\n• Вид: тема (тёмная/светлая/сепия/ночное) и авто-ночной режим 22:00–6:00.\n• Шрифты: размеры арабского и перевода, семейства (список по нажатию).\n• Чтение и тафсир.\n• Офлайн и кэш.\n• Пароли: блокировка при входе и смена PIN.\n• Другое: мазхаб, режим только Коран и пр.\n• Меню: списки разделов (до 8), скрытие, порядок главных вкладок, сброс.'
       };
       const MAIN_HELP = [
@@ -21271,6 +21383,146 @@ function startApp() {
     }
 
     // Экран блокировки показывается первым; startApp() запустится только после ввода/создания пароля
+
+    // ========== SITE TOUR (Помощь) ==========
+    var _tourSteps = [];
+    var _tourIdx = 0;
+    var _tourActive = false;
+
+    function buildSiteTourSteps() {
+      var labels = { dailyhub:'Ежедневное', home:'Суры', learn:'Теория', games:'Практика', more:'Ещё' };
+      var texts = {
+        dailyhub: 'Главный экран дня.\n\n• Виджет времён намаза (город — в «Время намаза»).\n• Аят дня, дуа, хадис, сунна, слово, имя Аллаха, история.\n• Стрелки ← → меняют карточку; нажмите на имя Аллаха — откроется раздел 99 имён.\n\nСюда удобно заходить утром и вечером.',
+        home: 'Список сур Корана.\n\n• Откройте суру — чтение с переводом и аудио.\n• Можно скачать суры для офлайна.\n• Закладки и прогресс сохраняются на устройстве.\n\nНижнее меню и шапка всегда возвращают сюда, если выбрана вкладка «Суры».',
+        learn: 'Обучение чтению и правилам.\n\n• Путь академии, буквы, огласовки, правила, таджвид.\n• Махаридж — где и как выходят звуки (горло, язык…), со схемами и видео.\n• Суры и аяты по словам для разбора.\n\nИдите по вкладкам сверху; «Путь» подскажет порядок модулей.',
+        games: 'Практика и тесты.\n\n• Проверка букв, произношения, правил.\n• Тренировка закрепляет теорию.\n\nСначала откройте нужный режим, затем отвечайте — так материал лучше запоминается.',
+        more: 'Меню «Ещё» — остальные разделы.\n\n• Фикх, акида, сунны, хадисы, истории, намаз, азкар, имена Аллаха…\n• Настройки, аккаунт, справка, обновления.\n\nПорядок пунктов можно менять в Настройки → Меню. Повторное нажатие «Ещё» возвращает к списку.'
+      };
+      var steps = [];
+      steps.push({
+        view: null,
+        title: 'Добро пожаловать',
+        text: 'Короткий тур по сайту.\n\nПокажем главные вкладки внизу, настройки и аккаунт.\nНажимайте «Далее» — без этого следующий шаг не откроется.\nВ любой момент можно «Пропустить».'
+      });
+      var order = (typeof getMainTabOrder === 'function') ? getMainTabOrder() : ['dailyhub','home','learn','games'];
+      order.forEach(function(id) {
+        steps.push({
+          view: id,
+          highlight: id,
+          title: labels[id] || id,
+          text: texts[id] || ('Раздел «'+(labels[id]||id)+'».')
+        });
+      });
+      steps.push({
+        view: 'more',
+        highlight: 'more',
+        title: 'Ещё',
+        text: texts.more
+      });
+      steps.push({
+        view: 'settings',
+        title: 'Настройки',
+        text: 'Главное, что можно изменить:\n\n• Язык интерфейса.\n• Аудио: чтец, скорость.\n• Вид: тема, ночной режим; отдельно — шрифты арабского.\n• Чтение: перевод, скрытие транскрипции.\n• Офлайн: кэш сур.\n• Пароли: блокировка приложения и смена пароля.\n• Меню: порядок главных вкладок и пунктов «Ещё».\n• Другое: мазхаб для намаза, режим «только Коран».\n\nОткройте категории кнопками сверху настроек.'
+      });
+      steps.push({
+        view: 'account',
+        title: 'Мой аккаунт',
+        text: 'Вход и регистрация (онлайн через email или локально на устройстве).\n\n• Сохранение прогресса при входе.\n• Смена ника и пароля.\n• Без аккаунта сайт тоже работает — данные в браузере.\n\nПароль блокировки приложения (🔒) — отдельно от пароля аккаунта.'
+      });
+      steps.push({
+        view: null,
+        title: 'Справка и обновления',
+        text: 'В меню «Ещё»:\n\n• Справка — текстовые описания всех разделов (можно искать).\n• Обновления — что нового в сборках.\n\nКнопка «?» всегда запускает этот тур снова.'
+      });
+      steps.push({
+        view: null,
+        title: 'О внешних материалах',
+        text: 'На сайте есть ссылки на видео, схемы и статьи других авторов (YouTube, учебные сайты и т.п.).\n\nЯ не претендую на эти материалы: они принадлежат своим создателям. Ссылки даны только для обучения. Если правообладатель попросит убрать ссылку — её можно удалить.\n\nСобственный текст и код приложения — отдельны от чужого контента.\n\nУдачного изучения Корана.'
+      });
+      return steps;
+    }
+
+    function clearTourHighlights() {
+      document.querySelectorAll('.tour-highlight').forEach(function(el) {
+        el.classList.remove('tour-highlight');
+      });
+    }
+
+    function paintTourStep() {
+      var overlay = document.getElementById('site-tour-overlay');
+      var title = document.getElementById('site-tour-title');
+      var body = document.getElementById('site-tour-body');
+      var prog = document.getElementById('site-tour-progress');
+      var btnNext = document.getElementById('site-tour-next');
+      var btnBack = document.getElementById('site-tour-back');
+      if (!overlay || !_tourSteps.length) return;
+      var step = _tourSteps[_tourIdx];
+      if (!step) return;
+      clearTourHighlights();
+      if (step.view && typeof showView === 'function') {
+        try { showView(step.view, true); } catch(e) {}
+      }
+      if (step.highlight) {
+        document.querySelectorAll('[data-view="'+step.highlight+'"]').forEach(function(b) {
+          b.classList.add('tour-highlight');
+        });
+      }
+      if (title) title.textContent = step.title || '';
+      if (body) body.textContent = step.text || '';
+      if (prog) prog.textContent = 'Шаг ' + (_tourIdx + 1) + ' из ' + _tourSteps.length;
+      if (btnBack) btnBack.style.visibility = _tourIdx === 0 ? 'hidden' : 'visible';
+      if (btnNext) btnNext.textContent = (_tourIdx >= _tourSteps.length - 1) ? 'Готово' : 'Далее';
+    }
+
+    function openSiteTour() {
+      _tourSteps = buildSiteTourSteps();
+      _tourIdx = 0;
+      _tourActive = true;
+      document.body.classList.add('tour-active');
+      var overlay = document.getElementById('site-tour-overlay');
+      if (overlay) overlay.classList.add('open');
+      paintTourStep();
+    }
+
+    function closeSiteTour() {
+      _tourActive = false;
+      document.body.classList.remove('tour-active');
+      clearTourHighlights();
+      var overlay = document.getElementById('site-tour-overlay');
+      if (overlay) overlay.classList.remove('open');
+      try { localStorage.setItem('quran_tour_seen', '1'); } catch(e) {}
+    }
+
+    function siteTourNext() {
+      if (_tourIdx >= _tourSteps.length - 1) {
+        closeSiteTour();
+        return;
+      }
+      _tourIdx++;
+      paintTourStep();
+    }
+
+    function siteTourBack() {
+      if (_tourIdx <= 0) return;
+      _tourIdx--;
+      paintTourStep();
+    }
+
+    document.getElementById('btn-site-help')?.addEventListener('click', function() {
+      openSiteTour();
+    });
+    document.getElementById('site-tour-next')?.addEventListener('click', function() {
+      siteTourNext();
+    });
+    document.getElementById('site-tour-back')?.addEventListener('click', function() {
+      siteTourBack();
+    });
+    document.getElementById('site-tour-skip')?.addEventListener('click', function() {
+      closeSiteTour();
+    });
+    // клик по затемнению не закрывает — как в обучающих играх, только кнопки
+
+
     initLockScreen();
   </script>
 </body>
