@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.32 2026-08-07 -->
+<!-- BUILD 2.33 2026-08-07 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.32</title>
+  <title>Коран — Изучение · 2.33</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -439,15 +439,24 @@
     .lock-box .lock-icon { font-size: 2.4rem; margin-bottom: 0.5rem; }
     .lock-box h2 { font-size: 1.15rem; margin-bottom: 0.35rem; }
     .lock-box p.lock-sub { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.1rem; }
-    .lock-box input[type="password"] {
+    .lock-box input[type="password"],
+    .lock-box input[type="text"],
+    .lock-box input {
       width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
+      background: var(--bg) !important;
+      border: 1px solid var(--border) !important;
       border-radius: 0.65rem;
-      padding: 0.7rem 0.85rem;
-      color: var(--text);
+      padding: 0.7rem 2.6rem 0.7rem 0.85rem;
+      color: var(--text) !important;
       font-size: 1rem;
       margin-bottom: 0.65rem;
+      box-sizing: border-box;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .lock-box input:focus {
+      outline: none;
+      border-color: var(--accent) !important;
     }
     .lock-box button.lock-submit {
       width: 100%;
@@ -1358,10 +1367,10 @@
       box-sizing: border-box;
     }
     #view-settings.view.active {
-      padding-bottom: calc(9rem + env(safe-area-inset-bottom, 0px)) !important;
+      padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important;
     }
     body.settings-other-open #view-settings.view.active {
-      padding-bottom: calc(11rem + env(safe-area-inset-bottom, 0px)) !important;
+      padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px)) !important;
     }
     .exp-detail {
       line-height: 1.6 !important;
@@ -2326,7 +2335,7 @@
             <option value="0">Выкл</option>
           </select>
         </div>
-        <div class="settings-bottom-spacer" style="height:6rem;flex-shrink:0" aria-hidden="true"></div>
+        <div class="settings-bottom-spacer" style="height:1.5rem;flex-shrink:0" aria-hidden="true"></div>
 
         <p class="cache-info" id="cache-info">Загруженные суры сохраняются для чтения без интернета.</p>
         <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap">
@@ -2341,7 +2350,7 @@
         Данные хранятся только в вашем браузере.<br>
         Текст и аудио — AlQuran.Cloud · Тафсир — spa5k
       </p>
-      <div class="settings-bottom-spacer" style="height:9rem;min-height:9rem" aria-hidden="true"></div>
+      <div class="settings-bottom-spacer" style="height:4rem;min-height:4rem" aria-hidden="true"></div>
     </div>
   </main>
 
@@ -4319,16 +4328,20 @@ function getMainTabOrder() {
       if (!inp || inp.dataset.eye === '1') return;
       inp.dataset.eye = '1';
       var wrap = document.createElement('div');
-      wrap.style.cssText = 'position:relative;width:100%';
+      wrap.style.cssText = 'position:relative;width:100%;margin-bottom:0.65rem';
+      // переносим нижний отступ на обёртку, чтобы поле не «прыгало»
+      try { inp.style.marginBottom = '0'; } catch(e) {}
       inp.parentNode.insertBefore(wrap, inp);
       wrap.appendChild(inp);
-      inp.style.paddingRight = '2.5rem';
+      inp.style.paddingRight = '2.6rem';
+      inp.style.boxSizing = 'border-box';
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.setAttribute('aria-label', 'Показать пароль');
       btn.textContent = '👁';
-      btn.style.cssText = 'position:absolute;right:0.4rem;top:50%;transform:translateY(-50%);border:none;background:transparent;cursor:pointer;font-size:1.1rem;line-height:1;padding:0.25rem;color:var(--text-muted)';
-      btn.addEventListener('click', function() {
+      btn.style.cssText = 'position:absolute;right:0.45rem;top:50%;transform:translateY(-50%);border:none;background:transparent;cursor:pointer;font-size:1.15rem;line-height:1;padding:0.25rem;color:var(--text-muted);z-index:2';
+      btn.addEventListener('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
         if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
         else { inp.type = 'password'; btn.textContent = '👁'; }
       });
@@ -8346,28 +8359,28 @@ function renderMistakes() {
     const ARABIC_RULES = [
       {title:'اتجاه الكتابة · Направление', ar:'من اليمين إلى اليسار',
         short:'Арабский пишется и читается справа налево.',
-        detail:'Строка начинается справа. Мушаф открывается с другой стороны относительно русской книги. Практика: ведите пальцем справа налево.'},
+        detail:'Арабское письмо идёт справа налево.\n\n1) Строка начинается справа; палец при чтении ведите справа налево.\n2) Мушаф (книга Корана) открывается с «другой» стороны относительно русской книги: корешок справа.\n3) Цифры в арабском тексте часто тоже идут в контексте RTL, но сами западные цифры пишутся слева направо.\n4) Практика: откройте суру «Аль-Фатиха» и проведите пальцем по строке от правого края к левому.\n5) Ошибка новичков: искать начало аята слева — начало всегда справа.'},
       {title:'ربط الحروف · Соединение', ar:'ا د ذ ر ز و لا تتصل',
         short:'Большинство букв соединяются. Не соединяются со следующей: алиф даль заль ра зай вав.',
-        detail:'После этих шести букв следующая пишется в начальной или изолированной форме. Пример: дараса.'},
+        detail:'Соединение букв — основа арабского письма.\n\n1) Большинство букв соединяются и справа, и слева.\n2) Шесть букв НЕ соединяются со следующей: ا د ذ ر ز و (алиф, даль, заль, ра, зай, вав). После них следующая буква пишется в начальной или изолированной форме.\n3) Пример: دَرَسَ (дараса) — после даль и ра разрыв.\n4) Лам + алиф часто пишутся особым лигатурным знаком لا.\n5) Практика: сравните ببب (ббб, все соединены) и ددد (ддд, все разделены).\n6) Ошибка: пытаться «приклеить» ра или вав к следующей букве — так не пишут.'},
       {title:'أشكال الحرف · Четыре формы', ar:'٤ أشكال',
         short:'До 4 форм: изолированная, начальная, срединная, конечная.',
-        detail:'Одна и та же буква меняет вид в зависимости от места в слове. Смотрите вкладку «Буквы».'},
+        detail:'Одна буква — до четырёх начертаний.\n\n1) Изолированная (отдельно): как в алфавите.\n2) Начальная: в начале слова (соединяется только справа/влево по направлению письма).\n3) Срединная: в середине, соединена с обеих сторон.\n4) Конечная: в конце слова.\n5) Буквы из группы «не соединяются» имеют меньше форм.\n6) Практика: откройте вкладку «Буквы» и смотрите формы каждой буквы.\n7) Ошибка: учить только изолированную форму — в Коране почти всё в связном письме.'},
       {title:'الحركات · Огласовки', ar:'فتحة كسرة ضمة',
         short:'Фатха — а, касра — и, дамма — у; сукун — нет гласного; шадда — удвоение.',
-        detail:'Фатха над буквой — краткий а. Касра под буквой — и. Дамма над буквой — у. Сукун — без гласного. Шадда — удвоение.'},
+        detail:'Огласовки (харакат) показывают краткие гласные.\n\n1) Фатха (َ) над буквой — краткий «а» (как в «ба»).\n2) Касра (ِ) под буквой — краткий «и» (как в «би»).\n3) Дамма (ُ) над буквой — краткий «у» (как в «бу»).\n4) Сукун (ْ) — гласного нет, буква «закрыта».\n5) Шадда (ّ) — удвоение согласной: сначала как с сукуном, затем с огласовкой.\n6) Без огласовок опытный читатель опирается на знание языка; в учебных мусхафах огласовки почти всегда есть.\n7) Практика: прочитайте بَ بِ بُ بْ и بَّ.'},
       {title:'التنوين · Танвин', ar:'فتحتان كسرتان ضمتان',
         short:'Танвин — окончание ан / ин / ун (две огласовки).',
-        detail:'Двойная огласовка в конце слова. При остановке в конце аята часто читается без н.'},
+        detail:'Танвин — удвоение огласовки в конце слова.\n\n1) Две фатхи (ً) — «ан»; две касры (ٍ) — «ин»; две даммы (ٌ) — «ун».\n2) Обычно на неопределённых именах.\n3) При остановке (вақф) в конце аята танвин часто читается без «н»: фатхатан → долгий «а» (или с алифом), касратан/дамматан → без «н».\n4) Пример: كِتَابًا при соединении «китабан», при остановке часто «китаба».\n5) Практика: сравните чтение в середине фразы и на конце аята.\n6) Ошибка: всегда тянуть «н» на вақфе — в учебном чтении Корана вақф особый.'},
       {title:'ال · Алиф-лям', ar:'ال التعريف',
         short:'Артикль «аль». Солнечные буквы съедают лям, лунные — нет.',
-        detail:'Перед солнечными буквами лям не читается, следующая буква с шаддой (аш-шамс). Перед лунными лям читается (аль-китаб).'},
+        detail:'Артикль ال (аль) — определённость.\n\n1) Перед «лунными» буквами лям читается: الْكِتَاب (аль-китаб).\n2) Перед «солнечными» лям не читается, следующая буква с шаддой: الشَّمْس (аш-шамс).\n3) Солнечные (примерно): ت ث د ذ ر ز س ش ص ض ط ظ ل ن.\n4) Хамзату-ль-васль у алифа артикля в начале речи произносится, в середине фразы часто «проглатывается».\n5) Практика: аль-камар (лунная) vs аш-шамс (солнечная).\n6) Ошибка: читать «аль-шамс» с лям — неверно.'},
       {title:'همزة · Хамза', ar:'ء',
         short:'Хамза — гортанная смычка. Не путать с айн.',
-        detail:'Может стоять на алиф, вав, йа или отдельно. В начале многих слов: инна, ахад.'},
+        detail:'Хамза (ء) — гортанный взрыв (смычка).\n\n1) Может стоять на алиф (أ إ), на вав (ؤ), на йа (ئ) или отдельно (ء).\n2) В начале многих слов: إِنَّ (инна), أَحَد (ахад).\n3) Не путать с ع (айн) — айн глубже и дольше «сжимает» горло.\n4) Хамзату-ль-кат‘ всегда произносится; хамзату-ль-васль — по правилам соединения.\n5) Практика: сравните أَ и عَ на слух.\n6) Ошибка: смягчать хамзу в «й» или пропускать в начале слова.'},
       {title:'التاء المربوطة · Та марбута', ar:'ة',
         short:'Та марбута: с огласовкой — т, при остановке — һ.',
-        detail:'Типичное окончание женского рода. При вақфе звучит как һа. Пример: рахма.'}
+        detail:'Та марбута (ة) — частое окончание.\n\n1) Типичный признак женского рода и многих масдаров.\n2) При чтении с огласовкой (в соединении) звучит как «т»: رَحْمَةً (рахматан).\n3) При остановке (вақф) обычно как «һ»: رَحْمَة (рахма).\n4) Не путать с обычной ت и с ھ.\n5) Практика: одно и то же слово в середине аята и на конце.\n6) Ошибка: всегда читать «т» на вақфе или всегда «һ» в соединении.'}
     ];
 
     const TAJWEED_RULES = [
@@ -8376,25 +8389,25 @@ function renderMistakes() {
         detail:'Ихфа — «сокрытие».\n\n1) Когда: после нун с сукуном (نْ) или танвина идёт одна из 15 букв (не из групп изхар / идгам / иклаб).\n2) Как: язык не ставит полное касание для «н», звук уходит в нос.\n3) Гунна: около двух счётов.\n4) Пример: مِنْ شَرِّ (мин шарри).\n5) Ошибка: либо чёткое «н» (как изхар), либо полное слияние (как идгам) — оба неверны для ихфа.\n6) Практика: читайте медленно мин + шин, чувствуя носовой звук без удара языка.'},
       {title:'إدغام · Идгам', ar:'إدغام النون الساكنة',
         short:'Нун с сукуном сливается со следующей буквой: йа, ра, мим, лям, вав, нун.',
-        detail:'Идгам — слияние. С гунной: йа вав мим нун. Без гунны: лям ра. Пример: мин раббихим. Отдельный звук «н» не оставляют.'},
+        detail:'Идгам — слияние нун с сукуном (или танвина) со следующей буквой.\n\n1) Буквы идгама (йармлун): ي ر م ل و ن.\n2) С гунной (~2 счёта): ي و م ن (йа, вав, мим, нун).\n3) Без гунны: ل ر (лям, ра) — слияние «чистое».\n4) Отдельный звук «н» не оставляют: مِن رَّبِّهِمْ → мир-раббихим.\n5) Пример с гунной: مَن يَقُول → май-якулю.\n6) Ошибка: оставить слышимое «н» или дать гунну на лям/ра.\n7) Практика: медленно мин + ра, мин + йа.'},
       {title:'إقلاب · Иклаб', ar:'قلب النون ميماً قبل الباء',
         short:'Перед ба нун с сукуном звучит почти как «м», с гунной.',
-        detail:'Иклаб только перед ба. Нун плюс ба даёт звук близкий к «м» с гунной. Пример: мин баъди.'},
+        detail:'Иклаб — «переворот» нун в мим-подобный звук.\n\n1) Только перед ب (ба).\n2) Нун с сукуном или танвин + ба → звук близкий к «м» + лёгкая гунна (~2 счёта), губы слегка смыкаются.\n3) Пример: مِن بَعْدِ → мим-баъди (не «мин баъди» с чётким н).\n4) В мусхафе часто ставят маленькую мим над нун как подсказку.\n5) Ошибка: читать чёткое «н» или полную мим без гунны.\n6) Практика: мин баъди, анбийа.'},
       {title:'إظهار · Изхар', ar:'إظهار النون عند حروف الحلق',
         short:'Перед гортанными хамза ха айн ха гайн ха нун читается чётко.',
-        detail:'Изхар — ясное «н» перед гортанными буквами. Пример: ман амана. Без слияния и без лишней гунны.'},
+        detail:'Изхар — ясное произношение нун.\n\n1) Когда: нун с сукуном / танвин перед гортанными: ء ه ع ح غ خ.\n2) «Н» читается чётко, без слияния и без лишней гунны.\n3) Пример: مَنْ آمَنَ (ман амана), مِنْ خَوْفٍ.\n4) Гортань работает отдельно от кончика языка.\n5) Ошибка: «проглатывать» н или тянуть гунну как в ихфа.\n6) Практика: ман амана, мин ‘ильмин — чёткое н, затем гортанная.'},
       {title:'قلقلة · Калькаля', ar:'قلقلة ق ط ب ج د',
         short:'Каф та ба джим даль с сукуном — с лёгким отскоком.',
-        detail:'Калькаля — вибрация на сукуне у каф та ба джим даль. Пример: кад. Сильнее на конце аята.'},
+        detail:'Калькаля — лёгкий «отскок» (эхо) на сукуне.\n\n1) Буквы: ق ط ب ج د (каф, та, ба, джим, даль) — запомните «кутбу джад».\n2) Когда буква с сукуном (в середине или в конце при остановке).\n3) Звук не «глухой удар», а короткая вибрация/отскок без полноценной огласовки.\n4) Сильнее на конце аята (калькаля кубра), слабее в середине (сугра).\n5) Пример: قَدْ (кад), أَحَدْ.\n6) Ошибка: добавлять полный гласный «а/и/у» или совсем сплющивать букву.\n7) Практика: кад, аб, медленно на конце слова.'},
       {title:'مد · Мадд', ar:'إطالة حروف المد',
         short:'Продление гласного через алиф вав йа (обычно 2 счёта).',
-        detail:'Естественный мадд — 2 счёта. Более длинные (4–6) при хамзе или сукуне после мадда — учите с учителем. Пример: каля.'},
+        detail:'Мадд — продление гласного.\n\n1) Буквы мадда: ا و ي при условиях (алиф после фатхи; вав с сукуном после даммы; йа с сукуном после касры).\n2) Естественный мадд (таби‘и) — обычно 2 счёта: قَالَ (кааля).\n3) Более длинные мадды (4–6 счётов) бывают при хамзе или сукуне после мадда — виды учат с преподавателем.\n4) Не «рвать» мадд и не тянуть без правила.\n5) Пример: نُوحِيهَا — слушайте длину у чтеца.\n6) Ошибка: укорачивать алиф до краткого «а» или тянуть все гласные одинаково.\n7) Практика: сравните كَتَبَ и قَالَ.'},
       {title:'غنة · Гунна', ar:'الغنة في الميم والنون',
         short:'Носовой звук на мим и нун с шаддой и в ихфа/иклаб/идгам (~2 счёта).',
-        detail:'Гунна обязательна при удвоенных мим и нун, а также в ихфа, иклаб и идгам с гунной. Воздух через нос.'},
+        detail:'Гунна — носовой резонанс.\n\n1) Обязательна на مّ и نّ (мим/нун с шаддой) — около 2 счётов.\n2) Также в ихфа, иклаб и идгаме с гунной.\n3) Воздух идёт через нос; рот не «глотает» звук полностью.\n4) Пример: إِنَّ (инна), ثُمَّ (сумма).\n5) Ошибка: гунна слишком короткая (как обычная буква) или слишком длинная без счёта.\n6) Практика: инна, сумма — почувствуйте вибрацию в носу.'},
       {title:'شدة · Шадда', ar:'التشديد',
         short:'Шадда — буква читается удвоенно.',
-        detail:'Сначала как с сукуном, затем с огласовкой. Пример: рабби. На удвоенных нун и мим — гунна.'}
+        detail:'Шадда (ّ) — удвоение согласной.\n\n1) Сначала буква как с сукуном, затем с своей огласовкой: ربّ = раб-б.\n2) На удвоенных ن и م обязательна гунна.\n3) Шадда не «пропуск», а полноценное удвоение.\n4) Пример: رَبِّ (рабби), إِنَّ (инна).\n5) В идгаме следующая буква часто получает шадду — это след слияния.\n6) Ошибка: читать одну букву вместо двух или разрывать удвоение паузой.\n7) Практика: рабби, сумма — чёткое удвоение.'}
     ];
 
     function renderRules() {
@@ -10420,22 +10433,37 @@ function renderSalah() {
           var id = (document.getElementById('login-id').value || '').trim();
           var pass = document.getElementById('login-pass').value || '';
           if (!id || !pass) { toast('Заполните поля'); return; }
-          var sb = getSb();
-          if (sb) {
-            try {
-              var { data, error } = await sb.auth.signInWithPassword({ email: id, password: pass });
-              if (error) { toast(error.message || 'Ошибка входа'); return; }
-              var u = data.user || (data.session && data.session.user);
-              var meta = (u && u.user_metadata) || {};
-              authSetSession({ userId: u.id, nick: meta.nick || meta.nickname || id.split('@')[0], email: u.email || id, online: true });
-              toast('Добро пожаловать');
-              navigateAuth('account');
-              return;
-            } catch (e) { toast('Сеть: ' + (e.message || e)); return; }
+          var emailForOnline = id;
+          // Если ввели ник — подставить email из локальной базы для онлайн-входа
+          if (id.indexOf('@') < 0) {
+            var localByNick = authFindByNick(id);
+            if (localByNick && localByNick.email) emailForOnline = localByNick.email;
           }
-          // local fallback
+          var sb = getSb();
+          if (sb && emailForOnline.indexOf('@') >= 0) {
+            try {
+              var { data, error } = await sb.auth.signInWithPassword({ email: emailForOnline, password: pass });
+              if (!error) {
+                var u = data.user || (data.session && data.session.user);
+                var meta = (u && u.user_metadata) || {};
+                authSetSession({ userId: u.id, nick: meta.nick || meta.nickname || (id.indexOf('@')>=0 ? id.split('@')[0] : id), email: u.email || emailForOnline, online: true });
+                toast('Добро пожаловать');
+                navigateAuth('account');
+                return;
+              }
+              // онлайн не принял — пробуем локальный аккаунт (не блокируем return)
+              console.warn('online login', error && error.message);
+            } catch (e) {
+              console.warn('online login network', e);
+            }
+          }
+          // local fallback (старые аккаунты / офлайн)
           var u = id.indexOf('@') >= 0 ? authFindByEmail(id) : authFindByNick(id);
-          if (!u || u.passHash !== authHash(pass)) { toast('Неверный логин или пароль'); return; }
+          if (!u && id.indexOf('@') >= 0) u = authFindByEmail(id);
+          if (!u || u.passHash !== authHash(pass)) {
+            toast(sb ? 'Неверный логин или пароль (онлайн и локально)' : 'Неверный логин или пароль');
+            return;
+          }
           authSetSession({ userId: u.id, nick: u.nick, email: u.email, online: false });
           toast('Вход (локально)');
           navigateAuth('account');
@@ -10560,6 +10588,23 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.33', kinds: ['a', 'b', 'f', 'd'], date: '2026-08-07',
+          a: [],
+          b: [
+            'Иконки: фикх 📕, история 📜, сунны ⭐',
+            'Правила и таджвид: подробные тексты у всех пунктов'
+          ],
+          f: [
+            'Вход: при ошибке онлайн пробуется локальный аккаунт',
+            'Вход по нику: подставляется email из локальной базы',
+            'Экран блокировки: поле пароля не прыгает при показе/скрытии'
+          ],
+          d: [
+            'Меньше пустого места внизу настроек',
+            'Стили поля пароля на блокировке (password и text)'
+          ],
+          ph: [], I: [ 'Видео/фото букв', 'Добавление сур и аятов в теорию' ], o: [], s: [], on: []
+        },
         { major: '2', v: '2.32', kinds: ['a', 'b', 'f', 'd'], date: '2026-08-07',
           a: [
             'Настройки: категория «Пароли» (блокировка и смена PIN)',
@@ -18317,10 +18362,10 @@ c.addEventListener('click', () => {
 
     // 5 групп: знания → поклонение → коран → жизнь → система (в конце)
     const MORE_MENU_DEFAULT = [
-      { id:'fiqh', icon:'🧼', label:'Фикх', group:'knowledge' },
+      { id:'fiqh', icon:'📕', label:'Фикх', group:'knowledge' },
       { id:'aqidah', icon:'☪️', label:'Акыйда', group:'knowledge' },
       { id:'hadiths', icon:'📗', label:'Хадисы', group:'knowledge' },
-      { id:'stories', icon:'🏺', label:'История ислама', group:'knowledge' },
+      { id:'stories', icon:'📜', label:'История ислама', group:'knowledge' },
       { id:'sins', icon:'😔', label:'Грехи и тауба', group:'knowledge' },
       { id:'adab', icon:'🗣️', label:'Адаб общения', group:'knowledge' },
       { id:'ihouse', icon:'🏛️', label:'Материалы IslamHouse', group:'knowledge' },
@@ -18328,7 +18373,7 @@ c.addEventListener('click', () => {
       { id:'salah', icon:'🙇', label:'Намаз', group:'worship' },
       { id:'adhkar', icon:'🤲', label:'Азкары и дуа', group:'worship' },
       { id:'dhikr', icon:'🔢', label:'Зикр', group:'worship' },
-      { id:'sunnahs', icon:'🌱', label:'Сунны', group:'worship' },
+      { id:'sunnahs', icon:'⭐', label:'Сунны', group:'worship' },
       { id:'duabuilder', icon:'🧩', label:'Дуа-конструктор', group:'worship' },
       { id:'myreading', icon:'📖', label:'Моё чтение', group:'quran' },
       { id:'dict', icon:'🔤', label:'Словари', group:'quran' },
@@ -20691,8 +20736,8 @@ function renderLibrary() {
         const vs = document.getElementById('view-settings');
         if (vs) {
           vs.style.paddingBottom = cat === 'other'
-            ? 'calc(14rem + env(safe-area-inset-bottom, 0px))'
-            : 'calc(10rem + env(safe-area-inset-bottom, 0px))';
+            ? 'calc(6.5rem + env(safe-area-inset-bottom, 0px))'
+            : 'calc(5.5rem + env(safe-area-inset-bottom, 0px))';
         }
       } catch(err) {}
     });
