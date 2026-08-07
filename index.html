@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.37 2026-08-07 -->
+<!-- BUILD 2.38 2026-08-07 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.37</title>
+  <title>Коран — Изучение · 2.38</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1381,8 +1381,9 @@
     #btn-site-help {
       position: fixed;
       z-index: 95;
-      right: 0.75rem;
-      bottom: calc(4.2rem + env(safe-area-inset-bottom, 0px));
+      left: 0.75rem;
+      right: auto;
+      bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
       width: 2.75rem;
       height: 2.75rem;
       border-radius: 50%;
@@ -1400,23 +1401,30 @@
     }
     body.app-locked #btn-site-help,
     body.tour-active #btn-site-help { display: none !important; }
+    body.mode-desktop #btn-site-help,
     body.desktop-mode #btn-site-help {
       bottom: 1.25rem;
-      right: 1.25rem;
+      left: 1.25rem;
+      right: auto;
     }
+    body.view-reader #btn-site-help { opacity: 0.45; }
     #site-tour-overlay {
       position: fixed;
       inset: 0;
       z-index: 200;
-      background: rgba(0,0,0,0.55);
+      background: rgba(8, 12, 20, 0.42);
       display: none;
       align-items: flex-end;
       justify-content: center;
-      padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+      padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
       box-sizing: border-box;
+      /* не ломает fixed bottom-nav при скролле */
+      overscroll-behavior: none;
     }
     #site-tour-overlay.open { display: flex; }
     #site-tour-card {
+      position: relative;
+      z-index: 210;
       width: 100%;
       max-width: 28rem;
       background: var(--card);
@@ -1424,9 +1432,13 @@
       border: 1px solid var(--border);
       border-radius: 1rem;
       padding: 1rem 1.1rem 1.05rem;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
-      max-height: min(70vh, 32rem);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+      max-height: min(62vh, 30rem);
       overflow-y: auto;
+      opacity: 1;
+      /* непрозрачная подложка для чтения */
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
     }
     #site-tour-card h3 {
       margin: 0 0 0.45rem;
@@ -1451,19 +1463,23 @@
       margin-top: 0.85rem;
     }
     #site-tour-card .tour-actions .btn { flex: 1 1 auto; min-width: 5rem; }
-    body.tour-active .bottom-nav,
-    body.tour-active #main-nav button,
-    body.tour-active #device-mode-btn {
+    body.tour-active #device-mode-btn { display: none !important; }
+    body.tour-active .bottom-nav {
+      pointer-events: none;
+      z-index: 205;
+    }
+    body.tour-active #main-nav button {
       pointer-events: none;
     }
-    body.tour-active .bottom-nav button[data-view].tour-highlight,
+    body.tour-active .bottom-nav button[data-view].tour-highlight {
+      pointer-events: none;
+      box-shadow: 0 0 0 2px var(--accent);
+      border-radius: 0.65rem;
+      background: var(--card);
+    }
     body.tour-active #main-nav button[data-view].tour-highlight {
       pointer-events: none;
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-      border-radius: 0.5rem;
-      position: relative;
-      z-index: 201;
+      box-shadow: 0 0 0 2px var(--accent);
     }
 
     .settings-bottom-spacer {
@@ -10941,6 +10957,20 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.38', kinds: ['f', 'b'], date: '2026-08-07',
+          f: [
+            'Тур: кнопка «?» слева, Тел/ПК справа — без конфликта',
+            'Карточка тура непрозрачная, фон мягче затемнён',
+            'Подсветка вкладки без «прыжков» при скролле',
+            'Аккаунт в туре: прокрутка вверх и перерисовка',
+            'После аккаунта тур снова открывает «Ещё»'
+          ],
+          b: [
+            'Ежедневное в туре: аят с контекстом, история, 99 имён Аллаха',
+            'Финал тура: дуа «رَبِّ زِدْنِي عِلْمًا»'
+          ],
+          a: [], on: [], d: [], ph: [], I: [], o: [], s: []
+        },
         { major: '2', v: '2.37', kinds: ['a', 'on'], date: '2026-08-07',
           a: [
             'Кнопка «?» — интерактивный тур по сайту',
@@ -21392,11 +21422,11 @@ function startApp() {
     function buildSiteTourSteps() {
       var labels = { dailyhub:'Ежедневное', home:'Суры', learn:'Теория', games:'Практика', more:'Ещё' };
       var texts = {
-        dailyhub: 'Главный экран дня.\n\n• Виджет времён намаза (город — в «Время намаза»).\n• Аят дня, дуа, хадис, сунна, слово, имя Аллаха, история.\n• Стрелки ← → меняют карточку; нажмите на имя Аллаха — откроется раздел 99 имён.\n\nСюда удобно заходить утром и вечером.',
-        home: 'Список сур Корана.\n\n• Откройте суру — чтение с переводом и аудио.\n• Можно скачать суры для офлайна.\n• Закладки и прогресс сохраняются на устройстве.\n\nНижнее меню и шапка всегда возвращают сюда, если выбрана вкладка «Суры».',
-        learn: 'Обучение чтению и правилам.\n\n• Путь академии, буквы, огласовки, правила, таджвид.\n• Махаридж — где и как выходят звуки (горло, язык…), со схемами и видео.\n• Суры и аяты по словам для разбора.\n\nИдите по вкладкам сверху; «Путь» подскажет порядок модулей.',
-        games: 'Практика и тесты.\n\n• Проверка букв, произношения, правил.\n• Тренировка закрепляет теорию.\n\nСначала откройте нужный режим, затем отвечайте — так материал лучше запоминается.',
-        more: 'Меню «Ещё» — остальные разделы.\n\n• Фикх, акида, сунны, хадисы, истории, намаз, азкар, имена Аллаха…\n• Настройки, аккаунт, справка, обновления.\n\nПорядок пунктов можно менять в Настройки → Меню. Повторное нажатие «Ещё» возвращает к списку.'
+        dailyhub: 'Главный экран дня.\n\n• Виджет времён намаза (город настраивается в «Время намаза»).\n• Аят часа/дня: нажмите на аят — контекст до и после.\n• Дуа, хадис, сунна, слово дня — листать стрелками ← →.\n• Имя из 99 имён Аллаха: нажмите карточку — откроется раздел с этим именем.\n• История дня — короткий рассказ; можно листать.\n\nУдобно заглядывать утром и вечером.',
+        home: 'Список всех сур Корана.\n\n• Нажмите суру — чтение с переводом и аудиоплеером.\n• Можно скачать суры, чтобы читать без интернета.\n• Закладки и прогресс хранятся в браузере на этом устройстве.\n\nВкладка «Суры» внизу всегда открывает этот список.',
+        learn: 'Обучение чтению и правилам.\n\n• Путь академии, буквы, огласовки, правила, таджвид.\n• Махаридж — точки выхода звуков (горло, язык…), схемы и видео.\n• Суры и аяты по словам для разбора.\n\nВкладки сверху переключают темы; «Путь» подсказывает порядок модулей.',
+        games: 'Практика и тесты.\n\n• Проверка букв, произношения, правил.\n• Тренировка закрепляет теорию.\n\nСначала выберите режим, затем отвечайте на вопросы.',
+        more: 'Меню «Ещё» — все остальные разделы.\n\n• Знание: фикх, акида, хадисы, история, грехи и тауба, адаб…\n• Поклонение: намаз, азкар, сунны, дуа-конструктор…\n• Коран, жизнь, система: настройки, аккаунт, справка, обновления.\n\nПорядок пунктов меняется в Настройки → Меню. Повторное нажатие «Ещё» возвращает к этому списку.'
       };
       var steps = [];
       steps.push({
@@ -21422,27 +21452,34 @@ function startApp() {
       steps.push({
         view: 'settings',
         title: 'Настройки',
-        text: 'Главное, что можно изменить:\n\n• Язык интерфейса.\n• Аудио: чтец, скорость.\n• Вид: тема, ночной режим; отдельно — шрифты арабского.\n• Чтение: перевод, скрытие транскрипции.\n• Офлайн: кэш сур.\n• Пароли: блокировка приложения и смена пароля.\n• Меню: порядок главных вкладок и пунктов «Ещё».\n• Другое: мазхаб для намаза, режим «только Коран».\n\nОткройте категории кнопками сверху настроек.'
+        text: 'Главное, что можно изменить:\n\n• Язык интерфейса.\n• Аудио: чтец, скорость.\n• Вид: тема, ночной режим; отдельно — шрифты арабского.\n• Чтение: перевод, скрытие транскрипции.\n• Офлайн: кэш сур.\n• Пароли: блокировка приложения и смена пароля.\n• Меню: порядок главных вкладок и пунктов «Ещё».\n• Другое: мазхаб для намаза, режим «только Коран».\n\nКатегории — кнопками сверху экрана настроек.'
       });
       steps.push({
         view: 'account',
         title: 'Мой аккаунт',
-        text: 'Вход и регистрация (онлайн через email или локально на устройстве).\n\n• Сохранение прогресса при входе.\n• Смена ника и пароля.\n• Без аккаунта сайт тоже работает — данные в браузере.\n\nПароль блокировки приложения (🔒) — отдельно от пароля аккаунта.'
+        text: 'Вход и регистрация (онлайн по email или локально на устройстве).\n\n• При входе прогресс можно связать с аккаунтом.\n• Смена ника и пароля.\n• Без аккаунта сайт работает — данные остаются в браузере.\n\nПароль блокировки приложения (замок в шапке) — отдельно от пароля аккаунта.'
       });
       steps.push({
-        view: null,
+        view: 'more',
+        highlight: 'more',
         title: 'Справка и обновления',
-        text: 'В меню «Ещё»:\n\n• Справка — текстовые описания всех разделов (можно искать).\n• Обновления — что нового в сборках.\n\nКнопка «?» всегда запускает этот тур снова.'
+        text: 'Снова меню «Ещё».\n\n• Справка — текстовые описания разделов (есть поиск).\n• Обновления — что нового в сборках.\n\nКнопка «?» слева внизу снова запускает этот тур.'
       });
       steps.push({
         view: null,
         title: 'О внешних материалах',
-        text: 'На сайте есть ссылки на видео, схемы и статьи других авторов (YouTube, учебные сайты и т.п.).\n\nЯ не претендую на эти материалы: они принадлежат своим создателям. Ссылки даны только для обучения. Если правообладатель попросит убрать ссылку — её можно удалить.\n\nСобственный текст и код приложения — отдельны от чужого контента.\n\nУдачного изучения Корана.'
+        text: 'На сайте есть ссылки на видео, схемы и статьи других авторов (YouTube, учебные сайты и т.п.).\n\nЯ не претендую на эти материалы: они принадлежат своим создателям. Ссылки даны только для обучения. Если правообладатель попросит убрать ссылку — её можно удалить.\n\nСобственный текст и код приложения отдельны от чужого контента.'
+      });
+      steps.push({
+        view: 'dailyhub',
+        highlight: 'dailyhub',
+        title: 'Успехов в обучении',
+        text: 'Пусть Аллах облегчит вам заучивание и понимание Своей Книги, сделает намерение искренним и примет старание.\n\n«رَبِّ زِدْنِي عِلْمًا» — «Господи! Увеличь мои знания» (Коран 20:114).\n\nАминь. Можно начинать с «Ежедневного» или открыть суру.'
       });
       return steps;
     }
 
-    function clearTourHighlights() {
+        function clearTourHighlights() {
       document.querySelectorAll('.tour-highlight').forEach(function(el) {
         el.classList.remove('tour-highlight');
       });
@@ -21462,8 +21499,29 @@ function startApp() {
       if (step.view && typeof showView === 'function') {
         try { showView(step.view, true); } catch(e) {}
       }
+      // прокрутка вверх — иначе аккаунт/настройки «пустые»
+      try {
+        window.scrollTo(0, 0);
+        var main = document.querySelector('main');
+        if (main) main.scrollTop = 0;
+        var av = document.querySelector('.view.active');
+        if (av) av.scrollTop = 0;
+      } catch(e) {}
+      if (step.view === 'account') {
+        try {
+          if (typeof renderAuthSync === 'function') renderAuthSync('account');
+          else if (typeof renderAuth === 'function') renderAuth('account');
+        } catch(e) {}
+        setTimeout(function() {
+          try {
+            window.scrollTo(0, 0);
+            var ab = document.getElementById('account-body');
+            if (ab) ab.scrollIntoView({ block: 'start' });
+          } catch(e) {}
+        }, 80);
+      }
       if (step.highlight) {
-        document.querySelectorAll('[data-view="'+step.highlight+'"]').forEach(function(b) {
+        document.querySelectorAll('.bottom-nav [data-view="'+step.highlight+'"], #main-nav [data-view="'+step.highlight+'"]').forEach(function(b) {
           b.classList.add('tour-highlight');
         });
       }
