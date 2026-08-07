@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.15 2026-08-04 -->
+<!-- BUILD 2.16 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.15</title>
+  <title>Коран — Изучение · 2.16</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -10149,7 +10149,7 @@ function renderSalah() {
     function renderAppUpdate() {
       var el = document.getElementById('appupdate-body');
       if (!el) return;
-      var ver = '2.15';
+      var ver = '2.16';
       try {
         var t = document.title || '';
         var m = t.match(/2\.\d+/);
@@ -10171,6 +10171,12 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.16', kinds: ['f'], date: '2026-08-07',
+          a: [],
+          b: [],
+          f: [ 'Статистика: исправлен подсчёт сегодня/неделя/месяц/год (не умножать день на число дней)' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.15', kinds: ['f', 'b', 'd'], date: '2026-08-07',
           a: [],
           b: [ 'Статистика: выбор месяца стрелками; режим 30 дней / календарный месяц' ],
@@ -14411,33 +14417,37 @@ function playArabicAudio(text, fallbackRu, opts) {
       } catch(e) {}
     }
     function sumInRange(map, daysBack) {
-      if (!map) return 0;
-      if (daysBack == null) {
-        var t = 0;
-        Object.keys(map).forEach(function(d) { t += (+map[d] || 0); });
-        return t;
-      }
+      // Только реальные ключи дат в map — без умножения «сегодня × число дней»
+      if (!map || typeof map !== 'object') return 0;
       var total = 0;
       var now = new Date();
-      var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      for (var i = 0; i <= daysBack; i++) {
-        var d = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() - i);
-        var key = dayKey(d);
-        total += (+map[key] || 0);
-      }
-      if (total === 0) {
-        Object.keys(map).forEach(function(d) {
-          var p = String(d).split('-');
-          if (p.length !== 3) return;
-          var dt = new Date(+p[0], +p[1] - 1, +p[2]);
-          if (isNaN(dt.getTime())) return;
-          var diff = Math.floor((todayStart - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 86400000);
-          if (diff >= 0 && diff <= daysBack) total += (+map[d] || 0);
-        });
-      }
+      var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      Object.keys(map).forEach(function(k) {
+        var val = Number(map[k]);
+        if (!val || val !== val) return;
+        if (daysBack == null) { total += val; return; }
+        var p = String(k).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!p) return;
+        var t = new Date(+p[1], +p[2] - 1, +p[3]).getTime();
+        if (isNaN(t)) return;
+        var diff = Math.round((todayStart - t) / 86400000);
+        if (diff >= 0 && diff <= daysBack) total += val;
+      });
       return total;
     }
     function sumInMonth(map, year, month) {
+      if (!map || typeof map !== 'object') return 0;
+      var t = 0;
+      var prefix = year + '-' + String(month + 1).padStart(2, '0') + '-';
+      Object.keys(map).forEach(function(d) {
+        if (String(d).indexOf(prefix) === 0) {
+          var val = Number(map[d]);
+          if (val && val === val) t += val;
+        }
+      });
+      return t;
+    }
+function sumInMonth(map, year, month) {
       if (!map) return 0;
       var t = 0;
       var prefix = year + '-' + String(month + 1).padStart(2, '0') + '-';
@@ -14548,6 +14558,9 @@ async function renderStats() {
           sM = sumInRange(mapSec, 29);
         }
         var vY = sumInRange(mapVisits, 364), sY = sumInRange(mapSec, 364);
+        // защита: период не может быть больше «всего»
+        if (vT > vA) vT = vA; if (vW > vA) vW = vA; if (vM > vA) vM = vA; if (vY > vA) vY = vA;
+        if (sT > sA) sT = sA; if (sW > sA) sW = sA; if (sM > sA) sM = sA; if (sY > sA) sY = sA;
         return '<div style="padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
           '<div style="font-weight:600;margin-bottom:0.35rem">' + title + '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.25rem;font-size:0.72rem;text-align:center">' +
