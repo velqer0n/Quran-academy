@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.12 2026-08-04 -->
+<!-- BUILD 2.13 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.12</title>
+  <title>Коран — Изучение · 2.13</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -10127,7 +10127,7 @@ function renderSalah() {
     function renderAppUpdate() {
       var el = document.getElementById('appupdate-body');
       if (!el) return;
-      var ver = '2.12';
+      var ver = '2.13';
       try {
         var t = document.title || '';
         var m = t.match(/2\.\d+/);
@@ -10149,6 +10149,12 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.13', kinds: ['f', 'b'], date: '2026-08-07',
+          a: [],
+          b: [ 'Убран номер версии из заголовка «Ежедневное»' ],
+          f: [ 'Статистика: подпись «Обновить приложение» вместо appupdate; дата по местному времени' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.12', kinds: ['b', 'a', 'f'], date: '2026-08-06',
           a: [ 'Статистика: сегодня/неделя/месяц/год, время в разделах, словарь, закладки, избранное' ],
           b: [ 'Статистика общедоступна (не только админ); удобные карточки' ],
@@ -14370,7 +14376,7 @@ function playArabicAudio(text, fallbackRu, opts) {
     }
     async function trackSectionVisit(sectionId) {
       if (!sectionId) return;
-      var skip = { login:1, register:1, forgot:1 };
+      var skip = { login:1, register:1, forgot:1, appupdate:1 };
       if (skip[sectionId]) return;
       try {
         flushSectionTime();
@@ -14420,7 +14426,10 @@ async function isAdminUser() {
       myreading: 'Моё чтение', dict: 'Словари', topics: 'Темы и ситуации',
       ramadan: 'Рамадан', hajj: 'Хадж и Умра', names: '99 имён', calendar: 'Календарь',
       family: 'Права семьи', sadaqa: 'Садака', ask: 'Черновик вопроса',
-      data: 'Данные', help: 'Справка', changelog: 'Обновления', export: 'Экспорт', cache: 'Кэш'
+      data: 'Данные', help: 'Справка', changelog: 'Обновления', export: 'Экспорт', cache: 'Кэш',
+      appupdate: 'Обновить приложение', account: 'Мой аккаунт', stats: 'Статистика',
+      settings: 'Настройки', dailyhub: 'Ежедневное', home: 'Суры', learn: 'Теория',
+      games: 'Практика', more: 'Ещё', reader: 'Чтение'
     };
 async function renderStats() {
       const el = document.getElementById('stats-body');
