@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.38 2026-08-07 -->
+<!-- BUILD 2.39 2026-08-07 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.38</title>
+  <title>Коран — Изучение · 2.39</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1380,24 +1380,32 @@
     /* —— Интерактивный тур «Помощь» —— */
     #btn-site-help {
       position: fixed;
-      z-index: 95;
-      left: 0.75rem;
+      z-index: 96;
+      left: 0.7rem;
       right: auto;
-      bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
-      width: 2.75rem;
-      height: 2.75rem;
+      bottom: calc(4.7rem + env(safe-area-inset-bottom, 0px));
+      width: 3rem;
+      height: 3rem;
       border-radius: 50%;
-      border: 1px solid var(--border);
-      background: var(--card);
-      color: var(--accent);
-      font-size: 1.25rem;
-      font-weight: 700;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      border: 2px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      font-size: 1.35rem;
+      font-weight: 800;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.28);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       line-height: 1;
+    }
+    body.hide-help-btn #btn-site-help { display: none !important; }
+    body.hide-ui-hints .hint,
+    body.hide-ui-hints .install-hint,
+    body.hide-ui-hints #install-banner,
+    body.hide-ui-hints #more-edit-hint,
+    body.hide-ui-hints .reveal-hint {
+      display: none !important;
     }
     body.app-locked #btn-site-help,
     body.tour-active #btn-site-help { display: none !important; }
@@ -1407,7 +1415,7 @@
       left: 1.25rem;
       right: auto;
     }
-    body.view-reader #btn-site-help { opacity: 0.45; }
+    body.view-reader #btn-site-help { opacity: 0.75; }
     #site-tour-overlay {
       position: fixed;
       inset: 0;
@@ -1431,14 +1439,35 @@
       color: var(--text);
       border: 1px solid var(--border);
       border-radius: 1rem;
-      padding: 1rem 1.1rem 1.05rem;
+      padding: 1rem 1.1rem 0.85rem;
       box-shadow: 0 16px 48px rgba(0,0,0,0.45);
-      max-height: min(62vh, 30rem);
-      overflow-y: auto;
+      max-height: min(70vh, 34rem);
+      display: flex;
+      flex-direction: column;
       opacity: 1;
-      /* непрозрачная подложка для чтения */
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
+    }
+    #site-tour-card .tour-body {
+      overflow-y: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    #site-tour-card .tour-actions {
+      flex-shrink: 0;
+      position: sticky;
+      bottom: 0;
+      background: var(--card);
+      padding-top: 0.55rem;
+      margin-top: 0.5rem;
+      border-top: 1px solid var(--border);
+    }
+    body.tour-active {
+      overflow: hidden !important;
+    }
+    body.tour-active main {
+      pointer-events: none;
     }
     #site-tour-card h3 {
       margin: 0 0 0.45rem;
@@ -1917,7 +1946,7 @@
     </div>
 
     <div id="view-dailyhub" class="view">
-      <h2 class="section-title">Ежедневное <span style="font-size:0.7rem;font-weight:500;color:var(--text-muted)">v2.09</span></h2>
+      <h2 class="section-title">Ежедневное</h2>
       <div id="dailyhub-body"></div>
     </div>
     <div id="view-duabuilder" class="view">
@@ -2427,6 +2456,13 @@
         <div class="setting-row">
           <span>Кнопка Тел/ПК (справа внизу)</span>
           <select id="setting-device-btn">
+            <option value="1">Показывать</option>
+            <option value="0">Скрыть</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>Кнопка помощи «?» (слева внизу)</span>
+          <select id="setting-help-btn">
             <option value="1">Показывать</option>
             <option value="0">Скрыть</option>
           </select>
@@ -9521,46 +9557,12 @@ function renderMistakes() {
           const item = items[+btn.dataset.i];
           if (!item) return;
           const ar = String(item.ar || '').replace(/…/g, '').replace(/\.\.\./g, '');
-          // Сразу очередь всех дуа этого раздела
-          if (typeof buildAdhkarPlayQueue === 'function') {
-            try {
-              state.adhkarCurrentType = type;
-              // построить очередь и стартовать с текущего индекса
-              const items = (ADHKAR && ADHKAR[type]) ? ADHKAR[type] : [];
-              const queue = items.map((it, ii) => {
-                const a = String(it.ar || '').trim();
-                const chunk = a.slice(0, 160);
-                return {
-                  url: navigator.onLine && chunk ? ('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + encodeURIComponent(chunk)) : '',
-                  title: 'Азкар · ' + String(it.ru || '').slice(0, 48),
-                  ar: a,
-                  ru: it.ru || '',
-                  ayah: null,
-                  surah: null,
-                  adhkar: true,
-                  adhkarType: type,
-                  adhkarIdx: ii
-                };
-              }).filter(x => x.ar);
-              if (queue.length) {
-                audioQueue = queue;
-                audioQueueIdx = +btn.dataset.i || 0;
-                if (audioQueueIdx >= queue.length) audioQueueIdx = 0;
-                audioPlayMode = 'surah';
-                try { updateAudioModeButtons(); } catch(e) {}
-                const cur = queue[audioQueueIdx];
-                if (cur.url) {
-                  playAudio(cur.url, cur.title, { queue: queue, queueIdx: audioQueueIdx, mode: 'surah', repeat: 1 });
-                } else if (typeof playArabicAudio === 'function') {
-                  playArabicAudio(cur.ar, cur.ru, { adhkar: true });
-                }
-                toast('Очередь: ' + queue.length + ' дуа · «Подряд»');
-                return;
-              }
-            } catch(e) {}
-          }
           if (typeof playArabicAudio === 'function') {
             playArabicAudio(ar, item.ru, { quran: item.quran || null, audio: item.audio || null, adhkar: true });
+          } else if (typeof speakArabicFallback === 'function') {
+            speakArabicFallback(ar, item.ru);
+          } else {
+            toast(item.ru || 'Нет озвучки');
           }
         });
       });
@@ -10957,6 +10959,24 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.39', kinds: ['f', 'b', 'a'], date: '2026-08-07',
+          a: [
+            'Настройки → Другое: скрыть кнопку помощи «?»',
+            'Статистика → Регистрация: периоды день/неделя/месяц/год/всё'
+          ],
+          b: [
+            'Кнопка «?» ярче (зелёный круг)',
+            'Экспорт: только список с галочками «этажами» 1…7'
+          ],
+          f: [
+            'Убрана метка v2.09 у «Ежедневное»',
+            'Тур: кнопки «Далее/Пропустить» закреплены, не уезжают при скролле',
+            'Азкары/дуа: озвучка через speechSynthesis (надёжнее Google TTS)',
+            'Подсказки интерфейса скрыты по умолчанию'
+          ],
+          on: [ 'Справка: где кнопка «?» и как скрыть' ],
+          d: [], ph: [], I: [], o: [], s: []
+        },
         { major: '2', v: '2.38', kinds: ['f', 'b'], date: '2026-08-07',
           f: [
             'Тур: кнопка «?» слева, Тел/ПК справа — без конфликта',
@@ -11952,7 +11972,7 @@ function renderSalah() {
         cache: 'Входит в «Данные» → вкладка «Кэш».\n\n• Офлайн-суры, скачанные хадисы, кэш HadeethEnc и IslamHouse.\n• PDF IslamHouse не хранятся на сайте — только ссылки.\n• Очистка по блокам.',
         export: 'Входит в «Данные» → вкладка «Экспорт / импорт».\n\n• Полный или частичный бэкап: закладки, словарь, прогресс, настройки.\n• Файл на устройство и обратный импорт.',
         changelog: 'Обновления.\n\n• Версии с датами; типы .a .b .f .d .ph .I .o .s.\n• Поиск по тексту журнала.\n• Фильтры по серии и типу правки.',
-        help: 'Справка — описание всех разделов сайта.\n\n• Вкладки: Главное + ваши списки меню «Ещё».\n• Порядок и состав как в меню; скрытые разделы не показываются.\n• Поиск по тексту карточек.\n• Кратко в подзаголовке, подробно по нажатию.\n• Кнопка «?» внизу справа — пошаговый тур по главным экранам.',
+        help: 'Справка — описание всех разделов сайта.\n\n• Вкладки: Главное + ваши списки меню «Ещё».\n• Порядок и состав как в меню; скрытые разделы не показываются.\n• Поиск по тексту карточек.\n• Кратко в подзаголовке, подробно по нажатию.\n• Кнопка «?» слева внизу — интерактивный тур (можно скрыть в Настройки → Другое).\n• Текстовая справка здесь; тур — отдельно, по шагам.',
         settings: 'Настройки.\n\n• Язык и перевод Корана.\n• Аудио: чтец Корана; чтец азана (суннит.) + проверка звука.\n• Вид: тема (тёмная/светлая/сепия/ночное) и авто-ночной режим 22:00–6:00.\n• Шрифты: размеры арабского и перевода, семейства (список по нажатию).\n• Чтение и тафсир.\n• Офлайн и кэш.\n• Пароли: блокировка при входе и смена PIN.\n• Другое: мазхаб, режим только Коран и пр.\n• Меню: списки разделов (до 8), скрытие, порядок главных вкладок, сброс.'
       };
       const MAIN_HELP = [
@@ -13260,14 +13280,17 @@ let body = '';
         return '<div style="margin:0.28rem 0;line-height:1.4"><b style="color:var(--accent)">'+p.n+'.</b> '+p.label+'</div>';
       }).join('');
       var chips = packs.filter(function(p){ return p.n > 0; }).map(function(p){
-        return '<label class="exp-chip" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.4rem 0.65rem;border:1px solid var(--border);border-radius:999px;cursor:pointer;margin:0.2rem;font-size:0.88rem">' +
-          '<input type="checkbox" class="exp-num" value="'+p.n+'" style="accent-color:var(--accent)"> <span>'+p.n+'. '+p.label+'</span></label>';
+        return '<label class="exp-chip" style="display:flex;align-items:center;gap:0.55rem;padding:0.55rem 0.7rem;border:1px solid var(--border);border-radius:0.65rem;cursor:pointer;margin:0 0 0.4rem;font-size:0.92rem;width:100%;box-sizing:border-box;background:var(--bg)">' +
+          '<input type="checkbox" class="exp-num" value="'+p.n+'" style="accent-color:var(--accent);width:1.1rem;height:1.1rem;flex-shrink:0"> ' +
+          '<span style="display:flex;align-items:baseline;gap:0.4rem;flex-wrap:wrap"><b style="color:var(--accent);min-width:1.4rem">'+p.n+'.</b> '+p.label+'</span></label>';
       }).join('');
       el.innerHTML =
         '<div class="card"><b>Экспорт</b>' +
-        '<div class="ayah-translation" style="margin:0.4rem 0">Отметьте нужные разделы:<br>1. Закладки<br>2. Словарь<br>3. Прогресс<br>4. Настройки<br>5. Свои дуа<br>6. Черновики<br>7. Меню «Ещё»<br><br>Каждый пункт — один раз. Пароль не экспортируется.</div>' +
-        '<div style="margin:0.55rem 0">'+chips+'</div>' +
-        '<label style="display:flex;gap:0.45rem;align-items:center;margin:0.4rem 0;cursor:pointer"><input type="checkbox" id="exp-full"> <span><b>0</b> — всё (полный бэкап)</span></label>' +
+        '<div class="ayah-translation" style="margin:0.4rem 0 0.55rem">Отметьте нужные этажи. Каждый пункт — один раз. Пароль не экспортируется.</div>' +
+        '<div style="margin:0.25rem 0">'+chips+'</div>' +
+        '<label style="display:flex;align-items:center;gap:0.55rem;padding:0.55rem 0.7rem;border:1px solid var(--accent);border-radius:0.65rem;cursor:pointer;margin:0.55rem 0 0.4rem;font-size:0.92rem;width:100%;box-sizing:border-box;background:var(--bg)">' +
+        '<input type="checkbox" id="exp-full" style="accent-color:var(--accent);width:1.1rem;height:1.1rem"> ' +
+        '<span><b style="color:var(--accent)">0.</b> Всё (полный бэкап)</span></label>' +
         '<button type="button" class="btn btn-primary" id="btn-do-export" style="width:100%;margin-top:0.55rem">Скачать JSON</button></div>' +
         '<div class="card"><b>Импорт</b><div class="ayah-translation" style="margin:0.4rem 0">Вставьте JSON или файл. Можно объединить с текущими данными или заменить выбранные разделы.</div>' +
         '<label style="display:flex;gap:0.45rem;margin:0.35rem 0"><input type="radio" name="imp-mode" value="merge" checked> Объединить</label>' +
@@ -15171,7 +15194,14 @@ function playArabicAudio(text, fallbackRu, opts) {
         return;
       }
 
-      // 3) Онлайн: Google TTS — через основной плеер (полоска внизу)
+      // 3) Озвучка азкаров/дуа: сначала speechSynthesis (работает офлайн/без CORS),
+      //    онлайн — пробуем Google TTS, при ошибке снова fallback
+      if (!t) { if (fallbackRu) toast(fallbackRu); return; }
+      // Для азкаров speechSynthesis надёжнее (Google TTS часто блокируется)
+      if (opts.adhkar || opts.dua || !navigator.onLine) {
+        speakArabicFallback(t, fallbackRu);
+        return;
+      }
       const chunks = [];
       let rest = t;
       while (rest.length) {
@@ -15181,53 +15211,84 @@ function playArabicAudio(text, fallbackRu, opts) {
         chunks.push(rest.slice(0, cut));
         rest = rest.slice(cut).trim();
       }
-      if (!t || !chunks.length) { speakArabicFallback(t, fallbackRu); return; }
-      if (navigator.onLine) {
-        const queue = chunks.map((c, i) => ({
-          url: 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + encodeURIComponent(c),
-          title: (fallbackRu ? String(fallbackRu).slice(0, 40) : 'Азкар / дуа') + (chunks.length > 1 ? (' · ' + (i+1) + '/' + chunks.length) : ''),
-          ayah: null,
-          surah: null,
-          adhkar: true,
-          ar: c
-        }));
-        audioPlayMode = 'surah';
-        try { updateAudioModeButtons(); } catch(e) {}
-        try {
-          playAudio(queue[0].url, queue[0].title, { queue: queue, queueIdx: 0, mode: 'surah', repeat: 1 });
-          // если Google TTS не загрузится — fallback через 2.5с тишины
-          setTimeout(() => {
-            try {
-              if (audioEl && audioEl.paused && (!audioEl.currentTime || audioEl.currentTime < 0.05) && audioQueue && audioQueue[0] && audioQueue[0].adhkar) {
-                speakArabicFallback(t, fallbackRu);
-              }
-            } catch(e) {}
-          }, 2500);
-          toast('▶ Озвучка');
-        } catch(e) {
-          speakArabicFallback(t, fallbackRu);
-        }
-      } else {
+      if (!chunks.length) { speakArabicFallback(t, fallbackRu); return; }
+      const queue = chunks.map((c, i) => ({
+        url: 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + encodeURIComponent(c),
+        title: (fallbackRu ? String(fallbackRu).slice(0, 40) : 'Азкар / дуа') + (chunks.length > 1 ? (' · ' + (i+1) + '/' + chunks.length) : ''),
+        ayah: null,
+        surah: null,
+        adhkar: true,
+        ar: c
+      }));
+      audioPlayMode = 'surah';
+      try { updateAudioModeButtons(); } catch(e) {}
+      try {
+        playAudio(queue[0].url, queue[0].title, { queue: queue, queueIdx: 0, mode: 'surah', repeat: 1 });
+        setTimeout(() => {
+          try {
+            if (audioEl && audioEl.paused && (!audioEl.currentTime || audioEl.currentTime < 0.05) && audioQueue && audioQueue[0] && audioQueue[0].adhkar) {
+              speakArabicFallback(t, fallbackRu);
+            }
+          } catch(e) {}
+        }, 1800);
+        toast('▶ Озвучка');
+      } catch(e) {
         speakArabicFallback(t, fallbackRu);
       }
     }
 
 
     function speakArabicFallback(t, fallbackRu) {
+      t = String(t || '').trim();
       if (!window.speechSynthesis) {
-        if (fallbackRu) toast(fallbackRu);
+        toast(fallbackRu || (t ? 'Озвучка недоступна' : 'Нет текста'));
         return;
       }
       try { window.speechSynthesis.cancel(); } catch(e) {}
-      const voices = window.speechSynthesis.getVoices() || [];
-      const arV = voices.find(v => /^ar/i.test(v.lang)) || voices.find(v => /arab/i.test(v.name||''));
-      const u = new SpeechSynthesisUtterance(t);
-      u.lang = arV ? arV.lang : 'ar-SA';
-      u.rate = 0.7;
-      if (arV) u.voice = arV;
-      u.onerror = () => { if (fallbackRu) toast(fallbackRu); };
-      window.speechSynthesis.speak(u);
+      var voices = [];
+      try { voices = window.speechSynthesis.getVoices() || []; } catch(e) {}
+      if (!voices.length) {
+        try { window.speechSynthesis.getVoices(); voices = window.speechSynthesis.getVoices() || []; } catch(e) {}
+      }
+      var arVoice = voices.find(function(v){ return /^ar(-|$)/i.test(v.lang); })
+        || voices.find(function(v){ return /arab/i.test(v.name); });
+      // длинный текст — кусками по ~120 символов
+      var parts = [];
+      var rest = t;
+      while (rest.length) {
+        if (rest.length <= 140) { parts.push(rest); break; }
+        var cut = rest.lastIndexOf(' ', 140);
+        if (cut < 30) cut = 140;
+        parts.push(rest.slice(0, cut));
+        rest = rest.slice(cut).trim();
+      }
+      if (!parts.length && fallbackRu) parts = [String(fallbackRu)];
+      if (!parts.length) { toast('Нет текста для озвучки'); return; }
+      var i = 0;
+      function speakNext() {
+        if (i >= parts.length) return;
+        var u = new SpeechSynthesisUtterance(parts[i]);
+        u.lang = arVoice ? (arVoice.lang || 'ar-SA') : 'ar-SA';
+        u.rate = 0.85;
+        u.volume = 1;
+        if (arVoice) u.voice = arVoice;
+        u.onend = function() { i++; speakNext(); };
+        u.onerror = function() {
+          i++;
+          if (i >= parts.length && fallbackRu) toast(String(fallbackRu).slice(0, 80));
+          else speakNext();
+        };
+        try {
+          window.speechSynthesis.speak(u);
+          if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+        } catch(e) {
+          if (fallbackRu) toast(fallbackRu);
+        }
+      }
+      toast('▶ Озвучка' + (arVoice ? '' : ' (голос устройства)'));
+      speakNext();
     }
+
 
 
     // Remove self-references from related names
@@ -15963,8 +16024,18 @@ async function renderStats() {
       var html = '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem">' + catTabs + '</div>';
 
       if (cat === 'registration') {
+        if (!window._regPeriod) window._regPeriod = 'all';
+        if (window._regOffset == null) window._regOffset = 0;
+        var pCur = window._regPeriod || 'all';
+        var periodBtns = ['day','week','month','year','all'].map(function(pid) {
+          var lab = { day:'День', week:'Неделя', month:'Месяц', year:'Год', all:'Всё' }[pid];
+          var on = pid === pCur;
+          return '<button type="button" class="btn btn-sm st-reg-period" data-p="' + pid + '" style="border-radius:999px;' +
+            (on ? 'background:var(--accent);color:#fff' : '') + '">' + lab + '</button>';
+        }).join('');
         html += '<div class="card"><b>👥 Регистрация</b>' +
-          '<div id="stats-reg-body" class="ayah-translation" style="margin-top:0.5rem">Загрузка…</div></div>';
+          '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.5rem 0">' + periodBtns + '</div>' +
+          '<div id="stats-reg-body" class="ayah-translation" style="margin-top:0.35rem">Загрузка…</div></div>';
         el.innerHTML = html;
         el.querySelectorAll('.st-cat').forEach(function(btn) {
           btn.addEventListener('click', function() {
@@ -15972,59 +16043,78 @@ async function renderStats() {
             renderStats();
           });
         });
-        // load registration stats
+        el.querySelectorAll('.st-reg-period').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            window._regPeriod = btn.getAttribute('data-p') || 'all';
+            window._regOffset = 0;
+            renderStats();
+          });
+        });
         var sb = (typeof getSb === 'function') ? getSb() : null;
         var box = document.getElementById('stats-reg-body');
         if (!sb) {
-          if (box) box.innerHTML = 'Нужен интернет (Supabase).';
+          if (box) {
+            var localUsers = [];
+            try { localUsers = authUsers() || []; } catch(e) {}
+            box.innerHTML = '<p>Нужен интернет (Supabase) для общей статистики.</p>' +
+              '<p class="ayah-translation">Локально на этом устройстве: <b>'+localUsers.length+'</b></p>' +
+              localUsers.map(function(u){
+                return '<div style="display:flex;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid var(--border);font-size:0.88rem"><span>'+String(u.nick||'—').replace(/</g,'&lt;')+'</span><span style="color:var(--text-muted)">локально</span></div>';
+              }).join('');
+          }
           return;
         }
         try {
-          var ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(500);
+          var ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(1000);
           if (ur && ur.error) {
             console.warn('profiles', ur.error);
-            // fallback: try without order
-            ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).limit(500);
+            ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).limit(1000);
           }
           if (ur && ur.error) throw ur.error;
           var list = (ur && ur.data) || [];
           var count = (ur && ur.count != null) ? ur.count : list.length;
-          // локальные пользователи (этот браузер) — доп. строка
           var localN = 0;
           try { localN = (authUsers() || []).length; } catch(e) {}
           function dayKeyLocal(d) {
             d = d || new Date();
             return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
           }
-          var today = dayKeyLocal();
-          var weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-6);
-          var monthStart = new Date(); monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
-          var yearStart = new Date(new Date().getFullYear(), 0, 1);
-          function inRange(iso, from) {
-            if (!iso) return false;
-            var t = new Date(iso).getTime();
-            return t >= from.getTime();
+          var now = new Date();
+          var from = null;
+          if (pCur === 'day') {
+            from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          } else if (pCur === 'week') {
+            from = new Date(now); from.setDate(from.getDate()-6); from.setHours(0,0,0,0);
+          } else if (pCur === 'month') {
+            from = new Date(now.getFullYear(), now.getMonth(), 1);
+          } else if (pCur === 'year') {
+            from = new Date(now.getFullYear(), 0, 1);
           }
+          function inRange(iso) {
+            if (!from) return true;
+            if (!iso) return false;
+            return new Date(iso).getTime() >= from.getTime();
+          }
+          var filtered = list.filter(function(u){ return inRange(u.created_at); });
+          var today = dayKeyLocal();
           var nToday = list.filter(function(u){ return String(u.created_at||'').slice(0,10) === today; }).length;
-          var nWeek = list.filter(function(u){ return inRange(u.created_at, weekAgo); }).length;
-          var nMonth = list.filter(function(u){ return inRange(u.created_at, monthStart); }).length;
-          var nYear = list.filter(function(u){ return inRange(u.created_at, yearStart); }).length;
-          var rows = list.map(function(u) {
+          var rows = filtered.map(function(u) {
             var nick = (u.nick || 'гость').replace(/</g, '&lt;');
             var dt = u.created_at ? String(u.created_at).slice(0, 10) : '';
             return '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.88rem">' +
               '<span>' + nick + '</span><span style="color:var(--text-muted)">' + dt + '</span></div>';
-          }).join('') || '<p class="ayah-translation">Пока нет зарегистрированных.</p>';
+          }).join('') || '<p class="ayah-translation">Нет регистраций за выбранный период.</p>';
           if (box) box.innerHTML =
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-bottom:0.65rem">' +
-            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Всего</div><div style="font-size:1.35rem;font-weight:700;color:var(--accent)">'+count+'</div></div>' +
-            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Сегодня</div><div style="font-size:1.35rem;font-weight:700;color:var(--accent)">'+nToday+'</div></div>' +
-            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Неделя</div><div style="font-size:1.15rem;font-weight:700">'+nWeek+'</div></div>' +
-            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Месяц / Год</div><div style="font-size:1.05rem;font-weight:700">'+nMonth+' / '+nYear+'</div></div></div>' +
-            '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">Только ники (без email)</div>' + rows;
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Всего в базе</div><div style="font-size:1.35rem;font-weight:700;color:var(--accent)">'+count+'</div></div>' +
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">За период</div><div style="font-size:1.35rem;font-weight:700;color:var(--accent)">'+filtered.length+'</div></div>' +
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Сегодня</div><div style="font-size:1.15rem;font-weight:700">'+nToday+'</div></div>' +
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Локально (устройство)</div><div style="font-size:1.15rem;font-weight:700">'+localN+'</div></div></div>' +
+            (count === 0 ? '<p class="ayah-translation" style="margin-bottom:0.5rem">Если «Всего» = 0: при регистрации профиль не записался (RLS) или читается пустая таблица <code>profiles</code>. Нужны политики INSERT/SELECT. Локальные аккаунты в облаке не видны.</p>' : '') +
+            '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">Ники за период (без email)</div>' + rows;
         } catch(e) {
           if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;') +
-            '<p class="ayah-translation" style="margin-top:0.5rem">Если 0: таблица profiles пуста или RLS запрещает чтение. Нужен INSERT профиля при регистрации и политика SELECT для anon. Локальные аккаунты (только этот браузер) в Supabase не видны.</p>';
+            '<p class="ayah-translation" style="margin-top:0.5rem">Проверьте RLS таблицы profiles и upsert при регистрации.</p>';
         }
         return;
       }
@@ -21581,6 +21671,31 @@ function startApp() {
     // клик по затемнению не закрывает — как в обучающих играх, только кнопки
 
 
+
+    function applyHelpBtnVisibility() {
+      try {
+        var hide = false;
+        if (state.settings && state.settings.hideHelpBtn) hide = true;
+        else if (localStorage.getItem('quran_hide_help_btn') === '1') hide = true;
+        document.body.classList.toggle('hide-help-btn', hide);
+        var sel = document.getElementById('setting-help-btn');
+        if (sel) sel.value = hide ? '0' : '1';
+      } catch(e) {}
+    }
+    document.getElementById('setting-help-btn')?.addEventListener('change', function(e) {
+      var hide = e.target.value === '0';
+      try {
+        if (!state.settings) state.settings = {};
+        state.settings.hideHelpBtn = hide;
+        saveState();
+        localStorage.setItem('quran_hide_help_btn', hide ? '1' : '0');
+      } catch(err) {}
+      applyHelpBtnVisibility();
+      toast(hide ? 'Кнопка помощи скрыта' : 'Кнопка помощи показана');
+    });
+
+    try { applyHelpBtnVisibility(); } catch(e) {}
+    try { document.body.classList.add('hide-ui-hints'); } catch(e) {}
     initLockScreen();
   </script>
 </body>
