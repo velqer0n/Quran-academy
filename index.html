@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.20 2026-08-04 -->
+<!-- BUILD 2.21 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.20</title>
+  <title>Коран — Изучение · 2.21</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -5760,13 +5760,17 @@ function showView(name, isBack) {
     
     document.getElementById('setting-lang')?.addEventListener('change', async e => {
       state.settings.lang = e.target.value || 'ru';
+      // Язык интерфейса → сразу нужный перевод Корана
       if (state.settings.lang === 'kk') {
         state.settings.translation = 'kk.altai';
       } else {
-        if (String(state.settings.translation || '').startsWith('kk')) {
-          state.settings.translation = 'ru.kuliev';
-        }
+        state.settings.translation = 'ru.kuliev';
       }
+      try {
+        var trSel = document.getElementById('setting-translation');
+        if (trSel) trSel.value = state.settings.translation;
+      } catch(e) {}
+      try { toast(state.settings.lang === 'kk' ? 'Язык: қазақша, аударма: Алтай' : 'Язык: русский, перевод: Кулиев'); } catch(e) {}
       try {
         const keep = new Set([
           STORAGE_KEY, SALT_KEY, CHECK_KEY,
@@ -10188,6 +10192,12 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.21', kinds: ['f', 'b'], date: '2026-08-07',
+          a: [],
+          b: [ 'Язык интерфейса сразу ставит перевод Корана (kk→Алтай, ru→Кулиев)' ],
+          f: [ 'Статистика: разовый перенос старых заходов на сегодня' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.20', kinds: ['f', 'b', 'd'], date: '2026-08-07',
           a: [],
           b: [ 'Статистика: одна панель периода; блоки «Моя» и «По сайту»' ],
@@ -14693,6 +14703,39 @@ async function renderStats() {
           });
         }
         saveState();
+      } catch(e) {}
+      // Разово: если «день» пуст, а «всего» нет — перенос на сегодня
+      try {
+        if (localStorage.getItem('quran_stats_dayfix_v1') !== '1') {
+          var today = dayKey();
+          var allV = 0, dayV = 0;
+          Object.keys(s.sectionVisits || {}).forEach(function(sid) {
+            var m = s.sectionVisits[sid] || {};
+            Object.keys(m).forEach(function(k) {
+              var val = Number(m[k]) || 0;
+              allV += val;
+              if (k === today) dayV += val;
+            });
+          });
+          if (allV > 0 && dayV === 0) {
+            Object.keys(s.sectionVisits || {}).forEach(function(sid) {
+              var m = s.sectionVisits[sid] || {};
+              var sum = 0;
+              Object.keys(m).forEach(function(k) { sum += Number(m[k]) || 0; });
+              s.sectionVisits[sid] = {};
+              s.sectionVisits[sid][today] = sum;
+            });
+            Object.keys(s.sectionSeconds || {}).forEach(function(sid) {
+              var m = s.sectionSeconds[sid] || {};
+              var sum = 0;
+              Object.keys(m).forEach(function(k) { sum += Number(m[k]) || 0; });
+              s.sectionSeconds[sid] = {};
+              s.sectionSeconds[sid][today] = sum;
+            });
+            saveState();
+          }
+          localStorage.setItem('quran_stats_dayfix_v1', '1');
+        }
       } catch(e) {}
 
       const labels = (typeof SECTION_STAT_LABELS !== 'undefined') ? Object.assign({}, SECTION_STAT_LABELS) : {};
