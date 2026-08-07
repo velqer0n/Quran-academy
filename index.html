@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.18 2026-08-04 -->
+<!-- BUILD 2.19 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.18</title>
+  <title>Коран — Изучение · 2.19</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -3991,11 +3991,20 @@ async function fetchTafsir(surah, ayah) {
     let viewStack = ['home'];
     const MAIN_TABS = new Set(['dailyhub', 'home', 'learn', 'games', 'more']);
     function goBack() {
-      const MORE_SET = new Set(['myreading','data','fiqh','madhhabs','sins','aqidah','sunnahs','family','hadith','hadiths','ihouse','stories','salah','adhkar','qol','names','qdict','cache','settings','export','duabuilder','ramadan','adab','calendar','library','topics','search','changelog','help','prayertimes','account']);
+      const MORE_SET = new Set(['myreading','data','fiqh','madhhabs','sins','aqidah','sunnahs','family','hadith','hadiths','ihouse','stories','salah','adhkar','qol','names','qdict','cache','settings','export','duabuilder','ramadan','adab','calendar','library','topics','search','changelog','help','prayertimes','account','stats','appupdate','dict','sadaqa','ask','sadaqa']);
+      // Если открыли deep без «Ещё» в стеке — вернуть в Ещё
+      if (viewStack.length === 1 && MORE_SET.has(viewStack[0])) {
+        showView('more', true);
+        return;
+      }
       if (viewStack.length > 1) {
         const leaving = viewStack[viewStack.length - 1];
         viewStack.pop();
-        const next = viewStack[viewStack.length - 1] || 'home';
+        let next = viewStack[viewStack.length - 1] || 'home';
+        if (MORE_SET.has(leaving) && MAIN_TABS.has(next) && next !== 'more') {
+          next = 'more';
+          viewStack = ['more'];
+        }
         // Вышли из deep-раздела «Ещё» кнопкой назад — не восстанавливать его при следующем «Ещё»
         if (MORE_SET.has(leaving) && (next === 'more' || MAIN_TABS.has(next))) {
           try {
@@ -4148,7 +4157,15 @@ function showView(name, isBack) {
         const cur = viewStack[viewStack.length - 1];
         if (cur !== name) {
           if (MAIN_TABS.has(name)) viewStack = [name];
-          else viewStack.push(name);
+          else {
+            // разделы «Ещё» — под ними всегда more, чтобы «назад» шло в Ещё
+            const MORE_IDS = new Set(['prayertimes','stats','appupdate','account','settings','help','changelog','data','fiqh','aqidah','hadiths','stories','salah','adhkar','dict','myreading','topics']);
+            if (MORE_IDS.has(name) && cur !== 'more' && !viewStack.includes('more')) {
+              viewStack = ['more', name];
+            } else {
+              viewStack.push(name);
+            }
+          }
           if (viewStack.length > 20) viewStack = viewStack.slice(-20);
         }
       }
@@ -10171,6 +10188,15 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.19', kinds: ['f'], date: '2026-08-07',
+          a: [], b: [],
+          f: [
+            'Статистика: восстановлен sumInPeriod (пустой экран)',
+            'ДУМК: ensureMuftyatCache + загрузка с muftyat.kz',
+            'Назад из времени намаза → Ещё; после обновления остаёмся на экране обновления'
+          ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.17', kinds: ['f', 'b'], date: '2026-08-07',
           a: [],
           b: [ 'Статистика: День/Неделя/Месяц/Год/Всё + кнопки пред/след' ],
@@ -11224,6 +11250,22 @@ function renderSalah() {
 
     // ДУМК / muftyat.kz — официальный API Казахстана
     // https://api.muftyat.kz/prayer-times/{year}/{lat}/{lng}
+    
+    function ensureMuftyatCache(lat, lon, year) {
+      year = year || new Date().getFullYear();
+      try {
+        var cached = loadPrayerCache(lat, lon, year);
+        if (cached && cached.days && Object.keys(cached.days).length > 10)
+          return Promise.resolve(cached);
+      } catch(e) {}
+      return fetchMuftyatYear(lat, lon, year).then(function(data) {
+        if (data && data.days) {
+          try { savePrayerCache(lat, lon, year, data); } catch(e) {}
+        }
+        return data;
+      }).catch(function(){ return null; });
+    }
+
     function fetchMuftyatYear(lat, lon, year) {
       // API чувствителен к точности координат — 6 знаков как в cities/
       const la = (+lat).toFixed(6).replace(/\.?0+$/,'').replace(/\.$/,'');
@@ -11471,13 +11513,31 @@ let body = '';
               body = '<div class="card"><div class="ayah-translation">Выберите страну и город.</div></div>';
             } else {
               let t = resolveDayTimes(+loc.lat, +loc.lon, new Date(), methodKey);
-              if (!t && methodKey === 'DUMK' && typeof ensureMuftyatCache === 'function') {
-                body = '<div class="card"><div class="ayah-translation">Загрузка времён ДУМК (muftyat.kz)…</div></div>';
-                ensureMuftyatCache(+loc.lat, +loc.lon, new Date().getFullYear()).then(function() {
-                  try { if (typeof window._ptPaint === 'function') window._ptPaint(tab); else renderPrayerTimes(); } catch(e) {}
-                });
+              if (!t && methodKey === 'DUMK') {
+                body = '<div class="card"><div class="ayah-translation">Загрузка времён ДУМК с muftyat.kz…</div></div>';
+                var _lat = +loc.lat, _lon = +loc.lon, _y = new Date().getFullYear();
+                var loader = (typeof ensureMuftyatCache === 'function')
+                  ? ensureMuftyatCache(_lat, _lon, _y)
+                  : fetchMuftyatYear(_lat, _lon, _y).then(function(data) {
+                      if (data && data.days) try { savePrayerCache(_lat, _lon, _y, data); } catch(e) {}
+                      return data;
+                    });
+                Promise.resolve(loader).then(function(data) {
+                  try {
+                    if (data && data.days) {
+                      if (typeof window._ptPaint === 'function') window._ptPaint(tab);
+                      else renderPrayerTimes();
+                    } else {
+                      var elb = document.getElementById('prayertimes-body');
+                      if (elb) {
+                        /* keep message */
+                      }
+                      toast('Не удалось загрузить muftyat.kz — проверьте сеть');
+                    }
+                  } catch(e) {}
+                }).catch(function(){ try { toast('Ошибка сети muftyat.kz'); } catch(e) {} });
               } else if (!t) {
-                body = '<div class="card"><div class="ayah-translation">Не удалось получить времена. Для ДУМК нужен интернет (muftyat.kz).</div></div>';
+                body = '<div class="card"><div class="ayah-translation">Не удалось рассчитать времена. Выберите другой метод или проверьте координаты.</div></div>';
               } else {
                 const rows = [
                   ['Фаджр', t.fajr],
@@ -12990,7 +13050,7 @@ function renderDict() {
           if (typeof viewStack !== 'undefined' && viewStack.length)
             last = viewStack[viewStack.length - 1] || 'more';
         } catch(e) {}
-        if (last === 'appupdate') last = 'more';
+        /* после обновления остаёмся на appupdate; назад → Ещё */
         sessionStorage.setItem('quran_last_view', last);
         localStorage.setItem('quran_last_view_persist', last);
         localStorage.setItem('quran_from_update', '1');
@@ -14476,6 +14536,52 @@ function playArabicAudio(text, fallbackRu, opts) {
       });
       return t;
     }
+    function parseDayKey(k) {
+      k = String(k || '').trim().replace(/\//g, '-');
+      var p = k.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (!p) return null;
+      return new Date(+p[1], +p[2] - 1, +p[3]);
+    }
+    function sumInPeriod(map, period, anchor) {
+      if (!map || typeof map !== 'object') return 0;
+      if (period === 'all' || !period) {
+        var t = 0;
+        Object.keys(map).forEach(function(k) {
+          var val = Number(map[k]);
+          if (val && val === val) t += val;
+        });
+        return t;
+      }
+      anchor = anchor || new Date();
+      var y = anchor.getFullYear(), m = anchor.getMonth(), d = anchor.getDate();
+      var start, end;
+      if (period === 'day') {
+        start = new Date(y, m, d); end = new Date(y, m, d);
+      } else if (period === 'week') {
+        end = new Date(y, m, d);
+        start = new Date(y, m, d - 6);
+      } else if (period === 'month') {
+        start = new Date(y, m, 1);
+        end = new Date(y, m + 1, 0);
+      } else if (period === 'year') {
+        start = new Date(y, 0, 1);
+        end = new Date(y, 11, 31);
+      } else {
+        return sumInPeriod(map, 'all');
+      }
+      var st = start.getTime(), en = end.getTime();
+      var total = 0;
+      Object.keys(map).forEach(function(k) {
+        var val = Number(map[k]);
+        if (!val || val !== val) return;
+        var dt = parseDayKey(k);
+        if (!dt || isNaN(dt.getTime())) return;
+        var t = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+        if (t >= st && t <= en) total += val;
+      });
+      return total;
+    }
+
 function sumInMonth(map, year, month) {
       if (!map) return 0;
       var t = 0;
@@ -19913,15 +20019,25 @@ function startApp() {
         // Восстановить последний раздел (в т.ч. из «Ещё»), иначе dailyhub
         let restoreView = 'dailyhub';
         try {
-          const last = sessionStorage.getItem('quran_last_view');
-          const deep = sessionStorage.getItem('quran_more_deep') || (state && state.moreDeep);
-          // Приоритет: последний экран (если не reader), иначе deep из «Ещё»
-          if (last && last !== 'reader' && document.getElementById('view-' + last)) {
-            restoreView = last;
-            if (deep) state.moreDeep = deep;
-          } else if (deep && document.getElementById('view-' + deep)) {
-            restoreView = deep;
-            state.moreDeep = deep;
+          // После «Обновить приложение» — остаёмся на appupdate, стек more→appupdate
+          if (localStorage.getItem('quran_from_update') === '1') {
+            localStorage.removeItem('quran_from_update');
+            restoreView = 'appupdate';
+            try { viewStack = ['more', 'appupdate']; } catch(e) {}
+            try { sessionStorage.setItem('quran_last_view', 'appupdate'); } catch(e) {}
+          } else {
+            const last = sessionStorage.getItem('quran_last_view') || localStorage.getItem('quran_last_view_persist');
+            const deep = sessionStorage.getItem('quran_more_deep') || (state && state.moreDeep);
+            if (last && last !== 'reader' && document.getElementById('view-' + last)) {
+              restoreView = last;
+              if (deep) state.moreDeep = deep;
+              if (last === 'appupdate' || last === 'prayertimes' || last === 'stats' || last === 'account') {
+                try { viewStack = ['more', last]; } catch(e) {}
+              }
+            } else if (deep && document.getElementById('view-' + deep)) {
+              restoreView = deep;
+              state.moreDeep = deep;
+            }
           }
         } catch(e) {}
         showView(restoreView);
