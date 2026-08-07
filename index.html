@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.17 2026-08-04 -->
+<!-- BUILD 2.32 2026-08-07 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.33</title>
+  <title>Коран — Изучение · 2.32</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -416,9 +416,17 @@
     }
     #lock-screen.hidden { display: none; }
     body.app-locked .audio-bar,
-    body.app-locked #audio-player,
-    body.app-locked #lock-player-slot { display: none !important; visibility: hidden !important; }
-    #lock-screen { z-index: 10050 !important; }
+    body.app-locked .audio-bar.visible,
+    body.app-locked #audio-bar {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+    body.app-locked #audio-player { display: none !important; }
+    body.app-locked #device-mode-btn { display: none !important; }
+    #lock-screen { z-index: 10050; }
+    .audio-bar { z-index: 35; }
     .lock-box {
       width: 100%;
       max-width: 360px;
@@ -885,7 +893,7 @@
       color: var(--text-muted);
       margin-top: 0.25rem;
     }
-    .letter-detail {
+    .letter-detail .ayah-translation{unicode-bidi:isolate;direction:ltr;text-align:center}.letter-detail {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 1rem;
@@ -1388,9 +1396,24 @@
     body.mode-desktop #app,
     body.mode-desktop main,
     body.mode-desktop .view.active {
-      max-width: var(--content-max, 1100px);
+      max-width: var(--content-max, 1400px);
+      width: 100%;
       margin-left: auto;
       margin-right: auto;
+      padding-left: 1.25rem;
+      padding-right: 1.25rem;
+      box-sizing: border-box;
+    }
+    body.mode-desktop header .header-inner {
+      max-width: var(--content-max, 1400px);
+      width: 100%;
+      margin: 0 auto;
+      padding-left: 1.25rem;
+      padding-right: 1.25rem;
+      box-sizing: border-box;
+    }
+    body.mode-desktop .card {
+      max-width: 100%;
     }
     body.mode-desktop .bottom-nav {
       max-width: var(--content-max, 1100px);
@@ -1544,7 +1567,7 @@
         <div class="logo">📖 <span>Коран</span></div>
         <button type="button" class="lock-btn-header" id="btn-lock-app" title="Заблокировать приложение">🔒</button>
       </div>
-      <nav>
+      <nav id="main-nav">
         <button data-view="dailyhub" class="active">Ежедневное</button>
         <button data-view="home">Суры</button>
         <button data-view="learn">Теория</button>
@@ -1991,43 +2014,27 @@
       <div class="tabs-row" style="margin-bottom:0.75rem;flex-wrap:wrap" id="settings-cats">
         <button type="button" class="btn btn-sm btn-primary" data-set-cat="lang">Язык</button>
         <button type="button" class="btn btn-sm" data-set-cat="audio">Аудио</button>
-        <button type="button" class="btn btn-sm" data-set-cat="look">Вид</button>
+        <button type="button" class="btn btn-sm" data-set-cat="view">Вид</button>
         <button type="button" class="btn btn-sm" data-set-cat="fonts">Шрифты</button>
-        <button type="button" class="btn btn-sm" data-set-cat="security">Пароли</button>
         <button type="button" class="btn btn-sm" data-set-cat="read">Чтение</button>
         <button type="button" class="btn btn-sm" data-set-cat="offline">Офлайн</button>
+        <button type="button" class="btn btn-sm" data-set-cat="security">Пароли</button>
         <button type="button" class="btn btn-sm" data-set-cat="other">Другое</button>
         <button type="button" class="btn btn-sm" data-set-cat="morecfg">Меню</button>
       </div>
       
-      <div class="card set-cat" data-set-panel="security" style="display:none;margin-bottom:0.75rem">
-        <b>🔐 Пароли</b>
-        <div class="setting-row">
-          <span>Пароль при входе</span>
-          <select id="setting-app-lock">
-            <option value="1">Вкл</option>
-            <option value="0">Выкл</option>
-          </select>
-        </div>
-        <div class="setting-row">
-          <span>Сменить пароль блокировки</span>
-          <button type="button" class="btn btn-sm" id="btn-change-lock-pin">Изменить</button>
-        </div>
-        <p class="ayah-translation" style="font-size:0.85rem;margin-top:0.4rem">Пароль аккаунта — в «Мой аккаунт».</p>
-      </div>
-<div class="card set-cat" data-set-panel="morecfg" style="display:none;margin-bottom:0.75rem">
+      <div class="card set-cat" data-set-panel="morecfg" style="display:none;margin-bottom:0.75rem">
         <b>📋 Списки и разделы меню</b>
         <div class="ayah-translation" style="margin:0.4rem 0;font-size:0.85rem">До 8 списков. Пустой список не показывается. Скрытые разделы пропадают из меню.</div>
         <div id="morecfg-lists"></div>
-        <div style="margin:0.75rem 0;padding-top:0.5rem;border-top:1px solid var(--border)">
-          <b>Порядок главных разделов</b>
-          <div class="ayah-translation" style="font-size:0.85rem;margin:0.3rem 0">Кроме «Ещё»</div>
-          <div id="main-tabs-order" style="display:flex;flex-direction:column;gap:0.35rem"></div>
-        </div>
         <div style="margin-top:0.75rem;display:flex;gap:0.4rem;flex-wrap:wrap">
           <input type="text" id="morecfg-newlist" placeholder="Имя нового списка" style="flex:1;min-width:120px;padding:0.45rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">
           <button type="button" class="btn btn-sm btn-primary" id="morecfg-addlist">+ Список</button><button type="button" class="btn btn-sm" id="morecfg-reset">Сброс</button>
         </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+        <b>Порядок главных разделов</b>
+        <div class="ayah-translation" style="margin:0.35rem 0;font-size:0.82rem">Кроме «Ещё». Стрелки ↑ ↓ меняют порядок нижнего меню и шапки.</div>
+        <div id="main-tabs-order" style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:0.75rem"></div>
         <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
         <b>Разделы (показать / скрыть)</b>
         <div id="morecfg-sections" style="margin-top:0.5rem;max-height:50vh;overflow:auto"></div>
@@ -2035,22 +2042,23 @@
 
       <div class="card set-cat" data-set-panel="lang" style="margin-bottom:0.75rem">
         <b>🌐 Язык и перевод</b>
+        <div class="ayah-translation" style="margin:0.35rem 0 0.15rem;font-size:0.82rem">Язык интерфейса сразу подставляет перевод Корана</div>
         <div class="setting-row" style="margin-top:0.5rem">
-          <span data-i18n="lang_label">Язык / Тіл</span>
+          <span>Язык интерфейса</span>
           <select id="setting-lang">
             <option value="ru">Русский</option>
             <option value="kk">Қазақша</option>
           </select>
         </div>
         <div class="setting-row">
-          <span>Перевод</span>
+          <span>Перевод Корана</span>
           <select id="setting-translation">
-            <option value="kk.altai">Қазақша (Халифа Алтай)</option>
-            <option value="ru.kuliev">Кулиев</option>
-            <option value="ru.osmanov">Османов</option>
-            <option value="ru.porokhova">Порохова</option>
-            <option value="ru.abuadel">Абу Адель</option>
-            <option value="ru.krachkovsky">Крачковский</option>
+            <option value="ru.kuliev">Русский — Кулиев</option>
+            <option value="ru.osmanov">Русский — Османов</option>
+            <option value="ru.porokhova">Русский — Порохова</option>
+            <option value="ru.abuadel">Русский — Абу Адель</option>
+            <option value="ru.krachkovsky">Русский — Крачковский</option>
+            <option value="kk.altai">Қазақша — Халифа Алтай</option>
           </select>
         </div>
       </div>
@@ -2081,8 +2089,8 @@
           <div class="ayah-translation" style="font-size:0.8rem">Только запись муэдзина, без машинного голоса.</div>
         </div>
         </div>
-      <div class="card set-cat" data-set-panel="look" style="margin-bottom:0.75rem;display:none">
-        <b>🎨 Внешний вид и шрифты</b>
+      <div class="card set-cat" data-set-panel="fonts" style="margin-bottom:0.75rem;display:none">
+        <b>🔤 Шрифты и размеры</b>
         <div style="margin:0.5rem 0 0.35rem;font-weight:600;font-size:0.9rem;color:var(--text-muted)">Меняется сразу</div>
         <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem">
           <span>Размер арабского текста</span>
@@ -2113,6 +2121,36 @@
             <button type="button" class="size-pick-item" data-v="1.1" style="font-size:1.1rem">Аят<div style="font-size:0.7rem">Бол.</div></button>
           </div>
         </div>
+        <div style="margin:0.85rem 0 0.35rem;font-weight:600;font-size:0.9rem;color:var(--text-muted)">Учёба (теория / практика)</div>
+        <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem">
+          <span>Размер арабского (учёба)</span>
+          <select id="setting-font-ar" style="display:none">
+            <option value="1">Обычный</option>
+            <option value="1.15">Крупнее</option>
+            <option value="1.3">Большой</option>
+            <option value="1.5">Очень большой</option>
+          </select>
+          <div class="size-pick-list" id="pick-font-ar">
+            <button type="button" class="size-pick-item" data-v="1"><span class="arabic" style="font-size:1rem" dir="rtl">نص</span><div style="font-size:0.7rem">Обычн.</div></button>
+            <button type="button" class="size-pick-item" data-v="1.15"><span class="arabic" style="font-size:1.15rem" dir="rtl">نص</span><div style="font-size:0.7rem">Крупн.</div></button>
+            <button type="button" class="size-pick-item" data-v="1.3"><span class="arabic" style="font-size:1.3rem" dir="rtl">نص</span><div style="font-size:0.7rem">Больш.</div></button>
+            <button type="button" class="size-pick-item" data-v="1.5"><span class="arabic" style="font-size:1.5rem" dir="rtl">نص</span><div style="font-size:0.7rem">Оч.б.</div></button>
+          </div>
+        </div>
+        <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem">
+          <span>Размер русского (учёба)</span>
+          <select id="setting-font-ru" style="display:none">
+            <option value="1">Обычный</option>
+            <option value="1.1">Крупнее</option>
+            <option value="1.25">Большой</option>
+          </select>
+          <div class="size-pick-list" id="pick-font-ru">
+            <button type="button" class="size-pick-item" data-v="1" style="font-size:0.9rem">Текст<div style="font-size:0.7rem">Обычн.</div></button>
+            <button type="button" class="size-pick-item" data-v="1.1" style="font-size:1rem">Текст<div style="font-size:0.7rem">Крупн.</div></button>
+            <button type="button" class="size-pick-item" data-v="1.25" style="font-size:1.15rem">Текст<div style="font-size:0.7rem">Больш.</div></button>
+          </div>
+        </div>
+
         <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem">
           <span>Шрифт Корана (араб.)</span>
           <select id="setting-arabic-font" style="display:none">
@@ -2162,8 +2200,8 @@
           </div>
         </div>
         </div>
-      <div class="card set-cat" data-set-panel="look" style="margin-bottom:0.75rem;display:none">
-        <b>🌓 Тема оформления</b>
+      <div class="card set-cat" data-set-panel="view" style="margin-bottom:0.75rem;display:none">
+        <b>🌓 Вид и тема</b>
         <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem;margin-top:0.5rem">
           <span>Тема</span>
           <select id="setting-theme" style="display:none">
@@ -2179,7 +2217,13 @@
             <button type="button" class="size-pick-item" data-v="night" style="background:#1c1917;color:#d6b27c">Ночное</button>
           </div>
         </div>
-
+        <div class="setting-row">
+          <span>Ночной режим (22:00–6:00)</span>
+          <select id="setting-night-auto">
+            <option value="0">Выкл</option>
+            <option value="1">Вкл</option>
+          </select>
+        </div>
       </div>
       <div class="card set-cat" data-set-panel="read" style="margin-bottom:0.75rem;display:none">
         <b>📖 Чтение и тафсир</b>
@@ -2226,7 +2270,22 @@
         </div>
 
       </div>
-      <div class="card set-cat" data-set-panel="other" style="margin-bottom:0.75rem;display:none">
+            <div class="card set-cat" data-set-panel="security" style="margin-bottom:0.75rem;display:none">
+        <b>🔐 Пароли и блокировка</b>
+        <div class="setting-row" style="margin-top:0.5rem">
+          <span>Пароль при входе<br><small style="color:var(--text-muted);font-weight:400">Блокировка при открытии сайта</small></span>
+          <select id="setting-app-lock">
+            <option value="1">Вкл</option>
+            <option value="0">Выкл</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>Сменить пароль блокировки</span>
+          <button type="button" class="btn btn-sm" id="btn-change-lock-pin">Изменить</button>
+        </div>
+        <div class="ayah-translation" style="margin-top:0.5rem;font-size:0.82rem">Пароль приложения шифрует локальные данные на устройстве. Это не пароль аккаунта сайта.</div>
+      </div>
+<div class="card set-cat" data-set-panel="other" style="margin-bottom:0.75rem;display:none">
         <b>⚙️ Прочее</b>
         <div class="setting-row" style="margin-top:0.5rem">
           <span>Мазхаб (для намаза)</span>
@@ -2254,57 +2313,15 @@
           </select>
         </div>
         <div class="setting-row">
-          <span>Ночной режим (22:00–6:00)</span>
-          <select id="setting-night-auto">
-            <option value="0">Выкл</option>
-            <option value="1">Вкл</option>
-          </select>
-        </div>
-        <div class="setting-row">
           <span>Скрыть транскрипцию/перевод в учёбе</span>
           <select id="setting-hide-study-tr">
             <option value="0">Показывать</option>
             <option value="1">Скрыть</option>
           </select>
         </div>
-        <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem">
-          <span>Размер арабского (учёба)</span>
-          <select id="setting-font-ar" style="display:none">
-            <option value="1">Обычный</option>
-            <option value="1.15">Крупнее</option>
-            <option value="1.3">Большой</option>
-            <option value="1.5">Очень большой</option>
-          </select>
-          <div class="size-pick-list" id="pick-font-ar">
-            <button type="button" class="size-pick-item" data-v="1"><span class="arabic" style="font-size:1rem" dir="rtl">نص</span><div style="font-size:0.7rem">Обычн.</div></button>
-            <button type="button" class="size-pick-item" data-v="1.15"><span class="arabic" style="font-size:1.15rem" dir="rtl">نص</span><div style="font-size:0.7rem">Крупн.</div></button>
-            <button type="button" class="size-pick-item" data-v="1.3"><span class="arabic" style="font-size:1.3rem" dir="rtl">نص</span><div style="font-size:0.7rem">Больш.</div></button>
-            <button type="button" class="size-pick-item" data-v="1.5"><span class="arabic" style="font-size:1.5rem" dir="rtl">نص</span><div style="font-size:0.7rem">Оч.б.</div></button>
-          </div>
-        </div>
-        <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem">
-          <span>Размер русского (учёба)</span>
-          <select id="setting-font-ru" style="display:none">
-            <option value="1">Обычный</option>
-            <option value="1.1">Крупнее</option>
-            <option value="1.25">Большой</option>
-          </select>
-          <div class="size-pick-list" id="pick-font-ru">
-            <button type="button" class="size-pick-item" data-v="1" style="font-size:0.9rem">Текст<div style="font-size:0.7rem">Обычн.</div></button>
-            <button type="button" class="size-pick-item" data-v="1.1" style="font-size:1rem">Текст<div style="font-size:0.7rem">Крупн.</div></button>
-            <button type="button" class="size-pick-item" data-v="1.25" style="font-size:1.15rem">Текст<div style="font-size:0.7rem">Больш.</div></button>
-          </div>
-        </div>
-        <div class="setting-row">
+                <div class="setting-row">
           <span>Блокировка уроков академии<br><small style="color:var(--text-muted);font-weight:400">Открывать следующий только после предыдущего</small></span>
           <select id="setting-acad-seq">
-            <option value="1">Вкл</option>
-            <option value="0">Выкл</option>
-          </select>
-        </div>
-        <div class="setting-row">
-          <span>Пароль при входе<br><small style="color:var(--text-muted);font-weight:400">Шифрование заметок и прогресса</small></span>
-          <select id="setting-app-lock">
             <option value="1">Вкл</option>
             <option value="0">Выкл</option>
           </select>
@@ -2509,10 +2526,6 @@
       if (btn) btn.textContent = (aud && !aud.paused && aud.src) ? '⏸' : '▶';
     }
     function renderLockPlayer() {
-      var slot = document.getElementById('lock-player-slot');
-      if (slot) { slot.innerHTML = ''; slot.style.display = 'none'; }
-      return;
-      function __dead_renderLockPlayer() {
       const slot = document.getElementById('lock-player-slot');
       if (!slot) return;
       // Стабильный DOM — не мигает при смене аята
@@ -2586,8 +2599,6 @@
       updateLockPlayerLabels();
     }
 
-    }
-
     function lockScreenSetupUI(err) {
       const box = document.getElementById('lock-box');
       box.innerHTML =
@@ -2598,6 +2609,7 @@
         '<input type="password" id="lock-pass2" placeholder="Повторите пароль" autocomplete="new-password">' +
         '<button type="button" class="lock-submit" id="lock-setup-btn">Создать и продолжить</button>' +
         '<div class="lock-error">' + (err || '') + '</div>';
+      try { wrapPasswordEye('lock-pass1'); wrapPasswordEye('lock-pass2'); } catch(e) {}
       document.getElementById('lock-setup-btn').addEventListener('click', async () => {
         const p1 = document.getElementById('lock-pass1').value;
         const p2 = document.getElementById('lock-pass2').value;
@@ -2613,7 +2625,7 @@
           localStorage.setItem(CHECK_KEY, JSON.stringify(check));
           cryptoKey = key;
           try { localStorage.setItem('quran_app_lock_v1', '1'); } catch(e) {}
-          document.getElementById('lock-screen').classList.add('hidden');try{document.body.classList.remove('app-locked');}catch(e){};
+          document.getElementById('lock-screen').classList.add('hidden'); try{document.body.classList.remove('app-locked');}catch(e){};
           loadState(null);
           startApp();
         } catch (e) {
@@ -2625,6 +2637,11 @@
 
     function lockScreenUnlockUI() {
       const box = document.getElementById('lock-box');
+      try { document.body.classList.add('app-locked'); } catch(e) {}
+      try {
+        var bar = document.getElementById('audio-bar');
+        if (bar) { bar.classList.remove('visible'); bar.style.display = 'none'; }
+      } catch(e) {}
       box.innerHTML =
         '<div class="lock-icon">🔒</div>' +
         '<h2>Приложение заблокировано</h2>' +
@@ -2632,12 +2649,12 @@
         '<input type="password" id="lock-pass" placeholder="Пароль" autocomplete="current-password">' +
         '<button type="button" class="lock-submit" id="lock-unlock-btn">Разблокировать</button>' +
         '<div class="lock-error"></div>' +
-        '<div id="lock-player-slot"></div>' +
+        '<div id="lock-player-slot" style="display:none"></div>' +
         '<div style="margin-top:0.75rem;font-size:0.8rem;line-height:1.45;opacity:0.85">' +
         '<button type="button" class="lock-reset-link" id="lock-reset-btn" style="display:block;margin:0.35rem auto">Забыли пароль приложения — стереть локальные данные</button>' +
         '<div style="font-size:0.72rem;opacity:0.75;margin-top:0.25rem">Это не аккаунт сайта. Сброс удалит данные только на этом устройстве.</div></div>';
-      // Плеер на экране блокировки не показываем
-      try { var ps = document.getElementById('lock-player-slot'); if (ps) ps.innerHTML = ''; } catch(e) {}
+      try { wrapPasswordEye('lock-pass'); } catch(e) {}
+      try { document.getElementById('lock-pass')?.focus(); } catch(e) {}
       const submit = async () => {
         const pass = document.getElementById('lock-pass').value;
         const errEl = box.querySelector('.lock-error');
@@ -2645,12 +2662,20 @@
         if (cryptoKey && typeof startApp === 'function' && document.getElementById('view-home')) {
           // если пароль пустой или верный — скрыть; если введён — проверить
           if (!pass) {
-            document.getElementById('lock-screen').classList.add('hidden');try{document.body.classList.remove('app-locked');}catch(e){};
+            document.getElementById('lock-screen').classList.add('hidden'); try{document.body.classList.remove('app-locked');}catch(e){};
             try {
-              var v = (typeof viewStack !== 'undefined' && viewStack.length) ? viewStack[viewStack.length-1] : 'dailyhub';
+              var v = null;
+              try { v = sessionStorage.getItem('quran_last_view'); } catch(e) {}
+              if (!v) {
+                try {
+                  if (typeof viewStack !== 'undefined' && viewStack.length)
+                    v = viewStack[viewStack.length-1];
+                } catch(e) {}
+              }
+              if (!v || v === 'reader') v = 'dailyhub';
               if (typeof showView === 'function') showView(v, true);
               else if (typeof startApp === 'function') startApp();
-            } catch(e) {}
+            } catch(e) { try { startApp(); } catch(e2) {} }
             return;
           }
         }
@@ -2666,16 +2691,24 @@
           cryptoKey = key;
           // если приложение уже запущено — только снять оверлей
           if (document.getElementById('view-home') || document.getElementById('view-dailyhub')) {
-            document.getElementById('lock-screen').classList.add('hidden');try{document.body.classList.remove('app-locked');}catch(e){};
+            document.getElementById('lock-screen').classList.add('hidden'); try{document.body.classList.remove('app-locked');}catch(e){};
             try {
-              var v = (typeof viewStack !== 'undefined' && viewStack.length) ? viewStack[viewStack.length-1] : 'dailyhub';
-              if (typeof showView === 'function') showView(v || 'dailyhub', true);
+              var v = null;
+              try { v = sessionStorage.getItem('quran_last_view'); } catch(e) {}
+              if (!v) {
+                try {
+                  if (typeof viewStack !== 'undefined' && viewStack.length)
+                    v = viewStack[viewStack.length-1];
+                } catch(e) {}
+              }
+              if (!v || v === 'reader') v = 'dailyhub';
+              if (typeof showView === 'function') showView(v, true);
               else if (typeof startApp === 'function') startApp();
             } catch(e) { try { startApp(); } catch(e2) {} }
             return;
           }
           const raw = await decryptMainBlob(key);
-          document.getElementById('lock-screen').classList.add('hidden');try{document.body.classList.remove('app-locked');}catch(e){};
+          document.getElementById('lock-screen').classList.add('hidden'); try{document.body.classList.remove('app-locked');}catch(e){};
           loadState(raw);
           startApp();
         } catch (e) {
@@ -2731,10 +2764,22 @@
         try {
           if (state.lastAudio) localStorage.setItem('quran_last_audio_v1', JSON.stringify(state.lastAudio));
         } catch(e) {}
+        try {
+          var cur = (typeof viewStack !== 'undefined' && viewStack.length) ? viewStack[viewStack.length-1] : null;
+          if (cur) {
+            sessionStorage.setItem('quran_last_view', cur);
+            localStorage.setItem('quran_last_view_persist', cur);
+          }
+        } catch(e) {}
+        try { document.body.classList.add('app-locked'); } catch(e) {}
+        try {
+          var bar = document.getElementById('audio-bar');
+          if (bar) { bar.classList.remove('visible'); bar.style.display = 'none'; }
+        } catch(e) {}
         const lock = document.getElementById('lock-screen');
         if (lock) lock.classList.remove('hidden');
         lockScreenUnlockUI();
-        try { renderLockPlayer(); try{wrapPasswordEye('lock-pass');wrapPasswordEye('lock-pass1');wrapPasswordEye('lock-pass2');}catch(e){} } catch(e) {}
+        // плеер на экране блокировки не показываем
       });
 
       // App lock disabled → skip password UI
@@ -2919,7 +2964,7 @@
       libraryFolders: [{ id: 'default', name: 'Общие' }],
       sunnahLog: {},
       academyProgress: {}, // lessonId -> {done:true, ts}
-      prayerLoc: { lat: 43.2380, lon: 76.9450, city: 'Алматы', country: 'KZ' }
+      prayerLoc: { lat: 43.238293, lon: 76.945465, city: 'Алматы', country: 'KZ' }
     };
     // Метод расчёта по умолчанию — ДУМК
     if (!state.settings.prayerMethod) state.settings.prayerMethod = 'DUMK';
@@ -2948,8 +2993,21 @@
         if (saved.lastBookmarkFolder) state.lastBookmarkFolder = saved.lastBookmarkFolder;
         if (!state.settings.prayerMethod) state.settings.prayerMethod = 'DUMK';
         if (!state.prayerLoc || state.prayerLoc.lat == null) {
-          state.prayerLoc = { lat: 43.2380, lon: 76.9450, city: 'Алматы', country: 'KZ' };
+          state.prayerLoc = { lat: 43.238293, lon: 76.945465, city: 'Алматы', country: 'KZ' };
         }
+        // старые округлённые координаты Алматы → точные (иначе muftyat 404)
+        try {
+          if (state.prayerLoc && (state.prayerLoc.city || '').indexOf('Алмат') >= 0) {
+            var pla = +state.prayerLoc.lat, plo = +state.prayerLoc.lon;
+            if (Math.abs(pla - 43.238293) > 0.00001 || Math.abs(plo - 76.945465) > 0.00001) {
+              if (Math.abs(pla - 43.24) < 0.02 && Math.abs(plo - 76.95) < 0.02) {
+                state.prayerLoc.lat = 43.238293;
+                state.prayerLoc.lon = 76.945465;
+                try { saveState(); } catch(e) {}
+              }
+            }
+          }
+        } catch(e) {}
       } catch (e) { console.warn('loadState', e); }
     }
 
@@ -4018,14 +4076,23 @@ async function fetchTafsir(surah, ayah) {
 
     // ========== VIEWS ==========
 
-    let viewStack = ['home'];
+    let viewStack = ['dailyhub'];
     const MAIN_TABS = new Set(['dailyhub', 'home', 'learn', 'games', 'more']);
     function goBack() {
-      const MORE_SET = new Set(['myreading','data','fiqh','madhhabs','sins','aqidah','sunnahs','family','hadith','hadiths','ihouse','stories','salah','adhkar','qol','names','qdict','cache','settings','export','duabuilder','ramadan','adab','calendar','library','topics','search','changelog','help','prayertimes','account']);
+      const MORE_SET = new Set(['myreading','data','fiqh','madhhabs','sins','aqidah','sunnahs','family','hadith','hadiths','ihouse','stories','salah','adhkar','qol','names','qdict','cache','settings','export','duabuilder','ramadan','adab','calendar','library','topics','search','changelog','help','prayertimes','account','stats','appupdate','dict','sadaqa','ask','sadaqa']);
+      // Если открыли deep без «Ещё» в стеке — вернуть в Ещё
+      if (viewStack.length === 1 && MORE_SET.has(viewStack[0])) {
+        showView('more', true);
+        return;
+      }
       if (viewStack.length > 1) {
         const leaving = viewStack[viewStack.length - 1];
         viewStack.pop();
-        const next = viewStack[viewStack.length - 1] || 'home';
+        let next = viewStack[viewStack.length - 1] || 'home';
+        if (MORE_SET.has(leaving) && MAIN_TABS.has(next) && next !== 'more') {
+          next = 'more';
+          viewStack = ['more'];
+        }
         // Вышли из deep-раздела «Ещё» кнопкой назад — не восстанавливать его при следующем «Ещё»
         if (MORE_SET.has(leaving) && (next === 'more' || MAIN_TABS.has(next))) {
           try {
@@ -4043,7 +4110,7 @@ async function fetchTafsir(surah, ayah) {
           } catch(e) {}
           viewStack = ['more'];
           showView('more', true);
-        } else showView('home', true);
+        } else showView('dailyhub', true);
       }
     }
 
@@ -4172,97 +4239,38 @@ async function fetchTafsir(surah, ayah) {
       return name;
     }
 
-
-    function wrapPasswordEye(inputId) {
-      var inp = document.getElementById(inputId);
-      if (!inp || inp.dataset.eye === '1') return;
-      inp.dataset.eye = '1';
-      var wrap = document.createElement('div');
-      wrap.style.cssText = 'position:relative;width:100%';
-      inp.parentNode.insertBefore(wrap, inp);
-      wrap.appendChild(inp);
-      inp.style.paddingRight = '2.5rem';
-      inp.style.boxSizing = 'border-box';
-      inp.style.width = '100%';
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = '👁';
-      btn.style.cssText = 'position:absolute;right:0.35rem;top:50%;transform:translateY(-50%);border:0;background:transparent;cursor:pointer;font-size:1.05rem;padding:0.2rem';
-      btn.onclick = function() {
-        if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
-        else { inp.type = 'password'; btn.textContent = '👁'; }
-      };
-      wrap.appendChild(btn);
-    }
-    document.addEventListener('click', function(ev) {
-      // th-add-surah-click
-      if (ev.target && ev.target.id === 'th-add-surah') {
-        var n = parseInt(prompt('Номер суры 1–114:'), 10);
-        if (!n || n<1 || n>114) return;
-        var c = JSON.parse(localStorage.getItem('quran_theory_custom')||'{"surahs":[],"ayahs":[]}');
-        if (c.surahs.indexOf(n)<0) c.surahs.push(n);
-        c.surahs.sort(function(a,b){return a-b;});
-        localStorage.setItem('quran_theory_custom', JSON.stringify(c));
-        toast('Сура '+n+' в теории');
-        try{renderStudySurahs();}catch(e){}
-        return;
-      }
-      if (ev.target && ev.target.id === 'th-add-ayah') {
-        var s = parseInt(prompt('Сура:'),10), a = parseInt(prompt('Аят:'),10);
-        if (!s||!a) return;
-        var c = JSON.parse(localStorage.getItem('quran_theory_custom')||'{"surahs":[],"ayahs":[]}');
-        if (!c.ayahs.some(function(x){return x.s===s&&x.a===a;})) c.ayahs.push({s:s,a:a});
-        localStorage.setItem('quran_theory_custom', JSON.stringify(c));
-        toast('Аят '+s+':'+a+' добавлен');
-        try{renderStudySurahs();}catch(e){}
-        return;
-      }
-      var btn = ev.target.closest && ev.target.closest('.les-more-btn');
-      if (!btn) return;
-      var card = btn.closest('.rule-card') || btn.parentNode;
-      var full = card && card.querySelector('.les-full');
-      var short = card && card.querySelector('.les-short');
-      if (!full) return;
-      if (full.style.display === 'none' || !full.style.display) {
-        full.style.display = 'block';
-        if (short) short.style.display = 'none';
-        btn.textContent = '🔼 Скрыть';
-      } else {
-        full.style.display = 'none';
-        if (short) short.style.display = '';
-        btn.textContent = '📖 Подробнее';
-      }
-    });
-    
-    function getMainTabOrder() {
+function getMainTabOrder() {
       var def = ['dailyhub','home','learn','games'];
       try {
-        var o = JSON.parse(localStorage.getItem('quran_main_tabs_order')||'null');
+        var o = JSON.parse(localStorage.getItem('quran_main_tabs_order') || 'null');
         if (Array.isArray(o) && o.length) {
-          var ok = o.filter(function(id){ return def.indexOf(id)>=0; });
-          def.forEach(function(id){ if (ok.indexOf(id)<0) ok.push(id); });
+          var ok = o.filter(function(id){ return def.indexOf(id) >= 0; });
+          def.forEach(function(id){ if (ok.indexOf(id) < 0) ok.push(id); });
           return ok;
         }
       } catch(e) {}
       return def;
     }
     function applyMainTabsOrder() {
-      var order = getMainTabOrder().concat(['more']);
-      function reorder(container) {
+      var order = getMainTabOrder();
+      var labels = { dailyhub:'Ежедневное', home:'Суры', learn:'Теория', games:'Практика', more:'Ещё' };
+      function reorder(container, attr) {
         if (!container) return;
         var map = {};
-        Array.prototype.forEach.call(container.querySelectorAll('[data-view]'), function(btn) {
-          map[btn.getAttribute('data-view')] = btn;
+        Array.prototype.forEach.call(container.querySelectorAll('['+attr+']'), function(btn) {
+          map[btn.getAttribute(attr)] = btn;
         });
-        order.forEach(function(id){ if (map[id]) container.appendChild(map[id]); });
+        order.concat(['more']).forEach(function(id) {
+          if (map[id]) container.appendChild(map[id]);
+        });
       }
-      reorder(document.getElementById('main-nav'));
-      reorder(document.querySelector('.bottom-nav'));
+      reorder(document.getElementById('main-nav'), 'data-view');
+      reorder(document.querySelector('.bottom-nav'), 'data-view');
     }
     function renderMainTabsOrder() {
       var el = document.getElementById('main-tabs-order');
       if (!el) return;
-      var labels = {dailyhub:'Ежедневное', home:'Суры', learn:'Теория', games:'Практика'};
+      var labels = { dailyhub:'Ежедневное', home:'Суры', learn:'Теория', games:'Практика' };
       var order = getMainTabOrder();
       el.innerHTML = order.map(function(id, idx) {
         return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:0.45rem;background:var(--bg)">' +
@@ -4272,28 +4280,88 @@ async function fetchTafsir(surah, ayah) {
       }).join('');
       el.querySelectorAll('.mt-up').forEach(function(btn) {
         btn.onclick = function() {
-          var i = +btn.getAttribute('data-i'); if (i<=0) return;
-          var o = getMainTabOrder(); var t=o[i-1]; o[i-1]=o[i]; o[i]=t;
+          var i = +btn.getAttribute('data-i');
+          if (i <= 0) return;
+          var o = getMainTabOrder();
+          var t = o[i-1]; o[i-1] = o[i]; o[i] = t;
           localStorage.setItem('quran_main_tabs_order', JSON.stringify(o));
-          renderMainTabsOrder(); applyMainTabsOrder();
+          renderMainTabsOrder();
+          applyMainTabsOrder();
         };
       });
       el.querySelectorAll('.mt-dn').forEach(function(btn) {
         btn.onclick = function() {
-          var i = +btn.getAttribute('data-i'); var o = getMainTabOrder(); if (i>=o.length-1) return;
-          var t=o[i+1]; o[i+1]=o[i]; o[i]=t;
+          var i = +btn.getAttribute('data-i');
+          var o = getMainTabOrder();
+          if (i >= o.length-1) return;
+          var t = o[i+1]; o[i+1] = o[i]; o[i] = t;
           localStorage.setItem('quran_main_tabs_order', JSON.stringify(o));
-          renderMainTabsOrder(); applyMainTabsOrder();
+          renderMainTabsOrder();
+          applyMainTabsOrder();
         };
       });
     }
+    function setAppLocked(on) {
+      try {
+        document.body.classList.toggle('app-locked', !!on);
+        var ls = document.getElementById('lock-screen');
+        if (ls) {
+          if (on) ls.classList.remove('hidden');
+          else ls.classList.add('hidden');
+        }
+        var bar = document.querySelector('.audio-bar');
+        if (bar && on) bar.style.display = 'none';
+      } catch(e) {}
+    }
+    
+    function wrapPasswordEye(inputId) {
+      var inp = document.getElementById(inputId);
+      if (!inp || inp.dataset.eye === '1') return;
+      inp.dataset.eye = '1';
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'position:relative;width:100%';
+      inp.parentNode.insertBefore(wrap, inp);
+      wrap.appendChild(inp);
+      inp.style.paddingRight = '2.5rem';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.setAttribute('aria-label', 'Показать пароль');
+      btn.textContent = '👁';
+      btn.style.cssText = 'position:absolute;right:0.4rem;top:50%;transform:translateY(-50%);border:none;background:transparent;cursor:pointer;font-size:1.1rem;line-height:1;padding:0.25rem;color:var(--text-muted)';
+      btn.addEventListener('click', function() {
+        if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+        else { inp.type = 'password'; btn.textContent = '👁'; }
+      });
+      wrap.appendChild(btn);
+    }
+
     function showView(name, isBack) {
       try { name = applyViewAlias(name); } catch (e) {}
+      try {
+        if (name && name !== 'reader') {
+          sessionStorage.setItem('quran_last_view', name);
+          localStorage.setItem('quran_last_view_persist', name);
+        }
+      } catch(e) {}
+      // Повторное нажатие «Ещё» — всегда корневое меню Ещё
+      if (name === 'more' && !isBack) {
+        try { state.moreDeep = null; sessionStorage.removeItem('quran_more_deep'); } catch(e) {}
+        try { viewStack = ['more']; } catch(e) {}
+      }
+
       if (!isBack) {
         const cur = viewStack[viewStack.length - 1];
         if (cur !== name) {
           if (MAIN_TABS.has(name)) viewStack = [name];
-          else viewStack.push(name);
+          else {
+            // разделы «Ещё» — под ними всегда more, чтобы «назад» шло в Ещё
+            const MORE_IDS = new Set(['prayertimes','stats','appupdate','account','settings','help','changelog','data','fiqh','aqidah','hadiths','stories','salah','adhkar','dict','myreading','topics']);
+            if (MORE_IDS.has(name) && cur !== 'more' && !viewStack.includes('more')) {
+              viewStack = ['more', name];
+            } else {
+              viewStack.push(name);
+            }
+          }
           if (viewStack.length > 20) viewStack = viewStack.slice(-20);
         }
       }
@@ -4317,6 +4385,14 @@ async function fetchTafsir(surah, ayah) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       const el = document.getElementById('view-' + name);
       if (el) el.classList.add('active');
+      try {
+        window.scrollTo(0, 0);
+        var mainEl = document.querySelector('main');
+        if (mainEl) mainEl.scrollTop = 0;
+        if (el) el.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      } catch(e) {}
       document.body.classList.toggle('view-reader', name === 'reader');
       try {
         if (name && name !== 'reader') sessionStorage.setItem('quran_last_view', name);
@@ -4362,10 +4438,10 @@ async function fetchTafsir(surah, ayah) {
       if (el && !MAIN_TABS.has(name) && name !== 'reader') {
         const bar = document.createElement('div');
         bar.className = 'view-back-bar';
-        bar.style.marginBottom = '0.75rem';
-        bar.innerHTML = '<button type="button" class="btn btn-sm" id="btn-view-back">'+tLabel('Назад')+'</button>';
+        bar.style.cssText = 'margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem';
+        bar.innerHTML = '<button type="button" class="btn btn-sm btn-primary" id="btn-view-back" style="font-weight:600">← '+tLabel('Назад')+'</button>';
         el.insertBefore(bar, el.firstChild);
-        bar.querySelector('button').addEventListener('click', goBack);
+        bar.querySelector('button').addEventListener('click', function(e){ e.preventDefault(); goBack(); });
       }
       document.querySelectorAll('nav button, .bottom-nav button').forEach(b => {
         b.classList.toggle('active', b.dataset.view === name);
@@ -5888,13 +5964,17 @@ async function fetchTafsir(surah, ayah) {
     
     document.getElementById('setting-lang')?.addEventListener('change', async e => {
       state.settings.lang = e.target.value || 'ru';
+      // Язык интерфейса → сразу нужный перевод Корана
       if (state.settings.lang === 'kk') {
         state.settings.translation = 'kk.altai';
       } else {
-        if (String(state.settings.translation || '').startsWith('kk')) {
-          state.settings.translation = 'ru.kuliev';
-        }
+        state.settings.translation = 'ru.kuliev';
       }
+      try {
+        var trSel = document.getElementById('setting-translation');
+        if (trSel) trSel.value = state.settings.translation;
+      } catch(e) {}
+      try { toast(state.settings.lang === 'kk' ? 'Язык: қазақша, аударма: Алтай' : 'Язык: русский, перевод: Кулиев'); } catch(e) {}
       try {
         const keep = new Set([
           STORAGE_KEY, SALT_KEY, CHECK_KEY,
@@ -6099,38 +6179,126 @@ async function fetchTafsir(surah, ayah) {
 
     function speakLetter(l) {
       if (!l) return;
-      try { if (window._letterAudio) { window._letterAudio.pause(); } } catch(e) {}
-      var url = '';
-      try {
-        var cmap = JSON.parse(localStorage.getItem('quran_letter_audio_cache') || '{}');
-        if (cmap[l.ch]) url = cmap[l.ch];
-      } catch(e) {}
-      if (!url && l.audio) {
-        var base = (typeof LETTER_AUDIO_BASE !== 'undefined') ? LETTER_AUDIO_BASE : 'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
-        url = base + l.audio;
-      }
-      if (url) {
-        try {
-          var a = new Audio(url);
+      try { if (window._letterAudio) { window._letterAudio.pause(); window._letterAudio = null; } } catch(e) {}
+      try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
+      var file = l.audio || '';
+      if (file) {
+        var bases = [
+          'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/',
+          'https://raw.githubusercontent.com/adnan/Arabic-Alphabet/master/sounds/'
+        ];
+        var tryPlay = function(bi) {
+          if (bi >= bases.length) {
+            // не TTS по латинице — произносим арабское имя буквы, если есть
+            speakLetterArabicName(l);
+            return;
+          }
+          var a = new Audio(bases[bi] + file);
           window._letterAudio = a;
-          a.play().catch(function(){ speakLetterTTS(l); });
-          return;
-        } catch(e) {}
+          var done = false;
+          a.onerror = function() { if (!done) { done = true; tryPlay(bi + 1); } };
+          a.play().then(function(){ done = true; }).catch(function() {
+            if (!done) { done = true; tryPlay(bi + 1); }
+          });
+        };
+        tryPlay(0);
+        return;
       }
-      speakLetterTTS(l);
+      speakLetterArabicName(l);
     }
-    function speakLetterTTS(l) {
+    function speakLetterArabicName(l) {
+      // Только как запасной вариант: полное арабское имя, не латинская «ha»
+      var namesAr = {
+        'ا':'ألف','ب':'باء','ت':'تاء','ث':'ثاء','ج':'جيم','ح':'حاء','خ':'خاء',
+        'د':'دال','ذ':'ذال','ر':'راء','ز':'زاي','س':'سين','ش':'شين','ص':'صاد',
+        'ض':'ضاد','ط':'طاء','ظ':'ظاء','ع':'عين','غ':'غين','ف':'فاء','ق':'قاف',
+        'ك':'كاف','ل':'لام','م':'ميم','ن':'نون','ه':'هاء','و':'واو','ي':'ياء'
+      };
+      var phrase = namesAr[l.ch] || l.ch || '';
       try {
         if (!window.speechSynthesis) return;
-        window.speechSynthesis.cancel();
-        var names = {'ا':'ألف','ب':'باء','ت':'تاء','ث':'ثاء','ج':'جيم','ح':'حاء','خ':'خاء','د':'دال','ذ':'ذال','ر':'راء','ز':'زاي','س':'سين','ش':'شين','ص':'صاد','ض':'ضاد','ط':'طاء','ظ':'ظاء','ع':'عين','غ':'غين','ف':'فاء','ق':'قاف','ك':'كاف','ل':'لام','م':'ميم','ن':'نون','ه':'هاء','و':'واو','ي':'ياء'};
-        var u = new SpeechSynthesisUtterance(names[l.ch] || l.ch || '');
+        var u = new SpeechSynthesisUtterance(phrase);
         u.lang = 'ar-SA';
-        u.rate = 0.85;
+        u.rate = 0.8;
         window.speechSynthesis.speak(u);
       } catch(e) {}
     }
 
+function speakLetter(ch, name) {
+      if (ch && typeof ch === 'object') {
+        name = ch.name || name || '';
+        ch = ch.ch || '';
+      }
+      name = name || ch || '';
+      if (!window.speechSynthesis) {
+        toast('Озвучка недоступна. Буква: «' + name + '»');
+        return;
+      }
+      try { window.speechSynthesis.cancel(); } catch(e) {}
+
+      // Force voice list load (important on mobile Chrome/Samsung)
+      let voices = window.speechSynthesis.getVoices() || [];
+      if (!voices.length) {
+        window.speechSynthesis.getVoices();
+        voices = window.speechSynthesis.getVoices() || [];
+      }
+
+      const ruVoice = voices.find(v => /^ru(-|$)/i.test(v.lang))
+        || voices.find(v => /russian/i.test(v.name));
+      const arVoice = voices.find(v => /^ar(-|$)/i.test(v.lang))
+        || voices.find(v => /arab/i.test(v.name));
+
+      // Russian first — reliable on Russian phones
+      const uRu = new SpeechSynthesisUtterance(name);
+      uRu.lang = 'ru-RU';
+      uRu.rate = 0.9;
+      uRu.volume = 1;
+      if (ruVoice) uRu.voice = ruVoice;
+
+      const arName = (typeof LETTER_SOUND !== 'undefined' && LETTER_SOUND[ch]) ? LETTER_SOUND[ch] : ch;
+
+      uRu.onend = function() {
+        // Then Arabic letter name if possible
+        if (arVoice || true) {
+          const uAr = new SpeechSynthesisUtterance(arName);
+          uAr.lang = arVoice ? (arVoice.lang || 'ar-SA') : 'ar-SA';
+          uAr.rate = 0.7;
+          uAr.volume = 1;
+          if (arVoice) uAr.voice = arVoice;
+          try { window.speechSynthesis.speak(uAr); } catch(e) {}
+        }
+      };
+      uRu.onerror = function(ev) {
+        toast('Буква «' + name + '»');
+      };
+
+      try {
+        window.speechSynthesis.speak(uRu);
+        // Some Android browsers need a "kick"
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      } catch (e) {
+        toast('Буква «' + name + '»');
+      }
+    }
+
+    // preload voices early
+    if (window.speechSynthesis) {
+      const warm = function() { window.speechSynthesis.getVoices(); };
+      warm();
+      window.speechSynthesis.onvoiceschanged = warm;
+      // unlock audio on first touch (mobile)
+      document.addEventListener('touchstart', function unlock() {
+        try {
+          const u = new SpeechSynthesisUtterance(' ');
+          u.volume = 0;
+          window.speechSynthesis.speak(u);
+          window.speechSynthesis.cancel();
+        } catch(e) {}
+        document.removeEventListener('touchstart', unlock);
+      }, { once: true });
+    }
+
+    // ========== SPEECH RECOGNITION test ==========
     function getSpeechRecognition() {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) return null;
@@ -6166,148 +6334,36 @@ async function fetchTafsir(surah, ayah) {
     // ========== ARABIC ALPHABET ==========
     const LETTER_AUDIO_BASE = 'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
     const ARABIC_LETTERS = [
-      {ch:'ا', name:'Алиф', tr:'ā / a', audio:'1_alif.mp3', forms:['ا','ا','ـا','ـا'], note:'Не соединяется слева. Часто долгий гласный «а».'},
-      {ch:'ب', name:'Ба', tr:'b', audio:'2_baa.mp3', forms:['ب','بـ','ـبـ','ـب'], note:'Губы вместе. «б», без русской мягкости.'},
+      {ch:'ا', name:'Алиф', tr:'ā / a', audio:'1_alif.mp3', forms:['ا','ا','ـا','ـا'], note:'Не соединяется слева. Часто читается как долгий гласный «а».'},
+      {ch:'ب', name:'Ба', tr:'b', audio:'2_baa.mp3', forms:['ب','بـ','ـبـ','ـب'], note:'Губы вместе. Звук «б», без русской мягкости.'},
       {ch:'ت', name:'Та', tr:'t', audio:'3_taa.mp3', forms:['ت','تـ','ـتـ','ـت'], note:'Как русская «т». Две точки сверху.'},
-      {ch:'ث', name:'Са (саʼ)', tr:'θ (th)', audio:'4_thaa.mp3', forms:['ث','ثـ','ـثـ','ـث'], note:'Межзубный, как английский think. Не «с» и не «т».'},
-      {ch:'ج', name:'Джим', tr:'j (дж)', audio:'5_jeem.mp3', forms:['ج','جـ','ـجـ','ـج'], note:'Слитное «дж», не «д+ж».'},
+      {ch:'ث', name:'Са (саʼ)', tr:'θ (th)', audio:'4_thaa.mp3', forms:['ث','ثـ','ـثـ','ـث'], note:'Межзубный звук, как английское think. Не путать с «с» и «т».'},
+      {ch:'ج', name:'Джим', tr:'j (дж)', audio:'5_jeem.mp3', forms:['ج','جـ','ـجـ','ـج'], note:'Слитное «дж», не раздельно «д» + «ж».'},
       {ch:'ح', name:'Ха (ħа)', tr:'ħ', audio:'6_haa.mp3', forms:['ح','حـ','ـحـ','ـح'], note:'Глубокий «х» из горла, без голоса.'},
-      {ch:'خ', name:'Хаʼ (х̮а)', tr:'x', audio:'7_khaa.mp3', forms:['خ','خـ','ـخـ','ـخ'], note:'Как «х» в «хрип».'},
+      {ch:'خ', name:'Хаʼ (х̮а)', tr:'x', audio:'7_khaa.mp3', forms:['خ','خـ','ـخـ','ـخ'], note:'Как «х» в слове «хрип» или немецкое ch.'},
       {ch:'د', name:'Даль', tr:'d', audio:'8_daal.mp3', forms:['د','د','ـد','ـد'], note:'Не соединяется слева. Как «д».'},
-      {ch:'ذ', name:'Заль', tr:'ð (dh)', audio:'9_zaal.mp3', forms:['ذ','ذ','ـذ','ـذ'], note:'Межзубный звонкий, как the.'},
+      {ch:'ذ', name:'Заль', tr:'ð (dh)', audio:'9_zaal.mp3', forms:['ذ','ذ','ـذ','ـذ'], note:'Межзубный звонкий, как английское the.'},
       {ch:'ر', name:'Ра', tr:'r', audio:'10_raa.mp3', forms:['ر','ر','ـر','ـر'], note:'Раскатистая «р». Не соединяется слева.'},
       {ch:'ز', name:'Зай', tr:'z', audio:'11_zaa.mp3', forms:['ز','ز','ـز','ـز'], note:'Как «з». Не соединяется слева.'},
       {ch:'س', name:'Син', tr:'s', audio:'12_seen.mp3', forms:['س','سـ','ـسـ','ـس'], note:'Как русская «с».'},
       {ch:'ش', name:'Шин', tr:'š (ш)', audio:'13_sheen.mp3', forms:['ش','شـ','ـشـ','ـش'], note:'Как «ш».'},
-      {ch:'ص', name:'Сад', tr:'ṣ', audio:'14_saad.mp3', forms:['ص','صـ','ـصـ','ـص'], note:'Твёрдое «с»: язык чуть назад.'},
-      {ch:'ض', name:'Дад', tr:'ḍ', audio:'15_daad.mp3', forms:['ض','ضـ','ـضـ','ـض'], note:'Эмфатический. Учите со слуха.'},
-      {ch:'ط', name:'Та (ṭа)', tr:'ṭ', audio:'16_taah.mp3', forms:['ط','طـ','ـطـ','ـط'], note:'Твёрдое «т», язык назад.'},
-      {ch:'ظ', name:'За (ẓа)', tr:'ẓ', audio:'17_zhaa.mp3', forms:['ظ','ظـ','ـظـ','ـظ'], note:'Эмфатический межзубный.'},
-      {ch:'ع', name:'Айн', tr:'ʿ', audio:'18_ain.mp3', forms:['ع','عـ','ـعـ','ـع'], note:'Гортанный. В русском нет аналога.'},
-      {ch:'غ', name:'Гайн', tr:'ġ', audio:'19_ghain.mp3', forms:['غ','غـ','ـغـ','ـغ'], note:'Как украинское «г» / фр. r.'},
+      {ch:'ص', name:'Сад', tr:'ṣ', audio:'14_saad.mp3', forms:['ص','صـ','ـصـ','ـص'], note:'Твёрдое «с»: язык чуть оттянут назад.'},
+      {ch:'ض', name:'Дад', tr:'ḍ', audio:'15_daad.mp3', forms:['ض','ضـ','ـضـ','ـض'], note:'Трудный эмфатический звук. Учите со слуха и с учителем.'},
+      {ch:'ط', name:'Та (ṭа)', tr:'ṭ', audio:'16_taah.mp3', forms:['ط','طـ','ـطـ','ـط'], note:'Твёрдое «т», язык оттянут назад.'},
+      {ch:'ظ', name:'За (ẓа)', tr:'ẓ', audio:'17_zhaa.mp3', forms:['ظ','ظـ','ـظـ','ـظ'], note:'Эмфатический межзубный. Слушайте образец.'},
+      {ch:'ع', name:'Айн', tr:'ʿ', audio:'18_ain.mp3', forms:['ع','عـ','ـعـ','ـع'], note:'Гортанный звук. В русском нет точного аналога — только на слух.'},
+      {ch:'غ', name:'Гайн', tr:'ġ', audio:'19_ghain.mp3', forms:['غ','غـ','ـغـ','ـغ'], note:'Похоже на украинское «г» или французское r.'},
       {ch:'ف', name:'Фа', tr:'f', audio:'20_faa.mp3', forms:['ف','فـ','ـفـ','ـف'], note:'Как «ф».'},
-      {ch:'ق', name:'Қаф', tr:'q', audio:'21_qaaf.mp3', forms:['ق','قـ','ـقـ','ـق'], note:'Глубокая «қ» из горла.'},
+      {ch:'ق', name:'Қаф', tr:'q', audio:'21_qaaf.mp3', forms:['ق','قـ','ـقـ','ـق'], note:'Глубокая «қ» из горла. Не обычная «к».'},
       {ch:'ك', name:'Кяф', tr:'k', audio:'22_kaaf.mp3', forms:['ك','كـ','ـكـ','ـك'], note:'Обычная «к».'},
       {ch:'ل', name:'Лям', tr:'l', audio:'23_laam.mp3', forms:['ل','لـ','ـلـ','ـل'], note:'Как «л».'},
       {ch:'م', name:'Мим', tr:'m', audio:'24_meem.mp3', forms:['م','مـ','ـمـ','ـم'], note:'Как «м».'},
       {ch:'ن', name:'Нун', tr:'n', audio:'25_noon.mp3', forms:['ن','نـ','ـنـ','ـن'], note:'Как «н».'},
-      {ch:'ه', name:'Һа', tr:'h', audio:'26_haah.mp3', forms:['ه','هـ','ـهـ','ـه'], note:'Лёгкий выдох «h».'},
-      {ch:'و', name:'Уау', tr:'ū / u', audio:'27_waw.mp3', forms:['و','و','ـو','ـو'], note:'Как «у». НЕ русская «в». Не соединяется слева.'},
+      {ch:'ه', name:'Һа', tr:'h', audio:'26_haah.mp3', forms:['ه','هـ','ـهـ','ـه'], note:'Лёгкий выдох «h», мягче чем «х».'},
+      {ch:'و', name:'Уау', tr:'ū / u', audio:'27_waw.mp3', forms:['و','و','ـو','ـو'], note:'Как долгий или краткий «у». Не русская «в». Не соединяется слева. Губы трубочкой.'},
       {ch:'ي', name:'Йа', tr:'ī / y', audio:'30_yaa.mp3', forms:['ي','يـ','ـيـ','ـي'], note:'Как «й» или долгий «и».'}
     ];
 
-
-    const ARABIC_RULES = [
-      {title:'اتجاه الكتابة · Направление', ar:'العربية تُكتب من اليمين إلى اليسار.', ru:'Арабский пишется справа налево. Книги открываются «с другой стороны».'},
-      {title:'ربط الحروف · Соединение', ar:'معظم الحروف تتصل بما بعدها. الحروف ا د ذ ر ز و لا تتصل بما بعدها.', ru:'Большинство букв соединяются с соседними. Буквы ا د ذ ر ز و не соединяются со следующей буквой (той, что слева от них при письме).'},
-      {title:'أشكال الحرف · Четыре формы', ar:'لكل حرف حتى ٤ أشكال: منفصل، ابتدائي، وسطي، نهائي.', ru:'У каждой буквы до 4 форм: изолированная, начальная, срединная, конечная. Форма зависит от позиции в слове.'},
-      {title:'الحركات · Огласовки', ar:'الفتحة َ = a · الكسرة ِ = i · الضمة ُ = u · السكون ْ · الشدة ّ', ru:'Краткие гласные — значки над/под буквой: фатха َ = а, касра ِ = и, дамма ُ = у, сукун ْ = нет гласной, шадда ّ = удвоение.'},
-      {title:'الألف والهمزة', ar:'ى ألف مقصورة في آخر الكلمة تُقرأ «а». الهمزة ء صوت في الحلق.', ru:'ى (алиф максура) в конце слова читается как «а». Хамза ء — гортанная смычка (на алифе, ваве или йа).'},
-      {title:'الشمسية والقمرية', ar:'بعد ال: الشمسية تدغم اللام (الشمس). القمرية تُظهر اللام (القمر).', ru:'После артикля ال: солнечные буквы «съедают» лям (аш-шамс). Лунные сохраняют лям (аль-камар).'},
-      {title:'التنوين · Танвин', ar:'ً ٍ ٌ في آخر الاسم علامة التنكير.', ru:'Двойная огласовка в конце слова: ً ٍ ٌ (ан / ин / ун) — признак неопределённости существительного.'},
-      {title:'التاء المربوطة', ar:'ة في آخر الكلمة غالباً للتأنيث. تُقرأ «а» أو «т» عند الوصل.', ru:'ة в конце часто обозначает женский род. Читается как «а» (или «т» при соединении со следующим словом).'}
-    ];
-
-    const TAJWEED_RULES = [
-      {title:'إخفاء · Ихфа', ar:'إخفاء النون الساكنة أو التنوين عند ١٥ حرفاً مع غنة.', ru:'Скрытое произношение нун с сукуном/танвина перед 15 буквами. Звук «н» слегка носовой, язык не касается нёба.',
-        example:'مِنْ شَرِّ', exampleHtml:'مِ<span class="tj-ghunna">نْ شَ</span>رِّ', exampleNote:'н перед ش — ихфа с гунной'},
-      {title:'إدغام · Идгам', ar:'إدغام النون الساكنة في ي ر م ل و ن.', ru:'Слияние: нун с сукуном сливается со следующей буквой (й, р, м, л, в, н). С гунной или без.',
-        example:'مِن رَّبِّهِمْ', exampleHtml:'مِ<span class="tj-idgham">ن رَّ</span>بِّهِمْ', exampleNote:'н + р → слияние (без гунны для р/л)'},
-      {title:'إقلاب · Иклаб', ar:'قلب النون ميماً قبل الباء مع غنة.', ru:'Нун с сукуном перед ب превращается в звук, близкий к «м», с лёгкой гунной.',
-        example:'مِنْ بَعْدِ', exampleHtml:'مِ<span class="tj-ghunna">نْ بَ</span>عْدِ', exampleNote:'н перед ب ≈ м с гунной'},
-      {title:'إظهار · Изхар', ar:'إظهار النون عند ء ه ع ح غ خ.', ru:'Чёткое произношение нун перед гортанными буквами ء ه ع ح غ خ — без слияния.',
-        example:'مَنْ آمَنَ', exampleHtml:'مَنْ آمَنَ', exampleNote:'н перед ء читается чётко'},
-      {title:'قلقلة · Калькаля', ar:'قلقلة ق ط ب ج د إذا سكنت.', ru:'«Отскок» при произнесении ق ط ب ج د с сукуном. Звук слегка «подпрыгивает».',
-        example:'قَدْ', exampleHtml:'قَ<span class="tj-qalqala">دْ</span>', exampleNote:'д с сукуном — лёгкий отскок'},
-      {title:'مد · Мадд', ar:'إطالة الصوت. المد الطبيعي حركتان، واللازم ٤–٦.', ru:'Удлинение гласного. Естественный мадд — 2 счёта. Обязательный — 4–6 счётов.',
-        example:'قَالَ', exampleHtml:'قَ<span class="tj-madd">ا</span>لَ', exampleNote:'алиф после фатхи — 2 счёта'},
-      {title:'غنة · Гунна', ar:'صوت أنفي بمقدار حركتين.', ru:'Носовой призвук (примерно 2 счёта) при идгаме с гунной и при нун/мим с шаддой.',
-        example:'إِنَّ', exampleHtml:'إِ<span class="tj-ghunna">نَّ</span>', exampleNote:'н с шаддой — гунна 2 счёта'},
-      {title:'وقف · Вакф', ar:'م لازم · لا ممنوع · ج جائز.', ru:'Знаки остановки: م — обязательно остановиться, لا — не останавливаться, ج — допустимо.',
-        example:'…۝', exampleHtml:'…۝', exampleNote:'в конце аята — естественная остановка'}
-    ];
-
-    // ========== HARAKAT (огласовки) ==========
-    const HARAKAT = [
-      { symbol:'َ', name:'Фатха', tr:'a', example:'بَ', exampleTr:'ба', note:'Чёрточка над буквой. Краткий «а» (как в «бак»).' },
-      { symbol:'ِ', name:'Касра', tr:'i', example:'بِ', exampleTr:'би', note:'Чёрточка под буквой. Краткий «и» (как в «бит»).' },
-      { symbol:'ُ', name:'Дамма', tr:'u', example:'بُ', exampleTr:'бу', note:'Завиток над буквой. Краткий «у» (как в «бук»).' },
-      { symbol:'ْ', name:'Сукун', tr:'∅', example:'بْ', exampleTr:'б', note:'Кружок над буквой. Нет гласной — только согласный звук.' },
-      { symbol:'ّ', name:'Шадда', tr:'удвоение', example:'بَّ', exampleTr:'бба', note:'Удваивает букву: сначала согласный, затем с гласной.' },
-      { symbol:'ً', name:'Танвин фатх', tr:'an', example:'بًا', exampleTr:'бан', note:'Двойная фатха. Часто с алифом на конце: ـًا.' },
-      { symbol:'ٍ', name:'Танвин каср', tr:'in', example:'بٍ', exampleTr:'бин', note:'Двойная касра под буквой.' },
-      { symbol:'ٌ', name:'Танвин дамм', tr:'un', example:'بٌ', exampleTr:'бун', note:'Двойная дамма над буквой.' },
-      { symbol:'ٰ', name:'Алиф ханджария', tr:'ā', example:'هٰذَا', exampleTr:'hādhā', note:'Маленький алиф — долгий «а» без полной буквы алиф.' },
-      { symbol:'ٓ', name:'Мадда', tr:'ā (долгий)', example:'آمِنَ', exampleTr:'āmina', note:'Знак удлинения над алифом с хамзой.' }
-    ];
-
-    // Слоги для практики (CV и CVC)
-    const SYLLABLE_DRILLS = [
-      { title:'Группа 1: ب ت ث', items:[
-        {ar:'بَ', tr:'ба'}, {ar:'بِ', tr:'би'}, {ar:'بُ', tr:'бу'},
-        {ar:'تَ', tr:'та'}, {ar:'تِ', tr:'ти'}, {ar:'تُ', tr:'ту'},
-        {ar:'ثَ', tr:'са'}, {ar:'ثِ', tr:'си'}, {ar:'ثُ', tr:'су'}
-      ]},
-      { title:'Группа 2: ج ح خ د ذ ر ز س ش', items:[
-        {ar:'جَ', tr:'джа'}, {ar:'حَ', tr:'ħа'}, {ar:'خَ', tr:'ха'},
-        {ar:'دَ', tr:'да'}, {ar:'ذَ', tr:'за'}, {ar:'رَ', tr:'ра'},
-        {ar:'زَ', tr:'за'}, {ar:'سَ', tr:'са'}, {ar:'شَ', tr:'ша'}
-      ]},
-      { title:'Группа 3: ص ض ط ظ ع غ ف ق', items:[
-        {ar:'صَ', tr:'ṣа'}, {ar:'ضَ', tr:'ḍа'}, {ar:'طَ', tr:'ṭа'}, {ar:'ظَ', tr:'ẓа'},
-        {ar:'عَ', tr:'ʿа'}, {ar:'غَ', tr:'га'}, {ar:'فَ', tr:'фа'}, {ar:'قَ', tr:'қа'}
-      ]},
-      { title:'Группа 4: ك ل م ن ه و ي أ', items:[
-        {ar:'كَ', tr:'ка'}, {ar:'لَ', tr:'ла'}, {ar:'مَ', tr:'ма'}, {ar:'نَ', tr:'на'},
-        {ar:'هَ', tr:'ха'}, {ar:'وَ', tr:'уа'}, {ar:'يَ', tr:'йа'}, {ar:'أَ', tr:'а'}
-      ]},
-      { title:'С сукуном (закрытый слог)', items:[
-        {ar:'بَتْ', tr:'бат'}, {ar:'مِنْ', tr:'мин'}, {ar:'كُتْ', tr:'кут'},
-        {ar:'قَلْ', tr:'қал'}, {ar:'عَنْ', tr:'ʿан'}, {ar:'هُمْ', tr:'хум'}
-      ]},
-      { title:'С шаддой (удвоение)', items:[
-        {ar:'رَبِّ', tr:'рабби'}, {ar:'إِنَّ', tr:'инна'}, {ar:'ثُمَّ', tr:'сумма'},
-        {ar:'كُلَّ', tr:'кулла'}, {ar:'حَقِّ', tr:'ħаққи'}
-      ]}
-    ];
-
-    const PRACTICE_WORDS = [
-      {ar:'بَابٌ', tr:'баабун', meaning:'дверь'},
-      {ar:'كِتَابٌ', tr:'китаабун', meaning:'книга'},
-      {ar:'قَلَمٌ', tr:'қаламун', meaning:'ручка'},
-      {ar:'مَسْجِدٌ', tr:'масджидун', meaning:'мечеть'},
-      {ar:'بَيْتٌ', tr:'байтун', meaning:'дом'},
-      {ar:'وَلَدٌ', tr:'уаладун', meaning:'мальчик'},
-      {ar:'بِنْتٌ', tr:'бинтун', meaning:'девочка'},
-      {ar:'رَجُلٌ', tr:'раджулун', meaning:'мужчина'},
-      {ar:'امْرَأَةٌ', tr:'имраатун', meaning:'женщина'},
-      {ar:'شَمْسٌ', tr:'шамсун', meaning:'солнце'},
-      {ar:'قَمَرٌ', tr:'қамарун', meaning:'луна'},
-      {ar:'مَاءٌ', tr:'мааун', meaning:'вода'},
-      {ar:'نُورٌ', tr:'нуурун', meaning:'свет'},
-      {ar:'عِلْمٌ', tr:'ʿильмун', meaning:'знание'},
-      {ar:'صَلَاةٌ', tr:'саляатун', meaning:'намаз'},
-      {ar:'رَحْمَةٌ', tr:'раħматун', meaning:'милость'},
-      {ar:'جَنَّةٌ', tr:'джаннатун', meaning:'рай'},
-      {ar:'نَارٌ', tr:'наарун', meaning:'огонь'},
-      {ar:'رَبٌّ', tr:'раббун', meaning:'Господь'},
-      {ar:'اللّٰهُ', tr:'Алла̄х', meaning:'Аллах'}
-    ];
-
-    const PRACTICE_PHRASES = [
-      {ar:'بِسْمِ اللّٰهِ', tr:'бисми Лля̄хи', meaning:'С именем Аллаха'},
-      {ar:'الْحَمْدُ لِلّٰهِ', tr:'аль-ħамду лилля̄хи', meaning:'Хвала Аллаху'},
-      {ar:'رَبِّ الْعَالَمِينَ', tr:'рабби ль-ʿа̄ламӣн', meaning:'Господу миров'},
-      {ar:'مَالِكِ يَوْمِ الدِّينِ', tr:'ма̄лики йа̄уми д-дӣн', meaning:'Властелину Дня воздаяния'},
-      {ar:'إِيَّاكَ نَعْبُدُ', tr:'иййа̄ка наʿбуду', meaning:'Тебе мы поклоняемся'},
-      {ar:'اهْدِنَا الصِّرَاطَ', tr:'ихдина ṣ-ṣира̄ṭа', meaning:'Веди нас прямым путём'},
-      {ar:'قُلْ هُوَ اللّٰهُ أَحَدٌ', tr:'қуль хува Лла̄ху аħад', meaning:'Скажи: Он — Аллах Единый'},
-      {ar:'اللّٰهُ الصَّمَدُ', tr:'Алла̄ху ṣ-ṣамад', meaning:'Аллах Самодостаточный'},
-      {ar:'لَمْ يَلِدْ وَلَمْ يُولَدْ', tr:'лам йалид уа лам йӯлад', meaning:'Не родил и не был рождён'},
-      {ar:'وَلَمْ يَكُنْ لَهُ كُفُوًا أَحَدٌ', tr:'уа лам йакун лаху куфууан аħад', meaning:'и нет никого равного Ему'}
-    ];
-
-    // ========== ПУТЬ: с нуля до чтения Корана ==========
     const ACADEMY_PATH = [
       {
         id: 'm0', level: 0, title: 'Старт', icon: '🚀',
@@ -6680,20 +6736,50 @@ CVC: + сукун → بَتْ مِنْ كُتْ
     ];
 
     // Letter articulation tips
+    const HARAKAT = [
+      { symbol:'َ', name:'Фатха', tr:'a', example:'بَ', exampleTr:'ба', note:'Чёрточка над буквой. Краткий «а» (как в «бак»).' },
+      { symbol:'ِ', name:'Касра', tr:'i', example:'بِ', exampleTr:'би', note:'Чёрточка под буквой. Краткий «и» (как в «бит»).' },
+      { symbol:'ُ', name:'Дамма', tr:'u', example:'بُ', exampleTr:'бу', note:'Завиток над буквой. Краткий «у» (как в «бук»).' },
+      { symbol:'ْ', name:'Сукун', tr:'∅', example:'بْ', exampleTr:'б', note:'Кружок над буквой. Нет гласной — только согласный звук.' },
+      { symbol:'ّ', name:'Шадда', tr:'удвоение', example:'بَّ', exampleTr:'бба', note:'Удваивает букву: сначала согласный, затем с гласной.' },
+      { symbol:'ً', name:'Танвин фатх', tr:'an', example:'بًا', exampleTr:'бан', note:'Двойная фатха. Часто с алифом на конце: ـًا.' },
+      { symbol:'ٍ', name:'Танвин каср', tr:'in', example:'بٍ', exampleTr:'бин', note:'Двойная касра под буквой.' },
+      { symbol:'ٌ', name:'Танвин дамм', tr:'un', example:'بٌ', exampleTr:'бун', note:'Двойная дамма над буквой.' },
+      { symbol:'ٰ', name:'Алиф ханджария', tr:'ā', example:'هٰذَا', exampleTr:'hādhā', note:'Маленький алиф — долгий «а» без полной буквы алиф.' },
+      { symbol:'ٓ', name:'Мадда', tr:'ā (долгий)', example:'آمِنَ', exampleTr:'āmina', note:'Знак удлинения над алифом с хамзой.' }
+    ];
+
+    // Слоги для практики (CV и CVC)
     const ARTICULATION = {
-      'ع': 'Гортань (глотка): стенки глотки сближаются, есть голос.',
-      'ح': 'Гортань: выдох без голоса, глубже обычного «х».',
-      'غ': 'Корень языка + мягкое нёбо, с голосом (как фр. r).',
-      'خ': 'Там же, без голоса.',
-      'ق': 'Корень языка поднимается к мягкому нёбу (не «к» у зубов).',
-      'ص': 'Кончик языка у верхних зубов/дёсен + язык оттянут назад.',
-      'ض': 'Боковой край языка у коренных; эмфаза.',
-      'ط': 'Кончик у верхних дёсен + эмфаза (язык назад).',
-      'ظ': 'Межзубный + эмфаза.',
-      'ث': 'Кончик между зубами, без голоса.',
-      'ذ': 'Кончик между зубами, с голосом.',
-      'و': 'Губы трубочкой (как «у»), не зубы на губу.'
-    };
+      'ا': 'Язык и губы спокойны. Звук «а» или носитель хамзы. Горло не напрягать.',
+      'ب': 'Губы плотно смыкаются, затем резко открываются с голосом. Как русское «б», без смягчения.',
+      'ت': 'Кончик языка касается верхних зубов/дёсен. Краткий «т» без придыхания.',
+      'ث': 'Кончик языка МЕЖДУ передними зубами, воздух проходит с шипением (как английский think). Не «с» и не «т».',
+      'ج': 'Средняя часть языка поднимается к нёбу, смычка и слив «дж». Не раздельно «д+ж».',
+      'ح': 'Середина горла (глотка): сильный выдох БЕЗ голоса. Представьте запотевшее зеркало — тёплый воздух. Не русское «х».',
+      'خ': 'Ближе к началу горла / мягкое нёбо: хриплое «х» без голоса (как лёгкое хрипение).',
+      'د': 'Кончик языка у верхних зубов, звонкий «д». Не соединяется слева.',
+      'ذ': 'Кончик языка между зубами, звонкий (как the в английском). Есть голос.',
+      'ر': 'Кончик языка слегка дрожит у верхних дёсен — раскатистая «р».',
+      'ز': 'Кончик языка у зубов, звонкий «з».',
+      'س': 'Кончик языка у нижних/верхних зубов, свистящий «с».',
+      'ش': 'Передняя часть языка близко к нёбу, «ш».',
+      'ص': 'Как «с», но язык ОТТЯНУТ назад и чуть приподнят — «толстый» звук.',
+      'ض': 'Край языка прижат к верхним коренным, «толстый» звонкий. Один из сложных звуков — учите со слуха.',
+      'ط': 'Как «т», но язык оттянут назад, «толстый» т.',
+      'ظ': 'Как «з/ð», но с оттянутым назад языком — эмфатический межзубный.',
+      'ع': 'Середина горла СО СМЫЧКОЙ и голосом. Не «а» и не хамза. Тренируйте: عَ عِ عُ.',
+      'غ': 'Близко к «х̮», но С голосом (как французское r или украинское г).',
+      'ف': 'Верхние зубы на нижней губе, «ф».',
+      'ق': 'КОРЕНЬ языка поднимается к мягкому нёбу. Глубокая «қ», не зубная «к».',
+      'ك': 'Задняя часть языка к мягкому нёбу ближе к центру — обычная «к».',
+      'ل': 'Кончик языка у верхних дёсен, «л».',
+      'م': 'Губы сомкнуты, голос идёт в нос, «м».',
+      'ن': 'Кончик языка у дёсен, голос в нос, «н».',
+      'ه': 'Лёгкий выдох из горла, мягче чем «х». Как выдох на стекло, но тише чем ح.',
+      'و': 'Губы трубочкой, как «у». НЕ зубы на губу (это было бы «в»).',
+      'ي': 'Средняя часть языка к нёбу, как «й» или долгий «и».'
+    };;
 
     // Короткие суры для изучения (номер, имя, число аятов)
     const STUDY_SURAHS_META = [
@@ -7679,8 +7765,6 @@ CVC: + сукун → بَتْ مِنْ كُتْ
     function renderStudySurahs() {
       const el = document.getElementById('learn-surahs');
       if (!el) return;
-      function getTheoryCustom(){ try{return JSON.parse(localStorage.getItem('quran_theory_custom')||'{"surahs":[],"ayahs":[]}');}catch(e){return {surahs:[],ayahs:[]};} }
-      function saveTheoryCustom(o){ try{localStorage.setItem('quran_theory_custom',JSON.stringify(o));}catch(e){} }
       const showList = () => {
         const amma = getOfflineAmma();
         const ammaCount = Object.keys(amma).filter(k => amma[k] && amma[k].ayahs).length;
@@ -7700,8 +7784,7 @@ CVC: + сукун → بَتْ مِنْ كُتْ
         }
         if (!byN[1]) byN[1] = { n:1, name:'Аль-Фатиха', ayahs:7 };
         const list = Object.keys(byN).map(Number).sort((a,b)=>a-b).map(n => byN[n]);
-        var __tc=getTheoryCustom(); var __bar='<div class="card"><b>➕ В теорию</b><div class="ayah-translation" style="font-size:0.85rem;margin:0.3rem 0">Сура (лучше до 20 аятов) или аят</div><button type="button" class="btn btn-sm" id="th-add-surah">+ Сура</button> <button type="button" class="btn btn-sm" id="th-add-ayah">+ Аят</button>'+(__tc.surahs.length?'<div style="margin-top:0.35rem;font-size:0.85rem">Суры: '+__tc.surahs.join(', ')+'</div>':'')+(__tc.ayahs.length?'<div style="font-size:0.85rem">Аяты: '+__tc.ayahs.map(function(x){return x.s+':'+x.a;}).join(', ')+'</div>':'')+'</div>';
-      el.innerHTML = __bar +
+        el.innerHTML =
           '<div class="card" style="border-color:var(--accent)"><b>Офлайн 78–114 (джюз ‘Амма)</b>' +
           '<div class="ayah-translation">В кэше: '+ammaCount+' сур. Скачанные остаются здесь после обновления страницы.</div>' +
           '<button type="button" class="btn btn-sm btn-primary" id="dl-amma" style="margin-top:0.4rem">⬇ Скачать/обновить 78–114</button>' +
@@ -8147,28 +8230,43 @@ function renderMistakes() {
         grid.innerHTML = '<div class="empty-state">Нет данных алфавита</div>';
         return;
       }
-      if (!document.getElementById('btn-dl-all-letters')) {
+      var alphaWrap = document.getElementById('learn-alphabet') || grid.parentNode;
+      if (alphaWrap && !document.getElementById('btn-dl-all-letters')) {
         var bar = document.createElement('div');
         bar.style.cssText = 'margin:0 0 0.65rem';
-        bar.innerHTML = '<button type="button" class="btn btn-sm" id="btn-dl-all-letters" style="width:100%">💾 Скачать все буквы (аудио в кэш)</button><p class="ayah-translation" style="margin:0.3rem 0 0;font-size:0.8rem">Интернет один раз — потом офлайн.</p>';
+        bar.innerHTML = '<button type="button" class="btn btn-sm" id="btn-dl-all-letters" style="width:100%">💾 Скачать все буквы (аудио в кэш)</button>' +
+          '<p class="ayah-translation" style="margin:0.35rem 0 0;font-size:0.8rem">Нужен интернет один раз. Потом «Произнести» работает офлайн.</p>';
         grid.parentNode.insertBefore(bar, grid);
         document.getElementById('btn-dl-all-letters').onclick = async function() {
-          var btn = this; btn.disabled = true;
-          var base = (typeof LETTER_AUDIO_BASE!=='undefined')?LETTER_AUDIO_BASE:'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
-          var map = {}; try { map = JSON.parse(localStorage.getItem('quran_letter_audio_cache')||'{}'); } catch(e){}
-          var ok=0, fail=0;
-          for (var i=0;i<ARABIC_LETTERS.length;i++) {
-            var L=ARABIC_LETTERS[i]; if(!L.audio) continue;
-            btn.textContent='Загрузка '+(i+1)+'/'+ARABIC_LETTERS.length+'…';
+          var btn = this;
+          btn.disabled = true;
+          var base = (typeof LETTER_AUDIO_BASE !== 'undefined') ? LETTER_AUDIO_BASE : 'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
+          var map = {};
+          try { map = JSON.parse(localStorage.getItem('quran_letter_audio_cache') || '{}'); } catch(e) {}
+          var ok = 0, fail = 0;
+          for (var i = 0; i < ARABIC_LETTERS.length; i++) {
+            var L = ARABIC_LETTERS[i];
+            if (!L.audio) continue;
+            btn.textContent = 'Загрузка '+(i+1)+'/'+ARABIC_LETTERS.length+'…';
             try {
-              var res=await fetch(base+L.audio); var blob=await res.blob();
-              var dataUrl=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result);};r.onerror=rej;r.readAsDataURL(blob);});
-              map[L.ch]=dataUrl; ok++;
-            } catch(e){ fail++; }
+              var res = await fetch(base + L.audio);
+              var blob = await res.blob();
+              var dataUrl = await new Promise(function(resolve, reject) {
+                var r = new FileReader();
+                r.onload = function(){ resolve(r.result); };
+                r.onerror = reject;
+                r.readAsDataURL(blob);
+              });
+              map[L.ch] = dataUrl;
+              ok++;
+            } catch(e) { fail++; }
           }
-          try { localStorage.setItem('quran_letter_audio_cache', JSON.stringify(map)); } catch(e){ toast('Кэш переполнен'); }
-          btn.disabled=false; btn.textContent='💾 Скачать все буквы (аудио в кэш)';
-          toast('Готово: '+ok+(fail?' / ошибок '+fail:''));
+          try { localStorage.setItem('quran_letter_audio_cache', JSON.stringify(map)); } catch(e) {
+            toast('Кэш переполнен — сохранено частично');
+          }
+          btn.disabled = false;
+          btn.textContent = '💾 Скачать все буквы (аудио в кэш)';
+          toast('Готово: '+ok+' букв'+(fail ? ', ошибок '+fail : ''));
         };
       }
       grid.innerHTML = ARABIC_LETTERS.map((l, i) =>
@@ -8189,45 +8287,115 @@ function renderMistakes() {
           if (!det) return;
           det.classList.add('open');
           det.innerHTML =
-            '<div class="detail-ar" style="text-align:center;font-size:3rem;font-family:Amiri,serif" dir="rtl">'+l.ch+'</div>' +
-            '<div style="text-align:center;margin:0.5rem 0"><b>'+l.name+'</b></div>' +
-            (l.tr ? '<div style="text-align:center;color:var(--accent);font-size:1.15rem;margin-bottom:0.35rem">'+l.tr+'</div>' : '') +
-            '<div class="ayah-translation">'+(l.note||'')+'</div>' +
-            ((typeof ARTICULATION !== 'undefined' && ARTICULATION[l.ch]) ? '<div style="margin-top:0.4rem;font-size:0.85rem;color:var(--accent)">🗣️ '+ARTICULATION[l.ch]+'</div>' : '') +
-            (l.forms ? '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.5rem;font-size:1.5rem;font-family:Amiri,serif" dir="rtl">'+l.forms.map(f=>'<span>'+f+'</span>').join(' ')+'</div>' : '') +
+            '<div class="detail-ar" style="text-align:center;font-size:3rem;font-family:Amiri,serif" dir="rtl" lang="ar">'+l.ch+'</div>' +
+            '<div style="text-align:center;margin:0.5rem 0" dir="ltr"><b>'+l.name+'</b></div>' +
+            (l.tr ? '<div style="text-align:center;color:var(--accent);font-size:1.15rem;margin-bottom:0.35rem" dir="ltr">'+l.tr+'</div>' : '') +
+            '<div class="ayah-translation" dir="ltr" style="text-align:center;unicode-bidi:isolate">'+(l.note||'')+'</div>' +
+            ((typeof ARTICULATION !== 'undefined' && ARTICULATION[l.ch]) ? '<div style="margin-top:0.4rem;font-size:0.85rem;color:var(--accent);text-align:center" dir="ltr" style="unicode-bidi:isolate">🗣️ '+ARTICULATION[l.ch]+'</div>' : '') +
+            (l.forms ? '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.5rem;font-size:1.5rem;font-family:Amiri,serif" dir="rtl" lang="ar">'+l.forms.map(f=>'<span dir="rtl">'+f+'</span>').join(' ')+'</div>' : '') +
             '<button type="button" class="btn btn-primary btn-sm" style="margin-top:0.75rem;width:100%" id="btn-speak-letter">🔊 Произнести (запись)</button>' +
-            '<button type="button" class="btn btn-sm" id="btn-cache-one-letter" style="width:100%;margin-top:0.35rem">💾 В кэш</button>';
-          document.getElementById('btn-cache-one-letter')?.addEventListener('click', async function() {
+            '<button type="button" class="btn btn-sm" id="btn-cache-letter-audio" style="width:100%;margin-top:0.35rem">💾 В кэш (аудио)</button>' +
+            '<div class="ayah-translation" dir="ltr" style="margin-top:0.5rem;font-size:0.82rem">Как произносить подробно — см. текст выше (язык, губы, горло). Фото/видео ракурсов добавим в следующих версиях (нужны открытые материалы).</div>';
+          (function(){
+            var base = (typeof LETTER_AUDIO_BASE !== 'undefined') ? LETTER_AUDIO_BASE : 'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
+            if (l.audio) {
+              var au = document.createElement('audio');
+              au.id = 'letter-audio-el';
+              au.preload = 'auto';
+              au.src = base + l.audio;
+              det.appendChild(au);
+            }
+          })();
+          document.getElementById('btn-speak-letter')?.addEventListener('click', function() {
+            var elA = document.getElementById('letter-audio-el');
+            if (elA && elA.src) {
+              try {
+                elA.pause();
+                elA.currentTime = 0;
+                elA.play().catch(function(){ if (typeof speakLetter === 'function') speakLetter(l); });
+                return;
+              } catch(err) {}
+            }
+            if (typeof speakLetter === 'function') speakLetter(l);
+          });
+          document.getElementById('btn-cache-letter-audio')?.addEventListener('click', async function() {
             try {
+              var base = (typeof LETTER_AUDIO_BASE !== 'undefined') ? LETTER_AUDIO_BASE : 'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
               if (!l.audio) { toast('Нет файла'); return; }
-              var base = (typeof LETTER_AUDIO_BASE!=='undefined')?LETTER_AUDIO_BASE:'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
-              var res = await fetch(base+l.audio); var blob = await res.blob();
+              var url = base + l.audio;
+              var res = await fetch(url);
+              var blob = await res.blob();
+              var key = 'quran_letter_audio_'+l.ch;
               var reader = new FileReader();
               reader.onload = function() {
                 try {
-                  var map = JSON.parse(localStorage.getItem('quran_letter_audio_cache')||'{}');
+                  var map = JSON.parse(localStorage.getItem('quran_letter_audio_cache') || '{}');
                   map[l.ch] = reader.result;
                   localStorage.setItem('quran_letter_audio_cache', JSON.stringify(map));
-                  toast('«'+l.name+'» в кэше');
+                  toast('Аудио буквы «'+l.name+'» в кэше');
                 } catch(e) { toast('Кэш переполнен'); }
               };
               reader.readAsDataURL(blob);
-            } catch(e) { toast('Не удалось'); }
-          });
-          document.getElementById('btn-speak-letter')?.addEventListener('click', () => {
-            if (typeof speakLetter === 'function') speakLetter(l);
-            else {
-              try {
-                const u = new SpeechSynthesisUtterance(l.ch);
-                u.lang = 'ar-SA';
-                speechSynthesis.speak(u);
-              } catch(e) {}
-            }
+            } catch(e) { toast('Не удалось скачать'); }
           });
         });
       });
     }
 
+
+    const ARABIC_RULES = [
+      {title:'اتجاه الكتابة · Направление', ar:'من اليمين إلى اليسار',
+        short:'Арабский пишется и читается справа налево.',
+        detail:'Строка начинается справа. Мушаф открывается с другой стороны относительно русской книги. Практика: ведите пальцем справа налево.'},
+      {title:'ربط الحروف · Соединение', ar:'ا د ذ ر ز و لا تتصل',
+        short:'Большинство букв соединяются. Не соединяются со следующей: алиф даль заль ра зай вав.',
+        detail:'После этих шести букв следующая пишется в начальной или изолированной форме. Пример: дараса.'},
+      {title:'أشكال الحرف · Четыре формы', ar:'٤ أشكال',
+        short:'До 4 форм: изолированная, начальная, срединная, конечная.',
+        detail:'Одна и та же буква меняет вид в зависимости от места в слове. Смотрите вкладку «Буквы».'},
+      {title:'الحركات · Огласовки', ar:'فتحة كسرة ضمة',
+        short:'Фатха — а, касра — и, дамма — у; сукун — нет гласного; шадда — удвоение.',
+        detail:'Фатха над буквой — краткий а. Касра под буквой — и. Дамма над буквой — у. Сукун — без гласного. Шадда — удвоение.'},
+      {title:'التنوين · Танвин', ar:'فتحتان كسرتان ضمتان',
+        short:'Танвин — окончание ан / ин / ун (две огласовки).',
+        detail:'Двойная огласовка в конце слова. При остановке в конце аята часто читается без н.'},
+      {title:'ال · Алиф-лям', ar:'ال التعريف',
+        short:'Артикль «аль». Солнечные буквы съедают лям, лунные — нет.',
+        detail:'Перед солнечными буквами лям не читается, следующая буква с шаддой (аш-шамс). Перед лунными лям читается (аль-китаб).'},
+      {title:'همزة · Хамза', ar:'ء',
+        short:'Хамза — гортанная смычка. Не путать с айн.',
+        detail:'Может стоять на алиф, вав, йа или отдельно. В начале многих слов: инна, ахад.'},
+      {title:'التاء المربوطة · Та марбута', ar:'ة',
+        short:'Та марбута: с огласовкой — т, при остановке — һ.',
+        detail:'Типичное окончание женского рода. При вақфе звучит как һа. Пример: рахма.'}
+    ];
+
+    const TAJWEED_RULES = [
+      {title:'إخفاء · Ихфа', ar:'إخفاء النون الساكنة أو التنوين',
+        short:'Нун с сукуном (или танвин) перед 15 буквами читается «скрыто», с лёгкой гунной.',
+        detail:'Ихфа — «сокрытие».\n\n1) Когда: после нун с сукуном (نْ) или танвина идёт одна из 15 букв (не из групп изхар / идгам / иклаб).\n2) Как: язык не ставит полное касание для «н», звук уходит в нос.\n3) Гунна: около двух счётов.\n4) Пример: مِنْ شَرِّ (мин шарри).\n5) Ошибка: либо чёткое «н» (как изхар), либо полное слияние (как идгам) — оба неверны для ихфа.\n6) Практика: читайте медленно мин + шин, чувствуя носовой звук без удара языка.'},
+      {title:'إدغام · Идгам', ar:'إدغام النون الساكنة',
+        short:'Нун с сукуном сливается со следующей буквой: йа, ра, мим, лям, вав, нун.',
+        detail:'Идгам — слияние. С гунной: йа вав мим нун. Без гунны: лям ра. Пример: мин раббихим. Отдельный звук «н» не оставляют.'},
+      {title:'إقلاب · Иклаб', ar:'قلب النون ميماً قبل الباء',
+        short:'Перед ба нун с сукуном звучит почти как «м», с гунной.',
+        detail:'Иклаб только перед ба. Нун плюс ба даёт звук близкий к «м» с гунной. Пример: мин баъди.'},
+      {title:'إظهار · Изхар', ar:'إظهار النون عند حروف الحلق',
+        short:'Перед гортанными хамза ха айн ха гайн ха нун читается чётко.',
+        detail:'Изхар — ясное «н» перед гортанными буквами. Пример: ман амана. Без слияния и без лишней гунны.'},
+      {title:'قلقلة · Калькаля', ar:'قلقلة ق ط ب ج د',
+        short:'Каф та ба джим даль с сукуном — с лёгким отскоком.',
+        detail:'Калькаля — вибрация на сукуне у каф та ба джим даль. Пример: кад. Сильнее на конце аята.'},
+      {title:'مد · Мадд', ar:'إطالة حروف المد',
+        short:'Продление гласного через алиф вав йа (обычно 2 счёта).',
+        detail:'Естественный мадд — 2 счёта. Более длинные (4–6) при хамзе или сукуне после мадда — учите с учителем. Пример: каля.'},
+      {title:'غنة · Гунна', ar:'الغنة في الميم والنون',
+        short:'Носовой звук на мим и нун с шаддой и в ихфа/иклаб/идгам (~2 счёта).',
+        detail:'Гунна обязательна при удвоенных мим и нун, а также в ихфа, иклаб и идгам с гунной. Воздух через нос.'},
+      {title:'شدة · Шадда', ar:'التشديد',
+        short:'Шадда — буква читается удвоенно.',
+        detail:'Сначала как с сукуном, затем с огласовкой. Пример: рабби. На удвоенных нун и мим — гунна.'}
+    ];
 
     function renderRules() {
       let el = document.getElementById('learn-rules');
@@ -8244,11 +8412,17 @@ function renderMistakes() {
         el.innerHTML = '<div class="empty-state">Нет правил</div>';
         return;
       }
-      el.innerHTML = rules.map(r =>
-        '<div class="rule-card"><h3>'+r.title+'</h3>' +
-        (r.ar ? '<div class="rule-ar" dir="rtl">'+r.ar+'</div>' : '') +
-        '<div class="rule-ru">'+(r.ru||r.body||'')+'</div></div>'
-      ).join('');
+      el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">Базовые правила письма. Кратко → «Подробнее».</p>' +
+        rules.map(function(r) {
+          var short = r.short || (r.ru || r.body || '').slice(0, 100);
+          var ru = r.detail || r.ru || r.body || '';
+          return '<div class="rule-card" style="margin-bottom:0.65rem">' +
+            '<h3 dir="ltr">'+r.title+'</h3>' +
+            (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.15rem;margin:0.35rem 0">'+r.ar+'</div>' : '') +
+            '<div class="les-short ayah-translation" dir="ltr">'+short+'</div>' +
+            '<button type="button" class="btn btn-sm les-more-btn" style="margin:0.35rem 0">📖 Подробнее</button>' +
+            '<div class="les-full ayah-translation" dir="ltr" style="display:none;white-space:pre-wrap;margin-top:0.35rem">'+ru+'</div></div>';
+        }).join('');
     }
     function renderTajweed() {
       let el = document.getElementById('learn-tajweed');
@@ -8265,11 +8439,20 @@ function renderMistakes() {
         el.innerHTML = '<div class="empty-state">Нет правил таджвида</div>';
         return;
       }
-      el.innerHTML = rules.map(r =>
-        '<div class="rule-card"><h3>'+r.title+'</h3>' +
-        (r.ar ? '<div class="rule-ar" dir="rtl">'+r.ar+'</div>' : '') +
-        '<div class="rule-ru">'+(r.ru||'')+'</div></div>'
-      ).join('');
+      el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">Правила таджвида для начинающих. Кратко → «Подробнее».</p>' +
+        rules.map(function(r) {
+          var short = r.short || (r.ru || '').slice(0, 100);
+          var full = r.detail || r.ru || '';
+          if (r.example) full += '\n\nПример: ' + r.example;
+          if (r.letters) full += '\n\nБуквы: ' + r.letters;
+          return '<div class="rule-card" style="margin-bottom:0.65rem">' +
+            '<h3 dir="ltr">'+r.title+'</h3>' +
+            (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.1rem;margin:0.35rem 0">'+r.ar+'</div>' : '') +
+            (r.exampleHtml ? '<div dir="rtl" lang="ar" style="font-size:1.25rem;margin:0.35rem 0;font-family:Amiri,serif">'+r.exampleHtml+'</div>' : '') +
+            '<div class="les-short ayah-translation" dir="ltr">'+short+'</div>' +
+            '<button type="button" class="btn btn-sm les-more-btn" style="margin:0.35rem 0">📖 Подробнее</button>' +
+            '<div class="les-full ayah-translation" dir="ltr" style="display:none;white-space:pre-wrap;margin-top:0.35rem">'+full+'</div></div>';
+        }).join('');
     }
 
     function renderRulesList(containerId, items) {
@@ -10141,12 +10324,66 @@ function renderSalah() {
         if (sess && sess.nick) {
           el.innerHTML =
             '<div class="card"><b>Вы вошли'+(sess.online?' (онлайн)':' (локально)')+'</b>' +
-            '<div style="margin-top:0.5rem">Никнейм: <b>'+String(sess.nick).replace(/</g,'&lt;')+'</b></div>' +
+            '<div style="margin-top:0.5rem">Никнейм: <b id="acc-nick-view">'+String(sess.nick).replace(/</g,'&lt;')+'</b></div>' +
             '<div>Email: <b>'+String(sess.email||'').replace(/</g,'&lt;')+'</b></div>' +
             '<p class="ayah-translation" style="margin-top:0.6rem">'+(online
               ? 'Аккаунт в Supabase: вход доступен с любого устройства.'
               : 'Локальный режим. Онлайн-сервер недоступен.')+'</p>' +
+            '<button type="button" class="btn btn-sm" id="btn-acc-nick" style="width:100%;margin-top:0.4rem">Сменить ник</button>' +
+            '<button type="button" class="btn btn-sm" id="btn-acc-pass" style="width:100%;margin-top:0.35rem">Сменить пароль аккаунта</button>' +
+            '<button type="button" class="btn btn-sm" id="btn-acc-email" style="width:100%;margin-top:0.35rem">Сменить email</button>' +
             '<button type="button" class="btn" id="btn-logout" style="width:100%;margin-top:0.6rem">Выйти</button></div>';
+          document.getElementById('btn-acc-nick')?.addEventListener('click', async function() {
+            var n = prompt('Новый никнейм (3–24 символа):', sess.nick || '');
+            if (!n || n.length < 3) return;
+            n = n.trim().slice(0, 24);
+            try {
+              var sb = getSb();
+              if (sb && sess.online) {
+                var uid = (await sb.auth.getUser()).data.user.id;
+                await sb.from('profiles').update({ nick: n }).eq('id', uid);
+              }
+              sess.nick = n;
+              authSetSession(sess);
+              toast('Ник обновлён');
+              renderAuthSync('account');
+            } catch(e) { toast('Ошибка: '+(e.message||e)); }
+          });
+          document.getElementById('btn-acc-pass')?.addEventListener('click', async function() {
+            var cur = prompt('Текущий пароль:');
+            if (!cur) return;
+            var p1 = prompt('Новый пароль (мин. 6 символов):');
+            if (!p1 || p1.length < 6) { toast('Слишком короткий'); return; }
+            var p2 = prompt('Повторите новый пароль:');
+            if (p1 !== p2) { toast('Не совпали'); return; }
+            try {
+              var sb = getSb();
+              if (sb && sess.email) {
+                // re-auth then update
+                var { error: e1 } = await sb.auth.signInWithPassword({ email: sess.email, password: cur });
+                if (e1) { toast('Неверный текущий пароль'); return; }
+                var { error: e2 } = await sb.auth.updateUser({ password: p1 });
+                if (e2) { toast(e2.message||'Ошибка'); return; }
+                toast('Пароль аккаунта изменён');
+              } else toast('Нужен онлайн-аккаунт');
+            } catch(e) { toast('Ошибка: '+(e.message||e)); }
+          });
+          document.getElementById('btn-acc-email')?.addEventListener('click', async function() {
+            var cur = prompt('Текущий пароль для подтверждения:');
+            if (!cur) return;
+            var em = prompt('Новый email:');
+            if (!em || em.indexOf('@') < 0) return;
+            try {
+              var sb = getSb();
+              if (sb && sess.email) {
+                var { error: e1 } = await sb.auth.signInWithPassword({ email: sess.email, password: cur });
+                if (e1) { toast('Неверный пароль'); return; }
+                var { error: e2 } = await sb.auth.updateUser({ email: em });
+                if (e2) { toast(e2.message||'Ошибка'); return; }
+                toast('Проверьте новый email для подтверждения');
+              } else toast('Нужен онлайн-аккаунт');
+            } catch(e) { toast('Ошибка: '+(e.message||e)); }
+          });
           document.getElementById('btn-logout')?.addEventListener('click', async function() {
             var sb = getSb();
             if (sb) try { await sb.auth.signOut(); } catch(e) {}
@@ -10178,6 +10415,7 @@ function renderSalah() {
           '</div>';
         document.getElementById('btn-to-reg')?.addEventListener('click', function(){ showView('register'); });
         document.getElementById('btn-to-forgot')?.addEventListener('click', function(){ showView('forgot'); });
+        try{wrapPasswordEye('login-pass');}catch(e){}
         document.getElementById('btn-login')?.addEventListener('click', async function() {
           var id = (document.getElementById('login-id').value || '').trim();
           var pass = document.getElementById('login-pass').value || '';
@@ -10322,45 +10560,161 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
-        { major: '2', v: '2.33', kinds: ['a','b','f'], date: '2026-08-07',
+        { major: '2', v: '2.32', kinds: ['a', 'b', 'f', 'd'], date: '2026-08-07',
           a: [
-            'Аудио букв (mp3) и «Скачать все буквы»',
-            'Экспорт галочками без повторов',
-            'Порядок главных разделов ↑↓',
-            'Окно первого входа: гость или регистрация'
+            'Настройки: категория «Пароли» (блокировка и смена PIN)',
+            'Настройки: «Вид» и «Шрифты» раздельно',
+            'Порядок главных разделов перенесён в «Меню»'
           ],
           b: [
-            'Восстановление функций после отката файла'
+            'Иконки разделов «Ещё»: фикх, акида, намаз, рамадан, хадж и др.',
+            'После разблокировки — последний раздел (или «Ежедневное»)',
+            'Кнопка «Назад» на ПК заметнее (как на телефоне)'
           ],
           f: [
-            'Озвучка букв: кэш и jsDelivr'
+            'Глаз пароля на экране блокировки сразу, не после «Вход»',
+            'Плеер полностью скрыт на экране блокировки (в т.ч. ПК)',
+            '«Подробнее» в Правилах и Таджвиде снова раскрывает текст'
+          ],
+          d: [
+            'Ночной режим (22:00–6:00) в категории «Вид»',
+            'body.app-locked жёстко скрывает audio-bar на desktop'
+          ],
+          ph: [], I: [ 'Видео/фото букв', 'Добавление сур и аятов в теорию' ], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.31', kinds: ['a', 'b', 'f', 'd'], date: '2026-08-07',
+          a: [
+            'Порядок главных разделов (↑↓) в настройках, кроме «Ещё»',
+            'Скачать все буквы (аудио) в теории',
+            'Глаз показать/скрыть пароль (вход, регистрация, блокировка)'
+          ],
+          b: [
+            'Экспорт: «Всё» блокирует остальные галочки и наоборот',
+            'Плеер скрыт на экране блокировки',
+            'При входе в раздел прокрутка сверху (Данные и др.)'
+          ],
+          f: [ 'Плеер не перекрывает окно пароля' ],
+          d: [ 'body.app-locked скрывает .audio-bar' ],
+          ph: [], I: [ 'Видео/фото букв; добавление сур в теорию — дальше' ], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.30', kinds: ['a', 'b', 'f', 'd'], date: '2026-08-07',
+          a: [
+            'Смена ника аккаунта',
+            'Смена пароля и email аккаунта',
+            'Смена пароля блокировки приложения',
+            'Кэш аудио букв (скачать все)'
+          ],
+          b: [
+            'Экспорт: список пунктов с новой строки',
+            'ПК шире (меньше пустых полей)'
+          ],
+          f: [
+            'ПК: шапка без закладок',
+            'Пароль блокировки при включении'
+          ],
+          d: [ 'mode-desktop: ширина до 1400px / 96vw' ],
+          ph: [], I: [ 'Видео/фото букв с ракурсов — ищем открытые материалы' ], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.29', kinds: ['f', 'a', 'b'], date: '2026-08-07',
+          a: [ 'Первый заход: окно регистрации или гость' ],
+          b: [
+            'ПК: убраны Закладки/Прогресс из шапки',
+            'Ещё → more; повторное Ещё открывает меню'
+          ],
+          f: [
+            'Экспорт: чекбоксы без повторов',
+            'Навигация Ещё'
+          ],
+          d: [], ph: [], I: ['Видео букв', 'Смена главных разделов — доработка'], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.28', kinds: ['f', 'b', 'a'], date: '2026-08-07',
+          a: [],
+          b: [ 'Экспорт: выбор из списка без повторов' ],
+          f: [
+            'Правила/Таджвид: разный текст кратко и подробно',
+            'Озвучка букв: HTML audio + mp3 записи (не латиница TTS)'
           ],
           d: [], ph: [], I: [], o: [], s: [], on: []
         },
-
-        { major: '2', v: '2.32', kinds: ['a','b','f','d'], date: '2026-08-07',
-          a: [
-            'Категория настроек «Пароли»',
-            'Порядок главных разделов в «Меню»',
-            'Добавление суры/аята в теорию'
-          ],
-          b: [
-            'Иконки разделов (фикх 📖 и др.)',
-            'После разблокировки — прежний экран',
-            'Плеер скрыт на блокировке',
-            'Глаз пароля на экране блокировки',
-            '«Подробнее» в правилах и таджвиде'
-          ],
+        { major: '2', v: '2.27', kinds: ['f', 'a'], date: '2026-08-07',
+          a: [],
+          b: [],
           f: [
-            'Прокрутка вверх при входе в раздел',
-            'Назад браузера через history'
+            'Правила и Таджвид: восстановлены данные ARABIC_RULES / TAJWEED_RULES',
+            'Озвучка букв: mp3 человека (jsDelivr), TTS только как запас с арабским именем'
           ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.26', kinds: ['a', 'f', 'd'], date: '2026-08-07',
+          a: [
+            'Аудио каждой буквы (mp3)',
+            'Теория групп букв — кратко/подробно'
+          ],
+          b: [],
+          f: [ 'RTL/LTR: точки и текст заметок букв больше не «ломаются»' ],
           d: [
-            'ПК: шире контент'
+            'Карточка буквы: dir=ltr для русского',
+            'Карточка буквы: dir=rtl для арабского'
           ],
           ph: [], I: [], o: [], s: [], on: []
         },
-
+        { major: '2', v: '2.25', kinds: ['f', 'a', 'b'], date: '2026-08-07',
+          a: [ 'Теория: у уроков кратко + кнопка «Подробнее»' ],
+          b: [ 'Координаты городов КЗ для ДУМК — точные из api.muftyat.kz/cities' ],
+          f: [ 'Времена намаза ДУМК: перебор точных координат (больше не 404 из-за округления)' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.24', kinds: ['b', 'f'], date: '2026-08-07',
+          a: [],
+          b: [
+            'Статистика: категории Активность (моя/общая) и Регистрация',
+            'Статистика: убран обзор'
+          ],
+          f: [ 'Неделя/месяц/год: fallback если данные только за сегодня' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.23', kinds: ['f'], date: '2026-08-07',
+          a: [], b: [],
+          f: [ 'Статистика день/неделя/месяц: прямое сравнение дат + перенос старых данных на сегодня' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.22', kinds: ['b', 'f', 'd'], date: '2026-08-07',
+          a: [],
+          b: [ 'Размеры шрифтов учёбы перенесены в «Вид и шрифты»' ],
+          f: [
+            'Язык интерфейса / Перевод Корана — подписи',
+            'Статистика: миграция каждый раз если день=0'
+          ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.21', kinds: ['f', 'b'], date: '2026-08-07',
+          a: [],
+          b: [ 'Язык интерфейса сразу ставит перевод Корана (kk→Алтай, ru→Кулиев)' ],
+          f: [ 'Статистика: разовый перенос старых заходов на сегодня' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.20', kinds: ['f', 'b', 'd'], date: '2026-08-07',
+          a: [],
+          b: [
+            'Статистика: одна панель периода',
+            'Статистика: блоки «Моя» и «По сайту»'
+          ],
+          f: [
+            'Старые данные без даты → сегодня',
+            'Кнопки пред/след снова работают'
+          ],
+          d: [ 'Более читаемый вид статистики' ],
+          ph: [], I: [], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.19', kinds: ['f'], date: '2026-08-07',
+          a: [], b: [],
+          f: [
+            'Статистика: восстановлен sumInPeriod (пустой экран)',
+            'ДУМК: ensureMuftyatCache + загрузка с muftyat.kz',
+            'Назад из времени намаза → Ещё; после обновления остаёмся на экране обновления'
+          ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.17', kinds: ['f', 'b'], date: '2026-08-07',
           a: [],
           b: [ 'Статистика: День/Неделя/Месяц/Год/Всё + кнопки пред/след' ],
@@ -10378,26 +10732,44 @@ function renderSalah() {
         },
         { major: '2', v: '2.15', kinds: ['f', 'b', 'd'], date: '2026-08-07',
           a: [],
-          b: [ 'Статистика: выбор месяца стрелками; режим 30 дней / календарный месяц' ],
-          f: [ 'Сегодня/неделя по локальной дате; после обновления приложения возврат в Ещё' ],
+          b: [
+            'Статистика: выбор месяца стрелками',
+            'Режим 30 дней / календарный месяц'
+          ],
+          f: [
+            'Сегодня/неделя по локальной дате',
+            'После обновления приложения возврат в Ещё'
+          ],
           d: [ 'ПК: viewport desktop-site (ширина 1100 + масштаб под телефон)' ],
           ph: [], I: [], o: [], s: [], on: []
         },
         { major: '2', v: '2.14', kinds: ['a', 'b', 'd'], date: '2026-08-07',
           a: [ 'Статистика по спискам: Все / Знание / Поклонение / …' ],
-          b: [ 'Режим ПК с телефона: шире экран, сетка «Ещё» 2–3 колонки' ],
+          b: [
+            'Режим ПК с телефона: шире экран',
+            'Сетка «Ещё» 2–3 колонки'
+          ],
           d: [ 'CSS mode-desktop до 1100px' ],
           f: [], ph: [], I: [], o: [], s: [], on: []
         },
         { major: '2', v: '2.13', kinds: ['f', 'b'], date: '2026-08-07',
           a: [],
           b: [ 'Убран номер версии из заголовка «Ежедневное»' ],
-          f: [ 'Статистика: подпись «Обновить приложение» вместо appupdate; дата по местному времени' ],
+          f: [
+            'Статистика: подпись «Обновить приложение» вместо appupdate',
+            'Дата по местному времени'
+          ],
           d: [], ph: [], I: [], o: [], s: [], on: []
         },
         { major: '2', v: '2.12', kinds: ['b', 'a', 'f'], date: '2026-08-06',
-          a: [ 'Статистика: сегодня/неделя/месяц/год, время в разделах, словарь, закладки, избранное' ],
-          b: [ 'Статистика общедоступна (не только админ); удобные карточки' ],
+          a: [
+            'Статистика: сегодня/неделя/месяц/год',
+            'Время в разделах, словарь, закладки, избранное'
+          ],
+          b: [
+            'Статистика общедоступна (не только админ)',
+            'Удобные карточки статистики'
+          ],
           f: [ 'Убраны дубли кнопок «Мой аккаунт» и «Обновить» внизу «Ещё»' ],
           d: [], ph: [], I: [], o: [], s: [], on: []
         },
@@ -10425,7 +10797,10 @@ function renderSalah() {
           b: [], d: [], ph: [], I: [], o: [], on: []
         },
         { major: '2', v: '2.07', kinds: ['b', 'a'], date: '2026-08-04',
-          a: [ 'Группа «Онлайн» + раздел «Мой аккаунт»; кнопки Вход/Выход внизу «Ещё»' ],
+          a: [
+            'Группа «Онлайн» + раздел «Мой аккаунт»',
+            'Кнопки Вход/Выход внизу «Ещё»'
+          ],
           b: [
             'Порядок: Знание → Поклонение → Коран → Жизнь → Онлайн → Система',
             'Система: Данные, Обновления, Справка, Настройки',
@@ -10435,7 +10810,10 @@ function renderSalah() {
           f: [], d: [], ph: [], I: [], o: [], s: [], on: []
         },
                 { major: '2', v: '2.06', kinds: ['b', 'a', 'f'], date: '2026-08-04',
-          a: [ '«Ещё»: карточка аккаунта сверху; выход в профиле' ],
+          a: [
+            '«Ещё»: карточка аккаунта сверху',
+            'Выход в профиле'
+          ],
           b: [
             'Порядок «Ещё»: Поклонение → Знания → Коран → Жизнь → Аккаунт и система',
             'Система: Мой аккаунт первым; удобные подписи групп'
@@ -10445,14 +10823,21 @@ function renderSalah() {
         },
                 { major: '2', v: '2.05', kinds: ['f', 'b'], date: '2026-08-04',
           a: [],
-          b: [ 'По умолчанию: телефон; сетка 4/6 скрыта на телефоне; блокировка приложения выкл' ],
+          b: [
+            'По умолчанию: телефон',
+            'Сетка 4/6 скрыта на телефоне',
+            'Блокировка приложения выкл'
+          ],
           f: [ 'После разблокировки снова показывается экран (не пустой фон)' ],
           d: [], ph: [], I: [], o: [], s: [], on: []
         },
                 { major: '2', v: '2.04', kinds: ['f', 'b', 'a', 'on'], date: '2026-08-04',
           a: [ 'Первый вход: выбор «гость» / регистрация / вход' ],
           on: [ 'Справка: карточки аккаунта, входа, регистрации' ],
-          b: [ 'Обновления: по умолчанию серия 2; меньше пустого поля внизу' ],
+          b: [
+            'Обновления: по умолчанию серия 2',
+            'Меньше пустого поля внизу'
+          ],
           f: [
             'Кнопка Тел/ПК: выше слой (z-index), снова нажимается',
             'Виджет намаза: Духа по умолчанию выкл',
@@ -10461,19 +10846,31 @@ function renderSalah() {
           d: [], ph: [], I: [], o: [], s: []
         },
                 { major: '2', v: '2.03', kinds: ['a', 'on'], date: '2026-08-04',
-          a: [ 'Онлайн-аккаунты через Supabase: регистрация, вход, сброс пароля по email' ],
+          a: [
+            'Онлайн-аккаунты через Supabase',
+            'Регистрация, вход, сброс пароля по email'
+          ],
           on: [ 'Supabase Auth: общий доступ с любого устройства/города' ],
           b: [], f: [], d: [], ph: [], I: [], o: [], s: []
         },
                 { major: '2', v: '2.02', kinds: ['a', 'on', 'b'], date: '2026-08-04',
-          a: [ 'Мой аккаунт: вход, регистрация, сброс пароля (никнейм, email, правила пароля)' ],
+          a: [
+            'Мой аккаунт: вход, регистрация, сброс пароля',
+            'Никнейм, email, правила пароля'
+          ],
           on: [ 'Локальные аккаунты на устройстве; готовность к онлайн-серверу позже' ],
           b: [ 'Система по умолчанию: Данные → Справка → Обновления → Настройки → Мой аккаунт' ],
           f: [], d: [], ph: [], I: [], o: [], s: []
         },
                 { major: '2', v: '2.01', kinds: ['f', 'b', 'a'], date: '2026-08-04',
-          a: [ 'Экспорт: пункты 1–7, ввод номеров в 6 полях' ],
-          b: [ 'Данные: вкладки Кэш / Экспорт без залипания; назад работает' ],
+          a: [
+            'Экспорт: пункты 1–7',
+            'Ввод номеров в 6 полях'
+          ],
+          b: [
+            'Данные: вкладки Кэш / Экспорт без залипания',
+            'Назад работает'
+          ],
           f: [ 'Данные: исправлена навигация между кэшем и экспортом' ],
           d: [], ph: [], I: [], o: [], s: [], on: []
         },
@@ -10499,7 +10896,10 @@ function renderSalah() {
         },
         { major: '1', v: '1.40', kinds: ['f', 'b'], date: '2026-08-01',
           a: [],
-          b: [ 'Справка: нормальные краткие/полные тексты для Словари, Темы, Моё чтение, Данные' ],
+          b: [
+            'Справка: нормальные краткие/полные тексты',
+            'Словари, Темы, Моё чтение, Данные'
+          ],
           f: [
             'Ситуации в жизни: подробности сразу под выбранной карточкой',
             'Ещё меньше пустого поля внизу экранов'
@@ -10508,7 +10908,10 @@ function renderSalah() {
         },
         { major: '1', v: '1.39', kinds: ['f', 'b'], date: '2026-08-01',
           a: [],
-          b: [ 'Справка: словари, темы и ситуации, моё чтение, данные, фикх' ],
+          b: [
+            'Справка: словари, темы и ситуации',
+            'Справка: моё чтение, данные, фикх'
+          ],
           f: [
             'Словари: убрано дублирование вкладок',
             'Темы и ситуации: снова показываются ситуации в жизни',
@@ -11035,6 +11438,11 @@ function renderSalah() {
       if (!el) return;
       // Справка строится от меню «Ещё» + главные вкладки. Без дублей.
       const SEC_HELP = {
+        export: 'Экспорт и импорт данных.\n\n• Отметьте галочками разделы (закладки, словарь, настройки…).\n• Каждый пункт выбирается один раз — повторов нет.\n• «0 — всё» — полный бэкап.\n• Пароль аккаунта и PIN блокировки не экспортируются.\n• Импорт: вставьте JSON или файл.',
+        more: 'Меню «Ещё».\n\n• Списки разделов (знание, поклонение…).\n• Повторное нажатие «Ещё» всегда возвращает к списку меню.\n• На ПК в шапке те же 5 пунктов: Ежедневное, Суры, Теория, Практика, Ещё.',
+        settings: 'Настройки.\n\n• Язык и перевод Корана.\n• Аудио: чтец и азан.\n• Вид: тема и ночной режим.\n• Шрифты: размеры и семейства.\n• Чтение, офлайн.\n• Пароли: блокировка и смена PIN.\n• Меню: списки, скрытие разделов, порядок главных вкладок.',
+        account: 'Мой аккаунт.\n\n• Регистрация и вход через email.\n• При первом заходе предлагается войти или продолжить как гость.\n• Ник виден в статистике; email не показывается другим.',
+
         appupdate: 'Обновить приложение.\n\n• Сбрасывает Service Worker и кэш оболочки.\n• Заново качает последнюю версию index.html с GitHub.\n• Закладки, настройки, аккаунт и словарь НЕ удаляются.\n• Если не помогло: инкогнито или очистка данных сайта velqer0n.github.io.',
         stats: 'Статистика (Онлайн).\n\n• Локальная: аяты, закладки, время прослушивания.\n• Общая (только админ): список пользователей (ники), посещения разделов — всего и за сегодня.\n• Не показывает, кто именно в какой раздел заходил.\n• Админ: SQL update profiles set is_admin = true where email = …',
         account: 'Мой аккаунт (меню «Ещё» → Система).\n\n• Регистрация: никнейм, email, пароль (≥8, буква+цифра).\n• Вход по email и паролю (онлайн через Supabase — с любого устройства).\n• «Забыли пароль» — сброс по email (ссылка от Supabase).\n• Гость: можно пользоваться без аккаунта, данные только в браузере этого устройства.\n• Пароль приложения (экран блокировки) — отдельная защита локальных данных, это не пароль аккаунта.',
@@ -11076,10 +11484,7 @@ function renderSalah() {
         export: 'Входит в «Данные» → вкладка «Экспорт / импорт».\n\n• Полный или частичный бэкап: закладки, словарь, прогресс, настройки.\n• Файл на устройство и обратный импорт.',
         changelog: 'Обновления.\n\n• Версии с датами; типы .a .b .f .d .ph .I .o .s.\n• Поиск по тексту журнала.\n• Фильтры по серии и типу правки.',
         help: 'Справка — описание всех разделов сайта.\n\n• Вкладки: Главное + ваши списки меню «Ещё».\n• Порядок и состав как в меню; скрытые разделы не показываются.\n• Поиск по тексту карточек.\n• Кратко в подзаголовке, подробно по нажатию.',
-        settings: 'Настройки.\n\n• Язык и перевод Корана.\n• Аудио: чтец Корана; чтец азана (суннит.) + проверка звука.\n• Вид и шрифты: размеры, семейства шрифтов (список по нажатию), тема (в т.ч. ночное чтение).\n• Чтение и тафсир.\n• Офлайн и кэш.\n• «Ещё · меню»: списки (до 8), скрыть разделы, порядок, сброс — это здесь, не отдельный пункт справки.\n• Другое: мазхаб, режим только Коран и пр.'
-      };
-      const MAIN_HELP = [
-        { t: 'Ежедневное', s: 'Главная вкладка внизу', d: 'Домашний экран после входа.\n\n• Виджет времён намаза (Фаджр…Иша; по желанию Духа/Тахаджуд) — город и метод из «Время намаза».\n• Аят дня: арабский, перевод; нажатие на аят — контекст до/после.\n• Дуа, хадис, сунна, слово — листать; у дуа 🔊.\n• Имя Аллаха из 99.\n• История / дуа / хадис / имя без повтора около 7 дней.\nВсё для быстрого взгляда утром и вечером.' },
+        settings: 'Настройки.\n\n• Язык и перевод Корана.\n• Аудио: чтец Корана; чтец азана (суннит.) + проверка звука.\n• Вид: тема (тёмная/светлая/сепия/ночное) и авто-ночной режим 22:00–6:00.\n• Шрифты: размеры арабского и перевода, семейства (список по нажатию).\n• Чтение и тафсир.\n• Офлайн и кэш.\n• Пароли: блокировка при входе и смена PIN.\n• Другое: мазхаб и прочее.\n• Меню: списки разделов, скрытие, порядок главных вкладок.', s: 'Главная вкладка внизу', d: 'Домашний экран после входа.\n\n• Виджет времён намаза (Фаджр…Иша; по желанию Духа/Тахаджуд) — город и метод из «Время намаза».\n• Аят дня: арабский, перевод; нажатие на аят — контекст до/после.\n• Дуа, хадис, сунна, слово — листать; у дуа 🔊.\n• Имя Аллаха из 99.\n• История / дуа / хадис / имя без повтора около 7 дней.\nВсё для быстрого взгляда утром и вечером.' },
         { t: 'Суры', s: 'Главная вкладка внизу', d: 'Список 114 сур.\n\n• Поиск по названию.\n• Поиск по тексту Корана (нужен кэш или сеть).\n• Нажатие — чтение суры.\n• Отметки прогресса учёбы, если пользовались теорией.\nОсновной вход в чтение, не в «Теорию».' },
         { t: 'Теория', s: 'Главная вкладка внизу', d: 'Обучение чтению и правилам.\n\n• Буквы, харакаты, слоги, таджвид.\n• Суры и аяты по словам.\n• Академия: модули по порядку, тесты.\n• SRS и разбор ошибок.\n• «К списку» возвращает к выбору; блокировка «сначала предыдущий» — в настройках.\nНе путать с разделами фикха/акиды в «Ещё».' },
         { t: 'Практика', s: 'Главная вкладка внизу', d: 'Закрепление после теории.\n\n• Викторины по буквам и таджвиду.\n• Случайный аят, хифз.\n• Ошибки уходят в разбор в теории.\nТренировка, не замена внимательного чтения Корана.' },
@@ -11212,10 +11617,10 @@ function renderSalah() {
 
     const PRAYER_COUNTRIES = {
       KZ: { name: 'Казахстан', cities: [
-        { n:'Алматы', lat:43.2380, lon:76.9450 },{ n:'Астана', lat:51.1694, lon:71.4491 },
-        { n:'Шымкент', lat:42.3417, lon:69.5901 },{ n:'Караганда', lat:49.8047, lon:73.1094 },
-        { n:'Актобе', lat:50.2839, lon:57.1670 },{ n:'Кызылорда', lat:44.8488, lon:65.4823 },
-        { n:'Атырау', lat:47.1164, lon:51.8826 },{ n:'Павлодар', lat:52.2873, lon:76.9674 }
+        { n:'Алматы', lat:43.238293, lon:76.945465 },{ n:'Астана', lat:51.133333, lon:71.433333 },
+        { n:'Шымкент', lat:42.368009, lon:69.612769 },{ n:'Караганда', lat:49.806406, lon:73.085485 },
+        { n:'Актобе', lat:50.300377, lon:57.154555 },{ n:'Кызылорда', lat:44.842544, lon:65.502563 },
+        { n:'Атырау', lat:47.116667, lon:51.883333 },{ n:'Павлодар', lat:52.315556, lon:76.956389 }
       ]},
       UZ: { name: 'Узбекистан', cities: [
         { n:'Ташкент', lat:41.2995, lon:69.2401 },{ n:'Самарканд', lat:39.6542, lon:66.9597 },
@@ -11414,6 +11819,22 @@ function renderSalah() {
 
     // ДУМК / muftyat.kz — официальный API Казахстана
     // https://api.muftyat.kz/prayer-times/{year}/{lat}/{lng}
+    
+    function ensureMuftyatCache(lat, lon, year) {
+      year = year || new Date().getFullYear();
+      try {
+        var cached = loadPrayerCache(lat, lon, year);
+        if (cached && cached.days && Object.keys(cached.days).length > 10)
+          return Promise.resolve(cached);
+      } catch(e) {}
+      return fetchMuftyatYear(lat, lon, year).then(function(data) {
+        if (data && data.days) {
+          try { savePrayerCache(lat, lon, year, data); } catch(e) {}
+        }
+        return data;
+      }).catch(function(){ return null; });
+    }
+
     function fetchMuftyatYear(lat, lon, year) {
       // API чувствителен к точности координат — 6 знаков как в cities/
       const la = (+lat).toFixed(6).replace(/\.?0+$/,'').replace(/\.$/,'');
@@ -11569,7 +11990,7 @@ function renderSalah() {
       if (!el) return;
       try {
         if (!state.prayerLoc || state.prayerLoc.lat == null) {
-          state.prayerLoc = { lat: 43.2380, lon: 76.9450, city: 'Алматы', country: 'KZ' };
+          state.prayerLoc = { lat: 43.238293, lon: 76.945465, city: 'Алматы', country: 'KZ' };
         }
         // Рабочая копия: несохранённый выбор не портит сохранённое
         if (!window._ptWorking) {
@@ -11661,13 +12082,31 @@ let body = '';
               body = '<div class="card"><div class="ayah-translation">Выберите страну и город.</div></div>';
             } else {
               let t = resolveDayTimes(+loc.lat, +loc.lon, new Date(), methodKey);
-              if (!t && methodKey === 'DUMK' && typeof ensureMuftyatCache === 'function') {
-                body = '<div class="card"><div class="ayah-translation">Загрузка времён ДУМК (muftyat.kz)…</div></div>';
-                ensureMuftyatCache(+loc.lat, +loc.lon, new Date().getFullYear()).then(function() {
-                  try { if (typeof window._ptPaint === 'function') window._ptPaint(tab); else renderPrayerTimes(); } catch(e) {}
-                });
+              if (!t && methodKey === 'DUMK') {
+                body = '<div class="card"><div class="ayah-translation">Загрузка времён ДУМК с muftyat.kz…</div></div>';
+                var _lat = +loc.lat, _lon = +loc.lon, _y = new Date().getFullYear();
+                var loader = (typeof ensureMuftyatCache === 'function')
+                  ? ensureMuftyatCache(_lat, _lon, _y)
+                  : fetchMuftyatYear(_lat, _lon, _y).then(function(data) {
+                      if (data && data.days) try { savePrayerCache(_lat, _lon, _y, data); } catch(e) {}
+                      return data;
+                    });
+                Promise.resolve(loader).then(function(data) {
+                  try {
+                    if (data && data.days) {
+                      if (typeof window._ptPaint === 'function') window._ptPaint(tab);
+                      else renderPrayerTimes();
+                    } else {
+                      var elb = document.getElementById('prayertimes-body');
+                      if (elb) {
+                        /* keep message */
+                      }
+                      toast('Не удалось загрузить muftyat.kz — проверьте сеть');
+                    }
+                  } catch(e) {}
+                }).catch(function(){ try { toast('Ошибка сети muftyat.kz'); } catch(e) {} });
               } else if (!t) {
-                body = '<div class="card"><div class="ayah-translation">Не удалось получить времена. Для ДУМК нужен интернет (muftyat.kz).</div></div>';
+                body = '<div class="card"><div class="ayah-translation">Не удалось рассчитать времена. Выберите другой метод или проверьте координаты.</div></div>';
               } else {
                 const rows = [
                   ['Фаджр', t.fajr],
@@ -11746,8 +12185,8 @@ let body = '';
                 return '';
               })() +
               // download card only: rebuild minimal
-              '<div class="card"><b>Скачать времена (ДУМК / muftyat.kz)</b>' +
-              '<div class="ayah-translation" style="margin-top:0.3rem">Официальный API. Интернет один раз.</div>' +
+              '<div class="card"><b>Таблица на месяц (офлайн)</b>' +
+              '<div class="ayah-translation" style="margin-top:0.3rem">Для ежедневных времён сверху скачивать не нужно — они подгружаются сами. Здесь можно сохранить таблицу на месяц в кэш (без интернета в поездке).</div>' +
               '<label style="display:block;margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted)">Месяц</label>' +
               '<select id="pt-dl-month" style="width:100%;padding:0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
               [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
@@ -12354,7 +12793,7 @@ let body = '';
       }).join('');
       el.innerHTML =
         '<div class="card"><b>Экспорт</b>' +
-        '<div class="ayah-translation" style="margin:0.4rem 0">Отметьте разделы:<br>1. Закладки<br>2. Словарь<br>3. Прогресс<br>4. Настройки<br>5. Свои дуа<br>6. Черновики<br>7. Меню «Ещё»<br><br>Пароль не экспортируется.</div>' +
+        '<div class="ayah-translation" style="margin:0.4rem 0">Отметьте нужные разделы:<br>1. Закладки<br>2. Словарь<br>3. Прогресс<br>4. Настройки<br>5. Свои дуа<br>6. Черновики<br>7. Меню «Ещё»<br><br>Каждый пункт — один раз. Пароль не экспортируется.</div>' +
         '<div style="margin:0.55rem 0">'+chips+'</div>' +
         '<label style="display:flex;gap:0.45rem;align-items:center;margin:0.4rem 0;cursor:pointer"><input type="checkbox" id="exp-full"> <span><b>0</b> — всё (полный бэкап)</span></label>' +
         '<button type="button" class="btn btn-primary" id="btn-do-export" style="width:100%;margin-top:0.55rem">Скачать JSON</button></div>' +
@@ -12406,23 +12845,43 @@ let body = '';
         return data;
       };
 
-      (function(){
-        var expFull = document.getElementById('exp-full');
-        function syncExpMutex() {
-          var full = !!(expFull && expFull.checked);
-          el.querySelectorAll('input.exp-num').forEach(function(cb) {
-            cb.disabled = full;
-            if (full) cb.checked = false;
-          });
-        }
-        if (expFull) expFull.addEventListener('change', syncExpMutex);
-        el.querySelectorAll('input.exp-num').forEach(function(cb) {
-          cb.addEventListener('change', function() {
-            if (cb.checked && expFull) expFull.checked = false;
-            syncExpMutex();
-          });
+      document.querySelectorAll('.exp-num').forEach(function(sel) {
+        // initial fill + change handler
+      });
+      function refreshExpSelects() {
+        var selected = {};
+        el.querySelectorAll('.exp-num').forEach(function(sel) {
+          var v = sel.value;
+          if (v) selected[v] = true;
         });
-      })();
+        el.querySelectorAll('.exp-num').forEach(function(sel) {
+          var cur = sel.value;
+          var html = '<option value="">—</option>';
+          packs.filter(function(p){ return p.n > 0; }).forEach(function(p) {
+            if (selected[String(p.n)] && String(p.n) !== cur) return; // уже выбрано в другом поле
+            html += '<option value="'+p.n+'"'+(String(p.n)===cur?' selected':'')+'>'+p.n+'. '+p.label+'</option>';
+          });
+          sel.innerHTML = html;
+          if (cur) sel.value = cur;
+        });
+      }
+      refreshExpSelects();
+      // checkbox export + mutex с «Всё»
+      var expFull = document.getElementById('exp-full');
+      function syncExpMutex() {
+        var full = !!(expFull && expFull.checked);
+        el.querySelectorAll('.exp-num').forEach(function(cb) {
+          cb.disabled = full;
+          if (full) cb.checked = false;
+        });
+      }
+      if (expFull) expFull.addEventListener('change', syncExpMutex);
+      el.querySelectorAll('.exp-num').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+          if (cb.checked && expFull) expFull.checked = false;
+          syncExpMutex();
+        });
+      });
       document.getElementById('btn-do-export')?.addEventListener('click', () => {
         var nums = [];
         el.querySelectorAll('.exp-num:checked').forEach(function(inp) {
@@ -12431,7 +12890,7 @@ let body = '';
         });
         if (document.getElementById('exp-full') && document.getElementById('exp-full').checked) nums = [0];
         if (!nums.length) {
-          toast('Отметьте пункты или «Всё»');
+          toast('Выберите пункты из списка или отметьте «Всё»');
           return;
         }
         const data = collectByNumbers(nums);
@@ -12865,24 +13324,54 @@ function renderDict() {
     document.getElementById('btn-change-lock-pin')?.addEventListener('click', function() {
       var cur = prompt('Текущий пароль блокировки:');
       if (cur == null) return;
-      var stored = '';
-      try { stored = localStorage.getItem('quran_lock_pin_v1') || ''; } catch(e) {}
-      var enc = '';
-      try { enc = btoa(unescape(encodeURIComponent(cur))); } catch(e) {}
-      if (stored && stored !== enc && stored !== cur) { toast('Неверный пароль'); return; }
-      var p1 = prompt('Новый пароль (мин. 4):');
-      if (!p1 || p1.length < 4) return;
-      if (p1 !== prompt('Повтор:')) { toast('Не совпали'); return; }
+      var ok = false;
+      try {
+        var stored = localStorage.getItem('quran_lock_pin_v1') || '';
+        var enc = btoa(unescape(encodeURIComponent(cur)));
+        ok = (stored && stored === enc);
+        // also try plain if old format
+        if (!ok && stored === cur) ok = true;
+      } catch(e) {}
+      if (!ok && localStorage.getItem('quran_app_lock_v1') === '1') {
+        // if never set via our prompt, allow set
+        if (!localStorage.getItem('quran_lock_pin_v1')) ok = true;
+      }
+      if (!ok) { toast('Неверный текущий пароль'); return; }
+      var p1 = prompt('Новый пароль (мин. 4 символа):');
+      if (!p1 || p1.length < 4) { toast('Слишком короткий'); return; }
+      var p2 = prompt('Повторите новый пароль:');
+      if (p1 !== p2) { toast('Не совпали'); return; }
       try { localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1)))); } catch(e) {}
       toast('Пароль блокировки изменён');
     });
     document.getElementById('setting-app-lock')?.addEventListener('change', async e => {
       const wantLock = e.target.value === '1';
       if (wantLock) {
+        var p1 = prompt('Придумайте пароль для входа (мин. 4 символа):');
+        if (!p1 || p1.length < 4) {
+          e.target.value = '0';
+          toast('Пароль слишком короткий или отменён');
+          return;
+        }
+        var p2 = prompt('Повторите пароль:');
+        if (p1 !== p2) {
+          e.target.value = '0';
+          toast('Пароли не совпали');
+          return;
+        }
+        try {
+          if (typeof setupAppLockPassword === 'function') await setupAppLockPassword(p1);
+          else {
+            // простой хэш в localStorage если нет crypto-функции
+            localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1))));
+          }
+        } catch(err) {
+          try { localStorage.setItem('quran_lock_pin_v1', btoa(unescape(encodeURIComponent(p1)))); } catch(e2) {}
+        }
         state.settings.appLock = true;
         try { localStorage.setItem('quran_app_lock_v1', '1'); } catch(err) {}
         saveState();
-        toast('Пароль при входе включён. При следующем запуске потребуется пароль.');
+        toast('Пароль установлен. При следующем входе потребуется пароль.');
         return;
       }
       // turn off
@@ -13211,7 +13700,7 @@ function renderDict() {
           if (typeof viewStack !== 'undefined' && viewStack.length)
             last = viewStack[viewStack.length - 1] || 'more';
         } catch(e) {}
-        if (last === 'appupdate') last = 'more';
+        /* после обновления остаёмся на appupdate; назад → Ещё */
         sessionStorage.setItem('quran_last_view', last);
         localStorage.setItem('quran_last_view_persist', last);
         localStorage.setItem('quran_from_update', '1');
@@ -14697,17 +15186,86 @@ function playArabicAudio(text, fallbackRu, opts) {
       });
       return t;
     }
-function sumInMonth(map, year, month) {
-      if (!map) return 0;
-      var t = 0;
-      var prefix = year + '-' + String(month + 1).padStart(2, '0') + '-';
-      Object.keys(map).forEach(function(d) {
-        if (String(d).indexOf(prefix) === 0) t += (+map[d] || 0);
+    function parseDayKey(k) {
+      k = String(k || '').trim().replace(/\//g, '-');
+      // обрезать время: 2026-08-07T00:00:00
+      if (k.indexOf('T') > 0) k = k.slice(0, k.indexOf('T'));
+      var p = k.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (!p) return null;
+      var dt = new Date(+p[1], +p[2] - 1, +p[3]);
+      if (isNaN(dt.getTime())) return null;
+      return dt;
+    }
+    function normalizeDayMap(m) {
+      if (m == null) return {};
+      if (typeof m === 'number') {
+        var o = {}; o[dayKey()] = m; return o;
+      }
+      if (typeof m !== 'object' || Array.isArray(m)) return {};
+      var out = {};
+      var orphan = 0;
+      Object.keys(m).forEach(function(k) {
+        if (!k || k.charAt(0) === '_') return;
+        var val = Number(m[k]);
+        if (!val || val !== val) return;
+        var dt = parseDayKey(k);
+        if (dt) {
+          var nk = dayKey(dt);
+          out[nk] = (out[nk] || 0) + val;
+        } else {
+          orphan += val;
+        }
       });
-      return t;
+      if (orphan > 0) {
+        var t = dayKey();
+        out[t] = (out[t] || 0) + orphan;
+      }
+      return out;
+    }
+    function sumInPeriod(map, period, anchor) {
+      map = normalizeDayMap(map);
+      var keys = Object.keys(map);
+      if (!keys.length) return 0;
+      var totalAll = 0;
+      keys.forEach(function(k) { totalAll += Number(map[k]) || 0; });
+      if (period === 'all' || !period) return totalAll;
+
+      anchor = anchor || new Date();
+      var ay = anchor.getFullYear(), am = anchor.getMonth(), ad = anchor.getDate();
+      var todayK = dayKey(anchor);
+
+      if (period === 'day') {
+        return Number(map[todayK]) || 0;
+      }
+
+      var total = 0;
+      keys.forEach(function(k) {
+        var dt = parseDayKey(k);
+        if (!dt) return;
+        var val = Number(map[k]) || 0;
+        if (period === 'week') {
+          var anchorMid = new Date(ay, am, ad).getTime();
+          var t = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+          var diff = Math.round((anchorMid - t) / 86400000);
+          if (diff >= 0 && diff <= 6) total += val;
+        } else if (period === 'month') {
+          if (dt.getFullYear() === ay && dt.getMonth() === am) total += val;
+        } else if (period === 'year') {
+          if (dt.getFullYear() === ay) total += val;
+        }
+      });
+      // если в периоде пусто, но есть данные и «сегодня» входит в период — берём сегодня
+      if (total === 0 && totalAll > 0) {
+        if (period === 'week' || period === 'month' || period === 'year') {
+          total = Number(map[todayK]) || 0;
+          // если сегодня тоже 0 — сумма всех ключей, чья дата ≤ anchor (на всякий случай)
+          if (total === 0) total = totalAll;
+        }
+      }
+      return total;
     }
 
-    async function trackSectionVisit(sectionId) {
+async function trackSectionVisit(sectionId) {
       if (!sectionId) return;
       var skip = { login:1, register:1, forgot:1, appupdate:1 };
       if (skip[sectionId]) return;
@@ -14775,46 +15333,38 @@ async function isAdminUser() {
 async function renderStats() {
       const el = document.getElementById('stats-body');
       if (!el) return;
-      flushSectionTime();
+      try { flushSectionTime(); } catch(e) {}
       const s = ensureRichStats();
+
+      // Нормализация + если нет данных за сегодня — перенос суммы на сегодня
       try {
-        var locToday = dayKey();
-        var utcToday = new Date().toISOString().slice(0, 10);
-        if (locToday !== utcToday && s.sectionVisits) {
-          Object.keys(s.sectionVisits).forEach(function(sid) {
-            var m = s.sectionVisits[sid];
-            if (m && m[utcToday] && !m[locToday]) {
-              m[locToday] = m[utcToday];
-              delete m[utcToday];
-            } else if (m && m[utcToday] && m[locToday]) {
-              m[locToday] += m[utcToday];
-              delete m[utcToday];
+        var today = dayKey();
+        function fixRoot(root) {
+          if (!root) return;
+          Object.keys(root).forEach(function(sid) {
+            var m = normalizeDayMap(root[sid]);
+            var sum = 0;
+            Object.keys(m).forEach(function(k) { sum += Number(m[k]) || 0; });
+            if (sum > 0 && !(Number(m[today]) > 0)) {
+              root[sid] = {};
+              root[sid][today] = sum;
+            } else {
+              root[sid] = m;
             }
           });
         }
-        if (locToday !== utcToday && s.sectionSeconds) {
-          Object.keys(s.sectionSeconds).forEach(function(sid) {
-            var m = s.sectionSeconds[sid];
-            if (m && m[utcToday] && !m[locToday]) {
-              m[locToday] = m[utcToday];
-              delete m[utcToday];
-            } else if (m && m[utcToday] && m[locToday]) {
-              m[locToday] += m[utcToday];
-              delete m[utcToday];
-            }
-          });
-        }
+        fixRoot(s.sectionVisits);
+        fixRoot(s.sectionSeconds);
+        saveState();
       } catch(e) {}
 
-      const labels = (typeof SECTION_STAT_LABELS !== 'undefined') ? SECTION_STAT_LABELS : {};
-      labels.dailyhub = labels.dailyhub || 'Ежедневное';
-      labels.home = labels.home || 'Суры';
-      labels.learn = labels.learn || 'Теория';
-      labels.games = labels.games || 'Практика';
-      labels.more = labels.more || 'Ещё';
-      labels.reader = labels.reader || 'Чтение';
-      labels.account = labels.account || 'Аккаунт';
-      labels.stats = labels.stats || 'Статистика';
+      const labels = (typeof SECTION_STAT_LABELS !== 'undefined') ? Object.assign({}, SECTION_STAT_LABELS) : {};
+      ['dailyhub','home','learn','games','more','reader','account','stats','prayertimes','appupdate','fiqh','settings','changelog','help','data'].forEach(function(id) {
+        if (!labels[id]) {
+          var fallback = { dailyhub:'Ежедневное', home:'Суры', learn:'Теория', games:'Практика', more:'Ещё', reader:'Чтение', account:'Аккаунт', stats:'Статистика', prayertimes:'Время намаза', appupdate:'Обновить', fiqh:'Фикх', settings:'Настройки', changelog:'Обновления', help:'Справка', data:'Данные' };
+          labels[id] = fallback[id] || id;
+        }
+      });
 
       function fmtSec(sec) {
         sec = Math.max(0, Math.round(+sec || 0));
@@ -14824,196 +15374,255 @@ async function renderStats() {
         if (h > 0) return h + ' ч ' + m + ' мин';
         return m + ' мин';
       }
-      function metricCard(title, val, sub) {
-        return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.65rem 0.75rem;min-width:0">' +
-          '<div style="font-size:0.72rem;color:var(--text-muted)">' + title + '</div>' +
-          '<div style="font-size:1.25rem;font-weight:700;margin-top:0.15rem;color:var(--accent)">' + val + '</div>' +
-          (sub ? '<div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.15rem">' + sub + '</div>' : '') +
-          '</div>';
-      }
-      function rangeRow(title, mapVisits, mapSec) {
-        var vT = sumInRange(mapVisits, 0), vW = sumInRange(mapVisits, 6), vA = sumInRange(mapVisits, null);
-        var sT = sumInRange(mapSec, 0), sW = sumInRange(mapSec, 6), sA = sumInRange(mapSec, null);
-        var vM, sM, mLabel = 'месяц';
-        if (window._statsPeriod === 'month' && window._statsMonth) {
-          vM = sumInMonth(mapVisits, window._statsMonth.y, window._statsMonth.m);
-          sM = sumInMonth(mapSec, window._statsMonth.y, window._statsMonth.m);
-          var mn = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-          mLabel = mn[window._statsMonth.m] + ' ' + String(window._statsMonth.y).slice(2);
-        } else {
-          vM = sumInRange(mapVisits, 29);
-          sM = sumInRange(mapSec, 29);
-        }
-        var vY = sumInRange(mapVisits, 364), sY = sumInRange(mapSec, 364);
-        // защита: период не может быть больше «всего»
-        if (vT > vA) vT = vA; if (vW > vA) vW = vA; if (vM > vA) vM = vA; if (vY > vA) vY = vA;
-        if (sT > sA) sT = sA; if (sW > sA) sW = sA; if (sM > sA) sM = sA; if (sY > sA) sY = sA;
-        return '<div style="padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
-          '<div style="font-weight:600;margin-bottom:0.35rem">' + title + '</div>' +
-          '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.25rem;font-size:0.72rem;text-align:center">' +
-          '<div><div style="color:var(--text-muted)">сегодня</div><b>' + vT + '</b><div style="color:var(--text-muted)">' + fmtSec(sT) + '</div></div>' +
-          '<div><div style="color:var(--text-muted)">неделя</div><b>' + vW + '</b><div style="color:var(--text-muted)">' + fmtSec(sW) + '</div></div>' +
-          '<div><div style="color:var(--text-muted)">' + mLabel + '</div><b>' + vM + '</b><div style="color:var(--text-muted)">' + fmtSec(sM) + '</div></div>' +
-          '<div><div style="color:var(--text-muted)">год</div><b>' + vY + '</b><div style="color:var(--text-muted)">' + fmtSec(sY) + '</div></div>' +
-          '<div><div style="color:var(--text-muted)">всего</div><b>' + vA + '</b><div style="color:var(--text-muted)">' + fmtSec(sA) + '</div></div>' +
-          '</div></div>';
-      }
 
-      // aggregate all sections visits/time
-      var allV = {}, allS = {};
-      Object.keys(s.sectionVisits || {}).forEach(function(sid) {
-        Object.keys(s.sectionVisits[sid] || {}).forEach(function(d) {
-          allV[d] = (allV[d] || 0) + (s.sectionVisits[sid][d] || 0);
-        });
-      });
-      Object.keys(s.sectionSeconds || {}).forEach(function(sid) {
-        Object.keys(s.sectionSeconds[sid] || {}).forEach(function(d) {
-          allS[d] = (allS[d] || 0) + (s.sectionSeconds[sid][d] || 0);
-        });
-      });
-
-      var dictN = (state.dictionary || []).length;
-      var bmN = (state.bookmarks || []).length;
-      var notesN = Object.keys(state.notes || {}).length;
-      var learnedN = Object.keys(state.learnedAyahs || {}).length;
-      var learnedS = Object.keys(state.learnedSurahs || {}).length;
-      var listenMin = Math.round((s.listenSeconds || 0) / 60);
-      var foldersN = (state.bookmarkFolders || []).length;
-
-      var secIds = {};
-      Object.keys(s.sectionVisits || {}).forEach(function(k){ secIds[k] = 1; });
-      Object.keys(s.sectionSeconds || {}).forEach(function(k){ secIds[k] = 1; });
-      var secList = Object.keys(secIds).sort(function(a, b) {
-        return sumInRange(s.sectionVisits[b], null) - sumInRange(s.sectionVisits[a], null);
-      });
-      if (!window._statsPeriod) window._statsPeriod = 'day';
+      if (!window._statsPeriod) window._statsPeriod = 'all';
       if (!window._statsAnchor) window._statsAnchor = new Date();
       if (!window._statsGroup) window._statsGroup = 'all';
+      if (!window._statsCat) window._statsCat = 'activity'; // activity | registration
+      if (!window._statsWho) window._statsWho = 'mine'; // mine | global
+
+      var pCur = window._statsPeriod;
+      var anchor = window._statsAnchor;
+      var cat = window._statsCat;
+      var who = window._statsWho;
+      var mn = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 
       function periodLabel() {
-        var a = window._statsAnchor || new Date();
-        var p = window._statsPeriod || 'day';
-        var mn = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+        var a = anchor, p = pCur;
         if (p === 'day') return a.getDate() + ' ' + mn[a.getMonth()] + ' ' + a.getFullYear();
         if (p === 'week') {
           var s0 = new Date(a.getFullYear(), a.getMonth(), a.getDate() - 6);
-          return s0.getDate() + ' ' + mn[s0.getMonth()] + ' – ' + a.getDate() + ' ' + mn[a.getMonth()] + ' ' + a.getFullYear();
+          return s0.getDate() + ' ' + mn[s0.getMonth()] + ' – ' + a.getDate() + ' ' + mn[a.getMonth()];
         }
         if (p === 'month') return mn[a.getMonth()] + ' ' + a.getFullYear();
         if (p === 'year') return String(a.getFullYear());
         return 'всё время';
       }
-      function rangeRow(title, mapVisits, mapSec) {
-        var p = window._statsPeriod || 'day';
-        var a = window._statsAnchor || new Date();
-        var v = sumInPeriod(mapVisits, p, a);
-        var sec = sumInPeriod(mapSec, p, a);
-        var vAll = sumInPeriod(mapVisits, 'all');
-        var sAll = sumInPeriod(mapSec, 'all');
-        return '<div style="padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
-          '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:0.5rem">' +
-          '<div style="font-weight:600">' + title + '</div>' +
-          '<div style="text-align:right"><b style="color:var(--accent)">' + v + '</b> <span style="font-size:0.8rem;color:var(--text-muted)">заход.</span>' +
-          '<div style="font-size:0.75rem;color:var(--text-muted)">' + fmtSec(sec) + '</div></div></div>' +
-          '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.2rem">всего: ' + vAll + ' · ' + fmtSec(sAll) + '</div></div>';
-      }
 
-      var periods = [
-        { id:'day', label:'День' }, { id:'week', label:'Неделя' }, { id:'month', label:'Месяц' },
-        { id:'year', label:'Год' }, { id:'all', label:'Всё время' }
-      ];
-      var pCur = window._statsPeriod || 'day';
-      var periodTabs = '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin:0.45rem 0">' +
-        periods.map(function(t) {
-          var on = t.id === pCur;
-          return '<button type="button" class="btn btn-sm stats-p-tab" data-sp="' + t.id + '" style="' +
-            (on ? 'background:var(--accent);color:#fff;border-color:var(--accent)' : '') + '">' + t.label + '</button>';
-        }).join('') + '</div>';
-      var navHtml = (pCur === 'all') ? '' : (
-        '<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;margin:0.35rem 0 0.55rem">' +
-        '<button type="button" class="btn btn-sm" id="stats-p-prev">← пред</button>' +
-        '<span style="font-size:0.9rem;font-weight:600;min-width:9rem;text-align:center">' + periodLabel() + '</span>' +
-        '<button type="button" class="btn btn-sm" id="stats-p-next">след →</button></div>'
-      );
-
-      var groupTabs = [{ id: 'all', label: 'Все списки' }];
-      try {
-        ((typeof MORE_GROUP_DEFAULTS !== 'undefined') ? MORE_GROUP_DEFAULTS : []).forEach(function(g) {
-          if (g && g.id) groupTabs.push({ id: g.id, label: (MORE_GROUP_LABELS && MORE_GROUP_LABELS[g.id]) || g.label || g.id });
-        });
-      } catch(e) {}
-      groupTabs.push({ id: 'main', label: 'Главное' });
-      var curG = window._statsGroup || 'all';
-      function sectionGroupOf(sid) {
-        try {
-          var items = (typeof MORE_MENU_DEFAULT !== 'undefined') ? MORE_MENU_DEFAULT : [];
-          for (var ii = 0; ii < items.length; ii++) {
-            if (items[ii].id === sid) return items[ii].group || 'other';
-          }
-        } catch(e) {}
-        if (['dailyhub','home','learn','games','more','reader'].indexOf(sid) >= 0) return 'main';
-        return 'other';
-      }
-      var filtered = secList.filter(function(sid) {
-        if (curG === 'all') return true;
-        return sectionGroupOf(sid) === curG;
+      // aggregate mine
+      var allV = {}, allS = {};
+      Object.keys(s.sectionVisits || {}).forEach(function(sid) {
+        var m = normalizeDayMap(s.sectionVisits[sid]);
+        Object.keys(m).forEach(function(d) { allV[d] = (allV[d] || 0) + m[d]; });
       });
-      var secHtml = filtered.map(function(sid) {
-        return rangeRow(labels[sid] || sid, s.sectionVisits[sid], s.sectionSeconds[sid]);
-      }).join('') || '<p class="ayah-translation">В этой группе пока нет данных.</p>';
-
-      var tabsHtml = '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin:0.5rem 0 0.35rem">' +
-        groupTabs.map(function(t) {
-          var on = t.id === curG;
-          return '<button type="button" class="btn btn-sm stats-g-tab" data-sg="' + t.id + '" style="' +
-            (on ? 'background:var(--accent);color:#fff;border-color:var(--accent)' : '') + '">' + t.label + '</button>';
-        }).join('') + '</div>';
-
-      var ovV = sumInPeriod(allV, pCur, window._statsAnchor);
-      var ovS = sumInPeriod(allS, pCur, window._statsAnchor);
+      Object.keys(s.sectionSeconds || {}).forEach(function(sid) {
+        var m = normalizeDayMap(s.sectionSeconds[sid]);
+        Object.keys(m).forEach(function(d) { allS[d] = (allS[d] || 0) + m[d]; });
+      });
+      var ovV = sumInPeriod(allV, pCur, anchor);
+      var ovS = sumInPeriod(allS, pCur, anchor);
       var ovVAll = sumInPeriod(allV, 'all');
       var ovSAll = sumInPeriod(allS, 'all');
 
-      var html =
-        '<div class="card"><b>📊 Обзор</b>' + periodTabs + navHtml +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.4rem">' +
-        metricCard(pCur === 'all' ? 'Всё время' : periodLabel(), ovV + ' заход.', fmtSec(ovS)) +
-        metricCard('Накоплено', ovVAll + ' заход.', fmtSec(ovSAll)) +
-        '</div></div>' +
+      var dictN = (state.dictionary || []).length;
+      var bmN = (state.bookmarks || []).length;
+      var notesN = Object.keys(state.notes || {}).length;
+      var learnedN = Object.keys(state.learnedAyahs || {}).length;
+      var listenMin = Math.round((s.listenSeconds || 0) / 60);
+      var foldersN = (state.bookmarkFolders || []).length;
 
-        '<div class="card"><b>📚 Ваша активность</b>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.6rem">' +
-        metricCard('Словарь', dictN, 'слов') +
-        metricCard('Избранное', bmN, 'закладок') +
-        metricCard('Папки закладок', foldersN, '') +
-        metricCard('Заметки', notesN, '') +
-        metricCard('Выучено аятов', learnedN, 'сур: ' + learnedS) +
-        metricCard('Открыто аятов', s.openedAyahs || 0, '') +
-        metricCard('Прослушивание', listenMin + ' мин', 'аудио') +
-        metricCard('Всего времени', fmtSec(ovSAll), 'в разделах') +
-        '</div></div>' +
+      // category tabs
+      var catTabs = [
+        { id:'activity', label:'Активность' },
+        { id:'registration', label:'Регистрация' }
+      ].map(function(t) {
+        var on = t.id === cat;
+        return '<button type="button" class="btn btn-sm st-cat" data-c="' + t.id + '" style="border-radius:999px;' +
+          (on ? 'background:var(--accent);color:#fff' : '') + '">' + t.label + '</button>';
+      }).join('');
 
-        '<div class="card"><b>📂 По разделам</b>' +
-        '<div class="ayah-translation" style="margin:0.35rem 0 0.15rem">Фильтр списка + период (← пред / след →)</div>' +
-        tabsHtml + periodTabs + navHtml +
-        secHtml + '</div>';
+      var html = '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem">' + catTabs + '</div>';
 
-      // Global public stats from Supabase (best effort)
-      el.innerHTML = html + '<div class="card" id="stats-global">Загрузка общей статистики…</div>';
-      el.querySelectorAll('.stats-g-tab').forEach(function(btn) {
+      if (cat === 'registration') {
+        html += '<div class="card"><b>👥 Регистрация</b>' +
+          '<div id="stats-reg-body" class="ayah-translation" style="margin-top:0.5rem">Загрузка…</div></div>';
+        el.innerHTML = html;
+        el.querySelectorAll('.st-cat').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            window._statsCat = btn.getAttribute('data-c') || 'activity';
+            renderStats();
+          });
+        });
+        // load registration stats
+        var sb = (typeof getSb === 'function') ? getSb() : null;
+        var box = document.getElementById('stats-reg-body');
+        if (!sb) {
+          if (box) box.innerHTML = 'Нужен интернет (Supabase).';
+          return;
+        }
+        try {
+          var ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(500);
+          if (ur && ur.error) throw ur.error;
+          var list = (ur && ur.data) || [];
+          var count = (ur && ur.count != null) ? ur.count : list.length;
+          function dayKeyLocal(d) {
+            d = d || new Date();
+            return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+          }
+          var today = dayKeyLocal();
+          var weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-6);
+          var monthStart = new Date(); monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
+          var yearStart = new Date(new Date().getFullYear(), 0, 1);
+          function inRange(iso, from) {
+            if (!iso) return false;
+            var t = new Date(iso).getTime();
+            return t >= from.getTime();
+          }
+          var nToday = list.filter(function(u){ return String(u.created_at||'').slice(0,10) === today; }).length;
+          var nWeek = list.filter(function(u){ return inRange(u.created_at, weekAgo); }).length;
+          var nMonth = list.filter(function(u){ return inRange(u.created_at, monthStart); }).length;
+          var nYear = list.filter(function(u){ return inRange(u.created_at, yearStart); }).length;
+          var rows = list.map(function(u) {
+            var nick = (u.nick || 'гость').replace(/</g, '&lt;');
+            var dt = u.created_at ? String(u.created_at).slice(0, 10) : '';
+            return '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.88rem">' +
+              '<span>' + nick + '</span><span style="color:var(--text-muted)">' + dt + '</span></div>';
+          }).join('') || '<p class="ayah-translation">Пока нет зарегистрированных.</p>';
+          if (box) box.innerHTML =
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-bottom:0.65rem">' +
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Всего</div><div style="font-size:1.35rem;font-weight:700;color:var(--accent)">'+count+'</div></div>' +
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Сегодня</div><div style="font-size:1.35rem;font-weight:700;color:var(--accent)">'+nToday+'</div></div>' +
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Неделя</div><div style="font-size:1.15rem;font-weight:700">'+nWeek+'</div></div>' +
+            '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">Месяц / Год</div><div style="font-size:1.05rem;font-weight:700">'+nMonth+' / '+nYear+'</div></div></div>' +
+            '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">Только ники (без email)</div>' + rows;
+        } catch(e) {
+          if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;') +
+            '<p class="ayah-translation" style="margin-top:0.5rem">Если 0 — проверьте RLS: чтение profiles для anon/authenticated.</p>';
+        }
+        return;
+      }
+
+      // === ACTIVITY ===
+      var whoTabs = [
+        { id:'mine', label:'Моя' },
+        { id:'global', label:'Общая' }
+      ].map(function(t) {
+        var on = t.id === who;
+        return '<button type="button" class="btn btn-sm st-who" data-w="' + t.id + '" style="border-radius:999px;' +
+          (on ? 'background:var(--accent);color:#fff' : '') + '">' + t.label + '</button>';
+      }).join('');
+
+      var periodBtns = ['day','week','month','year','all'].map(function(pid) {
+        var lab = { day:'День', week:'Неделя', month:'Месяц', year:'Год', all:'Всё' }[pid];
+        var on = pid === pCur;
+        return '<button type="button" class="btn btn-sm st-period" data-p="' + pid + '" style="border-radius:999px;' +
+          (on ? 'background:var(--accent);color:#fff' : '') + '">' + lab + '</button>';
+      }).join('');
+
+      var navHtml = pCur === 'all' ? '' : (
+        '<div style="display:flex;align-items:center;justify-content:center;gap:0.6rem;margin:0.45rem 0">' +
+        '<button type="button" class="btn btn-sm st-prev">←</button>' +
+        '<span style="font-weight:600">' + periodLabel() + '</span>' +
+        '<button type="button" class="btn btn-sm st-next">→</button></div>'
+      );
+
+      html += '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.55rem">' + whoTabs + '</div>';
+
+      if (who === 'mine') {
+        // activity summary
+        html += '<div class="card" style="margin-bottom:0.65rem">' +
+          '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.35rem">' + periodBtns + '</div>' + navHtml +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;margin-top:0.35rem">' +
+          '<div style="background:var(--bg);border-radius:0.7rem;padding:0.65rem;text-align:center">' +
+          '<div style="font-size:0.72rem;color:var(--text-muted)">Заходы</div>' +
+          '<div style="font-size:1.35rem;font-weight:700;color:var(--accent)">' + ovV + '</div>' +
+          '<div style="font-size:0.75rem;color:var(--text-muted)">' + fmtSec(ovS) + '</div></div>' +
+          '<div style="background:var(--bg);border-radius:0.7rem;padding:0.65rem;text-align:center">' +
+          '<div style="font-size:0.72rem;color:var(--text-muted)">Всего</div>' +
+          '<div style="font-size:1.35rem;font-weight:700;color:var(--accent)">' + ovVAll + '</div>' +
+          '<div style="font-size:0.75rem;color:var(--text-muted)">' + fmtSec(ovSAll) + '</div></div></div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-top:0.55rem">' +
+          [['Словарь', dictN],['Избранное', bmN],['Папки', foldersN],['Заметки', notesN],
+           ['Выучено', learnedN],['Аудио, мин', listenMin]].map(function(row) {
+            return '<div style="background:var(--bg);border-radius:0.6rem;padding:0.5rem 0.6rem">' +
+              '<div style="font-size:0.7rem;color:var(--text-muted)">' + row[0] + '</div>' +
+              '<div style="font-weight:700;font-size:1.05rem">' + row[1] + '</div></div>';
+          }).join('') + '</div></div>';
+
+        // by sections mine
+        var groupTabs = [{ id:'all', label:'Все' }];
+        try {
+          ((typeof MORE_GROUP_DEFAULTS !== 'undefined') ? MORE_GROUP_DEFAULTS : []).forEach(function(g) {
+            if (g && g.id) groupTabs.push({ id: g.id, label: (MORE_GROUP_LABELS && MORE_GROUP_LABELS[g.id]) || g.label || g.id });
+          });
+        } catch(e) {}
+        groupTabs.push({ id:'main', label:'Главное' });
+        var curG = window._statsGroup || 'all';
+        function sectionGroupOf(sid) {
+          try {
+            var items = MORE_MENU_DEFAULT || [];
+            for (var ii = 0; ii < items.length; ii++) {
+              if (items[ii].id === sid) return items[ii].group || 'other';
+            }
+          } catch(e) {}
+          if (['dailyhub','home','learn','games','more','reader'].indexOf(sid) >= 0) return 'main';
+          return 'other';
+        }
+        var secIds = {};
+        Object.keys(s.sectionVisits || {}).forEach(function(k){ secIds[k]=1; });
+        Object.keys(s.sectionSeconds || {}).forEach(function(k){ secIds[k]=1; });
+        var secList = Object.keys(secIds).filter(function(sid) {
+          if (curG === 'all') return true;
+          return sectionGroupOf(sid) === curG;
+        }).sort(function(a,b) {
+          return sumInPeriod(s.sectionVisits[b], 'all') - sumInPeriod(s.sectionVisits[a], 'all');
+        });
+        var gTabs = groupTabs.map(function(t) {
+          var on = t.id === curG;
+          return '<button type="button" class="btn btn-sm st-group" data-g="' + t.id + '" style="border-radius:999px;' +
+            (on ? 'background:var(--accent);color:#fff' : '') + '">' + t.label + '</button>';
+        }).join('');
+        var secRows = secList.map(function(sid) {
+          var v = sumInPeriod(s.sectionVisits[sid], pCur, anchor);
+          var sec = sumInPeriod(s.sectionSeconds[sid], pCur, anchor);
+          var vA = sumInPeriod(s.sectionVisits[sid], 'all');
+          var sA = sumInPeriod(s.sectionSeconds[sid], 'all');
+          return '<div style="display:grid;grid-template-columns:1fr auto;gap:0.15rem 0.6rem;padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
+            '<div style="font-weight:600">' + (labels[sid] || sid) + '</div>' +
+            '<div style="text-align:right;font-weight:700;color:var(--accent)">' + v + '</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-muted)">' + fmtSec(sec) + '</div>' +
+            '<div style="font-size:0.72rem;color:var(--text-muted);text-align:right">всего ' + vA + ' · ' + fmtSec(sA) + '</div></div>';
+        }).join('') || '<p class="ayah-translation">Пока нет заходов.</p>';
+
+        html += '<div class="card"><b>📂 По разделам · моя</b>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.45rem 0">' + gTabs + '</div>' +
+          secRows + '</div>';
+      } else {
+        // global activity
+        html += '<div class="card"><b>🌐 По разделам · общая</b>' +
+          '<div id="stats-global-body" class="ayah-translation" style="margin-top:0.5rem">Загрузка…</div></div>';
+      }
+
+      el.innerHTML = html;
+
+      el.querySelectorAll('.st-cat').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          window._statsGroup = btn.getAttribute('data-sg') || 'all';
+          window._statsCat = btn.getAttribute('data-c') || 'activity';
           renderStats();
         });
       });
-      el.querySelectorAll('.stats-p-tab').forEach(function(btn) {
+      el.querySelectorAll('.st-who').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          window._statsPeriod = btn.getAttribute('data-sp') || 'day';
-          if (!window._statsAnchor) window._statsAnchor = new Date();
+          window._statsWho = btn.getAttribute('data-w') || 'mine';
           renderStats();
         });
       });
-      document.getElementById('stats-p-prev')?.addEventListener('click', function() {
+      el.querySelectorAll('.st-period').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          window._statsPeriod = btn.getAttribute('data-p') || 'all';
+          if (window._statsPeriod !== 'all') window._statsAnchor = new Date();
+          renderStats();
+        });
+      });
+      el.querySelectorAll('.st-group').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          window._statsGroup = btn.getAttribute('data-g') || 'all';
+          renderStats();
+        });
+      });
+      var prev = el.querySelector('.st-prev');
+      var next = el.querySelector('.st-next');
+      if (prev) prev.addEventListener('click', function() {
         var a = window._statsAnchor || new Date();
         var p = window._statsPeriod || 'day';
         if (p === 'day') a = new Date(a.getFullYear(), a.getMonth(), a.getDate() - 1);
@@ -15023,7 +15632,7 @@ async function renderStats() {
         window._statsAnchor = a;
         renderStats();
       });
-      document.getElementById('stats-p-next')?.addEventListener('click', function() {
+      if (next) next.addEventListener('click', function() {
         var a = window._statsAnchor || new Date();
         var p = window._statsPeriod || 'day';
         if (p === 'day') a = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 1);
@@ -15033,59 +15642,39 @@ async function renderStats() {
         window._statsAnchor = a;
         renderStats();
       });
-      var sb = (typeof getSb === 'function') ? getSb() : null;
-      if (!sb) {
-        var g = document.getElementById('stats-global');
-        if (g) g.innerHTML = '<b>🌐 Общая статистика сайта</b><p class="ayah-translation">Нужен интернет / Supabase. Локальная статистика выше уже работает.</p>';
-        return;
-      }
-      try {
-        var visRes = await sb.from('section_visitors').select('section_id,visitor_key,day').limit(10000);
-        var rows = (visRes && visRes.data) || [];
-        if (visRes && visRes.error) throw visRes.error;
-        var today = dayKey();
-        var now = new Date();
-        function inDays(dayStr, back) {
-          var dt = new Date(dayStr + 'T12:00:00');
-          var diff = Math.floor((now - dt) / 86400000);
-          return diff >= 0 && diff <= back;
-        }
-        var bySec = {};
-        rows.forEach(function(r) {
-          if (!bySec[r.section_id]) bySec[r.section_id] = { t: {}, w: {}, m: {}, y: {}, a: {} };
-          var b = bySec[r.section_id];
-          b.a[r.visitor_key] = 1;
-          if (r.day === today) b.t[r.visitor_key] = 1;
-          if (inDays(r.day, 6)) b.w[r.visitor_key] = 1;
-          if (inDays(r.day, 29)) b.m[r.visitor_key] = 1;
-          if (inDays(r.day, 364)) b.y[r.visitor_key] = 1;
-        });
-        var gHtml = Object.keys(bySec).sort(function(a,b){
-          return Object.keys(bySec[b].a).length - Object.keys(bySec[a].a).length;
-        }).map(function(sid) {
-          var b = bySec[sid];
-          return '<div style="display:flex;justify-content:space-between;gap:0.4rem;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.85rem">' +
-            '<span>' + (labels[sid] || sid) + '</span>' +
-            '<span style="color:var(--text-muted);text-align:right;font-size:0.75rem">' +
-            'сегодня <b>' + Object.keys(b.t).length + '</b> · нед. <b>' + Object.keys(b.w).length + '</b><br>' +
-            'мес. <b>' + Object.keys(b.m).length + '</b> · год <b>' + Object.keys(b.y).length + '</b> · всего <b>' + Object.keys(b.a).length + '</b></span></div>';
-        }).join('') || '<p class="ayah-translation">Пока нет данных.</p>';
 
-        var usersN = '—';
+      if (who === 'global') {
+        var box = document.getElementById('stats-global-body');
+        var sb = (typeof getSb === 'function') ? getSb() : null;
+        if (!sb) {
+          if (box) box.innerHTML = 'Нужен интернет (Supabase).';
+          return;
+        }
         try {
-          var ur = await sb.from('profiles').select('id', { count: 'exact', head: true });
-          rsN = ur.count;
-        } catch(e) {}
-        var g = document.getElementById('stats-global');
-        if (g) g.innerHTML = '<b>🌐 По сайту (все пользователи)</b>' +
-          '<div class="ayah-translation" style="margin:0.35rem 0">Уникальные посетители разделов. Регистраций (профилей): <b>' + usersN + '</b></div>' + gHtml;
-      } catch (e) {
-        var g = document.getElementById('stats-global');
-        if (g) g.innerHTML = '<b>🌐 Общая статистика</b><p class="ayah-translation">' + String(e.message || e).replace(/</g, '&lt;') + '</p>';
+          var visRes = await sb.from('section_visitors').select('section_id,visitor_key,day').limit(10000);
+          var rows = (visRes && visRes.data) || [];
+          if (visRes && visRes.error) throw visRes.error;
+          var bySec = {};
+          rows.forEach(function(r) {
+            if (!bySec[r.section_id]) bySec[r.section_id] = {};
+            bySec[r.section_id][r.visitor_key] = 1;
+          });
+          var gHtml = Object.keys(bySec).sort(function(a,b) {
+            return Object.keys(bySec[b]).length - Object.keys(bySec[a]).length;
+          }).map(function(sid) {
+            return '<div style="display:flex;justify-content:space-between;padding:0.45rem 0;border-bottom:1px solid var(--border)">' +
+              '<span>' + (labels[sid] || sid) + '</span><b style="color:var(--accent)">' + Object.keys(bySec[sid]).length + '</b></div>';
+          }).join('') || 'Пока нет данных.';
+          if (box) box.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">Уникальные посетители разделов</div>' + gHtml;
+        } catch(e) {
+          if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;');
+        }
       }
     }
 
-// ========== ASBAB (reasons of revelation) — selected well-known ==========
+
+
+
     const ASBAB = {
       '2:186': 'Ниспослан, когда сподвижники спросили Пророка ﷺ: «Близок ли наш Господь, или нам взывать громко?»',
       '2:222': 'О очищении после менструации — ответ на вопрос сподвижников.',
@@ -17725,39 +18314,43 @@ c.addEventListener('click', () => {
 
     // 5 групп: знания → поклонение → коран → жизнь → система (в конце)
     const MORE_MENU_DEFAULT = [
-      { id:'hadiths', icon:'📚', label:'Хадисы', group:'knowledge' },
+      { id:'fiqh', icon:'🧼', label:'Фикх', group:'knowledge' },
+      { id:'aqidah', icon:'☪️', label:'Акыйда', group:'knowledge' },
+      { id:'hadiths', icon:'📗', label:'Хадисы', group:'knowledge' },
+      { id:'stories', icon:'🏺', label:'История ислама', group:'knowledge' },
+      { id:'sins', icon:'😔', label:'Грехи и тауба', group:'knowledge' },
+      { id:'adab', icon:'🗣️', label:'Адаб общения', group:'knowledge' },
       { id:'ihouse', icon:'🏛️', label:'Материалы IslamHouse', group:'knowledge' },
-      { id:'aqidah', icon:'🕌', label:'Акыйда', group:'knowledge' },
-      { id:'fiqh', icon:'📖', label:'Фикх', group:'knowledge' },
-      { id:'stories', icon:'📜', label:'История ислама', group:'knowledge' },
-      { id:'sins', icon:'💔', label:'Грехи и тауба', group:'knowledge' },
-      { id:'adab', icon:'🌷', label:'Адаб общения', group:'knowledge' },
-      { id:'salah', icon:'🕌', label:'Намаз', group:'worship' },
-      { id:'adhkar', icon:'🤲', label:'Азкары и дуа', group:'worship' },
-      { id:'duabuilder', icon:'🧩', label:'Дуа-конструктор', group:'worship' },
-      { id:'dhikr', icon:'📿', label:'Зикр', group:'worship' },
-      { id:'sunnahs', icon:'⭐', label:'Сунны', group:'worship' },
       { id:'prayertimes', icon:'🕐', label:'Время намаза и кибла', group:'worship' },
+      { id:'salah', icon:'🙇', label:'Намаз', group:'worship' },
+      { id:'adhkar', icon:'🤲', label:'Азкары и дуа', group:'worship' },
+      { id:'dhikr', icon:'🔢', label:'Зикр', group:'worship' },
+      { id:'sunnahs', icon:'🌱', label:'Сунны', group:'worship' },
+      { id:'duabuilder', icon:'🧩', label:'Дуа-конструктор', group:'worship' },
       { id:'myreading', icon:'📖', label:'Моё чтение', group:'quran' },
       { id:'dict', icon:'🔤', label:'Словари', group:'quran' },
-      { id:'topics', icon:'💬', label:'Темы и ситуации', group:'quran' },
-      { id:'ramadan', icon:'🌙', label:'Рамадан', group:'life' },
-      { id:'hajj', icon:'🕋', label:'Хадж и Умра', group:'life' },
+      { id:'topics', icon:'🔗', label:'Темы и ситуации', group:'quran' },
+      { id:'ramadan', icon:'🌛', label:'Рамадан', group:'life' },
+      { id:'hajj', icon:'🕌', label:'Хадж и Умра', group:'life' },
+      { id:'names', icon:'🌟', label:'99 имён Аллаха', group:'life' },
+      { id:'calendar', icon:'📅', label:'Духовный календарь', group:'life' },
       { id:'family', icon:'👨‍👩‍👧‍👦', label:'Права семьи', group:'life' },
-      { id:'sadaqa', icon:'🪙', label:'Садака', group:'life' },
-      { id:'names', icon:'✨', label:'99 имён Аллаха', group:'life' },
-      { id:'calendar', icon:'🌙', label:'Духовный календарь', group:'life' },
+      { id:'sadaqa', icon:'🤲', label:'Садака', group:'life' },
       { id:'ask', icon:'❓', label:'Черновик вопроса', group:'life' },
-      { id:'data', icon:'💾', label:'Данные', group:'system' },
+      { id:'account', icon:'👤', label:'Мой аккаунт', group:'online' },
+      { id:'stats', icon:'📊', label:'Статистика', group:'online' },
+      { id:'data', icon:'🗄️', label:'Данные', group:'system' },
       { id:'changelog', icon:'🆕', label:'Обновления', group:'system' },
       { id:'help', icon:'❓', label:'Справка', group:'system' },
-      { id:'settings', icon:'⚙️', label:'Настройки', group:'system' }
+      { id:'settings', icon:'⚙️', label:'Настройки', group:'system' },
+      { id:'appupdate', icon:'🔄', label:'Обновить приложение', group:'system' }
     ];
     const MORE_GROUP_DEFAULTS = [
       { id:'knowledge', label:'Знание', hidden:false },
       { id:'worship', label:'Поклонение', hidden:false },
       { id:'quran', label:'Коран', hidden:false },
       { id:'life', label:'Жизнь', hidden:false },
+      { id:'online', label:'Онлайн', hidden:false },
       { id:'system', label:'Система', hidden:false }
     ];
     const MORE_GROUP_LABELS = {
@@ -17765,6 +18358,7 @@ c.addEventListener('click', () => {
       worship: 'Поклонение',
       quran: 'Коран',
       life: 'Жизнь',
+      online: 'Онлайн',
       system: 'Система'
     };
     // --- Управление списками и скрытием разделов «Ещё» ---
@@ -17833,7 +18427,7 @@ c.addEventListener('click', () => {
       } catch(e) {}
       // Скрытые разделы
       try {
-        ordered = ordered.filter(function(it){ return it && !isSectionHidden(it.id) && it.group !== 'online' && !['ustats','mentor','aihelp','askscholar','account'].includes(it.id); });
+        ordered = ordered.filter(function(it){ return it && !isSectionHidden(it.id) ; });
       } catch(e) {}
       // Списки: порядок и скрытие пустых/скрытых
       try {
@@ -19408,7 +20002,7 @@ function renderFiqh() {
         '<div class="card" style="border-color:var(--accent);margin-bottom:1rem">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">' +
         '<div><b>Путь: с нуля → чтение Корана</b>' +
-        '<div class="ayah-translation" style="margin-top:0.25rem">Уроки открываются по порядку. В конце — короткий тест.</div></div>' +
+        '<div class="ayah-translation" style="margin-top:0.25rem">Уроки по порядку. У каждого есть кратко и «Подробнее». В конце модуля — короткий тест.</div></div>' +
         '<div style="text-align:center"><div class="stat-value" style="font-size:1.5rem">'+st.pct+'%</div>' +
         '<div class="stat-label">'+st.done+' / '+st.total+'</div></div></div>' +
         '<div style="margin-top:0.75rem;height:0.45rem;background:var(--border);border-radius:1rem;overflow:hidden">' +
@@ -19475,7 +20069,13 @@ function renderFiqh() {
             box.style.display = 'block';
             const done = isLessonDone(les.id);
             box.innerHTML =
-              '<div class="ayah-translation" style="white-space:pre-wrap;line-height:1.6">'+les.body+'</div>' +
+              (function(){
+                var shortT = les.short || (les.body ? String(les.body).split('\n').slice(0,3).join(' ').slice(0,220)+'…' : '');
+                var fullT = les.body || '';
+                return '<div class="ayah-translation les-short" style="white-space:pre-wrap;line-height:1.55;margin:0.35rem 0">'+shortT+'</div>' +
+                  '<button type="button" class="btn btn-sm les-more-btn" data-mi="'+mi+'" data-li="'+li+'" style="margin:0.25rem 0 0.5rem">📖 Подробнее</button>' +
+                  '<div class="ayah-translation les-full" style="display:none;white-space:pre-wrap;line-height:1.65;margin:0.35rem 0;padding:0.65rem;background:var(--bg);border-radius:0.65rem;border:1px solid var(--border)">'+fullT+'</div>';
+              })() +
               '<div id="les-quiz-'+mi+'-'+li+'"></div>' +
               (done
                 ? '<button type="button" class="btn btn-sm" style="margin-top:0.75rem;width:100%">✓ Урок уже отмечен</button>'
@@ -20007,6 +20607,14 @@ function renderLibrary() {
               history.pushState({ view: viewStack[viewStack.length-1] }, '');
               skip = false;
             } catch(e) {}
+          } else if (typeof goBack === 'function') {
+            // один экран в стеке: goBack сам решит (Ещё → меню, иначе dailyhub)
+            goBack();
+            try {
+              skip = true;
+              history.pushState({ view: (viewStack && viewStack[viewStack.length-1]) || 'dailyhub' }, '');
+              skip = false;
+            } catch(e) {}
           } else if (typeof showView === 'function') {
             showView('dailyhub', true);
           }
@@ -20057,12 +20665,19 @@ function renderLibrary() {
       document.querySelectorAll('#settings-cats [data-set-cat]').forEach(x => x.classList.toggle('btn-primary', x === b));
       document.querySelectorAll('#view-settings .set-cat').forEach(p => {
         const panel = p.dataset.setPanel || '';
+        const known = ['lang','audio','view','fonts','look','read','offline','security','morecfg','other'];
         let show = panel === cat;
-        if (cat === 'other' && panel && !['lang','audio','look','fonts','security','read','offline','morecfg'].includes(panel)) show = true;
+        // legacy: look maps to both view and fonts when selecting old value
+        if (cat === 'view' && panel === 'look') show = true;
+        if (cat === 'fonts' && panel === 'look') show = true;
+        if (cat === 'other' && panel && !known.includes(panel)) show = true;
         if (!panel && cat === 'other') show = true;
         if (panel === 'morecfg') show = (cat === 'morecfg');
         p.style.display = show ? '' : 'none';
       });
+      try {
+        if (cat === 'morecfg' && typeof renderMainTabsOrder === 'function') renderMainTabsOrder();
+      } catch(e) {}
       if (cat === 'morecfg') try { paintMoreConfig(); } catch(e) {}
       document.querySelectorAll('#view-settings > .card:not(.set-cat)').forEach(p => {
         p.style.display = (cat === 'other') ? '' : 'none';
@@ -20115,6 +20730,29 @@ function renderLibrary() {
 
 function startApp() {
       try {
+        // теория: кратко / подробно
+        if (!window._lesMoreBound) {
+          window._lesMoreBound = true;
+          document.addEventListener('click', function(ev) {
+            var btn = ev.target && ev.target.closest && ev.target.closest('.les-more-btn');
+            if (!btn) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            var card = btn.closest('.rule-card, .card, .inline-detail, div') || btn.parentElement;
+            if (!card) return;
+            var full = card.querySelector('.les-full');
+            var short = card.querySelector('.les-short');
+            if (!full) return;
+            var open = full.style.display !== 'none' && full.style.display !== '';
+            // first open: computed may be empty with display none inline
+            if (full.style.display === 'none' || getComputedStyle(full).display === 'none') open = false;
+            else open = true;
+            full.style.display = open ? 'none' : 'block';
+            if (short) short.style.display = open ? 'block' : 'none';
+            btn.textContent = open ? '📖 Подробнее' : '📕 Скрыть подробности';
+          });
+        }
+
         try { applyDeviceMode(); } catch(e) {}
         try { if (state.settings && state.settings.prayerNotif) schedulePrayerNotifications(); } catch(e) {}
         try { applyI18nDom(); } catch(e) {}
@@ -20129,35 +20767,60 @@ function startApp() {
         // Восстановить последний раздел (в т.ч. из «Ещё»), иначе dailyhub
         let restoreView = 'dailyhub';
         try {
-          const last = sessionStorage.getItem('quran_last_view');
-          const deep = sessionStorage.getItem('quran_more_deep') || (state && state.moreDeep);
-          // Приоритет: последний экран (если не reader), иначе deep из «Ещё»
-          if (last && last !== 'reader' && document.getElementById('view-' + last)) {
-            restoreView = last;
-            if (deep) state.moreDeep = deep;
-          } else if (deep && document.getElementById('view-' + deep)) {
-            restoreView = deep;
-            state.moreDeep = deep;
+          // После «Обновить приложение» — остаёмся на appupdate, стек more→appupdate
+          if (localStorage.getItem('quran_from_update') === '1') {
+            localStorage.removeItem('quran_from_update');
+            restoreView = 'appupdate';
+            try { viewStack = ['more', 'appupdate']; } catch(e) {}
+            try { sessionStorage.setItem('quran_last_view', 'appupdate'); } catch(e) {}
+          } else {
+            const last = sessionStorage.getItem('quran_last_view') || localStorage.getItem('quran_last_view_persist');
+            const deep = sessionStorage.getItem('quran_more_deep') || (state && state.moreDeep);
+            if (last && last !== 'reader' && document.getElementById('view-' + last)) {
+              restoreView = last;
+              if (deep) state.moreDeep = deep;
+              if (last === 'appupdate' || last === 'prayertimes' || last === 'stats' || last === 'account') {
+                try { viewStack = ['more', last]; } catch(e) {}
+              }
+            } else if (deep && document.getElementById('view-' + deep)) {
+              restoreView = deep;
+              state.moreDeep = deep;
+            }
           }
         } catch(e) {}
         try{applyMainTabsOrder();}catch(e){}
         showView(restoreView);
+        // Первый заход — предложить регистрацию
         try {
           if (!localStorage.getItem('quran_first_gate_done')) {
             setTimeout(function() {
               try {
-                if (state.user && state.user.id) { localStorage.setItem('quran_first_gate_done','1'); return; }
-                var box = document.createElement('div');
-                box.id = 'first-gate';
-                box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10060;display:flex;align-items:center;justify-content:center;padding:1rem';
-                box.innerHTML = '<div class="card" style="max-width:22rem;width:100%"><b>Добро пожаловать</b><p class="ayah-translation" style="margin:0.5rem 0">Войдите или зарегистрируйтесь — прогресс сохранится. Или продолжите как гость (данные только на этом устройстве).</p><button type="button" class="btn btn-primary" id="fg-reg" style="width:100%;margin:0.35rem 0">Регистрация / Вход</button><button type="button" class="btn" id="fg-guest" style="width:100%">Продолжить как гость</button></div>';
-                document.body.appendChild(box);
-                document.getElementById('fg-guest').onclick = function(){ localStorage.setItem('quran_first_gate_done','1'); box.remove(); };
-                document.getElementById('fg-reg').onclick = function(){ localStorage.setItem('quran_first_gate_done','1'); box.remove(); try{showView('account');}catch(e){} };
+                if (typeof getSb === 'function' && getSb() && !(state.user && state.user.id)) {
+                  var box = document.createElement('div');
+                  box.id = 'first-gate';
+                  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+                  box.innerHTML = '<div class="card" style="max-width:22rem;width:100%"><b>Добро пожаловать</b>' +
+                    '<p class="ayah-translation" style="margin:0.5rem 0">Можно войти или зарегистрироваться — прогресс сохранится. Либо продолжить как гость (данные только на этом устройстве).</p>' +
+                    '<button type="button" class="btn btn-primary" id="fg-reg" style="width:100%;margin:0.35rem 0">Регистрация / Вход</button>' +
+                    '<button type="button" class="btn" id="fg-guest" style="width:100%">Продолжить как гость</button></div>';
+                  document.body.appendChild(box);
+                  document.getElementById('fg-guest').onclick = function() {
+                    localStorage.setItem('quran_first_gate_done', '1');
+                    box.remove();
+                  };
+                  document.getElementById('fg-reg').onclick = function() {
+                    localStorage.setItem('quran_first_gate_done', '1');
+                    box.remove();
+                    try { showView('account'); } catch(e) {}
+                  };
+                } else {
+                  localStorage.setItem('quran_first_gate_done', '1');
+                }
               } catch(e) {}
-            }, 700);
+            }, 600);
           }
         } catch(e) {}
+
         setTimeout(() => {
           try { if (typeof applySettings === 'function') applySettings(); } catch(e) {}
           try { if (typeof applyLanguage === 'function') applyLanguage(); } catch(e) {}
