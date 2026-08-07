@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.21 2026-08-04 -->
+<!-- BUILD 2.22 2026-08-04 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.21</title>
+  <title>Коран — Изучение · 2.22</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -2011,22 +2011,23 @@
 
       <div class="card set-cat" data-set-panel="lang" style="margin-bottom:0.75rem">
         <b>🌐 Язык и перевод</b>
+        <div class="ayah-translation" style="margin:0.35rem 0 0.15rem;font-size:0.82rem">Язык интерфейса сразу подставляет перевод Корана</div>
         <div class="setting-row" style="margin-top:0.5rem">
-          <span data-i18n="lang_label">Язык / Тіл</span>
+          <span>Язык интерфейса</span>
           <select id="setting-lang">
             <option value="ru">Русский</option>
             <option value="kk">Қазақша</option>
           </select>
         </div>
         <div class="setting-row">
-          <span>Перевод</span>
+          <span>Перевод Корана</span>
           <select id="setting-translation">
-            <option value="kk.altai">Қазақша (Халифа Алтай)</option>
-            <option value="ru.kuliev">Кулиев</option>
-            <option value="ru.osmanov">Османов</option>
-            <option value="ru.porokhova">Порохова</option>
-            <option value="ru.abuadel">Абу Адель</option>
-            <option value="ru.krachkovsky">Крачковский</option>
+            <option value="ru.kuliev">Русский — Кулиев</option>
+            <option value="ru.osmanov">Русский — Османов</option>
+            <option value="ru.porokhova">Русский — Порохова</option>
+            <option value="ru.abuadel">Русский — Абу Адель</option>
+            <option value="ru.krachkovsky">Русский — Крачковский</option>
+            <option value="kk.altai">Қазақша — Халифа Алтай</option>
           </select>
         </div>
       </div>
@@ -2089,6 +2090,36 @@
             <button type="button" class="size-pick-item" data-v="1.1" style="font-size:1.1rem">Аят<div style="font-size:0.7rem">Бол.</div></button>
           </div>
         </div>
+        <div style="margin:0.85rem 0 0.35rem;font-weight:600;font-size:0.9rem;color:var(--text-muted)">Учёба (теория / практика)</div>
+        <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem">
+          <span>Размер арабского (учёба)</span>
+          <select id="setting-font-ar" style="display:none">
+            <option value="1">Обычный</option>
+            <option value="1.15">Крупнее</option>
+            <option value="1.3">Большой</option>
+            <option value="1.5">Очень большой</option>
+          </select>
+          <div class="size-pick-list" id="pick-font-ar">
+            <button type="button" class="size-pick-item" data-v="1"><span class="arabic" style="font-size:1rem" dir="rtl">نص</span><div style="font-size:0.7rem">Обычн.</div></button>
+            <button type="button" class="size-pick-item" data-v="1.15"><span class="arabic" style="font-size:1.15rem" dir="rtl">نص</span><div style="font-size:0.7rem">Крупн.</div></button>
+            <button type="button" class="size-pick-item" data-v="1.3"><span class="arabic" style="font-size:1.3rem" dir="rtl">نص</span><div style="font-size:0.7rem">Больш.</div></button>
+            <button type="button" class="size-pick-item" data-v="1.5"><span class="arabic" style="font-size:1.5rem" dir="rtl">نص</span><div style="font-size:0.7rem">Оч.б.</div></button>
+          </div>
+        </div>
+        <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem">
+          <span>Размер русского (учёба)</span>
+          <select id="setting-font-ru" style="display:none">
+            <option value="1">Обычный</option>
+            <option value="1.1">Крупнее</option>
+            <option value="1.25">Большой</option>
+          </select>
+          <div class="size-pick-list" id="pick-font-ru">
+            <button type="button" class="size-pick-item" data-v="1" style="font-size:0.9rem">Текст<div style="font-size:0.7rem">Обычн.</div></button>
+            <button type="button" class="size-pick-item" data-v="1.1" style="font-size:1rem">Текст<div style="font-size:0.7rem">Крупн.</div></button>
+            <button type="button" class="size-pick-item" data-v="1.25" style="font-size:1.15rem">Текст<div style="font-size:0.7rem">Больш.</div></button>
+          </div>
+        </div>
+
         <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem">
           <span>Шрифт Корана (араб.)</span>
           <select id="setting-arabic-font" style="display:none">
@@ -2243,35 +2274,7 @@
             <option value="1">Скрыть</option>
           </select>
         </div>
-        <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem">
-          <span>Размер арабского (учёба)</span>
-          <select id="setting-font-ar" style="display:none">
-            <option value="1">Обычный</option>
-            <option value="1.15">Крупнее</option>
-            <option value="1.3">Большой</option>
-            <option value="1.5">Очень большой</option>
-          </select>
-          <div class="size-pick-list" id="pick-font-ar">
-            <button type="button" class="size-pick-item" data-v="1"><span class="arabic" style="font-size:1rem" dir="rtl">نص</span><div style="font-size:0.7rem">Обычн.</div></button>
-            <button type="button" class="size-pick-item" data-v="1.15"><span class="arabic" style="font-size:1.15rem" dir="rtl">نص</span><div style="font-size:0.7rem">Крупн.</div></button>
-            <button type="button" class="size-pick-item" data-v="1.3"><span class="arabic" style="font-size:1.3rem" dir="rtl">نص</span><div style="font-size:0.7rem">Больш.</div></button>
-            <button type="button" class="size-pick-item" data-v="1.5"><span class="arabic" style="font-size:1.5rem" dir="rtl">نص</span><div style="font-size:0.7rem">Оч.б.</div></button>
-          </div>
-        </div>
-        <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem">
-          <span>Размер русского (учёба)</span>
-          <select id="setting-font-ru" style="display:none">
-            <option value="1">Обычный</option>
-            <option value="1.1">Крупнее</option>
-            <option value="1.25">Большой</option>
-          </select>
-          <div class="size-pick-list" id="pick-font-ru">
-            <button type="button" class="size-pick-item" data-v="1" style="font-size:0.9rem">Текст<div style="font-size:0.7rem">Обычн.</div></button>
-            <button type="button" class="size-pick-item" data-v="1.1" style="font-size:1rem">Текст<div style="font-size:0.7rem">Крупн.</div></button>
-            <button type="button" class="size-pick-item" data-v="1.25" style="font-size:1.15rem">Текст<div style="font-size:0.7rem">Больш.</div></button>
-          </div>
-        </div>
-        <div class="setting-row">
+                <div class="setting-row">
           <span>Блокировка уроков академии<br><small style="color:var(--text-muted);font-weight:400">Открывать следующий только после предыдущего</small></span>
           <select id="setting-acad-seq">
             <option value="1">Вкл</option>
@@ -10192,6 +10195,12 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.22', kinds: ['b', 'f', 'd'], date: '2026-08-07',
+          a: [],
+          b: [ 'Размеры шрифтов учёбы перенесены в «Вид и шрифты»' ],
+          f: [ 'Язык интерфейса / Перевод Корана — подписи; статистика: миграция каждый раз если день=0' ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.21', kinds: ['f', 'b'], date: '2026-08-07',
           a: [],
           b: [ 'Язык интерфейса сразу ставит перевод Корана (kk→Алтай, ru→Кулиев)' ],
@@ -14706,7 +14715,7 @@ async function renderStats() {
       } catch(e) {}
       // Разово: если «день» пуст, а «всего» нет — перенос на сегодня
       try {
-        if (localStorage.getItem('quran_stats_dayfix_v1') !== '1') {
+        if (true) {
           var today = dayKey();
           var allV = 0, dayV = 0;
           Object.keys(s.sectionVisits || {}).forEach(function(sid) {
@@ -14734,7 +14743,7 @@ async function renderStats() {
             });
             saveState();
           }
-          localStorage.setItem('quran_stats_dayfix_v1', '1');
+          /* always check */
         }
       } catch(e) {}
 
@@ -14759,7 +14768,7 @@ async function renderStats() {
         if (h > 0) return h + ' ч ' + m + ' мин';
         return m + ' мин';
       }
-      if (!window._statsPeriod) window._statsPeriod = 'day';
+      if (!window._statsPeriod) window._statsPeriod = 'all';
       if (!window._statsAnchor) window._statsAnchor = new Date();
       if (!window._statsGroup) window._statsGroup = 'all';
 
