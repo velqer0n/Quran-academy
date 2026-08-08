@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.46 2026-08-07 -->
+<!-- BUILD 2.47 2026-08-08 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.46</title>
+  <title>Коран — Изучение · 2.47</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -2541,36 +2541,34 @@
         <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem;margin-top:0.5rem">
           <span>Тема</span>
           <select id="setting-theme" style="display:none">
-            <option value="dark">Тёмная</option>
             <option value="light">Светлая</option>
+            <option value="soft">Мягкая</option>
+            <option value="paper">Бумага</option>
             <option value="sepia">Сепия</option>
-            <option value="night">Ночное чтение</option>
-            <option value="mono">Монохром</option>
-            <option value="oled">OLED</option>
+            <option value="dark">Тёмная</option>
+            <option value="slate">Сланец</option>
+            <option value="night">Ночное</option>
+            <option value="amber">Янтарь</option>
             <option value="ocean">Океан</option>
             <option value="forest">Лес</option>
-            <option value="paper">Бумага</option>
-            <option value="soft">Мягкая</option>
-            <option value="slate">Сланец</option>
-            <option value="amber">Янтарь</option>
+            <option value="oled">OLED</option>
             <option value="contrast">Контраст</option>
           </select>
           <div class="size-pick-list" id="pick-theme">
-            <button type="button" class="size-pick-item" data-v="dark" style="background:#0f172a;color:#e2e8f0">Тёмная</button>
             <button type="button" class="size-pick-item" data-v="light" style="background:#f8fafc;color:#0f172a">Светлая</button>
+            <button type="button" class="size-pick-item" data-v="soft" style="background:#e8eaed;color:#1a73e8">Мягкая</button>
+            <button type="button" class="size-pick-item" data-v="paper" style="background:#f7f3ea;color:#b45309">Бумага</button>
             <button type="button" class="size-pick-item" data-v="sepia" style="background:#f4ecd8;color:#3e2723">Сепия</button>
+            <button type="button" class="size-pick-item" data-v="dark" style="background:#0f172a;color:#e2e8f0">Тёмная</button>
+            <button type="button" class="size-pick-item" data-v="slate" style="background:#0f172a;color:#a78bfa">Сланец</button>
             <button type="button" class="size-pick-item" data-v="night" style="background:#1c1917;color:#d6b27c">Ночное</button>
-            <button type="button" class="size-pick-item" data-v="mono" style="background:#111;color:#ddd">Моно</button>
-            <button type="button" class="size-pick-item" data-v="oled" style="background:#000;color:#4ade80">OLED</button>
+            <button type="button" class="size-pick-item" data-v="amber" style="background:#1a1208;color:#f59e0b">Янтарь</button>
             <button type="button" class="size-pick-item" data-v="ocean" style="background:#0b1220;color:#38bdf8">Океан</button>
             <button type="button" class="size-pick-item" data-v="forest" style="background:#0f1a14;color:#4ade80">Лес</button>
-            <button type="button" class="size-pick-item" data-v="paper" style="background:#f7f3ea;color:#b45309">Бумага</button>
-            <button type="button" class="size-pick-item" data-v="soft" style="background:#e8eaed;color:#1a73e8">Мягкая</button>
-            <button type="button" class="size-pick-item" data-v="slate" style="background:#0f172a;color:#a78bfa">Сланец</button>
-            <button type="button" class="size-pick-item" data-v="amber" style="background:#1a1208;color:#f59e0b">Янтарь</button>
+            <button type="button" class="size-pick-item" data-v="oled" style="background:#000;color:#4ade80">OLED</button>
             <button type="button" class="size-pick-item" data-v="contrast" style="background:#000;color:#ff0">Контраст</button>
           </div>
-          <div class="ayah-translation" style="font-size:0.8rem;margin-top:0.35rem">Тёмная — обычный UI. Ночное — тёплое для глаз. OLED — чёрный. Моно — серый. Бумага/Мягкая — днём. Контраст — максимум читаемости.</div>
+          <div class="ayah-translation" style="font-size:0.8rem;margin-top:0.35rem">Светлые сверху (день), тёмные ниже (вечер). Ночное — тёплое. OLED — чёрный. Контраст — максимум читаемости.</div>
         </div>
         <div class="setting-row">
           <span>Авто «Тёмная» (22:00–6:00)</span>
@@ -6484,6 +6482,7 @@ function getMainTabOrder() {
         'pick-arabic-size': (v) => { state.settings.arabicSize = parseFloat(v); const s=document.getElementById('setting-arabic-size'); if(s) s.value=v; document.documentElement.style.setProperty('--arabic-size', v + 'rem'); document.querySelectorAll('.arabic').forEach(el => { el.style.fontSize = v + 'rem'; }); const prev=document.getElementById('arabic-size-preview'); if(prev) prev.style.fontSize=v+'rem'; },
         'pick-tr-size': (v) => { state.settings.trSize = parseFloat(v); const s=document.getElementById('setting-tr-size'); if(s) s.value=v; },
         'pick-theme': (v) => {
+          if (v === 'mono') v = 'dark';
           state.settings.theme = v;
           const s=document.getElementById('setting-theme'); if(s) s.value=v;
           try {
@@ -7770,71 +7769,106 @@ CVC: + сукун → بَتْ مِنْ كُتْ
       text = text.replace(/[۝ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪]/g, ' ').replace(/\s+/g, ' ').trim();
       if (!text) { toast('Нет текста для озвучки'); return; }
 
-      // 1) Online TTS via Google Translate audio → opens audio bar (works without system ar voice)
-      const tryOnlineTts = () => {
-        try {
-          const chunk = text.length > 180 ? text.slice(0, 180) : text;
-          const url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + encodeURIComponent(chunk);
-          if (typeof playAudio === 'function') {
-            playAudio(url, 'Дуа / арабский текст', { mode: 'single', repeat: 1 });
-            return true;
-          }
-          const a = new Audio(url);
-          a.play().catch(() => {});
-          return true;
-        } catch (e) { return false; }
-      };
+      try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
 
-      // 2) System speechSynthesis
-      const trySpeech = () => {
-        if (typeof window.speechSynthesis === 'undefined') return false;
+      // Разбивка длинного текста
+      function chunks(str, max) {
+        var out = [], rest = str;
+        max = max || 100;
+        while (rest.length) {
+          if (rest.length <= max) { out.push(rest); break; }
+          var cut = rest.lastIndexOf(' ', max);
+          if (cut < 25) cut = max;
+          out.push(rest.slice(0, cut));
+          rest = rest.slice(cut).trim();
+        }
+        return out;
+      }
+
+      // 1) Онлайн TTS → основной плеер (как раньше, когда работало)
+      if (navigator.onLine && typeof playAudio === 'function') {
         try {
-          try { window.speechSynthesis.cancel(); } catch(e) {}
-          const speakNow = () => {
+          var parts = chunks(text, 100);
+          var queue = parts.map(function(p, idx) {
+            var q = encodeURIComponent(p);
+            return {
+              url: 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + q,
+              title: parts.length > 1 ? ('Дуа · ' + (idx+1) + '/' + parts.length) : 'Дуа',
+              adhkar: true,
+              surah: null,
+              ayah: null
+            };
+          });
+          audioPlayMode = parts.length > 1 ? 'surah' : 'single';
+          try { updateAudioModeButtons(); } catch(e) {}
+          playAudio(queue[0].url, queue[0].title, {
+            queue: queue,
+            queueIdx: 0,
+            mode: audioPlayMode,
+            repeat: 1
+          });
+          toast('▶ ' + (queue[0].title || 'Дуа'));
+          // если через 2.5 с плеер молчит — speechSynthesis
+          setTimeout(function() {
             try {
-              const u = new SpeechSynthesisUtterance(text);
-              u.lang = 'ar-SA';
-              u.rate = (typeof rate === 'number' ? rate : 0.75);
-              u.pitch = 1;
-              const voices = window.speechSynthesis.getVoices() || [];
-              const ar = voices.find(v => /ar[-_]?SA/i.test(v.lang))
-                || voices.find(v => /ar[-_]?EG/i.test(v.lang))
-                || voices.find(v => /^ar\b/i.test(v.lang) || /arabic/i.test(v.name));
-              if (ar) u.voice = ar;
-              let started = false;
-              u.onstart = () => { started = true; try { toast('▶ …'); } catch(e) {} };
-              u.onerror = () => {
-                if (!started) tryOnlineTts();
-              };
-              // Chrome quirk: cancel+speak in same tick can fail — delay
-              setTimeout(() => {
-                try { window.speechSynthesis.speak(u); } catch(e) { tryOnlineTts(); }
-              }, 60);
-              // If nothing plays in 1.2s, fall back online
-              setTimeout(() => {
-                try {
-                  if (!started && window.speechSynthesis && !window.speechSynthesis.speaking) {
-                    tryOnlineTts();
-                  }
-                } catch(e) {}
-              }, 1200);
-              return true;
-            } catch (e) { return false; }
-          };
-          const voices = window.speechSynthesis.getVoices() || [];
-          if (!voices.length) {
-            const once = () => { speakNow(); try { window.speechSynthesis.onvoiceschanged = null; } catch(e) {} };
-            try { window.speechSynthesis.onvoiceschanged = once; } catch(e) {}
-            setTimeout(speakNow, 280);
-          } else speakNow();
-          return true;
-        } catch (e) { return false; }
-      };
+              if (window._ttsPlaying) return;
+              if (audioEl && !audioEl.paused && audioEl.currentTime > 0.05) return;
+              // молчит — synth
+              trySynth();
+            } catch(e) {}
+          }, 2500);
+          return;
+        } catch(e) {}
+      }
 
-      if (trySpeech()) return;
-      if (tryOnlineTts()) return;
-      toast('Озвучка недоступна');
+      function trySynth() {
+        if (!window.speechSynthesis) {
+          toast('Озвучка недоступна');
+          return;
+        }
+        try { window.speechSynthesis.cancel(); } catch(e) {}
+        var voices = [];
+        try { voices = window.speechSynthesis.getVoices() || []; } catch(e) {}
+        if (!voices.length) {
+          try { window.speechSynthesis.getVoices(); voices = window.speechSynthesis.getVoices() || []; } catch(e) {}
+        }
+        var ar = voices.find(function(v){ return /ar[-_]?SA/i.test(v.lang); })
+          || voices.find(function(v){ return /ar[-_]?EG/i.test(v.lang); })
+          || voices.find(function(v){ return /^ar\b/i.test(v.lang) || /arabic/i.test(v.name||''); });
+        var parts = chunks(text, 140);
+        var n = 0;
+        function next() {
+          if (n >= parts.length) {
+            window._ttsPlaying = false;
+            try {
+              var ap = document.getElementById('audio-play-pause');
+              if (ap) ap.textContent = '▶';
+            } catch(e) {}
+            return;
+          }
+          var u = new SpeechSynthesisUtterance(parts[n]);
+          u.lang = ar ? (ar.lang || 'ar-SA') : 'ar-SA';
+          u.rate = (typeof rate === 'number' ? rate : 0.8);
+          if (ar) try { u.voice = ar; } catch(e) {}
+          u.onend = function() { n++; next(); };
+          u.onerror = function() { n++; next(); };
+          try {
+            if (typeof audioBar !== 'undefined' && audioBar) audioBar.classList.add('visible');
+            var at = document.getElementById('audio-title');
+            if (at) at.textContent = 'Дуа' + (parts.length > 1 ? (' · ' + (n+1) + '/' + parts.length) : '');
+            var ap2 = document.getElementById('audio-play-pause');
+            if (ap2) ap2.textContent = '⏸';
+            window._ttsPlaying = true;
+            window.speechSynthesis.speak(u);
+            if (n === 0) toast('▶ Дуа');
+          } catch(e) { toast('Озвучка недоступна'); }
+        }
+        setTimeout(next, 80);
+      }
+
+      trySynth();
     }
+
 
 
     function speakAyahAudio(surah, ayah) {
@@ -11207,6 +11241,17 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.47', kinds: ['b', 'f'], date: '2026-08-08',
+          a: [],
+          b: [
+            'Темы: без «Моно», порядок — светлые → тёмные'
+          ],
+          f: [
+            'Дуа: снова через speakArText → playAudio (TTS в плеере), как раньше',
+            'Длинные дуа — очередь кусков в плеере'
+          ],
+          d: [], ph: [], I: [], o: [], s: [], on: []
+        },
         { major: '2', v: '2.46', kinds: ['a', 'b', 'f'], date: '2026-08-07',
           a: [
             'Темы: Бумага, Мягкая, Сланец, Янтарь, Контраст'
@@ -15543,8 +15588,12 @@ function playArabicAudio(text, fallbackRu, opts) {
       // 3) Озвучка азкаров/дуа: сначала speechSynthesis (работает офлайн/без CORS),
       //    онлайн — пробуем Google TTS, при ошибке снова fallback
       if (!t) { if (fallbackRu) toast(fallbackRu); return; }
-      // 3) Без файла кари — speechSynthesis (Google TTS на телефоне часто «Не удалось»)
+      // 3) Азкар/дуа — speakArText (плеер + TTS, как раньше)
       if (!t) { if (fallbackRu) toast(fallbackRu); return; }
+      if (typeof speakArText === 'function') {
+        speakArText(t, 0.8);
+        return;
+      }
       speakArabicFallback(t, fallbackRu);
     }
 
@@ -17838,13 +17887,13 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
 
       const speakDua = (ar, ru) => {
         if (!ar) { toast('Нет текста'); return; }
-        // не подставлять чужие аяты из заголовка темы — только текст этой дуа
-        if (typeof speakArabicFallback === 'function') {
-          speakArabicFallback(ar, ru || 'Дуа', { noQuran: false });
+        // Проверенный путь: speakArText → playAudio (TTS) → synth
+        if (typeof speakArText === 'function') {
+          speakArText(ar, 0.8);
           return;
         }
-        if (typeof playArabicAudio === 'function') {
-          playArabicAudio(ar, ru || 'Дуа', { adhkar: true, dua: true });
+        if (typeof speakArabicFallback === 'function') {
+          speakArabicFallback(ar, ru || 'Дуа');
           return;
         }
         toast('Озвучка недоступна');
