@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.54 2026-08-08 -->
+<!-- BUILD 2.55 2026-08-08 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.54</title>
+  <title>Коран — Изучение · 2.55</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -3774,7 +3774,15 @@ function applySettings() {
     }
 
     // ========== HELPERS ==========
-    function toast(msg, ms = 2200) {
+    
+    function tipCard(html) {
+      var title = (typeof tLabel === 'function') ? tLabel('Подсказка') : 'Подсказка';
+      return '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.65rem" data-tip-toggle="1">' +
+        '<b>💡 ' + title + '</b>' +
+        '<div class="tip-body ayah-translation" style="margin-top:0.35rem">' + html + '</div></div>';
+    }
+
+function toast(msg, ms = 2200) {
       const el = document.getElementById('toast');
       if (!el) return;
       el.textContent = msg;
@@ -6204,11 +6212,25 @@ function getMainTabOrder() {
         });
       }
 
+      var tagSet = {};
+      (state.bookmarks || []).forEach(function(b) {
+        String(b.tags || '').split(/[,;]+/).forEach(function(tg) {
+          tg = tg.trim();
+          if (tg) tagSet[tg] = (tagSet[tg] || 0) + 1;
+        });
+      });
+      var tagCloud = Object.keys(tagSet).sort().map(function(tg) {
+        var on = (window._bmTag || '').toLowerCase() === tg.toLowerCase();
+        return '<button type="button" class="btn btn-sm '+(on?'btn-primary':'')+'" data-bm-tag-chip="'+String(tg).replace(/"/g,'&quot;')+'">#'+tg+' ('+tagSet[tg]+')</button>';
+      }).join(' ');
+
       let htmlOut = folderManage +
+        tipCard('Что можно сделать в закладках:<br>• Папки сверху — фильтр; «Все» — весь список.<br>• Поиск — текст, перевод, сура, заметка.<br>• «Тег» или кнопки #тегов — фильтр по меткам.<br>• У карточки: теги через запятую, папка, «Открыть», «Удалить».<br>• Новая папка — поле/кнопка добавления.') +
         '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin:0.5rem 0 0.65rem">' +
         '<input type="search" id="bm-search" placeholder="Поиск по тексту, суре, заметке…" value="'+(window._bmQ||'').replace(/"/g,'&quot;')+'" style="flex:1;min-width:140px;padding:0.5rem 0.65rem;border-radius:0.45rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem">' +
         '<input type="text" id="bm-tag-filter" placeholder="Тег…" value="'+(window._bmTag||'').replace(/"/g,'&quot;')+'" style="width:5.5rem;padding:0.5rem 0.5rem;border-radius:0.45rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem">' +
-        '</div>';
+        '</div>' +
+        (tagCloud ? '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0 0 0.65rem">'+tagCloud+'</div>' : '');
 
       if (!state.bookmarks.length) {
         htmlOut += '<div class="empty-state"><p>Пока нет закладок.<br>Аяты — ☆ в чтении.<br>Текст — удержание → «В закладки».</p></div>';
@@ -6322,6 +6344,14 @@ function getMainTabOrder() {
         window._bmTag = e.target.value || '';
         clearTimeout(window._bmTagT);
         window._bmTagT = setTimeout(function(){ renderBookmarks(); }, 200);
+      });
+      list.querySelectorAll('[data-bm-tag-chip]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var tg = btn.getAttribute('data-bm-tag-chip') || '';
+          if ((window._bmTag || '').toLowerCase() === tg.toLowerCase()) window._bmTag = '';
+          else window._bmTag = tg;
+          renderBookmarks();
+        });
       });
       list.querySelectorAll('.bm-tags').forEach(function(inp){
         inp.addEventListener('change', function(){
@@ -7730,7 +7760,7 @@ CVC: + сукун → بَتْ مِنْ كُتْ
           return;
         }
         const list = mode === 'words' ? PRACTICE_WORDS : PRACTICE_PHRASES;
-        el.innerHTML =
+        el.innerHTML = tipCard('Что можно сделать в практике:<br>• Вкладки режимов сверху.<br>• Выберите режим и отвечайте на вопросы.<br>• Ошибки полезно повторить.<br>• Сначала теория — практика закрепляет.') + 
           '<div class="tabs-row" style="margin-bottom:0.75rem">' +
           '<button type="button" class="btn btn-sm '+(mode==='words'?'btn-primary':'')+'" data-pm="words">Слова</button>' +
           '<button type="button" class="btn btn-sm '+(mode==='phrases'?'btn-primary':'')+'" data-pm="phrases">Фразы</button>' +
@@ -9905,6 +9935,7 @@ function renderMistakes() {
     function renderDhikr() {
       const el = document.getElementById('dhikr-body');
       if (!el) return;
+      try { var _oldTip = el.querySelector('[data-section-tip]'); if (_oldTip) _oldTip.remove(); el.insertAdjacentHTML('afterbegin', tipCard('Что можно сделать:<br>• Нажатие по кругу/кнопке — +1.<br>• Сброс счётчика; цель (например 33).<br>• Тексты азкаров — в «Азкары и дуа».').replace('data-tip-toggle="1"', 'data-tip-toggle="1" data-section-tip="1"')); } catch(e) {}
       if (!state.dhikr) state.dhikr = { count: 0, target: 33, log: {}, phrase: 'سُبْحَانَ اللَّهِ', list: [] };
       const d = state.dhikr;
       if (!d.list || !d.list.length) {
@@ -10377,6 +10408,7 @@ function renderDictation(area) {
 function renderSalah() {
       const el = document.getElementById('salah-body');
       if (!el) return;
+      try { var _oldTip = el.querySelector('[data-section-tip]'); if (_oldTip) _oldTip.remove(); el.insertAdjacentHTML('afterbegin', tipCard('Что можно сделать:<br>• Категории: положения, фард, сунны, ваджибы…<br>• Подкатегории ниже (шуруты, арканы…).<br>• Нажмите пункт — текст; схемы — несколько ракурсов.').replace('data-tip-toggle="1"', 'data-tip-toggle="1" data-section-tip="1"')); } catch(e) {}
       const title = document.querySelector('#view-salah .section-title');
       if (title) title.textContent = 'Намаз';
       const madh = (state.settings && state.settings.madhhab) || '';
@@ -11249,7 +11281,7 @@ function renderSalah() {
         var m = t.match(/2\.\d+/);
         if (m) ver = m[0];
       } catch(e) {}
-      el.innerHTML =
+      el.innerHTML = tipCard('Что можно сделать:<br>• Серии обновлений сверху (1, 2…).<br>• Нажмите номер — подробности .a .b .f и др.<br>• «Обновить приложение» — подтянуть последнюю версию с сервера.') + 
         '<div class="card"><b>Текущая сборка: v'+ver+'</b>' +
         '<p class="ayah-translation" style="margin-top:0.5rem">Браузер и офлайн-кэш часто держат <b>старую</b> копию сайта. Поэтому после загрузки нового index.html на GitHub вы можете не видеть изменений.</p></div>' +
         '<div class="card"><b>Обновить до последней</b>' +
@@ -11265,6 +11297,16 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.55', kinds: ['a','b'], date: '2026-08-08',
+          a: [
+            'Закладки: подсказка, облако #тегов, поиск и фильтр по тегам'
+          ],
+          b: [
+            'Подсказки tipCard во всех основных разделах (подробные)'
+          ],
+          f: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+
         { major: '2', v: '2.54', kinds: ['b','a'], date: '2026-08-08',
           b: [
             'Духа в ежедневном только если включена в «Время намаза» (как Выкл по умолчанию)',
@@ -12394,6 +12436,7 @@ function renderSalah() {
     function renderHelp() {
       const el = document.getElementById('help-body');
       if (!el) return;
+      try { var _oldTip = el.querySelector('[data-section-tip]'); if (_oldTip) _oldTip.remove(); el.insertAdjacentHTML('afterbegin', tipCard('Что можно сделать:<br>• Категории как в меню «Ещё».<br>• Карточка — кратко; нажмите — подробно.<br>• Поиск по справке, если есть поле.').replace('data-tip-toggle="1"', 'data-tip-toggle="1" data-section-tip="1"')); } catch(e) {}
       // Справка строится от меню «Ещё» + главные вкладки. Без дублей.
       const SEC_HELP = {
         export: 'Экспорт и импорт данных.\n\n• Отметьте галочками разделы (закладки, словарь, настройки…).\n• Каждый пункт выбирается один раз — повторов нет.\n• «0 — всё» — полный бэкап.\n• Пароль аккаунта и PIN блокировки не экспортируются.\n• Импорт: вставьте JSON или файл.',
@@ -12950,6 +12993,7 @@ function renderSalah() {
     function renderPrayerTimes() {
       const el = document.getElementById('prayertimes-body');
       if (!el) return;
+      try { var _oldTip = el.querySelector('[data-section-tip]'); if (_oldTip) _oldTip.remove(); el.insertAdjacentHTML('afterbegin', tipCard('Что можно сделать:<br>• Город/страна и метод (ДУМК и др.) — сохраните выбор.<br>• Сегодня / неделя / месяц.<br>• Скачать времена, уведомления, азан.<br>• Виджет Духа/Тахаджуд — вкл здесь.').replace('data-tip-toggle="1"', 'data-tip-toggle="1" data-section-tip="1"')); } catch(e) {}
       try {
         if (!state.prayerLoc || state.prayerLoc.lat == null) {
           state.prayerLoc = { lat: 43.238293, lon: 76.945465, city: 'Алматы', country: 'KZ' };
@@ -16203,7 +16247,7 @@ function playArabicAudio(text, fallbackRu, opts) {
     function renderNames() {
       const list = document.getElementById('names-list');
       if (!list) return;
-      list.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">Порядок по риваяту ат-Тирмизи (начиная с «Аллах»). Нажмите имя — описание, аяты, хадисы. 🔊 — произношение (качество выше при интернете).</p>' +
+      list.innerHTML = tipCard('Что можно сделать:<br>• Список 99 имён.<br>• Нажмите имя — значение, описание, связанные аяты.<br>• 🔊 — озвучка (если доступна).<br>• Избранное — если есть ★.') + '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">Порядок по риваяту ат-Тирмизи (начиная с «Аллах»). Нажмите имя — описание, аяты, хадисы. 🔊 — произношение (качество выше при интернете).</p>' +
         ALLAH_NAMES.map((n,i) => {
           return '<div class="card name-card" data-name-i="'+i+'" style="cursor:pointer">' +
             '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem">' +
@@ -16539,6 +16583,7 @@ async function isAdminUser() {
 async function renderStats() {
       const el = document.getElementById('stats-body');
       if (!el) return;
+      try { var _oldTip = el.querySelector('[data-section-tip]'); if (_oldTip) _oldTip.remove(); el.insertAdjacentHTML('afterbegin', tipCard('Что можно сделать:<br>• Активность: моя / общая; регистрация — ники и числа.<br>• Период: день, неделя, месяц, год, всё; стрелки — другие даты.<br>• По разделам — заходы и время.').replace('data-tip-toggle="1"', 'data-tip-toggle="1" data-section-tip="1"')); } catch(e) {}
       try { flushSectionTime(); } catch(e) {}
       const s = ensureRichStats();
 
@@ -18248,6 +18293,7 @@ function renderQol(targetId) {
 function renderSunnahs() {
       const el = document.getElementById('sunnahs-body');
       if (!el) return;
+      try { var _oldTip = el.querySelector('[data-section-tip]'); if (_oldTip) _oldTip.remove(); el.insertAdjacentHTML('afterbegin', tipCard('Что можно сделать:<br>• Вкладки тем сунн.<br>• Карточка — подробности и источник.<br>• Отмечайте выполненное, если есть счётчик.').replace('data-tip-toggle="1"', 'data-tip-toggle="1" data-section-tip="1"')); } catch(e) {}
       if (!state.sunnahLog) state.sunnahLog = {};
       if (!state.sunnahTab) state.sunnahTab = 'food';
       const topics = [
@@ -19105,6 +19151,7 @@ const HADITH_EXPAND = {
 function renderHadiths() {
       const el = document.getElementById('hadiths-body');
       if (!el) return;
+      try { var _oldTip = el.querySelector('[data-section-tip]'); if (_oldTip) _oldTip.remove(); el.insertAdjacentHTML('afterbegin', tipCard('Что можно сделать:<br>• Выбор сборника (Бухари, Муслим…).<br>• Список/номер хадиса — откройте текст.<br>• Поиск по разделу (поле, если есть).<br>• Скачанное хранится в кэше офлайн.').replace('data-tip-toggle="1"', 'data-tip-toggle="1" data-section-tip="1"')); } catch(e) {}
       try { __mergeHadithExtra(); } catch(e) {}
       if (!window._hadithSectionQ) window._hadithSectionQ = '';
 
@@ -19956,6 +20003,7 @@ c.addEventListener('click', () => {
           (cols > 1 ? '<button type="button" class="btn btn-sm" data-right="'+idx+'" title="Вправо">→</button>' : '') +
           '</div></div>';
       });
+      html = tipCard('Что можно сделать в «Ещё»:<br>• Группы разделов (Знание, Поклонение…).<br>• Нажмите раздел — откроется.<br>• Сетка/список — кнопки раскладки.<br>• Порядок и группы — «Изменить порядок», вкл/выкл групп.<br>• Настройка списков — в Настройки → Меню.') + html;
       el.innerHTML = html;
       // Перемещение целой группы
       el.querySelectorAll('[data-gup],[data-gdown]').forEach(btn => {
@@ -20073,7 +20121,7 @@ c.addEventListener('click', () => {
         { t: 'Умра отдельно', d: 'Ихрам с миката → таваф → са‘и → халяк/таксар. Можно в любое время года. Умра в Рамадан по награде сравнима с хаджем (с Пророком) — хадис Бухари, но не заменяет обязательный хадж.' },
         { t: 'Ошибки и фидью', d: 'За нарушения ихрама — дамм (жертва), садака или пост по таблице штрафов мазхаба. Пропуск столпа — хадж недействителен или требует восполнения. Совет: взять уроки у надёжного группы/шейха до поездки.' }
       ];
-      el.innerHTML = '<p style="color:var(--text-muted);margin-bottom:0.75rem">Краткий порядок хаджа и умры. Детали и мазхаб — уточняйте у сопровождающего учёного.</p>' +
+      el.innerHTML = tipCard('Что можно сделать:<br>• Этапы хаджа и умры по порядку.<br>• Нажмите этап — подробности.<br>• Памятка, не замена руководства знающего и вашего мазхаба.') + '<p style="color:var(--text-muted);margin-bottom:0.75rem">Краткий порядок хаджа и умры. Детали и мазхаб — уточняйте у сопровождающего учёного.</p>' +
         steps.map((s,i) =>
           '<div class="card"><button type="button" class="btn btn-sm" style="width:100%;text-align:left" data-hj="'+i+'"><b>'+s.t+'</b> ▾</button>' +
           '<div class="inline-detail" id="hj-d-'+i+'" style="display:none;margin-top:0.5rem" class="ayah-translation"></div></div>'
@@ -20801,10 +20849,10 @@ function renderFiqh() {
       const madh = (state.settings && state.settings.madhhab) || '';
       const madhLabel = { hanafi:'Ханафи', maliki:'Малики', shafii:'Шафии', hanbali:'Ханбали', salaf:'Саляфитский подход' }[madh] || 'не выбран';
       const tips = {
-        wudu: 'Вуду — условие намаза. Порядок и объём деталей различаются по мазхабу; ниже — общий каркас.',
-        tayammum: 'Тайаммум — замена вуду при отсутствии воды или вреде от неё. Земля/пыль должны быть чистыми.',
-        lessons: 'Краткие уроки. Нажмите карточку — развернётся.',
-        topics: 'Темы фикха по разделам. Нажмите — подробности. Не фетва: при личном случае — к знающему.'
+        wudu: 'Что можно сделать:<br>• Карточки шагов вуду — нажмите «подробнее».<br>• Мазхаб в настройках влияет на акценты.<br>• Общий каркас, не замена урока у преподавателя.',
+        tayammum: 'Что можно сделать:<br>• Когда допустим тайаммум и как делать — в карточках.<br>• Земля/пыль — чистые.<br>• Личный случай — к знающему.',
+        lessons: 'Что можно сделать:<br>• Нажмите карточку урока — развернётся текст.<br>• Можно повторять в любое время.',
+        topics: 'Что можно сделать:<br>• Темы по разделам; нажмите — подробности.<br>• Поиск по фикху (поле выше, если есть).<br>• Не фетва: личный вопрос — к знающему.'
       };
       const wuduItems = [
         { title: '1. Нийя', short: 'Намерение в сердце', detail: 'Совершить вуду ради Аллаха. В ханафи нийя для вуду часто не считают условием действительности, в других мазхабах — условие. Лучше всегда иметь нийю.' },
@@ -21003,6 +21051,7 @@ function renderFiqh() {
         { q: 'Ният для вуду', h: 'Не обязательна', m: 'Обязательна', s: 'Обязательна', a: 'Обязательна', sal: 'Обязательна' }
       ];
       el.innerHTML =
+        tipCard('Что можно сделать:<br>• Сравнение мазхабов и колонка саляфов (где есть).<br>• Нажмите тему — детали разногласий.<br>• Свой мазхаб выбирается в настройках.') +
         '<p style="color:var(--text-muted);margin-bottom:0.75rem">Четыре мазхаба ахлю-с-сунна + колонка «саляф. подход» (без привязки к одному мазхабу). Различия в фуруʿ, не в основах акыды. Обзор, не фетва.</p>' +
         '<div class="card"><b>Сравнение (кратко)</b><div style="overflow-x:auto;margin-top:0.5rem;-webkit-overflow-scrolling:touch">' +
         '<table class="madhhab-table" style="width:100%;min-width:520px;font-size:0.78rem;border-collapse:collapse;table-layout:fixed">' +
@@ -21260,7 +21309,7 @@ function renderFiqh() {
         short: tLabel(tLabel('Нажмите — подробности')),
         detail: explainFiqhTerms(a.text || '')
       }));
-      el.innerHTML = renderTipCard('Нажмите карточку — откроется полный текст. Подчёркнутые термины — перевод и словарь.') +
+      el.innerHTML = tipCard('Что можно сделать:<br>• Темы акиды карточками.<br>• Нажмите — развёрнутый текст.<br>• Мини-тест (если есть) — проверка понимания.') +  renderTipCard('Нажмите карточку — откроется полный текст. Подчёркнутые термины — перевод и словарь.') +
         renderExpandableCards(items);
       bindTipToggles(el);
       bindExpandableCards(el);
@@ -21393,6 +21442,7 @@ function renderFiqh() {
     function renderRamadan() {
       const el = document.getElementById('ramadan-body');
       if (!el) return;
+      try { var _oldTip = el.querySelector('[data-section-tip]'); if (_oldTip) _oldTip.remove(); el.insertAdjacentHTML('afterbegin', tipCard('Что можно сделать:<br>• Вкладки/категории рамаданского компаньона.<br>• Темы: пост, дуа, ночи… — нажмите для текста.<br>• Памятка; спорное — к знающему.').replace('data-tip-toggle="1"', 'data-tip-toggle="1" data-section-tip="1"')); } catch(e) {}
       if (!state.academyProgress) state.academyProgress = {};
       if (!state.ramadan) state.ramadan = { pages: 0, days: {} };
       const ram = state.academyProgress._ramadan || { khatm: {}, prep: {}, nights: {} };
@@ -21573,7 +21623,7 @@ function renderFiqh() {
       const adabLog = state.academyProgress._adabLog || {};
       const today = adabLog[dayKey] || {};
 
-      el.innerHTML =
+      el.innerHTML = tipCard('Что можно сделать:<br>• Вкладки тем (родители, речь…).<br>• Нажмите тему — кратко; ещё раз/подробнее — полный текст.<br>• Чеклист дня — отметить полезные дела.') + 
         '<div class="tabs-row" style="margin-bottom:0.75rem">' +
         '<button type="button" class="btn btn-sm btn-primary" data-adab-tab="topics">Темы и чеклист</button>' +
         '<button type="button" class="btn btn-sm" data-adab-tab="sit">Ситуации</button></div>' +
@@ -21727,7 +21777,7 @@ function renderFiqh() {
       const el = document.getElementById('calendar-body');
       if (!el) return;
       const events = HIJRI_EVENTS[calendarYear] || [];
-      el.innerHTML =
+      el.innerHTML = tipCard('Что можно сделать:<br>• Листайте месяцы/годы.<br>• События: начало и конец (Рамадан и др.).<br>• Нажмите событие — пояснение.') + 
         '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">' +
         '<button type="button" class="btn btn-sm" id="cal-prev">←</button>' +
         '<b>'+calendarYear+' г.</b>' +
@@ -21795,6 +21845,7 @@ function renderLibrary() {
     function renderQdict() {
       const el = document.querySelector('#view-dict #qdict-body') || document.querySelector('#dict-list #qdict-body') || document.getElementById('qdict-body');
       if (!el) return;
+      try { var _oldTip = el.querySelector('[data-section-tip]'); if (_oldTip) _oldTip.remove(); el.insertAdjacentHTML('afterbegin', tipCard('Что можно сделать:<br>• Поиск по арабскому, переводу, корню.<br>• Карточка — грамматика и частота в Коране.').replace('data-tip-toggle="1"', 'data-tip-toggle="1" data-section-tip="1"')); } catch(e) {}
       const words = [
         { ar: 'اللّٰه', root: 'ا ل ه', ru: 'Аллах', gram: 'имя собственное', count: 'часто' },
         { ar: 'رَبّ', root: 'ر ب ب', ru: 'Господь', gram: 'имя', count: 'часто' },
