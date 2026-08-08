@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.55 2026-08-08 -->
+<!-- BUILD 2.56 2026-08-09 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.55</title>
+  <title>Коран — Изучение · 2.56</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1302,6 +1302,8 @@
     .name-card .arabic { font-size: 1.5rem; color: var(--arabic); }
 
   
+    .more-tip-wrap { grid-column: 1 / -1 !important; width: 100%; display: block; }
+    .more-tip-wrap > .card { width: 100%; max-width: none; }
     .more-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:0.5rem; }
     .more-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:0.45rem; }
     .more-grid-3 .more-item { font-size:0.78rem; padding:0.65rem 0.35rem; }
@@ -8752,6 +8754,28 @@ function renderMistakes() {
     }
 
 
+    
+    function letterMouthSvg(ch) {
+      var zone = 'tongue';
+      if ('بموف'.indexOf(ch) >= 0) zone = 'lips';
+      else if ('ثذظ'.indexOf(ch) >= 0) zone = 'teeth';
+      else if ('تدانطلض'.indexOf(ch) >= 0) zone = 'gum';
+      else if ('جشصي'.indexOf(ch) >= 0) zone = 'palate';
+      else if ('كق'.indexOf(ch) >= 0) zone = 'soft';
+      else if ('حخعغءه'.indexOf(ch) >= 0 || ch === 'ا') zone = 'throat';
+      else if ('رزل'.indexOf(ch) >= 0) zone = 'tip';
+      var tipY = { lips: 62, teeth: 58, gum: 52, palate: 40, soft: 36, throat: 48, tip: 55, tongue: 50 }[zone] || 50;
+      var tipX = { lips: 28, teeth: 38, gum: 48, palate: 58, soft: 72, throat: 88, tip: 42, tongue: 55 }[zone] || 55;
+      var label = { lips: 'Губы', teeth: 'Межзубный', gum: 'У зубов', palate: 'Нёбо', soft: 'Заднее нёбо', throat: 'Горло', tip: 'Кончик языка', tongue: 'Язык' }[zone];
+      return '<svg viewBox="0 0 120 90" width="160" height="120" style="display:block;margin:0.4rem auto;background:var(--bg);border-radius:0.5rem;border:1px solid var(--border)">' +
+        '<path d="M10,25 Q20,10 55,12 Q95,10 110,28 L108,70 Q90,82 55,84 Q22,82 12,68 Z" fill="none" stroke="var(--text-muted)" stroke-width="1.5"/>' +
+        '<path d="M22,48 Q40,42 55,44 Q75,42 95,50" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.5"/>' +
+        '<ellipse cx="'+tipX+'" cy="'+tipY+'" rx="10" ry="7" fill="var(--accent)" opacity="0.85"/>' +
+        '<text x="60" y="18" text-anchor="middle" fill="var(--accent)" font-size="9" font-family="sans-serif">'+label+'</text>' +
+        '<text x="22" y="78" fill="var(--text-muted)" font-size="7">губы</text>' +
+        '<text x="88" y="40" fill="var(--text-muted)" font-size="7">горло</text></svg>';
+    }
+
     function renderAlphabet() {
       let grid = document.getElementById('letter-grid');
       const wrap = document.getElementById('learn-alphabet');
@@ -8824,6 +8848,7 @@ function renderMistakes() {
             '<div class="detail-ar" style="text-align:center;font-size:3rem;font-family:Amiri,serif" dir="rtl" lang="ar">'+l.ch+'</div>' +
             '<div style="text-align:center;margin:0.5rem 0" dir="ltr"><b>'+l.name+'</b></div>' +
             (l.tr ? '<div style="text-align:center;color:var(--accent);font-size:1.15rem;margin-bottom:0.35rem" dir="ltr">'+l.tr+'</div>' : '') +
+            '<div style="text-align:center">'+(typeof letterMouthSvg==='function'?letterMouthSvg(l.ch):'')+'</div>' +
             '<div class="ayah-translation" dir="ltr" style="text-align:center;unicode-bidi:isolate">'+(l.note||'')+'</div>' +
             ((typeof ARTICULATION !== 'undefined' && ARTICULATION[l.ch]) ? '<div style="margin-top:0.4rem;font-size:0.85rem;color:var(--accent);text-align:center" dir="ltr" style="unicode-bidi:isolate">🗣️ '+ARTICULATION[l.ch]+'</div>' : '') +
             (l.forms ? '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.5rem;font-size:1.5rem;font-family:Amiri,serif" dir="rtl" lang="ar">'+l.forms.map(f=>'<span dir="rtl">'+f+'</span>').join(' ')+'</div>' : '') +
@@ -11213,7 +11238,7 @@ function renderSalah() {
                 } catch(e) {}
                 // профиль для статистики регистраций
                 try {
-                  await sb.from('profiles').upsert({ id: data.user.id, nick: nick, created_at: new Date().toISOString() }, { onConflict: 'id' });
+                  await sb.from('profiles').upsert({ id: data.user.id, nick: nick, email: email, created_at: new Date().toISOString() }, { onConflict: 'id' });
                 } catch(e) { console.warn('profile upsert', e); }
               }
               if (data.session) {
@@ -11297,6 +11322,20 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.56', kinds: ['f','a','b'], date: '2026-08-09',
+          f: [
+            'Подсказка в «Ещё» на всю ширину',
+            'Акида: одна подсказка вместо двух',
+            'Компас киблы: absolute, влево/вправо',
+            'Статистика регистрации: ошибка RLS + SQL'
+          ],
+          a: [
+            'Схемы зон произношения букв',
+            'Мини-тест акиды/фикха'
+          ],
+          b: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+
         { major: '2', v: '2.55', kinds: ['a','b'], date: '2026-08-08',
           a: [
             'Закладки: подсказка, облако #тегов, поиск и фильтр по тегам'
@@ -13137,7 +13176,7 @@ let body = '';
                     '<div class="card" style="text-align:center"><b>Кибла</b>' +
                     '<div style="font-size:1.75rem;margin:0.35rem 0"><span id="qibla-deg">'+q.toFixed(0)+'</span>°</div>' +
                     '<div class="ayah-translation">Азимут на Каабу от вашего места (0° = север).</div>' +
-                    '<div id="qibla-compass" style="margin:0.75rem auto;width:160px;height:160px;border-radius:50%;border:2px solid var(--border);position:relative">' +
+                    '<div id="qibla-compass" style="margin:0.75rem auto;width:160px;height:160px;border-radius:50%;border:2px solid var(--border);position:relative;transition:transform 0.12s linear">' +
                     '<div style="position:absolute;left:50%;top:6px;transform:translateX(-50%);font-size:0.7rem;color:var(--text-muted)">С</div>' +
                     '<div id="qibla-needle" style="position:absolute;left:50%;top:50%;width:3px;height:58px;background:var(--accent);border-radius:2px;transform-origin:bottom center;transform:translate(-50%,-100%) rotate('+q+'deg)"></div>' +
                     '<div style="position:absolute;left:50%;top:50%;width:10px;height:10px;background:var(--accent);border-radius:50%;transform:translate(-50%,-50%)"></div></div>' +
@@ -13476,24 +13515,52 @@ let body = '';
           if (compassBtn) compassBtn.addEventListener('click', function(){
             const status = document.getElementById('qibla-status');
             const needle = document.getElementById('qibla-needle');
+            const dial = document.getElementById('qibla-compass');
             const qDeg = qiblaBearing(+loc.lat, +loc.lon);
+            try {
+              if (window._qiblaOriHandler) {
+                window.removeEventListener('deviceorientation', window._qiblaOriHandler, true);
+                window.removeEventListener('deviceorientationabsolute', window._qiblaOriHandler, true);
+              }
+            } catch(e) {}
             const onOri = function(ev) {
-              let heading = ev.webkitCompassHeading;
-              if (heading == null && ev.alpha != null) heading = 360 - ev.alpha;
-              if (heading == null) return;
-              const rot = qDeg - heading;
+              var heading = null;
+              if (typeof ev.webkitCompassHeading === 'number') {
+                heading = ev.webkitCompassHeading;
+              } else if (ev.absolute === true && typeof ev.alpha === 'number') {
+                heading = (360 - ev.alpha) % 360;
+              } else if (typeof ev.alpha === 'number') {
+                heading = (360 - ev.alpha) % 360;
+                try {
+                  var so = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+                  heading = (heading + (+so || 0) + 360) % 360;
+                } catch(e) {}
+              }
+              if (heading == null || isNaN(heading)) {
+                if (status) status.textContent = 'Нет данных компаса. Поверните телефон…';
+                return;
+              }
+              var rot = qDeg - heading;
               if (needle) needle.style.transform = 'translate(-50%,-100%) rotate('+rot+'deg)';
-              if (status) status.textContent = 'Кибла '+qDeg.toFixed(0)+'° · курс '+(+heading).toFixed(0)+'°';
+              if (dial) dial.style.transform = 'rotate('+(-heading)+'deg)';
+              var delta = ((qDeg - heading + 540) % 360) - 180;
+              var dir = Math.abs(delta) < 8 ? '✓ Смотрите примерно на киблу' : (delta > 0 ? 'Поверните вправо →' : '← Поверните влево');
+              if (status) status.textContent = 'Кибла '+qDeg.toFixed(0)+'° · телефон '+heading.toFixed(0)+'° · '+dir;
             };
             window._qiblaOriHandler = onOri;
+            function startListen() {
+              try { window.addEventListener('deviceorientationabsolute', onOri, true); } catch(e) {}
+              try { window.addEventListener('deviceorientation', onOri, true); } catch(e) {}
+              if (status) status.textContent = 'Компас вкл. Держите телефон горизонтально…';
+              if (compassBtn) compassBtn.textContent = 'Компас включён';
+            }
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
               DeviceOrientationEvent.requestPermission().then(function(s) {
-                if (s === 'granted') window.addEventListener('deviceorientation', onOri, true);
+                if (s === 'granted') startListen();
                 else if (status) status.textContent = 'Нет доступа к компасу';
-              }).catch(function(){});
+              }).catch(function(){ if (status) status.textContent = 'Не удалось запросить компас'; });
             } else {
-              window.addEventListener('deviceorientation', onOri, true);
-              if (status) status.textContent = 'Компас: поверните телефон…';
+              startListen();
             }
           });
         };
@@ -16729,9 +16796,22 @@ async function renderStats() {
           var ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(1000);
           if (ur && ur.error) {
             console.warn('profiles', ur.error);
-            ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).limit(1000);
+            ur = await sb.from('profiles').select('id,nick,created_at').limit(1000);
           }
-          if (ur && ur.error) throw ur.error;
+          if (ur && ur.error) {
+            if (box) box.innerHTML = '<p style="color:var(--danger)">profiles: '+(ur.error.message||'')+'</p>' +
+              '<p class="ayah-translation">В SQL Editor Supabase выполните политику чтения:</p>' +
+              '<pre style="font-size:0.7rem;overflow:auto;background:var(--bg);padding:0.5rem;border-radius:0.4rem;white-space:pre-wrap">' +
+              'create table if not exists profiles (\n' +
+              '  id uuid primary key references auth.users on delete cascade,\n' +
+              '  nick text, email text, created_at timestamptz default now()\n' +
+              ');\n' +
+              'alter table profiles enable row level security;\n' +
+              'create policy "read profiles" on profiles for select using (true);\n' +
+              'create policy "upsert own" on profiles for all using (auth.uid() = id);' +
+              '</pre>';
+            return;
+          }
           var list = (ur && ur.data) || [];
           var count = (ur && ur.count != null) ? ur.count : list.length;
           var localN = 0;
@@ -20003,8 +20083,8 @@ c.addEventListener('click', () => {
           (cols > 1 ? '<button type="button" class="btn btn-sm" data-right="'+idx+'" title="Вправо">→</button>' : '') +
           '</div></div>';
       });
-      html = tipCard('Что можно сделать в «Ещё»:<br>• Группы разделов (Знание, Поклонение…).<br>• Нажмите раздел — откроется.<br>• Сетка/список — кнопки раскладки.<br>• Порядок и группы — «Изменить порядок», вкл/выкл групп.<br>• Настройка списков — в Настройки → Меню.') + html;
-      el.innerHTML = html;
+      var moreTipHtml = tipCard('Что можно сделать в «Ещё»:<br>• Группы разделов (Знание, Поклонение…).<br>• Нажмите раздел — откроется.<br>• Сетка/список — кнопки раскладки сверху.<br>• «Изменить порядок» и «Группы: вкл/выкл».<br>• Состав списков — Настройки → Меню.');
+      el.innerHTML = '<div class="more-tip-wrap">' + moreTipHtml + '</div>' + html;
       // Перемещение целой группы
       el.querySelectorAll('[data-gup],[data-gdown]').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -21309,7 +21389,7 @@ function renderFiqh() {
         short: tLabel(tLabel('Нажмите — подробности')),
         detail: explainFiqhTerms(a.text || '')
       }));
-      el.innerHTML = tipCard('Что можно сделать:<br>• Темы акиды карточками.<br>• Нажмите — развёрнутый текст.<br>• Мини-тест (если есть) — проверка понимания.') +  renderTipCard('Нажмите карточку — откроется полный текст. Подчёркнутые термины — перевод и словарь.') +
+      el.innerHTML = tipCard('Что можно сделать:<br>• Темы акиды — карточки; нажмите — полный текст.<br>• Подчёркнутые термины — перевод и словарь.<br>• Мини-тест внизу — проверка; ошибки сохраняются для повтора.') +
         renderExpandableCards(items);
       bindTipToggles(el);
       bindExpandableCards(el);
