@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.53 2026-08-08 -->
+<!-- BUILD 2.54 2026-08-08 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.53</title>
+  <title>Коран — Изучение · 2.54</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -9812,7 +9812,7 @@ function renderMistakes() {
 
       list.innerHTML = (edit
         ? '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:0.5rem">Режим порядка: ↑↓ у тем и у дуа. Нажмите «Готово» внизу, когда закончите.</p>'
-        : '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">'+(isKk()? '▶ басыңыз — дыбыс. Плеерде «Қатарынан» / «🔁 бәрі» осы бөлімнің азкарларын жалғастырады, Құран сүресін емес. Есептегіш — қанша рет оқыдыңыз.': 'Нажмите ▶ — озвучка. В плеере «Подряд» / «🔁 всё» продолжают <b>азкары этого раздела</b>, а не суру Корана. Счётчик — сколько раз прочитали.')+'</div></div>') + items.map((a, i) => {
+        : '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">'+(isKk()? '▶ басыңыз — дыбыс. Плеерде «Қатарынан» / «🔁 бәрі» осы бөлімнің азкарларын жалғастырады, Құран сүресін емес. Есептегіш — қанша рет оқыдыңыз.': 'Что можно сделать здесь:<br>• Вкладки сверху — Утро, Вечер, После намаза и др.<br>• 🔊 — озвучка карточки (нужен интернет).<br>• «Счёт» — сколько раз прочитали; цель × N.<br>• Плеер внизу: «Подряд» / «🔁» — следующие азкары раздела, не сура Корана.<br>• «☰ Порядок» — порядок вкладок и карточек.')+'</div></div>') + items.map((a, i) => {
         let tr = a.tr || '';
         if (!tr && a.ar && typeof transliterateArabic === 'function') {
           try { tr = transliterateArabic(a.ar); } catch(e) {}
@@ -10818,7 +10818,7 @@ function renderSalah() {
         { t: 'При конфликте', short: 'Увещевание, медиатор, без унижения.', b: 'Увещевание, совет, медиатор из семьи (4:35 для супругов). Без ударов, унижения и разглашения тайны. Тауба, сабр, справедливость (5:8).', ifs: ['Если супруг хочет развод: сначала сулх; два арбитра (4:35); не унижать при детях.', 'Если насилие: безопасность — приоритет; шариат не велит терпеть избиение.', 'Если родня вмешивается: границы с адабом.'] },
         { t: 'Наследство — кратко', short: 'Доли в Коране; сначала долги.', b: 'Коран 4:7–12, 4:176. Сначала долги и завещание (до 1/3), затем фард-доли. Нельзя лишать наследников без права. Уточняйте у знающего.', ifs: ['Если спор о долях: спросить знающего по мазхабу, не делить «по понятиям».', 'Если завещание больше 1/3: нужно согласие наследников на излишек.', 'Если лишили наследника без права: вернуть право — обязанность.'] }
       ];
-      el.innerHTML = '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">Права семьи по Корану и сунне. Нажмите карточку — подробности. Не фетва.</div></div>' + 
+      el.innerHTML = '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">Что можно сделать:<br>• Карточки тем — кратко в заголовке.<br>• Нажмите — развёрнутый текст по Корану и сунне.<br>• Это напоминание, не фетва по вашему случаю.</div></div>' + 
         '<p style="color:var(--text-muted);margin-bottom:0.75rem">Кратко — в заголовке; нажмите — подробнее. Не фетва по вашему случаю.</p>' +
         items.map((it, i) =>
           '<div class="card"><button type="button" class="btn btn-sm" style="width:100%;text-align:left" data-fam="'+i+'"><b>'+it.t+'</b><div class="ayah-translation" style="margin-top:0.25rem">'+it.short+'</div></button>' +
@@ -11265,6 +11265,14 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.54', kinds: ['b','a'], date: '2026-08-08',
+          b: [
+            'Духа в ежедневном только если включена в «Время намаза» (как Выкл по умолчанию)',
+            'Подсказки: ежедневное, азкары, дуа, история, грехи, семья — подробнее'
+          ],
+          a: [], f: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+
         { major: '2', v: '2.53', kinds: ['f'], date: '2026-08-08',
           f: [
             'Озвучка дуа: возврат рабочего машинного Google TTS через плеер (как в 2.48)',
@@ -17868,7 +17876,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
                 [tLabel('Магриб'), t.maghrib],
                 [tLabel('Иша'), t.isha]
               ];
-              if (state.settings && state.settings.widgetDuha !== false) {
+              if (state.settings && state.settings.widgetDuha === true) {
                 // optional: insert after sunrise
                 cells.splice(2, 0, [tLabel('Духа'), t.duha || '—']);
               }
@@ -17887,6 +17895,14 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       } catch(e) {}
       el.innerHTML =
         widgets +
+        '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b>' +
+        '<div class="tip-body ayah-translation" style="margin-top:0.35rem">' +
+        'Что можно сделать на «Ежедневном»:<br>' +
+        '• Карточка намаза — время по городу; нажмите — полный раздел «Время намаза» (город, метод, скачать, уведомления).<br>' +
+        '• Аят часа/дня — нажмите на аят: контекст (до и после). Стрелки ← → сменяют выбор.<br>' +
+        '• Дуа, хадис, сунна, слово, история, имя Аллаха — листайте стрелками; 🔊 у дуа — озвучка.<br>' +
+        '• Духа на виджете только если включили в «Время намаза» → виджет (по умолчанию выкл).' +
+        '</div></div>' +
         prayerMini +
         '<div id="dailyhub-ayah" class="aotd-card"></div>' +
         '<div id="dailyhub-story"></div>' +
@@ -18006,7 +18022,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       if (typeof state.duaEditMode !== 'boolean') state.duaEditMode = false;
       const duaEdit = !!state.duaEditMode;
       el.innerHTML =
-        '<p style="color:var(--text-muted);margin-bottom:0.5rem">Тема → дуа с транскрипцией и 🔊. Свои дуа — внизу. Порядок — кнопкой в конце списка.</p>' +
+        '<p style="color:var(--text-muted);margin-bottom:0.5rem">Как пользоваться:<br>• Список тем сверху/карточками — откройте тему (тревога, болезнь…).<br>• «Слушать» у дуа — озвучка; «Слушать все» — подряд все дуа темы (нужен интернет).<br>• «Порядок тем» — изменить порядок.<br>• Внизу «Своё дуа» — добавить свой текст (арабский, транскрипция, перевод).</p>' +
         '<div id="dua-sit-list"></div>' +
         '<div id="dua-sit-result" style="margin-top:0.75rem"></div>' +
         '<div class="card" style="margin-top:1rem;border-color:var(--accent)"><b>Своё дуа</b>' +
@@ -18392,7 +18408,7 @@ function renderStories(openOpts) {
         });
       }
       el.innerHTML =
-        '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">'+(kk?'Санатты таңдаңыз. Атын басыңыз — толық мәтін. ★ — таңдаулы. 🔊 — тыңдау.':'Выберите категорию. Нажмите имя — полный текст. ★ — в избранное. 🔊 — слушать.')+'</div></div>' +
+        '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">'+(kk?'Санатты таңдаңыз. Атын басыңыз — толық мәтін. ★ — таңдаулы. 🔊 — тыңдау.':'Что можно сделать:<br>• Категории сверху — пророки, сподвижники и др.<br>• Нажмите имя/карточку — полный рассказ.<br>• ★ — в избранное; 🔊 — озвучка (если доступна).<br>• Поиск (если есть) — по имени.')+'</div></div>' +
         '<div class="tabs-row" style="margin-bottom:0.75rem;flex-wrap:wrap;gap:0.35rem">' +
         cats.map(function(c){ return '<button type="button" class="btn btn-sm '+(c.id===tab?'btn-primary':'')+'" data-stcat="'+c.id+'" style="flex:0 0 auto;min-width:5.5rem;text-align:center">'+c.name+'</button>'; }).join('') +
         '</div>' +
@@ -20205,7 +20221,7 @@ c.addEventListener('click', () => {
       ];
       if (!state.sinsTab) state.sinsTab = 'kabair';
       el.innerHTML =
-        '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">Цель — осторожность и тауба. Личные случаи — к знающему. Нажмите карточку греха — подробности.</div></div>' +
+        '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">Что можно сделать:<br>• Вкладки категорий грехов сверху.<br>• Нажмите карточку — подробности, связанные аяты/хадисы.<br>• Цель раздела — напоминание и тауба, не приговор.<br>• Личный случай — лучше спросить знающего.</div></div>' +
         '<div class="tabs-row" style="margin-bottom:0.75rem;flex-wrap:wrap">' +
         '<button type="button" class="btn btn-sm '+(state.sinsTab==='kabair'?'btn-primary':'')+'" data-sins-tab="kabair">55 тяжких</button>' +
         '<button type="button" class="btn btn-sm '+(state.sinsTab==='modern'?'btn-primary':'')+'" data-sins-tab="modern">Современные</button>' +
