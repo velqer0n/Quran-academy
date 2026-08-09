@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.61 2026-08-09 -->
+<!-- BUILD 2.63 2026-08-09 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.61</title>
+  <title>Коран — Изучение · 2.63</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -5607,6 +5607,7 @@ function getMainTabOrder() {
 
     function playQueueItem(idx) {
 
+      if (window._audioHardStop) return;
       if (!audioQueue.length) return;
       if (idx < 0) idx = 0;
       if (idx >= audioQueue.length) idx = audioQueue.length - 1;
@@ -5926,20 +5927,53 @@ function getMainTabOrder() {
     document.getElementById('audio-prev-surah')?.addEventListener('click', () => playPrevSurah());
     document.getElementById('audio-next-surah')?.addEventListener('click', () => playNextSurah());
     document.getElementById('audio-play-pause').addEventListener('click', () => {
-      // TTS (азкары/дуа)
+      var btn = document.getElementById('audio-play-pause');
+      try {
+        if (window.speechSynthesis) {
+          if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+            try { window.speechSynthesis.pause(); } catch(e) { try { window.speechSynthesis.cancel(); } catch(e2) {} }
+            window._ttsPlaying = false;
+            if (btn) btn.textContent = '▶';
+            return;
+          }
+          if (window.speechSynthesis.paused) {
+            try { window.speechSynthesis.resume(); } catch(e) {}
+            window._ttsPlaying = true;
+            if (btn) btn.textContent = '⏸';
+            return;
+          }
+        }
+      } catch(e) {}
       if (window._ttsPlaying) {
-        try { window.speechSynthesis.cancel(); } catch(e) {}
+        try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
         window._ttsPlaying = false;
-        document.getElementById('audio-play-pause').textContent = '▶';
+        if (btn) btn.textContent = '▶';
         return;
       }
-      if (audioEl.paused) {
-        audioEl.play();
-        document.getElementById('audio-play-pause').textContent = '⏸';
-      } else {
-        audioEl.pause();
-        document.getElementById('audio-play-pause').textContent = '▶';
-      }
+      try {
+        if (audioEl && !audioEl.paused && audioEl.src) {
+          audioEl.pause();
+          if (btn) btn.textContent = '▶';
+          return;
+        }
+        if (audioEl && audioEl.paused && audioEl.src) {
+          var p = audioEl.play();
+          if (p && p.catch) p.catch(function(){});
+          if (btn) btn.textContent = '⏸';
+          return;
+        }
+      } catch(e) {}
+      try {
+        if (window._adhkarAudio) {
+          if (!window._adhkarAudio.paused) {
+            window._adhkarAudio.pause();
+            if (btn) btn.textContent = '▶';
+          } else {
+            window._adhkarAudio.play().catch(function(){});
+            if (btn) btn.textContent = '⏸';
+          }
+        }
+      } catch(e) {}
     });
 
     document.getElementById('audio-prev')?.addEventListener('click', () => playPrevAyah());
@@ -6032,12 +6066,54 @@ function getMainTabOrder() {
     document.getElementById('audio-mode-random')?.addEventListener('click', () => applyPlayerMode('random'));
     try { updateAudioModeButtons(); } catch(e) {}
 
-    document.getElementById('audio-stop').addEventListener('click', () => {
-      audioEl.pause();
-      audioEl.src = '';
-      audioQueue = [];
-      audioBar.classList.remove('visible');
-      document.querySelectorAll('.ayah.playing-ayah').forEach(el => el.classList.remove('playing-ayah'));
+    
+    function stopAllPlayback() {
+      try { window._audioHardStop = true; } catch(e) {}
+      try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
+      window._ttsPlaying = false;
+      try {
+        if (typeof audioEl !== 'undefined' && audioEl) {
+          audioEl.pause();
+          try { audioEl.onended = null; audioEl.onerror = null; } catch(e) {}
+          try { audioEl.removeAttribute('src'); audioEl.load(); } catch(e) {
+            try { audioEl.src = ''; } catch(e2) {}
+          }
+        }
+      } catch(e) {}
+      try {
+        if (window._adhkarAudio) {
+          window._adhkarAudio.pause();
+          window._adhkarAudio.src = '';
+          window._adhkarAudio = null;
+        }
+      } catch(e) {}
+      try { audioQueue = []; audioQueueIdx = 0; } catch(e) {}
+      try {
+        if (typeof audioBar !== 'undefined' && audioBar) {
+          audioBar.classList.remove('visible');
+          audioBar.style.display = 'none';
+        }
+      } catch(e) {}
+      try {
+        document.querySelectorAll('.ayah.playing-ayah, .adhkar-playing, .dua-playing, [data-playing="1"]').forEach(function(el) {
+          el.classList.remove('playing-ayah', 'adhkar-playing', 'dua-playing');
+          el.removeAttribute('data-playing');
+        });
+      } catch(e) {}
+      try {
+        var ap = document.getElementById('audio-play-pause');
+        if (ap) ap.textContent = '▶';
+      } catch(e) {}
+      setTimeout(function(){ try { window._audioHardStop = false; } catch(e) {} }, 400);
+    }
+
+document.getElementById('audio-stop').addEventListener('click', () => {
+      try { stopAllPlayback(); } catch(e) {
+        try { audioEl.pause(); audioEl.src = ''; } catch(e2) {}
+        try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e2) {}
+        try { audioQueue = []; } catch(e2) {}
+        try { if (audioBar) { audioBar.classList.remove('visible'); audioBar.style.display = 'none'; } } catch(e2) {}
+      }
     });
 
     const seekEl = document.getElementById('audio-seek');
@@ -11540,6 +11616,48 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.63', kinds: ['f'], date: '2026-08-09',
+          f: [
+            'Плеер: ✕ полностью останавливает звук (audio + TTS + очередь)',
+            'Плеер: ⏸ пауза/продолжить для audioEl, speechSynthesis и запасного плеера'
+          ],
+          a: [], b: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.62e', kinds: ['f','s'], date: '2026-08-09',
+          f: [
+            'Дуа TTS: таймауты 3.5с на хост, AbortController на blob',
+            'Если оба Google TTS недоступны — сразу синтез (кэш на сессию)'
+          ],
+          s: ['Очередь азкаров/дуа не зависает на одной карточке при плохой сети'],
+          a: [], b: [], d: [], ph: [], I: [], o: [], on: []
+        },
+        { major: '2', v: '2.62d', kinds: ['f'], date: '2026-08-09',
+          f: [
+            'Дуа: оба хоста Google TTS (googleapis.com → google.com)',
+            'Запас: арабский speechSynthesis, крайний случай — русский перевод'
+          ],
+          a: [], b: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.62c', kinds: ['f'], date: '2026-08-09',
+          f: [
+            'Плеер виден в Азкарах и Дуа-конструкторе (display:none больше не залипает)',
+            'Сброс inline-стиля плеера в 5 местах показа/скрытия'
+          ],
+          a: [], b: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+        { major: '2', v: '2.62b', kinds: ['a','b'], date: '2026-08-09',
+          a: [
+            'Азкары: ▶ Слушать всё / 🔁 и очередь с 🔊 на карточке',
+            'Дуа-конструктор: ▶ Слушать все + очередь по теме',
+            'Мои дуа: ▶ Слушать все, подсветка карточки'
+          ],
+          b: [
+            'Аяты внутри азкаров (Курси, Куль…) — everyayah, не TTS',
+            'TTS режет текст по паузам/знакам, меньше обрывов на полуслове'
+          ],
+          f: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+
         { major: '2', v: '2.61', kinds: ['f','b'], date: '2026-08-09',
           f: [
             'Компас: кнопка Выключить сохраняется после перерисовки',
@@ -14485,6 +14603,20 @@ if (compassBtn) compassBtn.addEventListener('click', function(){
             pick = voices.find(function(v){ return /ar[-_]AE/i.test(v.lang); })
               || voices.find(function(v){ return /ar[-_]SA/i.test(v.lang); })
               || voices.find(function(v){ return /^ar/i.test(v.lang) || /arabic/i.test(v.name||''); });
+          }
+          
+          if (!hasAr) {
+            var wantKk = (lang || '').indexOf('kk') === 0 || (state.settings && state.settings.lang === 'kk');
+            if (wantKk) {
+              pick = voices.find(function(v){ return /^kk/i.test(v.lang); })
+                || voices.find(function(v){ return /kazakh/i.test(v.name||''); });
+            }
+            if (!pick) {
+              pick = voices.find(function(v){ return /ru[-_]?RU/i.test(v.lang) && /Google/i.test(v.name||''); })
+                || voices.find(function(v){ return /ru[-_]?RU/i.test(v.lang) && /Milena|Irina|Elena|Natalia|Katya|Russian/i.test(v.name||''); })
+                || voices.find(function(v){ return /^ru/i.test(v.lang) && /Google/i.test(v.name||''); })
+                || voices.find(function(v){ return /^ru/i.test(v.lang); });
+            }
           }
           if (pick) u.voice = pick;
         } catch(e) {}
@@ -19495,7 +19627,7 @@ function renderStories(openOpts) {
         });
         box.querySelector('[data-story-stop]')?.addEventListener('click', function(ev){
           ev.stopPropagation();
-          try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
+          try { if (typeof stopAllPlayback==='function') stopAllPlayback(); else if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
         });
         box.scrollIntoView({ behavior:'smooth', block:'nearest' });
       };
