@@ -871,6 +871,10 @@
       outline: 2px solid var(--accent);
       background: rgba(16,185,129,0.08);
     }
+    .card.playing-item {
+      outline: 2px solid var(--accent);
+      background: rgba(16,185,129,0.08);
+    }
   
     .letter-grid {
       display: grid;
@@ -5393,8 +5397,19 @@ function getMainTabOrder() {
 
     function highlightPlayingAyah() {
       document.querySelectorAll('.ayah.playing-ayah').forEach(el => el.classList.remove('playing-ayah'));
+      document.querySelectorAll('.card.playing-item').forEach(el => el.classList.remove('playing-item'));
       if (!audioQueue.length || !audioQueue[audioQueueIdx]) return;
       const item = audioQueue[audioQueueIdx];
+      if (item.highlightSel) {
+        try {
+          const hel = document.querySelector(item.highlightSel);
+          if (hel) {
+            hel.classList.add('playing-item');
+            hel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        } catch(e) {}
+        return;
+      }
       const num = item.ayah || (String(item.title).match(/аят\s+(\d+)/i) || [])[1];
       if (!num) return;
       const el = document.querySelector('.ayah[data-ayah="'+num+'"]');
@@ -5437,12 +5452,14 @@ function getMainTabOrder() {
       if (idx < 0) idx = 0;
       if (idx >= audioQueue.length) idx = audioQueue.length - 1;
       audioQueueIdx = idx;
+      const item = audioQueue[idx];
       try {
-        if (audioPlayMode === 'single' || audioPlayMode === 'ayah-loop') window._audioCtx = 'ayah';
+        if (item && item.dua) window._audioCtx = 'dua';
+        else if (item && item.adhkar) window._audioCtx = 'adhkar';
+        else if (audioPlayMode === 'single' || audioPlayMode === 'ayah-loop') window._audioCtx = 'ayah';
         else if (audioQueue.length <= 1) window._audioCtx = 'ayah';
         else window._audioCtx = 'surah';
       } catch(e) {}
-      const item = audioQueue[idx];
       audioRepeatLeft = audioRepeatTotal;
       if (!item.url) {
         if (item.ar && typeof speakArabicFallback === 'function') speakArabicFallback(item.ar, item.title || item.ru || '');
@@ -7856,6 +7873,10 @@ CVC: + сукун → بَتْ مِنْ كُتْ
       } catch(e) {}
 
       function chunks(str, max) {
+        if (typeof splitArabicForSpeech === 'function') {
+          var sp = splitArabicForSpeech(str, max || 170);
+          if (sp && sp.length) return sp;
+        }
         var out = [], rest = str;
         max = max || 160;
         while (rest.length) {
@@ -7873,7 +7894,7 @@ CVC: + сукун → بَتْ مِنْ كُتْ
         return;
       }
 
-      var parts = chunks(text, 160);
+      var parts = chunks(text, 170);
       var queue = parts.map(function(p, idx) {
         return {
           url: 'https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + encodeURIComponent(p),
@@ -9767,8 +9788,8 @@ function renderMistakes() {
         { ar: 'بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا', ru: 'С Твоим именем, о Аллах, умираю и живу.', count: 1 },
         { ar: 'سُبْحَانَ اللَّهِ · الْحَمْدُ لِلَّهِ · اللَّهُ أَكْبَرُ', ru: '33 + 33 + 34 перед сном (как учил Пророк ﷺ).', count: 1 },
         { ar: 'اللَّهُمَّ قِنِي عَذَابَكَ يَوْمَ تَبْعَثُ عِبَادَكَ', ru: 'О Аллах, защити от наказания в день воскрешения рабов.', count: 3 },
-        { ar: 'آيَةُ الْكُرْسِي', ru: 'Аятуль-Курси перед сном.', count: 1 },
-        { ar: 'الإخلاص · الفلق · الناس', ru: 'Суры 112, 113, 114 — по три раза, затем провести ладонями по телу.', count: 3 }
+        { ar: 'آيَةُ الْكُرْسِي', ru: 'Аятуль-Курси перед сном.', count: 1, quran: { s:2, a:255 } },
+        { ar: 'الإخلاص · الفلق · الناس', ru: 'Суры 112, 113, 114 — по три раза, затем провести ладонями по телу.', count: 3, quranSet: [{ s:112, a:1, a2:4 }, { s:113, a:1, a2:5 }, { s:114, a:1, a2:6 }] }
       ],
       dua: [
         { ar: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ', ru: 'Господь наш! Даруй добро в этом мире и в вечном и защити от огня. (2:201)', count: 1 },
@@ -9900,20 +9921,26 @@ function renderMistakes() {
         items = items.map((it,i) => Object.assign({}, it, { _orig: i }));
       }
 
+      const playAllBar = edit ? '' :
+        '<div class="card" style="display:flex;gap:0.4rem;flex-wrap:wrap;padding:0.6rem 0.7rem;margin-bottom:0.6rem">' +
+        '<button type="button" class="btn btn-sm btn-primary" id="adhkar-play-all" style="flex:1;min-width:120px">▶ Слушать всё</button>' +
+        '<button type="button" class="btn btn-sm" id="adhkar-play-loop" title="Повтор всех по кругу" style="flex:1;min-width:120px">🔁 Повтор всех</button>' +
+        '</div>';
+
       list.innerHTML = (edit
         ? '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:0.5rem">Режим порядка: ↑↓ у тем и у дуа. Нажмите «Готово» внизу, когда закончите.</p>'
-        : '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">'+(isKk()? '▶ басыңыз — дыбыс. Плеерде «Қатарынан» / «🔁 бәрі» осы бөлімнің азкарларын жалғастырады, Құран сүресін емес. Есептегіш — қанша рет оқыдыңыз.': 'Что можно сделать здесь:<br>• Вкладки сверху — Утро, Вечер, После намаза и др.<br>• 🔊 — озвучка карточки (нужен интернет).<br>• «Счёт» — сколько раз прочитали; цель × N.<br>• Плеер внизу: «Подряд» / «🔁» — следующие азкары раздела, не сура Корана.<br>• «☰ Порядок» — порядок вкладок и карточек.')+'</div></div>') + items.map((a, i) => {
+        : '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">'+(isKk()? '▶ басыңыз — дыбыс. Плеерде «Қатарынан» / «🔁 бәрі» осы бөлімнің азкарларын жалғастырады, Құран сүресін емес. Есептегіш — қанша рет оқыдыңыз.': '«▶ Слушать всё» — озвучка карточек подряд, как плеер сур: ⏮ ⏯ ⏭ листают по одной, «🔁» — по кругу. 🔊 на карточке — начать с неё. Аяты внутри азкаров (Аятуль-Курси и др.) звучат голосом чтеца, остальное — синтез речи (нужен интернет). «Счёт» — сколько раз прочитали.')+'</div></div>') + playAllBar + items.map((a, i) => {
         let tr = a.tr || '';
         if (!tr && a.ar && typeof transliterateArabic === 'function') {
           try { tr = transliterateArabic(a.ar); } catch(e) {}
         }
-        return '<div class="card">' +
+        return '<div class="card" data-adhkar-idx="'+i+'">' +
           '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem">' +
             '<div class="arabic" style="font-size:1.35rem;margin-bottom:0.25rem;flex:1">'+a.ar+'</div>' +
             '<div style="display:flex;flex-direction:column;gap:0.2rem">' +
             (edit ? '<button type="button" class="btn btn-sm" data-item-up="'+i+'">↑</button>' +
                     '<button type="button" class="btn btn-sm" data-item-down="'+i+'">↓</button>' : '') +
-            '<button type="button" class="btn btn-sm btn-adhkar-speak" data-i="'+i+'" title="Слушать">🔊</button></div></div>' +
+            '<button type="button" class="btn btn-sm btn-adhkar-speak" data-i="'+i+'" title="Слушать (и продолжить дальше по списку)">🔊</button></div></div>' +
           (tr ? '<div style="color:var(--accent);margin:0.2rem 0 0.35rem;font-size:0.95rem">'+tr+'</div>' : '') +
           '<div class="ayah-translation">'+(a.kk && state.settings.lang==='kk' ? a.kk : a.ru)+'</div>' +
           '<div class="surah-meta" style="margin-top:0.5rem">× '+a.count +
@@ -9954,13 +9981,20 @@ function renderMistakes() {
       });
       list.querySelectorAll('.btn-adhkar-speak').forEach(btn => {
         btn.addEventListener('click', () => {
-          const item = items[+btn.dataset.i];
+          const idx = +btn.dataset.i;
+          const item = items[idx];
           if (!item) return;
-          const ar = String(item.ar || '').replace(/…/g, '').replace(/\.\.\./g, '');
-          if (!ar) { toast('Нет текста'); return; }
-          if (typeof speakArText === 'function') speakArText(ar, 0.85);
-          else toast('Озвучка недоступна');
+          if (!item.ar) { toast('Нет текста'); return; }
+          // Начинаем с этой карточки и продолжаем плеером по всему разделу — как в сурах
+          try { buildAdhkarPlayQueue('surah', item._orig != null ? item._orig : idx); }
+          catch(e) { if (typeof speakArText === 'function') speakArText(item.ar, 0.85); }
         });
+      });
+      document.getElementById('adhkar-play-all')?.addEventListener('click', () => {
+        try { buildAdhkarPlayQueue('surah', 0); } catch(e) {}
+      });
+      document.getElementById('adhkar-play-loop')?.addEventListener('click', () => {
+        try { buildAdhkarPlayQueue('surah-loop', 0); } catch(e) {}
       });
       try { applySettings(); } catch(e) {}
     }
@@ -16283,32 +16317,106 @@ function renderDict() {
 
     // Quality Arabic TTS: try browser AR voice, then Google Translate TTS audio
     let _adhkarAudio = null;
-    
-    function buildAdhkarPlayQueue(mode) {
-      mode = mode || 'surah';
-      const type = state.adhkarCurrentType || 'morning';
-      const items = (typeof ADHKAR !== 'undefined' && ADHKAR[type]) ? ADHKAR[type] : [];
-      if (!items.length) return;
-      // Очередь: каждая дуа = один элемент (TTS URL первого куска; при play развернём)
-      const queue = items.map((item, i) => {
-        const ar = String(item.ar || '').trim();
-        const ru = String(item.ru || '').slice(0, 50);
-        const chunk = ar.slice(0, 160) || ru;
-        const url = navigator.onLine
-          ? ('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + encodeURIComponent(chunk))
-          : '';
-        return {
-          url: url,
-          title: 'Азкар · ' + ru,
-          ar: ar,
+
+    // Разбивает арабский текст на естественные куски (по концам предложений/пауз,
+    // затем по словам), чтобы озвучка звучала связнее, а не обрывалась на полуслове.
+    function splitArabicForSpeech(str, max) {
+      str = String(str || '').trim();
+      max = max || 170;
+      if (!str) return [];
+      // сначала режем по явным паузам: точка, запятая, ؟ ! · … двоеточие, вав-соединение после длинной фразы
+      const rough = str.split(/(?<=[\.\!\؟\:\؛,،·])\s+/).filter(Boolean);
+      const parts = [];
+      let cur = '';
+      rough.forEach(seg => {
+        if ((cur + ' ' + seg).trim().length <= max) {
+          cur = (cur ? cur + ' ' : '') + seg;
+        } else {
+          if (cur) parts.push(cur);
+          if (seg.length <= max) cur = seg;
+          else {
+            // сегмент сам слишком длинный — режем по словам
+            let rest = seg;
+            while (rest.length > max) {
+              let cut = rest.lastIndexOf(' ', max);
+              if (cut < 30) cut = max;
+              parts.push(rest.slice(0, cut).trim());
+              rest = rest.slice(cut).trim();
+            }
+            cur = rest;
+          }
+        }
+      });
+      if (cur) parts.push(cur);
+      return parts.filter(Boolean);
+    }
+
+    function ttsUrlFor(chunk) {
+      return navigator.onLine
+        ? ('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + encodeURIComponent(chunk))
+        : '';
+    }
+
+    // Строит один или несколько элементов очереди для одного азкара/дуа:
+    // если это реальный аят Корана (item.quran / item.quranSet) — используются
+    // настоящие записи чтеца (та же система, что и для сур); иначе — озвучка по кускам TTS.
+    function buildSpeechQueueForItem(item, opts) {
+      opts = opts || {};
+      const out = [];
+      const baseTitle = opts.titlePrefix ? (opts.titlePrefix + ' · ' + (item.ru || '').slice(0, 60)) : (item.ru || '').slice(0, 60);
+      const ranges = [];
+      if (item.quranSet && item.quranSet.length) ranges.push.apply(ranges, item.quranSet);
+      else if (item.quran) ranges.push(item.quran);
+      if (ranges.length && typeof ayahAudioUrl === 'function') {
+        ranges.forEach(qr => {
+          const toA = qr.a2 || qr.a;
+          for (let a = qr.a; a <= toA; a++) {
+            out.push({
+              url: ayahAudioUrl(qr.s, a),
+              title: 'Коран ' + qr.s + ':' + a + (baseTitle ? ' · ' + baseTitle : ''),
+              ar: item.ar || '',
+              ru: item.ru || '',
+              surah: qr.s,
+              ayah: a,
+              adhkar: true,
+              highlightSel: opts.highlightSel || null
+            });
+          }
+        });
+        return out;
+      }
+      const ar = String(item.ar || '').trim();
+      if (!ar) return out;
+      const chunks = splitArabicForSpeech(ar, 170);
+      (chunks.length ? chunks : [ar]).forEach((chunk, ci, arr) => {
+        out.push({
+          url: ttsUrlFor(chunk),
+          title: baseTitle + (arr.length > 1 ? ' (' + (ci + 1) + '/' + arr.length + ')' : ''),
+          ar: chunk,
           ru: item.ru || '',
           ayah: null,
           surah: null,
           adhkar: true,
-          adhkarType: type,
-          adhkarIdx: i
-        };
-      }).filter(x => x.ar || x.url);
+          highlightSel: opts.highlightSel || null
+        });
+      });
+      return out;
+    }
+
+    function buildAdhkarPlayQueue(mode, startIdx) {
+      mode = mode || 'surah';
+      const type = state.adhkarCurrentType || 'morning';
+      const items = (typeof ADHKAR !== 'undefined' && ADHKAR[type]) ? ADHKAR[type] : [];
+      if (!items.length) return;
+      let queue = [];
+      items.forEach((item, i) => {
+        const entries = buildSpeechQueueForItem(item, {
+          titlePrefix: 'Азкар',
+          highlightSel: '#view-adhkar .card[data-adhkar-idx="' + i + '"]'
+        });
+        entries.forEach(e => { e.adhkarType = type; e.adhkarIdx = i; });
+        queue = queue.concat(entries);
+      });
       if (!queue.length) return;
       if (mode === 'random') {
         for (let i = queue.length - 1; i > 0; i--) {
@@ -16319,17 +16427,22 @@ function renderDict() {
       audioQueue = queue;
       audioQueueIdx = 0;
       audioPlayMode = mode === 'random' ? 'random' : (mode === 'surah-loop' ? 'surah-loop' : 'surah');
-      // стартовать с текущей, если была
-      try {
-        const curTitle = (state.lastAudio && state.lastAudio.title) || '';
-        const found = queue.findIndex(q => curTitle && q.title && curTitle.indexOf(q.title.slice(0, 20)) >= 0);
+      if (typeof startIdx === 'number') {
+        const found = queue.findIndex(q => q.adhkarIdx === startIdx);
         if (found >= 0) audioQueueIdx = found;
-      } catch(e) {}
+      } else {
+        // стартовать с текущей, если была
+        try {
+          const curTitle = (state.lastAudio && state.lastAudio.title) || '';
+          const found = queue.findIndex(q => curTitle && q.title && curTitle.indexOf(q.title.slice(0, 20)) >= 0);
+          if (found >= 0) audioQueueIdx = found;
+        } catch(e) {}
+      }
       const it = audioQueue[audioQueueIdx];
       if (it && it.url) {
         playAudio(it.url, it.title, { queue: audioQueue, queueIdx: audioQueueIdx, mode: audioPlayMode, repeat: 1 });
-      } else if (it && it.ar && typeof playArabicAudio === 'function') {
-        playArabicAudio(it.ar, it.ru, {});
+      } else if (it) {
+        playQueueItem(audioQueueIdx);
       }
       toast('Очередь азкаров: ' + queue.length);
     }
@@ -17985,7 +18098,7 @@ async function renderStats() {
     const DUA_SITUATIONS = [
       { id: 'fear', name: 'Страх', nameKk: 'Қорқыныш', ayahs: ['3:173','9:40'],
         duas: [
-          { ar: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ', tr: 'Ḥasbunallāhu wa niʿma l-wakīl', ru: 'Довольно нам Аллаха, и как прекрасен Попечитель! (3:173)' },
+          { ar: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ', tr: 'Ḥasbunallāhu wa niʿma l-wakīl', ru: 'Довольно нам Аллаха, и как прекрасен Попечитель! (3:173)', quran: { s:3, a:173 } },
           { ar: 'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ وَالْعَجْزِ وَالْكَسَلِ', tr: 'Allāhumma innī aʿūdhu bika mina l-hammi wa l-ḥazani wa l-ʿajzi wa l-kasal', ru: 'О Аллах, прибегаю к Тебе от тревоги, печали, бессилия и лени.' }
         ] },
       { id: 'anxiety', name: 'Тревога', nameKk: 'Мазасыздық', ayahs: ['13:28'],
@@ -18000,7 +18113,7 @@ async function renderStats() {
         ] },
       { id: 'trial', name: 'Испытание', nameKk: 'Сынақ', ayahs: ['2:155','2:156'],
         duas: [
-          { ar: 'إِنَّا لِلَّهِ وَإِنَّا إِلَيْهِ رَاجِعُونَ', tr: 'Innā li-Llāhi wa innā ilayhi rājiʿūn', ru: 'Мы принадлежим Аллаху, и к Нему возвращаемся. (2:156)' },
+          { ar: 'إِنَّا لِلَّهِ وَإِنَّا إِلَيْهِ رَاجِعُونَ', tr: 'Innā li-Llāhi wa innā ilayhi rājiʿūn', ru: 'Мы принадлежим Аллаху, и к Нему возвращаемся. (2:156)', quran: { s:2, a:156 } },
           { ar: 'اللَّهُمَّ أْجُرْنِي فِي مُصِيبَتِي وَاخْلُفْ لِي خَيْرًا مِنْهَا', tr: 'Allāhumma ajurnī fī muṣībatī wa-khluf lī khayran minhā', ru: 'О Аллах, вознагради меня в моей беде и замени её лучшим.' }
         ] },
       { id: 'family', name: 'Семья', nameKk: 'Отбасы', ayahs: ['25:74','30:21'],
@@ -18025,12 +18138,12 @@ async function renderStats() {
         ] },
       { id: 'study', name: 'Учёба', nameKk: 'Оқу', ayahs: ['20:114'],
         duas: [
-          { ar: 'رَبِّ زِدْنِي عِلْمًا', tr: 'Rabbi zidnī ʿilmā', ru: 'Господи, увеличь мне знание. (20:114)' },
+          { ar: 'رَبِّ زِدْنِي عِلْمًا', tr: 'Rabbi zidnī ʿilmā', ru: 'Господи, увеличь мне знание. (20:114)', quran: { s:20, a:114 } },
           { ar: 'اللَّهُمَّ انْفَعْنِي بِمَا عَلَّمْتَنِي وَعَلِّمْنِي مَا يَنْفَعُنِي وَزِدْنِي عِلْمًا', tr: 'Allāhumma nfaʿnī bi-mā ʿallamtanī wa ʿallimnī mā yanfaʿunī wa zidnī ʿilmā', ru: 'О Аллах, дай пользу от того, чему научил, научи полезному и увеличь знание.' }
         ] },
       { id: 'guidance', name: 'Прямой путь', nameKk: 'Тура жол', ayahs: ['1:6','1:7'],
         duas: [
-          { ar: 'اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ', tr: 'Ihdinā ṣ-ṣirāṭa l-mustaqīm', ru: 'Веди нас прямым путём. (1:6)' },
+          { ar: 'اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ', tr: 'Ihdinā ṣ-ṣirāṭa l-mustaqīm', ru: 'Веди нас прямым путём. (1:6)', quran: { s:1, a:6 } },
           { ar: 'رَبَّنَا لَا تُزِغْ قُلُوبَنَا بَعْدَ إِذْ هَدَيْتَنَا وَهَبْ لَنَا مِنْ لَدُنْكَ رَحْمَةً', tr: 'Rabbanā lā tuzigh qulūbanā baʿda idh hadaytanā…', ru: 'Господь наш! Не уклоняй наши сердца после того, как Ты наставил нас, и даруй нам милость от Себя. (3:8)' }
         ] },
       { id: 'istighfar', name: 'Покаяние', nameKk: 'Тәубе', ayahs: ['3:135'],
@@ -18757,29 +18870,43 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
 
       const speakDua = (ar, ru) => {
         if (!ar) { toast('Нет текста'); return; }
-        // Главный: человеческий голос (synth) → запасной: машинный Google TTS (как Academy-1)
-        if (typeof speakArText === 'function') {
-          speakArText(ar, 0.85);
-          return;
-        }
-        // Прямой машинный путь Academy-1
-        try {
-          if (window.speechSynthesis) window.speechSynthesis.cancel();
-        } catch(e) {}
+        if (typeof speakArText === 'function') { speakArText(ar, 0.85); return; }
+        try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
         var chunk = String(ar).length > 180 ? String(ar).slice(0, 180) : String(ar);
         var url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + encodeURIComponent(chunk);
-        if (typeof playAudio === 'function') {
-          try {
-            playAudio(url, 'Дуа', { mode: 'single', repeat: 1 });
-            return;
-          } catch(e) {}
+        if (typeof playAudio === 'function') { try { playAudio(url, 'Дуа', { mode: 'single', repeat: 1 }); return; } catch(e) {} }
+        try { var a = new Audio(url); a.play().catch(function() { toast('Не удалось воспроизвести'); }); }
+        catch(e) { toast('Озвучка недоступна'); }
+      };
+
+      // Плеер очереди для списка дуа (тема-дуа-конструктор / «моё дуа»):
+      // как в сурах — 🔊 запускает эту дуа и продолжает по списку, доступны ⏮ ⏯ ⏭ и режимы повтора.
+      const playDuaListQueue = (duas, startIdx, mode, titlePrefix, containerSel) => {
+        if (!duas || !duas.length) { toast('Нет текста'); return; }
+        let queue = [];
+        duas.forEach((d, i) => {
+          const entries = (typeof buildSpeechQueueForItem === 'function')
+            ? buildSpeechQueueForItem({ ar: d.ar, ru: d.ru, quran: d.quran, quranSet: d.quranSet }, {
+                titlePrefix: titlePrefix,
+                highlightSel: containerSel + ' .card[data-dua-idx="' + i + '"]'
+              })
+            : [];
+          entries.forEach(e => { e.duaIdx = i; e.dua = true; });
+          queue = queue.concat(entries);
+        });
+        if (!queue.length) { toast('Нет текста'); return; }
+        mode = mode || 'surah';
+        audioQueue = queue;
+        audioPlayMode = mode;
+        let idx = 0;
+        if (typeof startIdx === 'number') {
+          const found = queue.findIndex(q => q.duaIdx === startIdx);
+          if (found >= 0) idx = found;
         }
-        try {
-          var a = new Audio(url);
-          a.play().catch(function() { toast('Не удалось воспроизвести'); });
-        } catch(e) {
-          toast('Озвучка недоступна');
-        }
+        audioQueueIdx = idx;
+        const it = audioQueue[idx];
+        if (it && it.url) playAudio(it.url, it.title, { queue: audioQueue, queueIdx: idx, mode: mode, repeat: 1 });
+        else if (it) { try { playQueueItem(idx); } catch(e) {} }
       };
 
       if (typeof state.duaEditMode !== 'boolean') state.duaEditMode = false;
@@ -18843,15 +18970,17 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
               ar: d.ar || '',
               tr: d.tr || (d.ar && typeof transliterateArabic === 'function' ? transliterateArabic(d.ar) : ''),
               ru: d.ru || d.translation || '',
-              kk: d.kk
+              kk: d.kk,
+              quran: d.quran,
+              quranSet: d.quranSet
             };
           });
           box.innerHTML = '<div class="card" style="border-color:var(--accent)"><b>'+(isKk && s.nameKk ? s.nameKk : s.name)+'</b>' +
             ((s.ayahs && s.ayahs.length) ? '<div class="ayah-translation" style="margin-top:0.35rem">Аяты: '+s.ayahs.join(', ')+'</div>' : '') +
-            (duas.length > 1 ? '<button type="button" class="btn btn-sm btn-primary" id="dua-speak-all" style="margin-top:0.5rem;width:100%">🔊 Слушать все</button>' : '') +
+            (duas.length > 1 ? '<button type="button" class="btn btn-sm btn-primary" id="dua-speak-all" style="margin-top:0.5rem;width:100%">▶ Слушать все</button>' : '') +
             '</div>' +
             duas.map((d, di) =>
-              '<div class="card"><div class="arabic" dir="rtl" style="font-size:1.25rem">'+(d.ar||'')+'</div>' +
+              '<div class="card" data-dua-idx="'+di+'"><div class="arabic" dir="rtl" style="font-size:1.25rem">'+(d.ar||'')+'</div>' +
               (d.tr ? '<div style="color:var(--accent);margin:0.3rem 0">'+d.tr+'</div>' : '') +
               '<div class="ayah-translation">'+(isKk && d.kk ? d.kk : (d.ru||''))+'</div>' +
               '<button type="button" class="btn btn-sm btn-primary" data-dua-speak="'+di+'" style="margin-top:0.4rem">🔊 Слушать</button></div>'
@@ -18859,22 +18988,15 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           box.querySelectorAll('[data-dua-speak]').forEach(b => {
             b.addEventListener('click', (ev) => {
               ev.preventDefault();
-              try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
-              const d = duas[+(b.getAttribute('data-dua-speak') || b.dataset.duaSpeak)];
-              if (d && d.ar) speakDua(d.ar, d.ru);
-              else toast('Нет текста дуа');
+              const di = +(b.getAttribute('data-dua-speak') || b.dataset.duaSpeak);
+              if (!duas[di] || !duas[di].ar) { toast('Нет текста дуа'); return; }
+              // Начать с этой дуа и продолжить плеером по всей теме
+              playDuaListQueue(duas, di, 'surah', 'Дуа · ' + (isKk && s.nameKk ? s.nameKk : s.name), '#dua-sit-result');
             });
           });
           document.getElementById('dua-speak-all')?.addEventListener('click', (ev) => {
             ev.preventDefault();
-            const texts = duas.map(d => (d.ar || '').trim()).filter(Boolean);
-            if (!texts.length) { toast('Нет текста'); return; }
-            try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
-            try { if (window._adhkarAudio) { window._adhkarAudio.pause(); window._adhkarAudio = null; } } catch(e) {}
-            const joined = texts.join(' . ');
-            if (typeof speakArText === 'function') speakArText(joined, 0.85);
-            else if (typeof speakDua === 'function') speakDua(joined, 'Дуа');
-            else toast('Озвучка недоступна');
+            playDuaListQueue(duas, 0, 'surah', 'Дуа · ' + (isKk && s.nameKk ? s.nameKk : s.name), '#dua-sit-result');
           });
           try { box.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(e) {}
         });
@@ -18884,8 +19006,10 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         const box = document.getElementById('cdua-list');
         if (!box) return;
         if (!state.customDuas.length) { box.innerHTML = ''; return; }
-        box.innerHTML = '<b>Мои дуа</b>' + state.customDuas.map((d, i) =>
-          '<div class="card"><div class="arabic" dir="rtl" style="font-size:1.2rem">'+(d.ar||'')+'</div>' +
+        box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.35rem"><b>Мои дуа</b>' +
+          (state.customDuas.length > 1 ? '<button type="button" class="btn btn-sm btn-primary" id="cdua-speak-all">▶ Слушать все</button>' : '') + '</div>' +
+          '<div id="cdua-cards">' + state.customDuas.map((d, i) =>
+          '<div class="card" data-cdua-idx="'+i+'"><div class="arabic" dir="rtl" style="font-size:1.2rem">'+(d.ar||'')+'</div>' +
           (d.tr ? '<div style="color:var(--accent)">'+d.tr+'</div>' : '') +
           (d.ru ? '<div class="ayah-translation">'+d.ru+'</div>' : '') +
           '<div style="display:flex;gap:0.35rem;margin-top:0.4rem;flex-wrap:wrap">' +
@@ -18893,11 +19017,15 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           '<button type="button" class="btn btn-sm" data-cdua-up="'+i+'">↑</button>' +
           '<button type="button" class="btn btn-sm" data-cdua-down="'+i+'">↓</button>' +
           '<button type="button" class="btn btn-sm" data-cdua-del="'+i+'">Удалить</button></div></div>'
-        ).join('');
+        ).join('') + '</div>';
         box.querySelectorAll('[data-cdua-speak]').forEach(b => b.addEventListener('click', () => {
-          const d = state.customDuas[+b.dataset.cduaSpeak];
-          if (d) speakDua(d.ar, d.ru);
+          const i = +b.dataset.cduaSpeak;
+          if (!state.customDuas[i]) return;
+          playDuaListQueue(state.customDuas, i, 'surah', 'Моё дуа', '#cdua-cards');
         }));
+        document.getElementById('cdua-speak-all')?.addEventListener('click', () => {
+          playDuaListQueue(state.customDuas, 0, 'surah', 'Моё дуа', '#cdua-cards');
+        });
         box.querySelectorAll('[data-cdua-del]').forEach(b => b.addEventListener('click', () => {
           state.customDuas.splice(+b.dataset.cduaDel, 1);
           saveState(); paintCustom();
