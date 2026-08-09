@@ -4809,13 +4809,15 @@ function getMainTabOrder() {
           window._ptMethodWorking = null;
         }
       } catch(e) {}
-      // Плеер только в чтении суры — не перекрывает теорию/практику
+      // Плеер: в чтении суры и на главной, а также там, где мы теперь проигрываем
+      // очередь азкаров/дуа (иначе он играет, но полоса плеера скрыта inline-стилем)
       try {
         const bar = document.getElementById('audio-bar');
-        if (bar && name !== 'reader' && name !== 'home') {
+        const barViews = ['reader', 'home', 'adhkar', 'duabuilder'];
+        if (bar && !barViews.includes(name)) {
           bar.classList.remove('visible');
           bar.style.display = 'none';
-        } else if (bar && (name === 'reader' || name === 'home')) {
+        } else if (bar && barViews.includes(name)) {
           bar.style.display = '';
         }
         if (name === 'learn' || name === 'games') {
@@ -5446,6 +5448,96 @@ function getMainTabOrder() {
       return data;
     }
 
+    function paintQueueItemUi(item) {
+      document.getElementById('audio-title').textContent = item.title;
+      updateAudioSub();
+      updateMediaSession(item.title);
+      document.getElementById('audio-play-pause').textContent = '⏸';
+      try { if (typeof updateAudioModeButtons === 'function') updateAudioModeButtons(); } catch(e) {}
+      if (audioBar) (function(){ var av=document.querySelector('.view.active'); var id=av&&av.id; if(id==='view-learn'||id==='view-games'){ audioBar.classList.remove('visible'); audioBar.style.display='none'; } else { audioBar.classList.add('visible'); audioBar.style.display=''; } })();
+      highlightPlayingAyah();
+      try {
+        const lab = document.getElementById('home-player-label');
+        if (lab) lab.textContent = item.title || '';
+        const hbtn = document.getElementById('home-lastaudio-play');
+        if (hbtn) hbtn.textContent = '⏸';
+      } catch(e) {}
+      try { if (typeof updateLockPlayerLabels === 'function') updateLockPlayerLabels(); } catch(e) {}
+      try {
+        state.lastAudio = { url: item.url, title: item.title, surah: item.surah || null, ayah: item.ayah || null, ts: Date.now() };
+        saveState();
+        try { localStorage.setItem('quran_last_audio_v1', JSON.stringify(state.lastAudio)); } catch(e) {}
+        if (typeof renderLastAudio === 'function') renderLastAudio();
+        if (typeof renderLockPlayer === 'function') renderLockPlayer();
+      } catch(e) {}
+      try {
+        navigator.mediaSession.setActionHandler('previoustrack', () => playPrevAyah());
+        navigator.mediaSession.setActionHandler('nexttrack', () => playNextAyah());
+      } catch(e) {}
+    }
+
+    // Озвучка дуа/азкаров через Google Translate TTS часто не проигрывается при
+    // прямом присвоении audio.src (блокируется CORS/referrer на многих устройствах).
+    // Поэтому для translate_tts пробуем: прямое воспроизведение → blob через fetch →
+    // системный синтез речи. Очередь (next/prev/повтор/подсветка) продолжает работать как обычно.
+    function playTtsQueueItem(item, idx) {
+      try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
+      window._ttsPlaying = false;
+      const url = item.url;
+      function tryDirect(u) {
+        return new Promise(function(resolve, reject) {
+          let done = false;
+          const to = setTimeout(function() { if (done) return; done = true; cleanup(); reject(new Error('timeout')); }, 6000);
+          function cleanup() { audioEl.removeEventListener('playing', onPlaying); audioEl.onerror = null; }
+          function onPlaying() { if (done) return; done = true; clearTimeout(to); cleanup(); resolve(); }
+          audioEl.addEventListener('playing', onPlaying);
+          audioEl.onerror = function() { if (done) return; done = true; clearTimeout(to); cleanup(); reject(new Error('err')); };
+          audioEl.src = u;
+          applyAudioSpeed();
+          const p = audioEl.play();
+          if (p && p.catch) p.catch(function() { if (done) return; done = true; clearTimeout(to); cleanup(); reject(new Error('play')); });
+        });
+      }
+      function tryBlob(u) {
+        return fetch(u, { mode: 'cors' }).then(function(r) { if (!r.ok) throw new Error('http'); return r.blob(); }).then(function(blob) {
+          return new Promise(function(resolve, reject) {
+            const obj = URL.createObjectURL(blob);
+            let done = false;
+            function cleanup() { audioEl.removeEventListener('playing', onPlaying); audioEl.onerror = null; }
+            function onPlaying() { if (done) return; done = true; cleanup(); resolve(); }
+            audioEl.addEventListener('playing', onPlaying);
+            audioEl.onerror = function() { if (done) return; done = true; cleanup(); try { URL.revokeObjectURL(obj); } catch(e) {} reject(new Error('blob')); };
+            audioEl.src = obj;
+            applyAudioSpeed();
+            const p = audioEl.play();
+            if (p && p.catch) p.catch(function() { if (done) return; done = true; cleanup(); reject(new Error('play')); });
+          });
+        });
+      }
+      function synthFallback() {
+        if (!window.speechSynthesis || !(item.ar || '').trim()) { toast('Не удалось воспроизвести'); return; }
+        try { window.speechSynthesis.cancel(); } catch(e) {}
+        let voices = [];
+        try { voices = window.speechSynthesis.getVoices() || []; } catch(e) {}
+        const arVoice = voices.find(v => /^ar(-|$)/i.test(v.lang));
+        const u = new SpeechSynthesisUtterance(item.ar);
+        u.lang = arVoice ? (arVoice.lang || 'ar-SA') : 'ar-SA';
+        if (arVoice) try { u.voice = arVoice; } catch(e) {}
+        u.rate = 0.85; u.volume = 1;
+        window._ttsPlaying = true;
+        document.getElementById('audio-play-pause').textContent = '⏸';
+        u.onend = function() {
+          window._ttsPlaying = false;
+          if (audioQueueIdx !== idx) return; // очередь уже сменилась
+          if (audioRepeatLeft > 1) { audioRepeatLeft--; updateAudioSub(); synthFallback(); return; }
+          playNextInQueue();
+        };
+        u.onerror = function() { window._ttsPlaying = false; if (audioQueueIdx === idx) playNextInQueue(); };
+        try { window.speechSynthesis.speak(u); } catch(e) { toast('Озвучка недоступна'); }
+      }
+      tryDirect(url).catch(function() { return tryBlob(url); }).catch(function() { synthFallback(); });
+    }
+
     function playQueueItem(idx) {
 
       if (!audioQueue.length) return;
@@ -5462,8 +5554,14 @@ function getMainTabOrder() {
       } catch(e) {}
       audioRepeatLeft = audioRepeatTotal;
       if (!item.url) {
-        if (item.ar && typeof speakArabicFallback === 'function') speakArabicFallback(item.ar, item.title || item.ru || '');
+        paintQueueItemUi(item);
+        if (item.ar && typeof speakArabicFallback === 'function') speakArabicFallback(item.ar, item.title || item.ru || '', { noQuran: true });
         else toast('Нет аудио');
+        return;
+      }
+      paintQueueItemUi(item);
+      if (/translate_tts/.test(item.url)) {
+        playTtsQueueItem(item, idx);
         return;
       }
       audioEl.src = item.url;
@@ -5487,32 +5585,6 @@ function getMainTabOrder() {
           }
         } catch(e) { toast('Не удалось загрузить аудио'); }
       };
-      document.getElementById('audio-title').textContent = item.title;
-      updateAudioSub();
-      updateMediaSession(item.title);
-      document.getElementById('audio-play-pause').textContent = '⏸';
-      try { if (typeof updateAudioModeButtons === 'function') updateAudioModeButtons(); } catch(e) {}
-      if (audioBar) (function(){ var av=document.querySelector('.view.active'); var id=av&&av.id; if(id==='view-learn'||id==='view-games'){ audioBar.classList.remove('visible'); } else { audioBar.classList.add('visible'); } })();
-      highlightPlayingAyah();
-      // мягкое обновление виджетов без мигания
-      try {
-        const lab = document.getElementById('home-player-label');
-        if (lab) lab.textContent = item.title || '';
-        const hbtn = document.getElementById('home-lastaudio-play');
-        if (hbtn) hbtn.textContent = '⏸';
-      } catch(e) {}
-      try { if (typeof updateLockPlayerLabels === 'function') updateLockPlayerLabels(); } catch(e) {}
-      try {
-        state.lastAudio = { url: item.url, title: item.title, surah: item.surah || null, ayah: item.ayah || null, ts: Date.now() };
-        saveState();
-        try { localStorage.setItem('quran_last_audio_v1', JSON.stringify(state.lastAudio)); } catch(e) {}
-        if (typeof renderLastAudio === 'function') renderLastAudio();
-        if (typeof renderLockPlayer === 'function') renderLockPlayer();
-      } catch(e) {}
-      try {
-        navigator.mediaSession.setActionHandler('previoustrack', () => playPrevAyah());
-        navigator.mediaSession.setActionHandler('nexttrack', () => playNextAyah());
-      } catch(e) {}
     }
 
     function playAudio(url, title, opts) {
@@ -5934,7 +6006,7 @@ function getMainTabOrder() {
     audioEl.addEventListener('pause', () => {
       document.getElementById('audio-play-pause').textContent = '▶';
       // не скрываем бар на паузе
-      if (audioBar && (audioQueue.length || audioEl.src)) (function(){ var av=document.querySelector('.view.active'); var id=av&&av.id; if(id==='view-learn'||id==='view-games'){ audioBar.classList.remove('visible'); } else { audioBar.classList.add('visible'); } })();
+      if (audioBar && (audioQueue.length || audioEl.src)) (function(){ var av=document.querySelector('.view.active'); var id=av&&av.id; if(id==='view-learn'||id==='view-games'){ audioBar.classList.remove('visible'); audioBar.style.display='none'; } else { audioBar.classList.add('visible'); audioBar.style.display=''; } })();
       try { if (typeof updateLockPlayerLabels === 'function') updateLockPlayerLabels(); } catch(e) {}
       try { if (typeof renderLastAudio === 'function') renderLastAudio(); } catch(e) {}
     });
@@ -5946,7 +6018,7 @@ function getMainTabOrder() {
         return;
       }
       // держим бар видимым при переходе к следующему аяту
-      if (audioBar) (function(){ var av=document.querySelector('.view.active'); var id=av&&av.id; if(id==='view-learn'||id==='view-games'){ audioBar.classList.remove('visible'); } else { audioBar.classList.add('visible'); } })();
+      if (audioBar) (function(){ var av=document.querySelector('.view.active'); var id=av&&av.id; if(id==='view-learn'||id==='view-games'){ audioBar.classList.remove('visible'); audioBar.style.display='none'; } else { audioBar.classList.add('visible'); audioBar.style.display=''; } })();
       if (playNextInQueue()) {
         try { if (typeof renderLastAudio === 'function') renderLastAudio(); } catch(e) {}
         try { if (typeof updateLockPlayerLabels === 'function') updateLockPlayerLabels(); } catch(e) {}
@@ -5954,7 +6026,7 @@ function getMainTabOrder() {
       }
       document.getElementById('audio-play-pause').textContent = '▶';
       document.getElementById('audio-sub').textContent = 'Готово';
-      if (audioBar && audioQueue.length) (function(){ var av=document.querySelector('.view.active'); var id=av&&av.id; if(id==='view-learn'||id==='view-games'){ audioBar.classList.remove('visible'); } else { audioBar.classList.add('visible'); } })();
+      if (audioBar && audioQueue.length) (function(){ var av=document.querySelector('.view.active'); var id=av&&av.id; if(id==='view-learn'||id==='view-games'){ audioBar.classList.remove('visible'); audioBar.style.display='none'; } else { audioBar.classList.add('visible'); audioBar.style.display=''; } })();
       try { if (typeof renderLastAudio === 'function') renderLastAudio(); } catch(e) {}
       try { if (typeof updateLockPlayerLabels === 'function') updateLockPlayerLabels(); } catch(e) {}
     });
@@ -7930,7 +8002,7 @@ CVC: + сукун → بَتْ مِنْ كُتْ
         var a = new Audio(queue[qi].url);
         window._adhkarAudio = a;
         try {
-          if (typeof audioBar !== 'undefined' && audioBar) audioBar.classList.add('visible');
+          if (typeof audioBar !== 'undefined' && audioBar) { audioBar.classList.add('visible'); audioBar.style.display=''; }
           var at = document.getElementById('audio-title');
           if (at) at.textContent = queue[qi].title;
           var ap = document.getElementById('audio-play-pause');
@@ -16543,7 +16615,7 @@ function playArabicAudio(text, fallbackRu, opts) {
       var title = (ru ? ru.slice(0, 48) : 'Азкар / дуа');
       function showBar(sub) {
         try {
-          if (typeof audioBar !== 'undefined' && audioBar) audioBar.classList.add('visible');
+          if (typeof audioBar !== 'undefined' && audioBar) { audioBar.classList.add('visible'); audioBar.style.display=''; }
           var at = document.getElementById('audio-title');
           if (at) at.textContent = title;
           var ap = document.getElementById('audio-play-pause');
