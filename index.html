@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.58 2026-08-09 -->
+<!-- BUILD 2.59 2026-08-09 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.58</title>
+  <title>Коран — Изучение · 2.59</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -2227,7 +2227,7 @@
     </div>
 
     <div id="view-appupdate" class="view">
-      <h2 class="section-title">Обновить приложение</h2>
+      <h2 class="section-title">Обновить сайт</h2>
       <div id="appupdate-body"></div>
     </div>
     <div id="view-stats" class="view">
@@ -11351,7 +11351,7 @@ function renderSalah() {
         var m = t.match(/2\.\d+/);
         if (m) ver = m[0];
       } catch(e) {}
-      el.innerHTML = tipCard('Что можно сделать:<br>• Серии обновлений сверху (1, 2…).<br>• Нажмите номер — подробности .a .b .f и др.<br>• «Обновить приложение» — подтянуть последнюю версию с сервера.') + 
+      el.innerHTML = tipCard('Что можно сделать:<br>• Серии обновлений сверху (1, 2…).<br>• Нажмите номер — подробности .a .b .f и др.<br>• «Обновить сайт» — подтянуть последнюю версию с сервера.') + 
         '<div class="card"><b>Текущая сборка: v'+ver+'</b>' +
         '<p class="ayah-translation" style="margin-top:0.5rem">Браузер и офлайн-кэш часто держат <b>старую</b> копию сайта. Поэтому после загрузки нового index.html на GitHub вы можете не видеть изменений.</p></div>' +
         '<div class="card"><b>Обновить до последней</b>' +
@@ -11367,6 +11367,12 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.59', kinds: ['b','f'], date: '2026-08-09',
+          b: ['«Обновить сайт» → «Обновить сайт»'],
+          f: ['Компас: диалог-запрос доступа и понятные подсказки для Brave/Samsung'],
+          a: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+
         { major: '2', v: '2.58', kinds: ['f','a'], date: '2026-08-09',
           f: [
             'Вход в аккаунт пишет профиль в profiles (не только регистрация)',
@@ -11640,7 +11646,7 @@ function renderSalah() {
           f: [
             '«Подробнее» в Правилах и Таджвиде — отдельный обработчик',
             'Категория «Другое»: убран принудительный отступ 8rem',
-            'Обновление приложения: таймаут, без долгого зависания'
+            'Обновление сайта: таймаут, без долгого зависания'
           ],
           d: [ 'Меньше пустоты внизу настроек «Другое»' ],
           ph: [], I: [ 'Видео/фото букв', 'Добавление сур и аятов в теорию' ], o: [], s: [], on: []
@@ -11858,7 +11864,7 @@ function renderSalah() {
           a: [],
           b: [ 'Убран номер версии из заголовка «Ежедневное»' ],
           f: [
-            'Статистика: подпись «Обновить приложение» вместо appupdate',
+            'Статистика: подпись «Обновить сайт» вместо appupdate',
             'Дата по местному времени'
           ],
           d: [], ph: [], I: [], o: [], s: [], on: []
@@ -11883,7 +11889,7 @@ function renderSalah() {
         },
         { major: '2', v: '2.10', kinds: ['f', 'b'], date: '2026-08-05',
           a: [],
-          b: [ 'Справка: карточки «Обновить приложение» и «Статистика»' ],
+          b: [ 'Справка: карточки «Обновить сайт» и «Статистика»' ],
           f: [
             'Язык RU: если перевод был kk.* — сброс на Кулиева',
             'Блокировка по умолчанию выкл (повторный сброс флага)',
@@ -11893,7 +11899,7 @@ function renderSalah() {
           d: [], ph: [], I: [], o: [], s: [], on: []
         },
         { major: '2', v: '2.09', kinds: ['f', 'a', 's'], date: '2026-08-05',
-          a: [ 'Система → «Обновить приложение»: сброс кэша и загрузка последней версии с GitHub' ],
+          a: [ 'Система → «Обновить сайт»: сброс кэша и загрузка последней версии с GitHub' ],
           f: [ 'Service Worker: HTML грузится с сети (не залипает старая копия)' ],
           s: [ 'Кнопка обновления внизу «Ещё»' ],
           b: [], d: [], ph: [], I: [], o: [], on: []
@@ -12547,7 +12553,7 @@ function renderSalah() {
         settings: 'Настройки.\n\n• Язык и перевод Корана.\n• Аудио: чтец и азан.\n• Вид: тема и ночной режим.\n• Шрифты: размеры и семейства.\n• Чтение, офлайн.\n• Пароли: блокировка и смена PIN.\n• Меню: списки, скрытие разделов, порядок главных вкладок.',
         account: 'Мой аккаунт.\n\n• Регистрация и вход через email.\n• При первом заходе предлагается войти или продолжить как гость.\n• Ник виден в статистике; email не показывается другим.',
 
-        appupdate: 'Обновить приложение.\n\n• Сбрасывает Service Worker и кэш оболочки.\n• Заново качает последнюю версию index.html с GitHub.\n• Закладки, настройки, аккаунт и словарь НЕ удаляются.\n• Если не помогло: инкогнито или очистка данных сайта velqer0n.github.io.',
+        appupdate: 'Обновить сайт.\n\n• Сбрасывает Service Worker и кэш оболочки.\n• Заново качает последнюю версию index.html с GitHub.\n• Закладки, настройки, аккаунт и словарь НЕ удаляются.\n• Если не помогло: инкогнито или очистка данных сайта velqer0n.github.io.',
         stats: 'Статистика (Онлайн).\n\n• Локальная: аяты, закладки, время прослушивания.\n• Общая (только админ): список пользователей (ники), посещения разделов — всего и за сегодня.\n• Не показывает, кто именно в какой раздел заходил.\n• Админ: SQL update profiles set is_admin = true where email = …',
         account: 'Мой аккаунт (меню «Ещё» → Система).\n\n• Регистрация: никнейм, email, пароль (≥8, буква+цифра).\n• Вход по email и паролю (онлайн через Supabase — с любого устройства).\n• «Забыли пароль» — сброс по email (ссылка от Supabase).\n• Гость: можно пользоваться без аккаунта, данные только в браузере этого устройства.\n• Пароль приложения (экран блокировки) — отдельная защита локальных данных, это не пароль аккаунта.',
         login: 'Вход в онлайн-аккаунт по email и паролю.',
@@ -13577,6 +13583,105 @@ let body = '';
           // compass
           const compassBtn = document.getElementById('pt-compass');
           if (compassBtn) compassBtn.addEventListener('click', function(){
+            const status = document.getElementById('qibla-status');
+            const needle = document.getElementById('qibla-needle');
+            const dial = document.getElementById('qibla-compass');
+            const qDeg = qiblaBearing(+loc.lat, +loc.lon);
+            try {
+              if (window._qiblaOriHandler) {
+                window.removeEventListener('deviceorientation', window._qiblaOriHandler, true);
+                window.removeEventListener('deviceorientationabsolute', window._qiblaOriHandler, true);
+              }
+              if (window._qiblaSensor) { try { window._qiblaSensor.stop(); } catch(e) {} window._qiblaSensor = null; }
+            } catch(e) {}
+
+            // Явный диалог: сайт просит доступ (как приложение)
+            var okAsk = true;
+            try {
+              okAsk = confirm(
+                'Кибла: нужен доступ к датчикам ориентации телефона.\\n\\n' +
+                '• Нажмите OK — сайт попробует включить компас.\\n' +
+                '• В Brave: значок льва/замка → «Блокировать сенсоры» / «Датчики» → Разрешить для этого сайта.\\n' +
+                '• Надёжнее открыть сайт в Chrome.\\n\\n' +
+                'Местоположение уже не обязательно — нужен именно компас/гироскоп.'
+              );
+            } catch(e) {}
+            if (!okAsk) {
+              if (status) status.textContent = 'Доступ к компасу отклонён';
+              return;
+            }
+
+            var lastHeading = null;
+            function applyHeading(heading) {
+              if (heading == null || isNaN(heading)) return;
+              heading = ((+heading) % 360 + 360) % 360;
+              lastHeading = heading;
+              var rot = qDeg - heading;
+              if (needle) needle.style.transform = 'translate(-50%,-100%) rotate('+rot+'deg)';
+              if (dial) dial.style.transform = 'rotate('+(-heading)+'deg)';
+              var delta = ((qDeg - heading + 540) % 360) - 180;
+              var dir = Math.abs(delta) < 10 ? '✓ На киблу' : (delta > 0 ? 'Поверните вправо →' : '← Поверните влево');
+              if (status) status.textContent = 'Кибла '+qDeg.toFixed(0)+'° · '+heading.toFixed(0)+'° · '+dir;
+            }
+            const onOri = function(ev) {
+              var heading = null;
+              if (typeof ev.webkitCompassHeading === 'number' && !isNaN(ev.webkitCompassHeading)) {
+                heading = ev.webkitCompassHeading;
+              } else if (typeof ev.alpha === 'number') {
+                heading = (360 - ev.alpha) % 360;
+                try {
+                  var so = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+                  heading = (heading + (+so) + 360) % 360;
+                } catch(e) {}
+              }
+              if (heading != null) applyHeading(heading);
+            };
+            window._qiblaOriHandler = onOri;
+
+            function startListen() {
+              try {
+                if (typeof AbsoluteOrientationSensor === 'function') {
+                  var sensor = new AbsoluteOrientationSensor({ frequency: 30 });
+                  sensor.addEventListener('reading', function() {
+                    var q = sensor.quaternion; if (!q) return;
+                    var x=q[0],y=q[1],z=q[2],w=q[3];
+                    var yaw = Math.atan2(2*(w*z+x*y), 1-2*(y*y+z*z))*180/Math.PI;
+                    applyHeading((360-yaw+360)%360);
+                  });
+                  sensor.addEventListener('error', function(err) {
+                    if (status && lastHeading == null) status.textContent = 'Датчик: '+(err && err.error && err.error.name ? err.error.name : 'ошибка');
+                  });
+                  sensor.start();
+                  window._qiblaSensor = sensor;
+                }
+              } catch(e) {}
+              try { window.addEventListener('deviceorientationabsolute', onOri, true); } catch(e) {}
+              try { window.addEventListener('deviceorientation', onOri, true); } catch(e) {}
+              try {
+                if (navigator.permissions && navigator.permissions.query) {
+                  ['accelerometer','gyroscope','magnetometer'].forEach(function(n){
+                    try { navigator.permissions.query({ name: n }).catch(function(){}); } catch(e) {}
+                  });
+                }
+              } catch(e) {}
+              if (status) status.textContent = 'Запрос отправлен. Поверните телефон…';
+              if (compassBtn) compassBtn.textContent = 'Компас включён';
+              setTimeout(function(){
+                if (lastHeading == null && status) {
+                  status.textContent = 'Нет сигнала датчика. В списке разрешений Android «ориентация» часто не показывается — это настройка браузера (Brave/Chrome), не системы. Brave → значок сайта → сенсоры → Разрешить. Или откройте в Chrome.';
+                }
+              }, 4000);
+            }
+
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              DeviceOrientationEvent.requestPermission().then(function(s) {
+                if (s === 'granted') startListen();
+                else if (status) status.textContent = 'Браузер не дал доступ к ориентации';
+              }).catch(function(){ startListen(); });
+            } else {
+              startListen();
+            }
+          });if (compassBtn) compassBtn.addEventListener('click', function(){
             const status = document.getElementById('qibla-status');
             const needle = document.getElementById('qibla-needle');
             const dial = document.getElementById('qibla-compass');
@@ -16880,7 +16985,7 @@ async function isAdminUser() {
       ramadan: 'Рамадан', hajj: 'Хадж и Умра', names: '99 имён', calendar: 'Календарь',
       family: 'Права семьи', sadaqa: 'Садака', ask: 'Черновик вопроса',
       data: 'Данные', help: 'Справка', changelog: 'Обновления', export: 'Экспорт', cache: 'Кэш',
-      appupdate: 'Обновить приложение', account: 'Мой аккаунт', stats: 'Статистика',
+      appupdate: 'Обновить сайт', account: 'Мой аккаунт', stats: 'Статистика',
       settings: 'Настройки', dailyhub: 'Ежедневное', home: 'Суры', learn: 'Теория',
       games: 'Практика', more: 'Ещё', reader: 'Чтение'
     };
@@ -20023,7 +20128,7 @@ c.addEventListener('click', () => {
       { id:'changelog', icon:'🆕', label:'Обновления', group:'system' },
       { id:'help', icon:'❓', label:'Справка', group:'system' },
       { id:'settings', icon:'⚙️', label:'Настройки', group:'system' },
-      { id:'appupdate', icon:'🔄', label:'Обновить приложение', group:'system' }
+      { id:'appupdate', icon:'🔄', label:'Обновить сайт', group:'system' }
     ];
     const MORE_GROUP_DEFAULTS = [
       { id:'knowledge', label:'Знание', hidden:false },
@@ -22452,7 +22557,7 @@ function startApp() {
         // Восстановить последний раздел (в т.ч. из «Ещё»), иначе dailyhub
         let restoreView = 'dailyhub';
         try {
-          // После «Обновить приложение» — остаёмся на appupdate, стек more→appupdate
+          // После «Обновить сайт» — остаёмся на appupdate, стек more→appupdate
           if (localStorage.getItem('quran_from_update') === '1') {
             localStorage.removeItem('quran_from_update');
             restoreView = 'appupdate';
