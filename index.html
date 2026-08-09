@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.56 2026-08-09 -->
+<!-- BUILD 2.57 2026-08-09 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.56</title>
+  <title>Коран — Изучение · 2.57</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -8764,17 +8764,42 @@ function renderMistakes() {
       else if ('كق'.indexOf(ch) >= 0) zone = 'soft';
       else if ('حخعغءه'.indexOf(ch) >= 0 || ch === 'ا') zone = 'throat';
       else if ('رزل'.indexOf(ch) >= 0) zone = 'tip';
-      var tipY = { lips: 62, teeth: 58, gum: 52, palate: 40, soft: 36, throat: 48, tip: 55, tongue: 50 }[zone] || 50;
-      var tipX = { lips: 28, teeth: 38, gum: 48, palate: 58, soft: 72, throat: 88, tip: 42, tongue: 55 }[zone] || 55;
-      var label = { lips: 'Губы', teeth: 'Межзубный', gum: 'У зубов', palate: 'Нёбо', soft: 'Заднее нёбо', throat: 'Горло', tip: 'Кончик языка', tongue: 'Язык' }[zone];
-      return '<svg viewBox="0 0 120 90" width="160" height="120" style="display:block;margin:0.4rem auto;background:var(--bg);border-radius:0.5rem;border:1px solid var(--border)">' +
-        '<path d="M10,25 Q20,10 55,12 Q95,10 110,28 L108,70 Q90,82 55,84 Q22,82 12,68 Z" fill="none" stroke="var(--text-muted)" stroke-width="1.5"/>' +
-        '<path d="M22,48 Q40,42 55,44 Q75,42 95,50" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.5"/>' +
-        '<ellipse cx="'+tipX+'" cy="'+tipY+'" rx="10" ry="7" fill="var(--accent)" opacity="0.85"/>' +
-        '<text x="60" y="18" text-anchor="middle" fill="var(--accent)" font-size="9" font-family="sans-serif">'+label+'</text>' +
-        '<text x="22" y="78" fill="var(--text-muted)" font-size="7">губы</text>' +
-        '<text x="88" y="40" fill="var(--text-muted)" font-size="7">горло</text></svg>';
+      else if ('سزص'.indexOf(ch) >= 0) zone = 'sibilant';
+      var cfg = {
+        lips:     { tx: 32, ty: 58, desc: 'Губы смыкаются / округляются', tongue: 'M28,60 Q50,55 70,58 Q90,62 100,55' },
+        teeth:    { tx: 40, ty: 52, desc: 'Кончик языка между зубами', tongue: 'M30,62 Q45,48 55,50 Q80,58 100,55' },
+        gum:      { tx: 48, ty: 46, desc: 'Кончик у верхних зубов/дёсен', tongue: 'M30,64 Q48,44 58,45 Q80,55 100,55' },
+        tip:      { tx: 46, ty: 48, desc: 'Кончик языка у альвеол', tongue: 'M30,64 Q50,46 60,48 Q80,56 100,55' },
+        sibilant: { tx: 50, ty: 48, desc: 'Щель у зубов, свистящий звук', tongue: 'M30,64 Q50,47 62,48 Q80,56 100,55' },
+        palate:   { tx: 62, ty: 40, desc: 'Средняя часть языка к нёбу', tongue: 'M30,64 Q50,58 65,38 Q80,42 100,55' },
+        soft:     { tx: 78, ty: 36, desc: 'Задняя часть к мягкому нёбу', tongue: 'M30,64 Q55,60 75,34 Q88,38 100,52' },
+        throat:   { tx: 96, ty: 50, desc: 'Корень языка / стенки горла', tongue: 'M30,64 Q55,60 75,55 Q90,48 100,52' },
+        tongue:   { tx: 55, ty: 50, desc: 'См. текст ниже', tongue: 'M30,64 Q55,50 70,52 Q90,58 100,55' }
+      }[zone];
+      return '<div style="text-align:center">' +
+        '<svg viewBox="0 0 140 110" width="100%" height="180" style="max-width:280px;display:block;margin:0.35rem auto;background:var(--bg);border-radius:0.6rem;border:1px solid var(--border)">' +
+        '<path d="M18,30 Q28,12 60,10 Q100,10 122,32 L120,78 Q100,95 60,96 Q28,94 16,75 Z" fill="#1e293b" stroke="var(--text-muted)" stroke-width="1.2"/>' +
+        '<rect x="34" y="38" width="6" height="10" rx="1" fill="#e2e8f0" opacity="0.9"/>' +
+        '<rect x="41" y="38" width="6" height="10" rx="1" fill="#e2e8f0" opacity="0.9"/>' +
+        '<rect x="34" y="62" width="6" height="9" rx="1" fill="#cbd5e1" opacity="0.85"/>' +
+        '<rect x="41" y="62" width="6" height="9" rx="1" fill="#cbd5e1" opacity="0.85"/>' +
+        '<path d="M20,48 Q26,42 32,44" fill="none" stroke="#f87171" stroke-width="2.5"/>' +
+        '<path d="M20,60 Q26,66 32,64" fill="none" stroke="#f87171" stroke-width="2.5"/>' +
+        '<path d="M48,36 Q70,28 95,32 Q110,36 118,48" fill="none" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="3,2"/>' +
+        '<path d="'+cfg.tongue+'" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>' +
+        '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="7" fill="var(--accent)" stroke="#fff" stroke-width="1.5"/>' +
+        '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="2.5" fill="#fff"/>' +
+        '<path d="M112,48 Q118,55 114,70" fill="none" stroke="#a78bfa" stroke-width="2"/>' +
+        '<text x="22" y="28" fill="#f87171" font-size="8" font-family="system-ui">Губы</text>' +
+        '<text x="36" y="34" fill="#e2e8f0" font-size="7" font-family="system-ui">Зубы</text>' +
+        '<text x="70" y="24" fill="#94a3b8" font-size="7" font-family="system-ui">Нёбо</text>' +
+        '<text x="108" y="44" fill="#a78bfa" font-size="7" font-family="system-ui">Горло</text>' +
+        '<text x="55" y="88" fill="#38bdf8" font-size="8" font-family="system-ui">Язык</text>' +
+        '<text x="70" y="105" text-anchor="middle" fill="var(--accent)" font-size="9" font-family="system-ui" font-weight="600">'+cfg.desc+'</text>' +
+        '</svg>' +
+        '<div class="ayah-translation" style="font-size:0.8rem">Зелёная точка — место смыкания/щели. Голубая линия — язык. Розовое — губы.</div></div>';
     }
+
 
     function renderAlphabet() {
       let grid = document.getElementById('letter-grid');
@@ -11322,6 +11347,16 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.57', kinds: ['f','a'], date: '2026-08-09',
+          f: [
+            'Компас: AbsoluteOrientationSensor + калибровка',
+            'Регистрация: локальные ники + upsert текущего',
+            'Истории: арабский TTS, speakSoft выбирает ar-голос'
+          ],
+          a: ['Схемы букв: разрез, зубы, губы, язык, точка'],
+          b: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+
         { major: '2', v: '2.56', kinds: ['f','a','b'], date: '2026-08-09',
           f: [
             'Подсказка в «Ещё» на всю ширину',
@@ -13522,6 +13557,82 @@ let body = '';
                 window.removeEventListener('deviceorientation', window._qiblaOriHandler, true);
                 window.removeEventListener('deviceorientationabsolute', window._qiblaOriHandler, true);
               }
+              if (window._qiblaSensor) {
+                try { window._qiblaSensor.stop(); } catch(e) {}
+                window._qiblaSensor = null;
+              }
+            } catch(e) {}
+            var lastHeading = null;
+            function applyHeading(heading) {
+              if (heading == null || isNaN(heading)) return;
+              heading = ((+heading) % 360 + 360) % 360;
+              lastHeading = heading;
+              var rot = qDeg - heading;
+              if (needle) needle.style.transform = 'translate(-50%,-100%) rotate('+rot+'deg)';
+              if (dial) dial.style.transform = 'rotate('+(-heading)+'deg)';
+              var delta = ((qDeg - heading + 540) % 360) - 180;
+              var dir = Math.abs(delta) < 10 ? '✓ На киблу' : (delta > 0 ? 'Поверните вправо →' : '← Поверните влево');
+              if (status) status.textContent = 'Кибла '+qDeg.toFixed(0)+'° · телефон '+heading.toFixed(0)+'° · '+dir;
+            }
+            const onOri = function(ev) {
+              var heading = null;
+              if (typeof ev.webkitCompassHeading === 'number' && !isNaN(ev.webkitCompassHeading)) {
+                heading = ev.webkitCompassHeading;
+              } else if (typeof ev.alpha === 'number') {
+                heading = (360 - ev.alpha) % 360;
+                try {
+                  var so = 0;
+                  if (screen.orientation && typeof screen.orientation.angle === 'number') so = screen.orientation.angle;
+                  else if (typeof window.orientation === 'number') so = window.orientation;
+                  heading = (heading + so + 360) % 360;
+                } catch(e) {}
+              }
+              if (heading != null) applyHeading(heading);
+            };
+            window._qiblaOriHandler = onOri;
+            function startListen() {
+              try {
+                if (typeof AbsoluteOrientationSensor === 'function') {
+                  var sensor = new AbsoluteOrientationSensor({ frequency: 30 });
+                  sensor.addEventListener('reading', function() {
+                    var q = sensor.quaternion;
+                    if (!q) return;
+                    var x=q[0], y=q[1], z=q[2], w=q[3];
+                    var yaw = Math.atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z)) * 180 / Math.PI;
+                    applyHeading((360 - yaw + 360) % 360);
+                  });
+                  sensor.start();
+                  window._qiblaSensor = sensor;
+                }
+              } catch(e) {}
+              try { window.addEventListener('deviceorientationabsolute', onOri, true); } catch(e) {}
+              try { window.addEventListener('deviceorientation', onOri, true); } catch(e) {}
+              if (status) status.textContent = 'Компас вкл. Крутите телефон восьмёркой, держите горизонтально.';
+              if (compassBtn) compassBtn.textContent = 'Компас включён';
+              setTimeout(function() {
+                if (lastHeading == null && status) {
+                  status.textContent = 'Нет сигнала датчика. Разрешите «Движение и ориентация» для сайта, отключите режим энергосбережения, проведите калибровку восьмёркой.';
+                }
+              }, 3500);
+            }
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              DeviceOrientationEvent.requestPermission().then(function(s) {
+                if (s === 'granted') startListen();
+                else if (status) status.textContent = 'Нет доступа к компасу';
+              }).catch(function(){ if (status) status.textContent = 'Не удалось запросить компас'; });
+            } else {
+              startListen();
+            }
+          });if (compassBtn) compassBtn.addEventListener('click', function(){
+            const status = document.getElementById('qibla-status');
+            const needle = document.getElementById('qibla-needle');
+            const dial = document.getElementById('qibla-compass');
+            const qDeg = qiblaBearing(+loc.lat, +loc.lon);
+            try {
+              if (window._qiblaOriHandler) {
+                window.removeEventListener('deviceorientation', window._qiblaOriHandler, true);
+                window.removeEventListener('deviceorientationabsolute', window._qiblaOriHandler, true);
+              }
             } catch(e) {}
             const onOri = function(ev) {
               var heading = null;
@@ -13698,10 +13809,21 @@ let body = '';
           .replace(/\s{2,}/g, ' ')
           .trim();
         const u = new SpeechSynthesisUtterance(cleaned.slice(0, 1200));
-        u.lang = lang || ((state.settings && state.settings.lang === 'kk') ? 'kk-KZ' : 'ru-RU');
-        u.rate = 0.88;
+        var hasAr = /[؀-ۿ]/.test(cleaned);
+        u.lang = hasAr ? 'ar-SA' : (lang || ((state.settings && state.settings.lang === 'kk') ? 'kk-KZ' : 'ru-RU'));
+        u.rate = hasAr ? 0.85 : 0.88;
         u.pitch = 1.05;
         u.volume = 1;
+        try {
+          var voices = window.speechSynthesis.getVoices() || [];
+          var pick = null;
+          if (hasAr) {
+            pick = voices.find(function(v){ return /ar[-_]AE/i.test(v.lang); })
+              || voices.find(function(v){ return /ar[-_]SA/i.test(v.lang); })
+              || voices.find(function(v){ return /^ar/i.test(v.lang) || /arabic/i.test(v.name||''); });
+          }
+          if (pick) u.voice = pick;
+        } catch(e) {}
         // предпочесть более «человечный» голос, если есть
         try {
           const voices = window.speechSynthesis.getVoices() || [];
@@ -16814,8 +16936,32 @@ async function renderStats() {
           }
           var list = (ur && ur.data) || [];
           var count = (ur && ur.count != null) ? ur.count : list.length;
-          var localN = 0;
-          try { localN = (authUsers() || []).length; } catch(e) {}
+          var localUsers = [];
+          try { localUsers = authUsers() || []; } catch(e) {}
+          var localN = localUsers.length;
+          // подмешать локальных, которых нет в profiles
+          try {
+            var have = {};
+            list.forEach(function(r){ if (r && r.nick) have[String(r.nick).toLowerCase()] = 1; });
+            localUsers.forEach(function(u){
+              var n = (u.nick || '').trim();
+              if (!n || have[n.toLowerCase()]) return;
+              list.push({ id: u.id || ('local-'+n), nick: n, created_at: u.created || null, _local: true });
+              have[n.toLowerCase()] = 1;
+            });
+            if (count < list.length) count = list.length;
+          } catch(e) {}
+          // если profiles пуст — попробуем upsert текущего пользователя
+          try {
+            if (list.length === 0 && sb.auth) {
+              sb.auth.getUser().then(function(res) {
+                var user = res && res.data && res.data.user;
+                if (!user) return;
+                var nick = (user.user_metadata && (user.user_metadata.nick || user.user_metadata.nickname)) || (user.email || '').split('@')[0] || 'user';
+                sb.from('profiles').upsert({ id: user.id, nick: nick, email: user.email || '', created_at: new Date().toISOString() }, { onConflict: 'id' }).then(function(){ try { renderStats(); } catch(e) {} });
+              });
+            }
+          } catch(e) {}
           function dayKeyLocal(d) {
             d = d || new Date();
             return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -18575,7 +18721,18 @@ function renderStories(openOpts) {
           '<div class="ayah-translation" style="line-height:1.75;white-space:pre-wrap;padding-top:0.25rem;border-top:1px solid var(--border);font-size:0.95rem">'+body+'</div>';
         box.querySelector('[data-story-speak]')?.addEventListener('click', function(ev){
           ev.stopPropagation();
-          try { speakSoft(body, kk ? 'kk-KZ' : 'ru-RU'); } catch(e) {}
+          try {
+            var hasAr = /[؀-ۿ]/.test(body);
+            if (hasAr && typeof speakArText === 'function') {
+              var arParts = body.match(/[؀-ۿ][؀-ۿ\sً-ٟ،۔؟]+/g);
+              if (arParts && arParts.length) {
+                speakArText(arParts.join(' . '), 0.85);
+                toast('▶ Арабский (история)');
+              } else if (typeof speakSoft === 'function') speakSoft(body, kk ? 'kk-KZ' : 'ru-RU');
+            } else if (typeof speakSoft === 'function') {
+              speakSoft(body, kk ? 'kk-KZ' : 'ru-RU');
+            }
+          } catch(e) {}
         });
         box.querySelector('[data-story-stop]')?.addEventListener('click', function(ev){
           ev.stopPropagation();
