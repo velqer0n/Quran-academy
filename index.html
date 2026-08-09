@@ -5483,11 +5483,18 @@ function getMainTabOrder() {
     function playTtsQueueItem(item, idx) {
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
       window._ttsPlaying = false;
-      const url = item.url;
+      const text = (item.ar || '').trim();
+      const q = encodeURIComponent(text || item.title || '');
+      // Пробуем оба хоста Google — translate.googleapis.com чаще отдаёт корректные CORS-заголовки,
+      // чем translate.google.com, поэтому первым идёт он.
+      const urls = [
+        'https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + q,
+        item.url || ('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + q)
+      ];
       function tryDirect(u) {
         return new Promise(function(resolve, reject) {
           let done = false;
-          const to = setTimeout(function() { if (done) return; done = true; cleanup(); reject(new Error('timeout')); }, 6000);
+          const to = setTimeout(function() { if (done) return; done = true; cleanup(); reject(new Error('timeout')); }, 7000);
           function cleanup() { audioEl.removeEventListener('playing', onPlaying); audioEl.onerror = null; }
           function onPlaying() { if (done) return; done = true; clearTimeout(to); cleanup(); resolve(); }
           audioEl.addEventListener('playing', onPlaying);
@@ -5514,28 +5521,47 @@ function getMainTabOrder() {
           });
         });
       }
+      function tryHost(u) {
+        return tryDirect(u).catch(function() { return tryBlob(u); });
+      }
+      function synthOnce(text2, lang, voice) {
+        return new Promise(function(resolve, reject) {
+          if (!window.speechSynthesis || !text2) { reject(new Error('no synth')); return; }
+          try { window.speechSynthesis.cancel(); } catch(e) {}
+          const u = new SpeechSynthesisUtterance(text2);
+          u.lang = lang;
+          if (voice) try { u.voice = voice; } catch(e) {}
+          u.rate = 0.85; u.volume = 1;
+          window._ttsPlaying = true;
+          document.getElementById('audio-play-pause').textContent = '⏸';
+          let settled = false;
+          u.onend = function() { if (settled) return; settled = true; window._ttsPlaying = false; resolve(); };
+          u.onerror = function() { if (settled) return; settled = true; window._ttsPlaying = false; reject(new Error('synth err')); };
+          try { window.speechSynthesis.speak(u); } catch(e) { window._ttsPlaying = false; reject(e); }
+        });
+      }
       function synthFallback() {
-        if (!window.speechSynthesis || !(item.ar || '').trim()) { toast('Не удалось воспроизвести'); return; }
-        try { window.speechSynthesis.cancel(); } catch(e) {}
+        // Голос чтеца недоступен: сперва арабский синтез (если есть голос на устройстве),
+        // иначе — озвучиваем русский перевод, чтобы хоть что-то было слышно.
         let voices = [];
-        try { voices = window.speechSynthesis.getVoices() || []; } catch(e) {}
-        const arVoice = voices.find(v => /^ar(-|$)/i.test(v.lang));
-        const u = new SpeechSynthesisUtterance(item.ar);
-        u.lang = arVoice ? (arVoice.lang || 'ar-SA') : 'ar-SA';
-        if (arVoice) try { u.voice = arVoice; } catch(e) {}
-        u.rate = 0.85; u.volume = 1;
-        window._ttsPlaying = true;
-        document.getElementById('audio-play-pause').textContent = '⏸';
-        u.onend = function() {
-          window._ttsPlaying = false;
-          if (audioQueueIdx !== idx) return; // очередь уже сменилась
+        try { voices = window.speechSynthesis ? (window.speechSynthesis.getVoices() || []) : []; } catch(e) {}
+        const arVoice = voices.find(v => /^ar(-|$)/i.test(v.lang)) || voices.find(v => /arab/i.test(v.name || ''));
+        const attempt = arVoice ? synthOnce(text, arVoice.lang || 'ar-SA', arVoice) : Promise.reject(new Error('no ar voice'));
+        attempt.catch(function() {
+          const ruText = (item.ru || '').trim();
+          if (!ruText) return Promise.reject(new Error('no ru text'));
+          return synthOnce(ruText, 'ru-RU', null);
+        }).then(function() {
+          if (audioQueueIdx !== idx) return;
           if (audioRepeatLeft > 1) { audioRepeatLeft--; updateAudioSub(); synthFallback(); return; }
           playNextInQueue();
-        };
-        u.onerror = function() { window._ttsPlaying = false; if (audioQueueIdx === idx) playNextInQueue(); };
-        try { window.speechSynthesis.speak(u); } catch(e) { toast('Озвучка недоступна'); }
+        }).catch(function() {
+          window._ttsPlaying = false;
+          toast('Озвучка недоступна для этого текста');
+          if (audioQueueIdx === idx) playNextInQueue();
+        });
       }
-      tryDirect(url).catch(function() { return tryBlob(url); }).catch(function() { synthFallback(); });
+      tryHost(urls[0]).catch(function() { return tryHost(urls[1]); }).catch(function() { synthFallback(); });
     }
 
     function playQueueItem(idx) {
