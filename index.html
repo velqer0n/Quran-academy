@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.59 2026-08-09 -->
+<!-- BUILD 2.60 2026-08-09 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.59</title>
+  <title>Коран — Изучение · 2.60</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -11367,6 +11367,22 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.60', kinds: ['f'], date: '2026-08-09',
+          f: [
+            'Компас: одна стрелка, сглаживание, Выключить компас',
+            'Круг С/Ю не крутится — только стрелка на киблу'
+          ],
+          a: [], b: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+
+        { major: '2', v: '2.60', kinds: ['f'], date: '2026-08-09',
+          f: [
+            'Компас: одна стрелка, сглаживание, без кручения диска',
+            'Кнопка Выключить компас'
+          ],
+          a: [], b: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+
         { major: '2', v: '2.59', kinds: ['b','f'], date: '2026-08-09',
           b: ['«Обновить сайт» → «Обновить сайт»'],
           f: ['Компас: диалог-запрос доступа и понятные подсказки для Brave/Samsung'],
@@ -13246,9 +13262,12 @@ let body = '';
                     '<div class="card" style="text-align:center"><b>Кибла</b>' +
                     '<div style="font-size:1.75rem;margin:0.35rem 0"><span id="qibla-deg">'+q.toFixed(0)+'</span>°</div>' +
                     '<div class="ayah-translation">Азимут на Каабу от вашего места (0° = север).</div>' +
-                    '<div id="qibla-compass" style="margin:0.75rem auto;width:160px;height:160px;border-radius:50%;border:2px solid var(--border);position:relative;transition:transform 0.12s linear">' +
+                    '<div id="qibla-compass" style="margin:0.75rem auto;width:160px;height:160px;border-radius:50%;border:2px solid var(--border);position:relative">' +
                     '<div style="position:absolute;left:50%;top:6px;transform:translateX(-50%);font-size:0.7rem;color:var(--text-muted)">С</div>' +
-                    '<div id="qibla-needle" style="position:absolute;left:50%;top:50%;width:3px;height:58px;background:var(--accent);border-radius:2px;transform-origin:bottom center;transform:translate(-50%,-100%) rotate('+q+'deg)"></div>' +
+                    '<div style="position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:0.65rem;color:var(--text-muted);opacity:0.6">Ю</div>' +
+                    '<div style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:0.65rem;color:var(--text-muted);opacity:0.6">З</div>' +
+                    '<div style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:0.65rem;color:var(--text-muted);opacity:0.6">В</div>' +
+                    '<div id="qibla-needle" style="position:absolute;left:50%;top:50%;width:4px;height:58px;background:var(--accent);border-radius:2px;transform-origin:bottom center;transform:translate(-50%,-100%) rotate('+q+'deg);transition:transform 0.2s linear;will-change:transform"></div>' +
                     '<div style="position:absolute;left:50%;top:50%;width:10px;height:10px;background:var(--accent);border-radius:50%;transform:translate(-50%,-50%)"></div></div>' +
                     '<button type="button" class="btn btn-sm" id="pt-compass" style="margin-top:0.5rem">Включить компас</button>' +
                     '<div id="qibla-status" class="ayah-translation" style="margin-top:0.35rem;font-size:0.8rem"></div></div>';
@@ -13583,6 +13602,241 @@ let body = '';
           // compass
           const compassBtn = document.getElementById('pt-compass');
           if (compassBtn) compassBtn.addEventListener('click', function(){
+            const status = document.getElementById('qibla-status');
+            const needle = document.getElementById('qibla-needle');
+            const qDeg = qiblaBearing(+loc.lat, +loc.lon);
+
+            // Выключить, если уже включён
+            if (window._qiblaOn) {
+              try {
+                if (window._qiblaOriHandler) {
+                  window.removeEventListener('deviceorientation', window._qiblaOriHandler, true);
+                  window.removeEventListener('deviceorientationabsolute', window._qiblaOriHandler, true);
+                }
+                if (window._qiblaSensor) { try { window._qiblaSensor.stop(); } catch(e) {} window._qiblaSensor = null; }
+                if (window._qiblaRaf) { cancelAnimationFrame(window._qiblaRaf); window._qiblaRaf = null; }
+              } catch(e) {}
+              window._qiblaOn = false;
+              window._qiblaOriHandler = null;
+              if (compassBtn) compassBtn.textContent = 'Включить компас';
+              if (status) status.textContent = 'Компас выключен. Азимут киблы '+qDeg.toFixed(0)+'° (неподвижная стрелка).';
+              // вернуть стрелку на азимут без компаса
+              if (needle) needle.style.transform = 'translate(-50%,-100%) rotate('+qDeg+'deg)';
+              return;
+            }
+
+            // Сброс старых слушателей
+            try {
+              if (window._qiblaOriHandler) {
+                window.removeEventListener('deviceorientation', window._qiblaOriHandler, true);
+                window.removeEventListener('deviceorientationabsolute', window._qiblaOriHandler, true);
+              }
+              if (window._qiblaSensor) { try { window._qiblaSensor.stop(); } catch(e) {} window._qiblaSensor = null; }
+              if (window._qiblaRaf) { cancelAnimationFrame(window._qiblaRaf); window._qiblaRaf = null; }
+            } catch(e) {}
+
+            var targetRot = qDeg; // угол стрелки на экране
+            var displayRot = qDeg;
+            var lastHeading = null;
+            var useAbsolute = false;
+
+            function setNeedle(rot) {
+              // кратчайший путь для плавности
+              while (rot - displayRot > 180) rot -= 360;
+              while (rot - displayRot < -180) rot += 360;
+              targetRot = rot;
+            }
+            function tick() {
+              if (!window._qiblaOn) return;
+              var d = targetRot - displayRot;
+              displayRot += d * 0.25; // сглаживание
+              if (needle) needle.style.transform = 'translate(-50%,-100%) rotate('+displayRot+'deg)';
+              window._qiblaRaf = requestAnimationFrame(tick);
+            }
+
+            function applyHeading(heading, fromAbs) {
+              if (heading == null || isNaN(heading)) return;
+              // если уже есть абсолютный источник — игнор относительный
+              if (useAbsolute && !fromAbs) return;
+              if (fromAbs) useAbsolute = true;
+              heading = ((+heading) % 360 + 360) % 360;
+              lastHeading = heading;
+              // Стрелка указывает на киблу относительно телефона: qibla - heading
+              // Круг (С/Ю/З/В) НЕ вращаем — только стрелка
+              setNeedle(qDeg - heading);
+              var delta = ((qDeg - heading + 540) % 360) - 180;
+              var dir = Math.abs(delta) < 12 ? '✓ Смотрите на киблу' : (delta > 0 ? 'Поверните вправо →' : '← Поверните влево');
+              if (status) status.textContent = 'Кибла '+qDeg.toFixed(0)+'° · телефон '+heading.toFixed(0)+'° · '+dir;
+            }
+
+            // Один обработчик: absolute предпочтительнее
+            var onAbs = function(ev) {
+              var heading = null;
+              if (typeof ev.webkitCompassHeading === 'number' && !isNaN(ev.webkitCompassHeading)) {
+                heading = ev.webkitCompassHeading;
+                applyHeading(heading, true);
+                return;
+              }
+              if (typeof ev.alpha === 'number') {
+                heading = (360 - ev.alpha) % 360;
+                try {
+                  var so = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+                  heading = (heading + (+so) + 360) % 360;
+                } catch(e) {}
+                applyHeading(heading, ev.absolute === true);
+              }
+            };
+            window._qiblaOriHandler = onAbs;
+
+            function startListen() {
+              window._qiblaOn = true;
+              try {
+                if (typeof AbsoluteOrientationSensor === 'function') {
+                  var sensor = new AbsoluteOrientationSensor({ frequency: 20 });
+                  sensor.addEventListener('reading', function() {
+                    var q = sensor.quaternion; if (!q) return;
+                    var x=q[0],y=q[1],z=q[2],w=q[3];
+                    var yaw = Math.atan2(2*(w*z+x*y), 1-2*(y*y+z*z))*180/Math.PI;
+                    applyHeading((360 - yaw + 360) % 360, true);
+                  });
+                  sensor.start();
+                  window._qiblaSensor = sensor;
+                }
+              } catch(e) {}
+              // только absolute, если браузер шлёт; иначе обычный
+              try { window.addEventListener('deviceorientationabsolute', onAbs, true); } catch(e) {}
+              try { window.addEventListener('deviceorientation', onAbs, true); } catch(e) {}
+              if (compassBtn) compassBtn.textContent = 'Выключить компас';
+              if (status) status.textContent = 'Компас вкл. Поворачивайте телефон…';
+              window._qiblaRaf = requestAnimationFrame(tick);
+              setTimeout(function(){
+                if (window._qiblaOn && lastHeading == null && status) {
+                  status.textContent = 'Нет сигнала. Brave: разрешите сенсоры сайту. Или откройте в Chrome.';
+                }
+              }, 4000);
+            }
+
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              DeviceOrientationEvent.requestPermission().then(function(s) {
+                if (s === 'granted') startListen();
+                else if (status) status.textContent = 'Нет доступа к ориентации';
+              }).catch(function(){ startListen(); });
+            } else {
+              startListen();
+            }
+          });if (compassBtn) compassBtn.addEventListener('click', function(){
+            const status = document.getElementById('qibla-status');
+            const needle = document.getElementById('qibla-needle');
+            const qDeg = qiblaBearing(+loc.lat, +loc.lon);
+
+            // Выключить, если уже включён
+            if (window._qiblaOn) {
+              try {
+                if (window._qiblaOriHandler) {
+                  window.removeEventListener('deviceorientation', window._qiblaOriHandler, true);
+                  window.removeEventListener('deviceorientationabsolute', window._qiblaOriHandler, true);
+                }
+                if (window._qiblaSensor) { try { window._qiblaSensor.stop(); } catch(e) {} window._qiblaSensor = null; }
+              } catch(e) {}
+              window._qiblaOn = false;
+              window._qiblaOriHandler = null;
+              window._qiblaSmooth = null;
+              if (compassBtn) compassBtn.textContent = 'Включить компас';
+              if (status) status.textContent = 'Компас выключен. Азимут киблы: '+qDeg.toFixed(0)+'° от севера.';
+              if (needle) needle.style.transform = 'translate(-50%,-100%) rotate('+qDeg+'deg)';
+              return;
+            }
+
+            try {
+              if (window._qiblaOriHandler) {
+                window.removeEventListener('deviceorientation', window._qiblaOriHandler, true);
+                window.removeEventListener('deviceorientationabsolute', window._qiblaOriHandler, true);
+              }
+              if (window._qiblaSensor) { try { window._qiblaSensor.stop(); } catch(e) {} window._qiblaSensor = null; }
+            } catch(e) {}
+
+            var smooth = null; // сглаженный курс
+            var lastTs = 0;
+            var usingAbsolute = false;
+
+            function applyHeading(heading, isAbs) {
+              if (heading == null || isNaN(heading)) return;
+              // если уже есть абсолютный источник — игнор относительный
+              if (usingAbsolute && !isAbs) return;
+              if (isAbs) usingAbsolute = true;
+              heading = ((+heading) % 360 + 360) % 360;
+              // кратчайший путь для сглаживания
+              if (smooth == null) smooth = heading;
+              else {
+                var d = ((heading - smooth + 540) % 360) - 180;
+                smooth = (smooth + d * 0.25 + 360) % 360; // 0.25 = плавность
+              }
+              window._qiblaSmooth = smooth;
+              // только стрелка; диск с С/Ю/З/В не крутим
+              var rot = qDeg - smooth;
+              if (needle) needle.style.transform = 'translate(-50%,-100%) rotate('+rot+'deg)';
+              var delta = ((qDeg - smooth + 540) % 360) - 180;
+              var dir = Math.abs(delta) < 12 ? '✓ На киблу' : (delta > 0 ? 'Поверните вправо →' : '← Поверните влево');
+              if (status) status.textContent = 'Кибла '+qDeg.toFixed(0)+'° · телефон '+smooth.toFixed(0)+'° · '+dir;
+            }
+
+            const onOri = function(ev) {
+              var now = Date.now();
+              if (now - lastTs < 40) return; // не чаще ~25 Гц
+              lastTs = now;
+              var heading = null;
+              var isAbs = false;
+              if (typeof ev.webkitCompassHeading === 'number' && !isNaN(ev.webkitCompassHeading)) {
+                heading = ev.webkitCompassHeading;
+                isAbs = true;
+              } else if (typeof ev.alpha === 'number') {
+                heading = (360 - ev.alpha) % 360;
+                isAbs = (ev.absolute === true);
+                try {
+                  var so = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+                  heading = (heading + (+so) + 360) % 360;
+                } catch(e) {}
+              }
+              if (heading != null) applyHeading(heading, isAbs);
+            };
+            window._qiblaOriHandler = onOri;
+
+            function startListen() {
+              var started = false;
+              // Один источник: сначала Sensor API, иначе orientation
+              try {
+                if (typeof AbsoluteOrientationSensor === 'function') {
+                  var sensor = new AbsoluteOrientationSensor({ frequency: 20 });
+                  sensor.addEventListener('reading', function() {
+                    var q = sensor.quaternion; if (!q) return;
+                    var x=q[0],y=q[1],z=q[2],w=q[3];
+                    var yaw = Math.atan2(2*(w*z+x*y), 1-2*(y*y+z*z))*180/Math.PI;
+                    applyHeading((360-yaw+360)%360, true);
+                  });
+                  sensor.start();
+                  window._qiblaSensor = sensor;
+                  started = true;
+                }
+              } catch(e) {}
+              if (!started) {
+                // только absolute, если браузер шлёт; иначе обычный (но не оба одновременно в apply)
+                try { window.addEventListener('deviceorientationabsolute', onOri, true); } catch(e) {}
+                try { window.addEventListener('deviceorientation', onOri, true); } catch(e) {}
+              }
+              window._qiblaOn = true;
+              if (compassBtn) compassBtn.textContent = 'Выключить компас';
+              if (status) status.textContent = 'Компас вкл. Крутите телефон плавно…';
+            }
+
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              DeviceOrientationEvent.requestPermission().then(function(s) {
+                if (s === 'granted') startListen();
+                else if (status) status.textContent = 'Нет доступа к компасу';
+              }).catch(function(){ startListen(); });
+            } else {
+              startListen();
+            }
+          });if (compassBtn) compassBtn.addEventListener('click', function(){
             const status = document.getElementById('qibla-status');
             const needle = document.getElementById('qibla-needle');
             const dial = document.getElementById('qibla-compass');
