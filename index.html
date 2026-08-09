@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.57 2026-08-09 -->
+<!-- BUILD 2.58 2026-08-09 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.57</title>
+  <title>Коран — Изучение · 2.58</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -8766,38 +8766,48 @@ function renderMistakes() {
       else if ('رزل'.indexOf(ch) >= 0) zone = 'tip';
       else if ('سزص'.indexOf(ch) >= 0) zone = 'sibilant';
       var cfg = {
-        lips:     { tx: 32, ty: 58, desc: 'Губы смыкаются / округляются', tongue: 'M28,60 Q50,55 70,58 Q90,62 100,55' },
-        teeth:    { tx: 40, ty: 52, desc: 'Кончик языка между зубами', tongue: 'M30,62 Q45,48 55,50 Q80,58 100,55' },
-        gum:      { tx: 48, ty: 46, desc: 'Кончик у верхних зубов/дёсен', tongue: 'M30,64 Q48,44 58,45 Q80,55 100,55' },
-        tip:      { tx: 46, ty: 48, desc: 'Кончик языка у альвеол', tongue: 'M30,64 Q50,46 60,48 Q80,56 100,55' },
-        sibilant: { tx: 50, ty: 48, desc: 'Щель у зубов, свистящий звук', tongue: 'M30,64 Q50,47 62,48 Q80,56 100,55' },
-        palate:   { tx: 62, ty: 40, desc: 'Средняя часть языка к нёбу', tongue: 'M30,64 Q50,58 65,38 Q80,42 100,55' },
-        soft:     { tx: 78, ty: 36, desc: 'Задняя часть к мягкому нёбу', tongue: 'M30,64 Q55,60 75,34 Q88,38 100,52' },
-        throat:   { tx: 96, ty: 50, desc: 'Корень языка / стенки горла', tongue: 'M30,64 Q55,60 75,55 Q90,48 100,52' },
-        tongue:   { tx: 55, ty: 50, desc: 'См. текст ниже', tongue: 'M30,64 Q55,50 70,52 Q90,58 100,55' }
+        lips:     { tx: 30, ty: 56, desc: '1) Сомкните губы  2) Резко откройте с голосом (б/м/у/ф)', tongue: 'M26,58 Q48,54 68,58 Q88,62 100,56', how: 'Губы' },
+        teeth:    { tx: 40, ty: 50, desc: '1) Кончик языка между зубами  2) Воздух с шипением (ث/ذ/ظ)', tongue: 'M28,62 Q44,46 54,48 Q80,58 100,56', how: 'Межзубный' },
+        gum:      { tx: 48, ty: 44, desc: '1) Кончик к верхним дёснам  2) Короткий удар (ت/د/ط…)', tongue: 'M28,64 Q48,42 58,43 Q80,54 100,56', how: 'У зубов' },
+        tip:      { tx: 46, ty: 46, desc: '1) Кончик у бугорков за зубами  2) (ر/ز/ل)', tongue: 'M28,64 Q50,44 60,46 Q80,55 100,56', how: 'Альвеолы' },
+        sibilant: { tx: 50, ty: 46, desc: '1) Щель у зубов  2) Свист без голоса/с голосом (س/ص/ز)', tongue: 'M28,64 Q50,45 62,46 Q80,55 100,56', how: 'Свист' },
+        palate:   { tx: 64, ty: 38, desc: '1) Середина языка вверх к нёбу  2) (ج/ش/ي…)', tongue: 'M28,64 Q50,58 66,36 Q82,40 100,54', how: 'Нёбо' },
+        soft:     { tx: 80, ty: 34, desc: '1) Зад языка к мягкому нёбу  2) (ك/ق)', tongue: 'M28,64 Q55,60 78,32 Q90,36 100,52', how: 'Заднее нёбо' },
+        throat:   { tx: 98, ty: 50, desc: '1) Звук в горле  2) Не зажимайте шею (ع/ح/خ/غ/ء/ه)', tongue: 'M28,64 Q55,60 78,54 Q92,48 100,52', how: 'Горло' },
+        tongue:   { tx: 55, ty: 50, desc: 'Смотрите текст артикуляции ниже', tongue: 'M28,64 Q55,50 70,52 Q90,58 100,56', how: 'Язык' }
       }[zone];
       return '<div style="text-align:center">' +
-        '<svg viewBox="0 0 140 110" width="100%" height="180" style="max-width:280px;display:block;margin:0.35rem auto;background:var(--bg);border-radius:0.6rem;border:1px solid var(--border)">' +
-        '<path d="M18,30 Q28,12 60,10 Q100,10 122,32 L120,78 Q100,95 60,96 Q28,94 16,75 Z" fill="#1e293b" stroke="var(--text-muted)" stroke-width="1.2"/>' +
-        '<rect x="34" y="38" width="6" height="10" rx="1" fill="#e2e8f0" opacity="0.9"/>' +
-        '<rect x="41" y="38" width="6" height="10" rx="1" fill="#e2e8f0" opacity="0.9"/>' +
-        '<rect x="34" y="62" width="6" height="9" rx="1" fill="#cbd5e1" opacity="0.85"/>' +
-        '<rect x="41" y="62" width="6" height="9" rx="1" fill="#cbd5e1" opacity="0.85"/>' +
-        '<path d="M20,48 Q26,42 32,44" fill="none" stroke="#f87171" stroke-width="2.5"/>' +
-        '<path d="M20,60 Q26,66 32,64" fill="none" stroke="#f87171" stroke-width="2.5"/>' +
-        '<path d="M48,36 Q70,28 95,32 Q110,36 118,48" fill="none" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="3,2"/>' +
-        '<path d="'+cfg.tongue+'" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>' +
-        '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="7" fill="var(--accent)" stroke="#fff" stroke-width="1.5"/>' +
-        '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="2.5" fill="#fff"/>' +
-        '<path d="M112,48 Q118,55 114,70" fill="none" stroke="#a78bfa" stroke-width="2"/>' +
-        '<text x="22" y="28" fill="#f87171" font-size="8" font-family="system-ui">Губы</text>' +
-        '<text x="36" y="34" fill="#e2e8f0" font-size="7" font-family="system-ui">Зубы</text>' +
-        '<text x="70" y="24" fill="#94a3b8" font-size="7" font-family="system-ui">Нёбо</text>' +
-        '<text x="108" y="44" fill="#a78bfa" font-size="7" font-family="system-ui">Горло</text>' +
-        '<text x="55" y="88" fill="#38bdf8" font-size="8" font-family="system-ui">Язык</text>' +
-        '<text x="70" y="105" text-anchor="middle" fill="var(--accent)" font-size="9" font-family="system-ui" font-weight="600">'+cfg.desc+'</text>' +
+        '<div style="font-weight:600;color:var(--accent);margin:0.25rem 0">Зона: '+cfg.how+'</div>' +
+        '<svg viewBox="0 0 140 118" width="100%" height="200" style="max-width:300px;display:block;margin:0 auto;background:var(--bg);border-radius:0.6rem;border:1px solid var(--border)">' +
+        // face profile
+        '<path d="M16,28 Q26,10 60,8 Q102,8 124,30 L122,80 Q100,98 60,100 Q26,98 14,76 Z" fill="#0f172a" stroke="var(--text-muted)" stroke-width="1.3"/>' +
+        // nose hint
+        '<path d="M28,32 Q22,40 28,48" fill="none" stroke="var(--text-muted)" stroke-width="1"/>' +
+        // upper teeth
+        '<rect x="36" y="40" width="7" height="11" rx="1" fill="#f1f5f9"/>' +
+        '<rect x="44" y="40" width="7" height="11" rx="1" fill="#f1f5f9"/>' +
+        // lower teeth
+        '<rect x="36" y="64" width="7" height="10" rx="1" fill="#cbd5e1"/>' +
+        '<rect x="44" y="64" width="7" height="10" rx="1" fill="#cbd5e1"/>' +
+        // lips
+        '<path d="M18,50 Q26,42 34,45" fill="none" stroke="#fb7185" stroke-width="3" stroke-linecap="round"/>' +
+        '<path d="M18,62 Q26,70 34,67" fill="none" stroke="#fb7185" stroke-width="3" stroke-linecap="round"/>' +
+        // palate dashed
+        '<path d="M50,38 Q72,28 98,32 Q114,38 120,50" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-dasharray="3,2"/>' +
+        // tongue
+        '<path d="'+cfg.tongue+'" fill="none" stroke="#38bdf8" stroke-width="3.5" stroke-linecap="round"/>' +
+        // point
+        '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="8" fill="var(--accent)" stroke="#fff" stroke-width="2"/>' +
+        '<text x="'+cfg.tx+'" y="'+(cfg.ty+4)+'" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="system-ui">●</text>' +
+        // throat
+        '<path d="M114,50 Q122,58 116,74" fill="none" stroke="#c084fc" stroke-width="2.5"/>' +
+        // legend boxes
+        '<rect x="4" y="104" width="8" height="8" fill="#fb7185"/><text x="14" y="111" fill="var(--text)" font-size="8" font-family="system-ui">губы</text>' +
+        '<rect x="40" y="104" width="8" height="8" fill="#f1f5f9"/><text x="50" y="111" fill="var(--text)" font-size="8" font-family="system-ui">зубы</text>' +
+        '<rect x="76" y="104" width="8" height="8" fill="#38bdf8"/><text x="86" y="111" fill="var(--text)" font-size="8" font-family="system-ui">язык</text>' +
+        '<rect x="108" y="104" width="8" height="8" fill="#c084fc"/><text x="118" y="111" fill="var(--text)" font-size="8" font-family="system-ui">горло</text>' +
         '</svg>' +
-        '<div class="ayah-translation" style="font-size:0.8rem">Зелёная точка — место смыкания/щели. Голубая линия — язык. Розовое — губы.</div></div>';
+        '<div class="ayah-translation" style="font-size:0.85rem;margin-top:0.35rem;line-height:1.45;text-align:left;max-width:300px;margin-left:auto;margin-right:auto">'+cfg.desc+'</div></div>';
     }
 
 
@@ -11020,6 +11030,7 @@ function renderSalah() {
           var meta = u.user_metadata || {};
           var s = { userId: u.id, nick: meta.nick || meta.nickname || (u.email||'').split('@')[0], email: u.email || meta.email || '', online: true };
           authSetSession(s);
+          try { if (typeof upsertMyProfile === 'function') upsertMyProfile(); } catch(e) {}
           return s;
         }
       } catch (e) {}
@@ -11192,7 +11203,16 @@ function renderSalah() {
               if (!error) {
                 var u = data.user || (data.session && data.session.user);
                 var meta = (u && u.user_metadata) || {};
-                authSetSession({ userId: u.id, nick: meta.nick || meta.nickname || (id.indexOf('@')>=0 ? id.split('@')[0] : id), email: u.email || emailForOnline, online: true });
+                var nickLogin = meta.nick || meta.nickname || (id.indexOf('@')>=0 ? id.split('@')[0] : id);
+                authSetSession({ userId: u.id, nick: nickLogin, email: u.email || emailForOnline, online: true });
+                try {
+                  await sb.from('profiles').upsert({
+                    id: u.id,
+                    nick: nickLogin,
+                    email: u.email || emailForOnline || '',
+                    created_at: new Date().toISOString()
+                  }, { onConflict: 'id' });
+                } catch (pe) { console.warn('profile login', pe); }
                 toast('Добро пожаловать');
                 navigateAuth('account');
                 return;
@@ -11347,6 +11367,15 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.58', kinds: ['f','a'], date: '2026-08-09',
+          f: [
+            'Вход в аккаунт пишет профиль в profiles (не только регистрация)',
+            'Компас: подсказки для Brave/Samsung'
+          ],
+          a: ['Схемы букв: легенда, шаги 1–2, крупнее'],
+          b: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+
         { major: '2', v: '2.57', kinds: ['f','a'], date: '2026-08-09',
           f: [
             'Компас: AbsoluteOrientationSensor + калибровка',
@@ -13548,6 +13577,91 @@ let body = '';
           // compass
           const compassBtn = document.getElementById('pt-compass');
           if (compassBtn) compassBtn.addEventListener('click', function(){
+            const status = document.getElementById('qibla-status');
+            const needle = document.getElementById('qibla-needle');
+            const dial = document.getElementById('qibla-compass');
+            const qDeg = qiblaBearing(+loc.lat, +loc.lon);
+            try {
+              if (window._qiblaOriHandler) {
+                window.removeEventListener('deviceorientation', window._qiblaOriHandler, true);
+                window.removeEventListener('deviceorientationabsolute', window._qiblaOriHandler, true);
+              }
+              if (window._qiblaSensor) { try { window._qiblaSensor.stop(); } catch(e) {} window._qiblaSensor = null; }
+            } catch(e) {}
+            var lastHeading = null;
+            var baseAlpha = null; // для ручной калибровки в Brave
+            function applyHeading(heading) {
+              if (heading == null || isNaN(heading)) return;
+              heading = ((+heading) % 360 + 360) % 360;
+              lastHeading = heading;
+              var rot = qDeg - heading;
+              if (needle) needle.style.transform = 'translate(-50%,-100%) rotate('+rot+'deg)';
+              if (dial) dial.style.transform = 'rotate('+(-heading)+'deg)';
+              var delta = ((qDeg - heading + 540) % 360) - 180;
+              var dir = Math.abs(delta) < 10 ? '✓ На киблу' : (delta > 0 ? 'Поверните вправо →' : '← Поверните влево');
+              if (status) status.textContent = 'Кибла '+qDeg.toFixed(0)+'° · '+heading.toFixed(0)+'° · '+dir;
+            }
+            const onOri = function(ev) {
+              var heading = null;
+              if (typeof ev.webkitCompassHeading === 'number' && !isNaN(ev.webkitCompassHeading)) {
+                heading = ev.webkitCompassHeading;
+              } else if (typeof ev.alpha === 'number') {
+                var alpha = ev.alpha;
+                if (baseAlpha == null) baseAlpha = alpha;
+                // абсолютный или относительный
+                if (ev.absolute === true) {
+                  heading = (360 - alpha) % 360;
+                } else {
+                  // относительный (Brave часто так) — всё равно крутим стрелку
+                  heading = (360 - alpha) % 360;
+                }
+                try {
+                  var so = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+                  heading = (heading + (+so) + 360) % 360;
+                } catch(e) {}
+              }
+              if (heading != null) applyHeading(heading);
+            };
+            window._qiblaOriHandler = onOri;
+            function startListen() {
+              try {
+                if (typeof AbsoluteOrientationSensor === 'function') {
+                  var sensor = new AbsoluteOrientationSensor({ frequency: 30 });
+                  sensor.addEventListener('reading', function() {
+                    var q = sensor.quaternion; if (!q) return;
+                    var x=q[0],y=q[1],z=q[2],w=q[3];
+                    var yaw = Math.atan2(2*(w*z+x*y), 1-2*(y*y+z*z))*180/Math.PI;
+                    applyHeading((360-yaw+360)%360);
+                  });
+                  sensor.start();
+                  window._qiblaSensor = sensor;
+                }
+              } catch(e) {}
+              try { window.addEventListener('deviceorientationabsolute', onOri, true); } catch(e) {}
+              try { window.addEventListener('deviceorientation', onOri, true); } catch(e) {}
+              // запрос permission Sensors (Chrome)
+              try {
+                if (navigator.permissions && navigator.permissions.query) {
+                  navigator.permissions.query({ name: 'accelerometer' }).catch(function(){});
+                  navigator.permissions.query({ name: 'gyroscope' }).catch(function(){});
+                  navigator.permissions.query({ name: 'magnetometer' }).catch(function(){});
+                }
+              } catch(e) {}
+              if (status) status.textContent = 'Компас вкл. Если стрелка не двигается — Brave: Настройки→Шифры→Блокировать сенсоры сайтов → разрешить для этого сайта. Или откройте в Chrome.';
+              if (compassBtn) compassBtn.textContent = 'Компас включён';
+              setTimeout(function(){
+                if (lastHeading == null && status) {
+                  status.textContent = 'Нет датчика. Samsung+Brave часто блокирует. Откройте сайт в Chrome или: Brave→значок замка→сайт→Датчики/движение → Разрешить.';
+                }
+              }, 4000);
+            }
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              DeviceOrientationEvent.requestPermission().then(function(s){
+                if (s === 'granted') startListen();
+                else if (status) status.textContent = 'Нет доступа к компасу';
+              }).catch(function(){ startListen(); });
+            } else startListen();
+          });if (compassBtn) compassBtn.addEventListener('click', function(){
             const status = document.getElementById('qibla-status');
             const needle = document.getElementById('qibla-needle');
             const dial = document.getElementById('qibla-compass');
@@ -16563,6 +16677,7 @@ function playArabicAudio(text, fallbackRu, opts) {
           id: user.id,
           nick: nick,
           email: user.email || '',
+          created_at: user.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString()
         }, { onConflict: 'id' });
       } catch (e) { console.warn('profile', e); }
