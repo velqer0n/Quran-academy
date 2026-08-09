@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.63 2026-08-09 -->
+<!-- BUILD 2.66 2026-08-09 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.63</title>
+  <title>Коран — Изучение · 2.66</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -8079,6 +8079,7 @@ CVC: + сукун → بَتْ مِنْ كُتْ
       text = text.replace(/[۝ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪]/g, ' ').replace(/\s+/g, ' ').trim();
       if (!text) { toast('Нет текста для озвучки'); return; }
 
+      try { window._audioHardStop = false; } catch(e) {}
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
       try {
         if (window._adhkarAudio) {
@@ -8086,17 +8087,39 @@ CVC: + сукун → بَتْ مِنْ كُتْ
           window._adhkarAudio = null;
         }
       } catch(e) {}
+      try {
+        if (typeof audioEl !== 'undefined' && audioEl) {
+          audioEl.pause();
+        }
+      } catch(e) {}
+
+      function showTtsBar(title, sub) {
+        try {
+          if (typeof audioBar !== 'undefined' && audioBar) {
+            audioBar.classList.add('visible');
+            audioBar.style.display = '';
+          }
+          var at = document.getElementById('audio-title');
+          if (at) at.textContent = title || 'Дуа';
+          var asub = document.getElementById('audio-sub');
+          if (asub) asub.textContent = sub || 'арабская озвучка';
+          var ap = document.getElementById('audio-play-pause');
+          if (ap) ap.textContent = '⏸';
+          window._ttsPlaying = true;
+          window._audioCtx = 'adhkar';
+        } catch(e) {}
+      }
 
       function chunks(str, max) {
         if (typeof splitArabicForSpeech === 'function') {
-          var sp = splitArabicForSpeech(str, max || 170);
+          var sp = splitArabicForSpeech(str, max || 200);
           if (sp && sp.length) return sp;
         }
         var out = [], rest = str;
-        max = max || 160;
+        max = max || 200;
         while (rest.length) {
           if (rest.length <= max) { out.push(rest); break; }
-          var cut = rest.lastIndexOf(' ', max);
+          var cut = Math.max(rest.lastIndexOf(' ', max), rest.lastIndexOf('،', max), rest.lastIndexOf('.', max));
           if (cut < 30) cut = max;
           out.push(rest.slice(0, cut));
           rest = rest.slice(cut).trim();
@@ -8104,82 +8127,112 @@ CVC: + сукун → بَتْ مِنْ كُتْ
         return out;
       }
 
-      if (!navigator.onLine) {
-        toast('Нужен интернет для озвучки дуа');
-        return;
-      }
+      var parts = chunks(text, 220);
+      var rateN = (typeof rate === 'number' ? rate : 0.75);
 
-      var parts = chunks(text, 170);
-      var queue = parts.map(function(p, idx) {
-        return {
-          url: 'https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + encodeURIComponent(p),
-          title: parts.length > 1 ? ('Дуа · ' + (idx + 1) + '/' + parts.length) : 'Дуа',
-          ar: p,
-          adhkar: true,
-          surah: null,
-          ayah: null
-        };
-      });
-
-      // Как в рабочей 2.48: через playAudio → audioEl + полоска плеера
-      if (typeof playAudio === 'function') {
-        try {
-          window._audioCtx = 'adhkar';
-          if (typeof audioPlayMode !== 'undefined') audioPlayMode = parts.length > 1 ? 'surah' : 'single';
-          try { if (typeof updateAudioModeButtons === 'function') updateAudioModeButtons(); } catch(e) {}
-          playAudio(queue[0].url, queue[0].title, {
-            queue: queue,
-            queueIdx: 0,
-            mode: parts.length > 1 ? 'surah' : 'single',
-            repeat: 1
-          });
-          toast('▶ ' + queue[0].title);
+      // 1) Как в Academy.html — speechSynthesis ar-SA (работает, если в системе есть арабский голос)
+      function speakSynthParts(idx) {
+        if (window._audioHardStop) return;
+        if (idx >= parts.length) {
+          window._ttsPlaying = false;
+          try {
+            var ap = document.getElementById('audio-play-pause');
+            if (ap) ap.textContent = '▶';
+          } catch(e) {}
           return;
-        } catch(e) {}
-      }
-
-      // Запасной путь без playAudio
-      var qi = 0;
-      function next() {
-        if (qi >= queue.length) return;
-        var a = new Audio(queue[qi].url);
-        window._adhkarAudio = a;
+        }
         try {
-          if (typeof audioBar !== 'undefined' && audioBar) { audioBar.classList.add('visible'); audioBar.style.display=''; }
-          var at = document.getElementById('audio-title');
-          if (at) at.textContent = queue[qi].title;
-          var ap = document.getElementById('audio-play-pause');
-          if (ap) ap.textContent = '⏸';
-        } catch(e) {}
-        a.onended = function() { qi++; next(); };
-        a.onerror = function() {
-          if (qi === 0) toast('Не удалось воспроизвести');
-          qi++;
-          next();
-        };
-        a.play().then(function() {
-          if (qi === 0) toast('▶ ' + queue[0].title);
-        }).catch(function() {
-          if (qi === 0) toast('Не удалось воспроизвести');
+          if (typeof window.speechSynthesis === 'undefined') {
+            speakGoogleParts(0);
+            return;
+          }
+          var u = new SpeechSynthesisUtterance(parts[idx]);
+          u.lang = 'ar-SA';
+          u.rate = rateN;
+          u.pitch = 1;
+          u.volume = 1;
+          var voices = window.speechSynthesis.getVoices() || [];
+          var ar = voices.find(function(v){ return /ar[-_]?SA/i.test(v.lang); })
+            || voices.find(function(v){ return /ar[-_]?EG/i.test(v.lang); })
+            || voices.find(function(v){ return /ar[-_]?AE/i.test(v.lang); })
+            || voices.find(function(v){ return /^ar\b/i.test(v.lang) || /arabic/i.test(v.name||''); });
+          if (ar) u.voice = ar;
+          showTtsBar(parts.length > 1 ? ('Дуа · ' + (idx+1) + '/' + parts.length) : 'Дуа', ar ? (ar.name || 'ar') : 'ar-SA');
+          u.onend = function() { speakSynthParts(idx + 1); };
+          u.onerror = function() {
+            // если синтез сорвался на первом куске — Google TTS
+            if (idx === 0) speakGoogleParts(0);
+            else speakSynthParts(idx + 1);
+          };
+          window.speechSynthesis.speak(u);
+        } catch(e) {
+          speakGoogleParts(0);
+        }
+      }
+
+      // 2) Google TTS через playAudio (если синтез недоступен)
+      function speakGoogleParts(startIdx) {
+        if (!navigator.onLine) {
+          toast('Нужен интернет или арабский голос в системе');
+          return;
+        }
+        var queue = parts.map(function(p, ix) {
+          return {
+            url: 'https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + encodeURIComponent(p),
+            title: parts.length > 1 ? ('Дуа · ' + (ix+1) + '/' + parts.length) : 'Дуа',
+            ar: p,
+            adhkar: true,
+            surah: null,
+            ayah: null
+          };
         });
+        if (typeof playAudio === 'function') {
+          try {
+            window._audioCtx = 'adhkar';
+            if (typeof audioPlayMode !== 'undefined') audioPlayMode = parts.length > 1 ? 'surah' : 'single';
+            try { if (typeof updateAudioModeButtons === 'function') updateAudioModeButtons(); } catch(e) {}
+            playAudio(queue[startIdx].url, queue[startIdx].title, {
+              queue: queue,
+              queueIdx: startIdx,
+              mode: parts.length > 1 ? 'surah' : 'single',
+              repeat: 1
+            });
+            toast('▶ ' + queue[startIdx].title);
+            return;
+          } catch(e) {}
+        }
+        toast('Не удалось озвучить');
       }
-      next();
-    }
 
-
-function speakAyahAudio(surah, ayah) {
-      // только этот аят, без очереди и без перехода дальше
-      surah = +surah; ayah = +ayah;
-      if (!surah || !ayah) return;
-      const title = 'Сура ' + surah + ' · аят ' + ayah;
-      const url = (typeof ayahAudioUrl === 'function') ? ayahAudioUrl(surah, ayah) : '';
-      audioPlayMode = 'single';
-      try { updateAudioModeButtons(); } catch(e) {}
-      if (url) {
-        playAudio(url, title, { ayah: ayah, surah: surah, mode: 'single', repeat: (typeof getRepeatCount === 'function' ? getRepeatCount() : 1) });
-      } else {
-        toast('Аудио недоступно');
+      // Старт: если есть голоса ar — синтез, иначе ждём onvoiceschanged, потом Google
+      function start() {
+        var voices = [];
+        try { voices = window.speechSynthesis.getVoices() || []; } catch(e) {}
+        var hasAr = voices.some(function(v){ return /^ar\b/i.test(v.lang) || /arabic/i.test(v.name||''); });
+        if (hasAr) {
+          speakSynthParts(0);
+        } else if (typeof window.speechSynthesis !== 'undefined') {
+          // голоса ещё не подгрузились
+          var done = false;
+          var once = function() {
+            if (done) return;
+            done = true;
+            try { window.speechSynthesis.onvoiceschanged = null; } catch(e) {}
+            var v2 = [];
+            try { v2 = window.speechSynthesis.getVoices() || []; } catch(e) {}
+            if (v2.some(function(v){ return /^ar\b/i.test(v.lang) || /arabic/i.test(v.name||''); })) {
+              speakSynthParts(0);
+            } else {
+              speakGoogleParts(0);
+            }
+          };
+          try { window.speechSynthesis.onvoiceschanged = once; } catch(e) {}
+          setTimeout(once, 400);
+        } else {
+          speakGoogleParts(0);
+        }
       }
+      start();
     }
 
 
@@ -11616,14 +11669,18 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
-        { major: '2', v: '2.63', kinds: ['f'], date: '2026-08-09',
+        { major: '2', v: '2.66', kinds: ['f','a'], date: '2026-08-09',
           f: [
             'Плеер: ✕ полностью останавливает звук (audio + TTS + очередь)',
-            'Плеер: ⏸ пауза/продолжить для audioEl, speechSynthesis и запасного плеера'
+            'Плеер: ⏸ пауза/продолжить для audioEl, speechSynthesis и запасного плеера',
+            'Дуа: сначала speechSynthesis ar (как в Academy), иначе Google TTS'
+          ],
+          a: [
+            'Истории Ислама: озвучка с полосой плеера (⏸ / ✕)'
           ],
           a: [], b: [], d: [], ph: [], I: [], o: [], s: [], on: []
         },
-        { major: '2', v: '2.62e', kinds: ['f','s'], date: '2026-08-09',
+        { major: '2', v: '2.65', kinds: ['f','s'], date: '2026-08-09',
           f: [
             'Дуа TTS: таймауты 3.5с на хост, AbortController на blob',
             'Если оба Google TTS недоступны — сразу синтез (кэш на сессию)'
@@ -11631,21 +11688,21 @@ function renderSalah() {
           s: ['Очередь азкаров/дуа не зависает на одной карточке при плохой сети'],
           a: [], b: [], d: [], ph: [], I: [], o: [], on: []
         },
-        { major: '2', v: '2.62d', kinds: ['f'], date: '2026-08-09',
+        { major: '2', v: '2.64', kinds: ['f'], date: '2026-08-09',
           f: [
             'Дуа: оба хоста Google TTS (googleapis.com → google.com)',
             'Запас: арабский speechSynthesis, крайний случай — русский перевод'
           ],
           a: [], b: [], d: [], ph: [], I: [], o: [], s: [], on: []
         },
-        { major: '2', v: '2.62c', kinds: ['f'], date: '2026-08-09',
+        { major: '2', v: '2.63', kinds: ['f'], date: '2026-08-09',
           f: [
             'Плеер виден в Азкарах и Дуа-конструкторе (display:none больше не залипает)',
             'Сброс inline-стиля плеера в 5 местах показа/скрытия'
           ],
           a: [], b: [], d: [], ph: [], I: [], o: [], s: [], on: []
         },
-        { major: '2', v: '2.62b', kinds: ['a','b'], date: '2026-08-09',
+        { major: '2', v: '2.62', kinds: ['a','b'], date: '2026-08-09',
           a: [
             'Азкары: ▶ Слушать всё / 🔁 и очередь с 🔊 на карточке',
             'Дуа-конструктор: ▶ Слушать все + очередь по теме',
@@ -14627,6 +14684,19 @@ if (compassBtn) compassBtn.addEventListener('click', function(){
             return /Google|Microsoft|Natural|Premium|Enhanced/i.test(v.name) && v.lang && v.lang.indexOf(u.lang.slice(0,2)) === 0;
           }) || voices.find(function(v){ return v.lang && v.lang.indexOf(u.lang.slice(0,2)) === 0; });
           if (prefer) u.voice = prefer;
+        } catch(e) {}
+        u.onend = function(){
+          window._ttsPlaying = false;
+          try { var ap = document.getElementById('audio-play-pause'); if (ap) ap.textContent = '▶'; } catch(e) {}
+        };
+        u.onerror = function(){ window._ttsPlaying = false; };
+        window._ttsPlaying = true;
+        try {
+          if (typeof audioBar !== 'undefined' && audioBar) { audioBar.classList.add('visible'); audioBar.style.display = ''; }
+          var at = document.getElementById('audio-title');
+          if (at && (!at.textContent || at.textContent === '—')) at.textContent = 'Озвучка';
+          var ap = document.getElementById('audio-play-pause');
+          if (ap) ap.textContent = '⏸';
         } catch(e) {}
         window.speechSynthesis.speak(u);
       } catch(e) {}
@@ -19619,9 +19689,27 @@ function renderStories(openOpts) {
               if (arParts && arParts.length) {
                 speakArText(arParts.join(' . '), 0.85);
                 toast('▶ Арабский (история)');
-              } else if (typeof speakSoft === 'function') speakSoft(body, kk ? 'kk-KZ' : 'ru-RU');
-            } else if (typeof speakSoft === 'function') {
+                return;
+              }
+            }
+            // Русская/каз. озвучка с полосой плеера
+            if (typeof speakSoft === 'function') {
               speakSoft(body, kk ? 'kk-KZ' : 'ru-RU');
+              try {
+                if (typeof audioBar !== 'undefined' && audioBar) {
+                  audioBar.classList.add('visible');
+                  audioBar.style.display = '';
+                }
+                var at = document.getElementById('audio-title');
+                if (at) at.textContent = 'История';
+                var asub = document.getElementById('audio-sub');
+                if (asub) asub.textContent = kk ? 'қазақша' : 'русский';
+                var ap = document.getElementById('audio-play-pause');
+                if (ap) ap.textContent = '⏸';
+                window._ttsPlaying = true;
+                window._audioCtx = 'story';
+              } catch(e) {}
+              toast('▶ История');
             }
           } catch(e) {}
         });
