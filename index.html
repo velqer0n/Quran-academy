@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.60 2026-08-09 -->
+<!-- BUILD 2.61 2026-08-09 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.60</title>
+  <title>Коран — Изучение · 2.61</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -11367,6 +11367,14 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.61', kinds: ['f','b'], date: '2026-08-09',
+          f: [
+            'Компас: кнопка Выключить сохраняется после перерисовки',
+            'Стрелка с меткой КИБЛА / 🕋 — куда смотреть'
+          ],
+          b: [], a: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+
         { major: '2', v: '2.60', kinds: ['f'], date: '2026-08-09',
           f: [
             'Компас: одна стрелка, сглаживание, Выключить компас',
@@ -13267,10 +13275,14 @@ let body = '';
                     '<div style="position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:0.65rem;color:var(--text-muted);opacity:0.6">Ю</div>' +
                     '<div style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:0.65rem;color:var(--text-muted);opacity:0.6">З</div>' +
                     '<div style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:0.65rem;color:var(--text-muted);opacity:0.6">В</div>' +
-                    '<div id="qibla-needle" style="position:absolute;left:50%;top:50%;width:4px;height:58px;background:var(--accent);border-radius:2px;transform-origin:bottom center;transform:translate(-50%,-100%) rotate('+q+'deg);transition:transform 0.2s linear;will-change:transform"></div>' +
+                    '<div id="qibla-needle" style="position:absolute;left:50%;top:50%;width:4px;height:62px;background:var(--accent);border-radius:2px;transform-origin:bottom center;transform:translate(-50%,-100%) rotate('+q+'deg);will-change:transform">' +
+                    '<div style="position:absolute;left:50%;top:-18px;transform:translateX(-50%);font-size:1.1rem;line-height:1" title="Кибла">🕋</div>' +
+                    '<div style="position:absolute;left:50%;top:-32px;transform:translateX(-50%);font-size:0.65rem;color:var(--accent);font-weight:700;white-space:nowrap">КИБЛА</div>' +
+                    '</div>' +
                     '<div style="position:absolute;left:50%;top:50%;width:10px;height:10px;background:var(--accent);border-radius:50%;transform:translate(-50%,-50%)"></div></div>' +
-                    '<button type="button" class="btn btn-sm" id="pt-compass" style="margin-top:0.5rem">Включить компас</button>' +
-                    '<div id="qibla-status" class="ayah-translation" style="margin-top:0.35rem;font-size:0.8rem"></div></div>';
+                    '<p class="ayah-translation" style="font-size:0.8rem;margin:0.35rem 0 0">Зелёная стрелка с 🕋 указывает <b>направление на Каабу</b>. Поворачивайте телефон, пока 🕋 не окажется сверху экрана.</p>' +
+                    '<button type="button" class="btn btn-sm" id="pt-compass" style="margin-top:0.5rem">'+(window._qiblaOn ? 'Выключить компас' : 'Включить компас')+'</button>' +
+                    '<div id="qibla-status" class="ayah-translation" style="margin-top:0.35rem;font-size:0.8rem">'+(window._qiblaOn ? 'Компас включён' : 'Азимут '+q.toFixed(0)+'° от севера. Включите компас, чтобы стрелка крутилась.')+'</div></div>';
                 } catch(e) {}
               }
             }
@@ -13601,7 +13613,13 @@ let body = '';
 
           // compass
           const compassBtn = document.getElementById('pt-compass');
-          if (compassBtn) compassBtn.addEventListener('click', function(){
+          
+          if (window._qiblaOn && compassBtn) {
+            // экран перерисовался — слушатели слетели; перезапуск без confirm
+            window._qiblaOn = false;
+            setTimeout(function(){ try { compassBtn.click(); } catch(e) {} }, 100);
+          }
+if (compassBtn) compassBtn.addEventListener('click', function(){
             const status = document.getElementById('qibla-status');
             const needle = document.getElementById('qibla-needle');
             const qDeg = qiblaBearing(+loc.lat, +loc.lon);
