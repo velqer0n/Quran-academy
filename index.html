@@ -5494,7 +5494,7 @@ function getMainTabOrder() {
       function tryDirect(u) {
         return new Promise(function(resolve, reject) {
           let done = false;
-          const to = setTimeout(function() { if (done) return; done = true; cleanup(); reject(new Error('timeout')); }, 7000);
+          const to = setTimeout(function() { if (done) return; done = true; cleanup(); reject(new Error('timeout')); }, 3500);
           function cleanup() { audioEl.removeEventListener('playing', onPlaying); audioEl.onerror = null; }
           function onPlaying() { if (done) return; done = true; clearTimeout(to); cleanup(); resolve(); }
           audioEl.addEventListener('playing', onPlaying);
@@ -5506,11 +5506,19 @@ function getMainTabOrder() {
         });
       }
       function tryBlob(u) {
-        return fetch(u, { mode: 'cors' }).then(function(r) { if (!r.ok) throw new Error('http'); return r.blob(); }).then(function(blob) {
+        let ctrl = null;
+        try { ctrl = new AbortController(); } catch(e) {}
+        const abTo = ctrl ? setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 3500) : null;
+        return fetch(u, { mode: 'cors', signal: ctrl ? ctrl.signal : undefined }).then(function(r) {
+          if (abTo) clearTimeout(abTo);
+          if (!r.ok) throw new Error('http');
+          return r.blob();
+        }).then(function(blob) {
           return new Promise(function(resolve, reject) {
             const obj = URL.createObjectURL(blob);
             let done = false;
-            function cleanup() { audioEl.removeEventListener('playing', onPlaying); audioEl.onerror = null; }
+            const to2 = setTimeout(function() { if (done) return; done = true; cleanup(); reject(new Error('timeout')); }, 3500);
+            function cleanup() { audioEl.removeEventListener('playing', onPlaying); audioEl.onerror = null; clearTimeout(to2); }
             function onPlaying() { if (done) return; done = true; cleanup(); resolve(); }
             audioEl.addEventListener('playing', onPlaying);
             audioEl.onerror = function() { if (done) return; done = true; cleanup(); try { URL.revokeObjectURL(obj); } catch(e) {} reject(new Error('blob')); };
@@ -5519,11 +5527,22 @@ function getMainTabOrder() {
             const p = audioEl.play();
             if (p && p.catch) p.catch(function() { if (done) return; done = true; cleanup(); reject(new Error('play')); });
           });
-        });
+        }).catch(function(e) { if (abTo) clearTimeout(abTo); throw e; });
       }
       function tryHost(u) {
         return tryDirect(u).catch(function() { return tryBlob(u); });
       }
+      function tryHostsThenSynth() {
+        if (window._ttsHostsBlocked) { synthFallback(); return; }
+        tryHost(urls[0]).catch(function() { return tryHost(urls[1]); }).then(function() {
+          window._ttsHostsBlocked = false;
+        }).catch(function() {
+          window._ttsHostsBlocked = true; // оба хоста недоступны в этом браузере — не тратим время на них дальше в этой сессии
+          synthFallback();
+        });
+      }
+      // Синтез речи: ждём событие 'start' максимум 2с (иначе движка/голоса нет — не виснем),
+      // а после старта ограничиваем общее время разумной оценкой длины текста.
       function synthOnce(text2, lang, voice) {
         return new Promise(function(resolve, reject) {
           if (!window.speechSynthesis || !text2) { reject(new Error('no synth')); return; }
@@ -5532,12 +5551,27 @@ function getMainTabOrder() {
           u.lang = lang;
           if (voice) try { u.voice = voice; } catch(e) {}
           u.rate = 0.85; u.volume = 1;
+          let started = false, settled = false;
+          const startTo = setTimeout(function() {
+            if (started || settled) return;
+            settled = true;
+            try { window.speechSynthesis.cancel(); } catch(e) {}
+            window._ttsPlaying = false;
+            reject(new Error('no start'));
+          }, 2000);
+          const maxTo = setTimeout(function() {
+            if (settled) return;
+            settled = true;
+            try { window.speechSynthesis.cancel(); } catch(e) {}
+            window._ttsPlaying = false;
+            resolve();
+          }, Math.min(20000, 2500 + text2.length * 90));
+          u.onstart = function() { started = true; clearTimeout(startTo); };
+          u.onend = function() { if (settled) return; settled = true; clearTimeout(startTo); clearTimeout(maxTo); window._ttsPlaying = false; resolve(); };
+          u.onerror = function() { if (settled) return; settled = true; clearTimeout(startTo); clearTimeout(maxTo); window._ttsPlaying = false; reject(new Error('synth err')); };
           window._ttsPlaying = true;
-          document.getElementById('audio-play-pause').textContent = '⏸';
-          let settled = false;
-          u.onend = function() { if (settled) return; settled = true; window._ttsPlaying = false; resolve(); };
-          u.onerror = function() { if (settled) return; settled = true; window._ttsPlaying = false; reject(new Error('synth err')); };
-          try { window.speechSynthesis.speak(u); } catch(e) { window._ttsPlaying = false; reject(e); }
+          try { document.getElementById('audio-play-pause').textContent = '⏸'; } catch(e) {}
+          try { window.speechSynthesis.speak(u); } catch(e) { settled = true; clearTimeout(startTo); clearTimeout(maxTo); window._ttsPlaying = false; reject(e); }
         });
       }
       function synthFallback() {
@@ -5561,7 +5595,14 @@ function getMainTabOrder() {
           if (audioQueueIdx === idx) playNextInQueue();
         });
       }
-      tryHost(urls[0]).catch(function() { return tryHost(urls[1]); }).catch(function() { synthFallback(); });
+      tryHostsThenSynth();
+      // Страховка: если по любой причине ни один путь не «разрешился» за разумное время
+      // (баг движка синтеза и т.п.), не даём плееру зависнуть — сами двигаем очередь дальше.
+      setTimeout(function() {
+        if (audioQueueIdx === idx && !audioEl.currentTime && window._ttsPlaying !== true && audioEl.paused) {
+          try { playNextInQueue(); } catch(e) {}
+        }
+      }, 40000);
     }
 
     function playQueueItem(idx) {
