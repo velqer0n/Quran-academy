@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- BUILD 2.66 2026-08-09 -->
+<!-- BUILD 2.67 2026-08-09 -->
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 2.66</title>
+  <title>Коран — Изучение · 2.67</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -5532,7 +5532,7 @@ function getMainTabOrder() {
       function tryHost(u) {
         return tryDirect(u).catch(function() { return tryBlob(u); });
       }
-      function tryHostsThenSynth() {
+      function tryGoogleHostsThenRu() {
         if (window._ttsHostsBlocked) { synthFallback(); return; }
         tryHost(urls[0]).catch(function() { return tryHost(urls[1]); }).then(function() {
           window._ttsHostsBlocked = false;
@@ -5540,6 +5540,25 @@ function getMainTabOrder() {
           window._ttsHostsBlocked = true; // оба хоста недоступны в этом браузере — не тратим время на них дальше в этой сессии
           synthFallback();
         });
+      }
+      function tryHostsThenSynth() {
+        // Как в Academy.html: сначала — голос устройства (бесплатно, офлайн, без стороннего
+        // сервиса и без вопросов авторского права). Google Translate TTS — только запасной путь,
+        // если на устройстве нет арабского голоса или синтез не запустился.
+        let voices = [];
+        try { voices = window.speechSynthesis ? (window.speechSynthesis.getVoices() || []) : []; } catch(e) {}
+        const arVoice = voices.find(v => /^ar(-|$)/i.test(v.lang)) || voices.find(v => /arab/i.test(v.name || ''));
+        if (arVoice) {
+          synthOnce(text, arVoice.lang || 'ar-SA', arVoice).then(function() {
+            if (audioQueueIdx !== idx) return;
+            if (audioRepeatLeft > 1) { audioRepeatLeft--; updateAudioSub(); playTtsQueueItem(item, idx); return; }
+            playNextInQueue();
+          }).catch(function() {
+            tryGoogleHostsThenRu();
+          });
+          return;
+        }
+        tryGoogleHostsThenRu();
       }
       // Синтез речи: ждём событие 'start' максимум 2с (иначе движка/голоса нет — не виснем),
       // а после старта ограничиваем общее время разумной оценкой длины текста.
@@ -11669,6 +11688,17 @@ function renderSalah() {
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн
       const log = [
+        { major: '2', v: '2.67', kinds: ['f','a'], date: '2026-08-09',
+          a: [
+            'Дуа/азкары: арабская озвучка для всех карточек (TTS + очередь)'
+          ],
+          f: [
+            'Азан: один плеер (видимый controls) — перемотка и прогресс работают',
+            'Азан: меньше задержки старта (canplay / повтор без перезагрузки src)'
+          ],
+          b: [], d: [], ph: [], I: [], o: [], s: [], on: []
+        },
+
         { major: '2', v: '2.66', kinds: ['f','a'], date: '2026-08-09',
           f: [
             'Плеер: ✕ полностью останавливает звук (audio + TTS + очередь)',
@@ -13872,23 +13902,10 @@ let body = '';
           });
           document.getElementById('pt-adhan-test')?.addEventListener('click', function(){
             toast('Азан…');
-            try {
-              stopAdhan();
-              const urls = getAdhanUrls();
-              const ui = document.getElementById('adhan-player-ui');
-              if (ui && urls[0]) {
-                ui.onerror = function(){ try { playAdhan(); } catch(e) {} };
-                ui.src = urls[0];
-                ui.play().catch(function(){ try { playAdhan(); } catch(e) {} });
-              } else playAdhan();
-            } catch(e) { try { playAdhan(); } catch(err) {} }
+            try { playAdhan({ force: true }); } catch(e) {}
           });
           document.getElementById('pt-adhan-stop')?.addEventListener('click', function(){
             try { stopAdhan(); } catch(e) {}
-            try {
-              const ui = document.getElementById('adhan-player-ui');
-              if (ui) { ui.pause(); ui.currentTime = 0; }
-            } catch(e) {}
             toast('Стоп');
           });
           document.getElementById('pt-adhan-reciter')?.addEventListener('change', function(e){
@@ -14588,50 +14605,114 @@ if (compassBtn) compassBtn.addEventListener('click', function(){
     ];
     function getAdhanUrls() {
       const id = (state.settings && state.settings.adhanReciter) || 'mishary';
-      const r = ADHAN_RECITERS.find(function(x){ return x.id === id; }) || ADHAN_RECITERS[0];
+      const r = (typeof ADHAN_RECITERS !== 'undefined' && ADHAN_RECITERS.find(function(x){ return x.id === id; })) || (typeof ADHAN_RECITERS !== 'undefined' ? ADHAN_RECITERS[0] : null);
       return (r && r.urls) ? r.urls.slice() : [];
     }
-    function stopAdhan() {
-      try {
-        const a = document.getElementById('adhan-audio');
-        if (a) { a.pause(); try { a.removeAttribute('src'); a.load(); } catch(e2) { a.currentTime = 0; } }
-        try {
-          const ui = document.getElementById('adhan-player-ui');
-          if (ui) { ui.pause(); ui.currentTime = 0; }
-        } catch(e3) {}
-        if (window.speechSynthesis) { window.speechSynthesis.cancel(); }
-      } catch(e) {}
+    /** Один элемент: видимый #adhan-player-ui или скрытый #adhan-audio */
+    function getAdhanEl() {
+      var ui = document.getElementById('adhan-player-ui');
+      if (ui) return ui;
+      var a = document.getElementById('adhan-audio');
+      if (!a) {
+        a = document.createElement('audio');
+        a.id = 'adhan-audio';
+        a.preload = 'auto';
+        a.setAttribute('playsinline', '1');
+        a.controls = false;
+        document.body.appendChild(a);
+      }
+      return a;
     }
-    function playAdhan() {
+    function stopAdhan() {
+      try { window._adhanStop = true; } catch(e) {}
       try {
-        if (state.settings && state.settings.prayerAdhan === false) return;
-        stopAdhan();
-        try {
-          const ui = document.getElementById('adhan-player-ui');
-          if (ui) { ui.pause(); }
-        } catch(e) {}
-        let a = document.getElementById('adhan-audio');
-        if (!a) {
-          a = document.createElement('audio');
-          a.id = 'adhan-audio';
-          a.preload = 'auto';
-          a.setAttribute('playsinline', '1');
-          a.controls = false;
-          document.body.appendChild(a);
+        var a = document.getElementById('adhan-player-ui') || document.getElementById('adhan-audio');
+        if (a) {
+          a.pause();
+          try { a.currentTime = 0; } catch(e) {}
         }
-        const urls = getAdhanUrls();
-        let i = 0;
-        let started = false;
+        // не снимаем src — чтобы можно было снова seek/play с того же файла
+      } catch(e) {}
+      try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
+      setTimeout(function(){ try { window._adhanStop = false; } catch(e) {} }, 200);
+    }
+    function playAdhan(opts) {
+      opts = opts || {};
+      try {
+        if (!opts.force && state.settings && state.settings.prayerAdhan === false) return;
+        window._adhanStop = false;
+        var a = getAdhanEl();
+        var urls = getAdhanUrls();
+        if (!urls.length) {
+          try { toast('Азан: нет ссылок на файл'); } catch(e) {}
+          return;
+        }
+        var i = 0;
+        var started = false;
+
+        function bindAndPlay(url) {
+          if (window._adhanStop) return;
+          // сброс старых обработчиков
+          a.onerror = null;
+          a.onplaying = null;
+          a.oncanplay = null;
+          a.onloadeddata = null;
+
+          function doPlay() {
+            if (window._adhanStop || started) return;
+            var p = a.play();
+            if (p && p.then) {
+              p.then(function(){ started = true; }).catch(function(){
+                if (!started && !window._adhanStop) { i++; tryNext(); }
+              });
+            }
+          }
+
+          a.onerror = function() {
+            if (!started && !window._adhanStop) { i++; tryNext(); }
+          };
+          a.onplaying = function() { started = true; };
+
+          // если тот же src уже загружен — сразу play (без паузы «чуть погодя»)
+          var same = false;
+          try {
+            if (a.src && (a.src === url || a.src.indexOf(url.replace(/^https?:/,'')) >= 0 || decodeURIComponent(a.src).indexOf(url.split('/').pop()) >= 0)) {
+              same = a.readyState >= 2;
+            }
+          } catch(e) {}
+
+          if (same) {
+            try { a.currentTime = 0; } catch(e) {}
+            doPlay();
+            return;
+          }
+
+          a.preload = 'auto';
+          a.src = url;
+          try { a.load(); } catch(e) {}
+
+          // Ждём готовности — тогда прогресс/перемотка в controls работают
+          var done = false;
+          function ready() {
+            if (done || window._adhanStop) return;
+            done = true;
+            a.removeEventListener('canplay', ready);
+            a.removeEventListener('loadeddata', ready);
+            doPlay();
+          }
+          a.addEventListener('canplay', ready);
+          a.addEventListener('loadeddata', ready);
+          // страховка
+          setTimeout(function(){ if (!done && !started) ready(); }, 2500);
+        }
+
         function tryNext() {
+          if (window._adhanStop) return;
           if (i >= urls.length) {
             if (!started) try { toast('Азан: нет сети или файл недоступен'); } catch(e) {}
             return;
           }
-          a.onerror = function() { if (!started) { i++; tryNext(); } };
-          a.onplaying = function() { started = true; };
-          a.src = urls[i];
-          const p = a.play();
-          if (p && p.catch) p.catch(function(){ if (!started) { i++; tryNext(); } });
+          bindAndPlay(urls[i]);
         }
         tryNext();
       } catch(e) {}
