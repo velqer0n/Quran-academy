@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- BUILD 4.05 2026-08-25: Раздел «Регистрация» (меню «Ещё» → «Онлайн», только для админов): теперь в списке пользователей виден email рядом с ником, и у админа появилась кнопка 🚫 «Блок» — блокирует пользователя по email (с необязательной причиной). Заблокированный email больше не может войти в аккаунт (сессия сразу завершается) и не может повторно зарегистрироваться. Добавлена отдельная категория «🚫 Заблокированные» с полным списком и кнопкой «✅ Разблокировать». Блокировки хранятся в новой таблице Supabase blocked_emails (SQL для её создания и RLS-политик показывается в разделе, если таблицы ещё нет) -->
 <!-- BUILD 4.04 2026-08-24: Исправлен баг «Кто вы?» в «Мой аккаунт»: сохранение выбора Ученик/Учитель в таблицу profiles не проверяло результат запроса — если строка не обновлялась (нет строки в profiles или не хватает прав), приложение всё равно писало «Сохранено» и запоминало уровень только локально. Из-за этого сервер не признавал пользователя учителем, и переставали работать анонимные вопросы на «Форуме» (не показывались) и ответы учителя (не сохранялись) — хотя в интерфейсе всё выглядело так, будто роль учителя выставлена -->
 <!-- BUILD 4.03 2026-08-24: «Мои вопросы/ответы» и «Форум» переработаны по ролям доступа: в «Мои вопросы/ответы» теперь видны ТОЛЬКО собственные вопросы автора (учителя и админы чужих вопросов там больше не видят и не отвечают); в «Форум» перенесены все НЕанонимные вопросы/ответы — их видят все; анонимные вопросы видны и доступны для ответа только учителям. Также исправлен баг: при ответе учителя на чужой вопрос ответ мог «сохраняться» без ошибки, но не записываться и не показываться из-за RLS-политики UPDATE — теперь приложение проверяет, что строка реально обновилась, и если нет — прямо сообщает о нехватке прав вместо ложного «сохранено» -->
 <!-- BUILD 4.02 2026-08-24: «Мои вопросы/ответы»: перед отправкой вопроса, ответа учителя и удалением теперь проверяется настоящая сессия Supabase (не только локальный флаг «вы вошли») — если токен истёк или недействителен, показывается понятное сообщение «Войдите заново» вместо непонятной ошибки «permission denied for table questions» -->
@@ -11,7 +12,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 4.04</title>
+  <title>Коран — Изучение · 4.06</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -15333,6 +15334,55 @@ bKk:
         return ADMIN_EMAILS.indexOf(String(s.email).trim().toLowerCase()) !== -1;
       } catch(e) { return false; }
     }
+    // ==== Блокировка пользователей по email (админами) ====
+    // Таблица blocked_emails в Supabase — единый «чёрный список» email-адресов.
+    // Заблокированный email: (1) не может войти в существующий аккаунт,
+    // (2) не может зарегистрировать новый аккаунт повторно с этим же email.
+    // Это проверка на уровне интерфейса (как и остальной AUTH-блок в этом файле);
+    // чтобы защитить и на сервере, нужна RLS-политика в Supabase (см. SQL в разделе «Регистрация»).
+    async function isEmailBlocked(email) {
+      try {
+        var sb = getSb();
+        var e = String(email || '').trim().toLowerCase();
+        if (!sb || !e) return false;
+        var r = await sb.from('blocked_emails').select('email').eq('email', e).maybeSingle();
+        if (r && r.error) { console.warn('blocked_emails check', r.error); return false; }
+        return !!(r && r.data);
+      } catch(err) { console.warn('isEmailBlocked', err); return false; }
+    }
+    async function blockUserEmail(email, nick, reason) {
+      var sb = getSb();
+      if (!sb) throw new Error('Supabase недоступен');
+      var e = String(email || '').trim().toLowerCase();
+      if (!e) throw new Error('Пустой email');
+      var sess = authSession();
+      var res = await sb.from('blocked_emails').upsert({
+        email: e,
+        nick: nick || '',
+        reason: reason || '',
+        blocked_by: (sess && sess.email) || '',
+        blocked_at: new Date().toISOString()
+      }, { onConflict: 'email' });
+      if (res && res.error) throw res.error;
+      try { await sb.from('profiles').update({ is_blocked: true }).eq('email', e); } catch(e2) {}
+      return true;
+    }
+    async function unblockUserEmail(email) {
+      var sb = getSb();
+      if (!sb) throw new Error('Supabase недоступен');
+      var e = String(email || '').trim().toLowerCase();
+      var res = await sb.from('blocked_emails').delete().eq('email', e);
+      if (res && res.error) throw res.error;
+      try { await sb.from('profiles').update({ is_blocked: false }).eq('email', e); } catch(e2) {}
+      return true;
+    }
+    async function fetchBlockedEmails() {
+      var sb = getSb();
+      if (!sb) return [];
+      var r = await sb.from('blocked_emails').select('email,nick,reason,blocked_at').order('blocked_at', { ascending: false }).limit(1000);
+      if (r && r.error) { console.warn('blocked_emails list', r.error); return null; }
+      return r.data || [];
+    }
     function authHash(str) {
       var s = 'qa1:' + String(str || '');
       var h = 2166136261;
@@ -15622,6 +15672,12 @@ bKk:
               var { data, error } = await sb.auth.signInWithPassword({ email: emailForOnline, password: pass });
               if (!error) {
                 var u = data.user || (data.session && data.session.user);
+                var blockedOnLogin = await isEmailBlocked((u && u.email) || emailForOnline);
+                if (blockedOnLogin) {
+                  try { await sb.auth.signOut(); } catch(eSO) {}
+                  toast(kk ? 'Бұл аккаунт бұғатталған. Әкімшіге хабарласыңыз.' : 'Этот аккаунт заблокирован администратором.');
+                  return;
+                }
                 var meta = (u && u.user_metadata) || {};
                 var nickLogin = meta.nick || meta.nickname || (id.indexOf('@')>=0 ? id.split('@')[0] : id);
                 var levelLogin = meta.level !== undefined ? meta.level : '';
@@ -15694,6 +15750,11 @@ bKk:
           var sb = getSb();
           if (sb) {
             try {
+              var blockedOnReg = await isEmailBlocked(email);
+              if (blockedOnReg) {
+                toast(kk ? 'Бұл email бұғатталған, қайта тіркелу мүмкін емес' : 'Этот email заблокирован, повторная регистрация с ним невозможна');
+                return;
+              }
               var { data, error } = await sb.auth.signUp({
                 email: email,
                 password: pass,
@@ -15780,7 +15841,7 @@ bKk:
     function renderAppUpdate() {
       var el = document.getElementById('appupdate-body');
       if (!el) return;
-      var ver = '4.04';
+      var ver = '4.06';
       try {
         var t = document.title || '';
         var m = t.match(/\d+\.\d+/);
@@ -15811,6 +15872,36 @@ bKk:
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн · .lan языки
       const log = [
+        { major: '4', v: '4.06', kinds: ['admin'], date: '2026-08-24',
+          admin: [
+            'Раздел «Форум»: у администраторов на карточке любого неанонимного вопроса появилась кнопка 🛡 «Скрыть от всех (лёгкий вопрос)» — переводит вопрос в режим видимости, как у обычного анонимного (виден только учителям и самому автору), не удаляя ни вопрос, ни ответ. Задумано для простых/неважных вопросов, на которые не стоит тратить общее внимание Форума',
+            'Скрытый администратором вопрос помечен собственным значком 🛡 «Скрыто админом» — отдельным от обычного значка «🔒 анонимно», чтобы было видно: это решение администратора, а не выбор автора при отправке вопроса. У такого вопроса появляется кнопка 🛡 «Показать всем снова» — действие обратимо в любой момент',
+            'На стороне базы данных потребуется новая колонка questions.hidden_by_admin (boolean, по умолчанию false) — без неё кнопки скрытия/показа будут завершаться ошибкой нехватки прав; действующая с версии 4.05 RLS-политика обновления строк для администраторов эту колонку уже покрывает, отдельно настраивать её не нужно'
+          ],
+          adminKk: [
+            '«Форум» бөлімі: әкімшілерде кез келген анонимды емес сұрақ карточкасында 🛡 «Барлығынан жасыру (жеңіл сұрақ)» түймесі пайда болды — сұрақты әдеттегі анонимды сұрақ сияқты көрінетін етеді (тек мұғалімдер мен автордың өзі көреді), сұрақты да, жауапты да жоймай. Форумның жалпы назарын аудармауға тұрарлық қарапайым/маңызды емес сұрақтарға арналған',
+            'Әкімші жасырған сұрақ жеке 🛡 «Әкімші жасырды» белгісімен көрсетіледі — әдеттегі «🔒 анонимды» белгісінен бөлек, бұл автордың таңдауы емес, әкімшінің шешімі екенін көрсету үшін. Мұндай сұрақта 🛡 «Барлығына қайта көрсету» түймесі пайда болады — әрекет кез келген уақытта қайтымды',
+            'Дерекқор жағында жаңа questions.hidden_by_admin бағаны қажет болады (boolean, әдепкі бойынша false) — онсыз жасыру/көрсету түймелері құқық жетіспейді деген қатемен аяқталады; 4.05 нұсқасынан бері әрекет ететін әкімшілерге арналған жолдарды жаңарту RLS-саясаты бұл бағанды қамтиды, оны бөлек баптаудың қажеті жоқ'
+          ]
+        },
+        { major: '4', v: '4.05', kinds: ['admin','f'], date: '2026-08-24',
+          f: [
+            '«Мой аккаунт» → «Кто вы?»: даже после проверки ответа сервера (исправленной в 4.04) сохранение у части пользователей всё равно падало с ошибкой «permission denied for table profiles». Причина оказалась глубже RLS-политик: у роли authenticated в Supabase вообще не было прав на INSERT/UPDATE для таблицы profiles на уровне самой базы данных — Postgres блокирует такой запрос ещё до того, как успевает дойти до проверки RLS-политик. Права выданы, добавлена политика на вставку собственной строки профиля (нужна при первой синхронизации) — ошибка больше не возникает'
+          ],
+          fKk: [
+            '«Менің аккаунтым» → «Сіз кімсіз?»: сервер жауабын тексеру (4.04-те түзетілген) болса да, кейбір қолданушыларда сақтау бәрібір «permission denied for table profiles» қатесімен аяқталатын. Себебі RLS-саясаттарынан да тереңірек болып шықты: Supabase-те authenticated рөлінде profiles кестесіне INSERT/UPDATE құқығы дерекқор деңгейінде мүлдем берілмеген еді — Postgres мұндай сұранысты RLS-саясаттарын тексеруге дейін-ақ бұғаттайды. Құқықтар берілді, профильдің өз жолын қосу саясаты қосылды (алғашқы синхрондау кезінде қажет) — қате енді шықпайды'
+          ],
+          admin: [
+            'Раздел «Форум» (а также «Мои вопросы/ответы»): на каждой карточке вопроса у администраторов (email из списка ADMIN_EMAILS, проверка через isAdminUser()) появились две дополнительные кнопки, независимо от того, чей это вопрос и есть ли на него ответ — 🛡 «Удалить вопрос полностью» (удаляет строку вопроса целиком, вместе с ответом) и 🛡 «Удалить только ответ» (показывается, только если ответ уже есть; обнуляет текст ответа, автора и дату ответа, сам вопрос остаётся)',
+            'Обе кнопки перед действием проверяют реальную сессию Supabase (как остальные операции в этом разделе) и запрашивают подтверждение. После запроса к серверу приложение проверяет через .select(), что строка действительно изменилась, и если нет — прямо сообщает, что не хватает прав на уровне RLS (Row Level Security), вместо тихой неудачи',
+            'На стороне базы данных добавлена функция public.is_admin() (сверяет email из JWT-сессии со списком администраторов) и две RLS-политики: удаление любой строки в questions администратором, а также её обновление — вторая нужна, чтобы кнопка «Удалить только ответ» могла обнулить answer_text/answered_by/answered_at. Обе политики действуют вместе с уже существующими (для автора и учителя) через OR, ничего не отбирая у обычных пользователей'
+          ],
+          adminKk: [
+            '«Форум» бөлімі (сондай-ақ «Сұрақ-жауаптарым»): әр сұрақ карточкасында әкімшілерде (ADMIN_EMAILS тізіміндегі email, isAdminUser() арқылы тексеріледі) екі қосымша түйме пайда болды — сұрақ кімдікі болса да және жауабы бар-жоғына қарамастан — 🛡 «Сұрақты толығымен жою» (сұрақ жолын жауабымен қоса толығымен жояды) және 🛡 «Тек жауапты жою» (тек жауап болған жағдайда көрінеді; жауап мәтінін, авторын және күнін нөлдейді, сұрақтың өзі қалады)',
+            'Екі түйме де әрекет алдында Supabase сессиясын шынымен тексереді (осы бөлімдегі басқа әрекеттер сияқты) және растауды сұрайды. Серверге сұраныстан кейін қолданба .select() арқылы жолдың шынымен өзгергенін тексереді, өзгермесе — үнсіз сәтсіздіктің орнына RLS (Row Level Security) деңгейінде құқық жетіспейтінін тікелей хабарлайды',
+            'Дерекқор жағында public.is_admin() функциясы (JWT-сессиядағы email-ді әкімшілер тізімімен салыстырады) және екі RLS-саясаты қосылды: questions кестесіндегі кез келген жолды әкімшінің жоюы, сондай-ақ жаңартуы — соңғысы «Тек жауапты жою» түймесіне answer_text/answered_by/answered_at өрістерін нөлдеу үшін қажет. Екі саясат та бар саясаттармен (автор мен мұғалім үшін) OR арқылы бірге жұмыс істейді, әдеттегі пайдаланушылардан ештеңе алып тастамайды'
+          ]
+        },
         { major: '4', v: '4.04', kinds: ['f'], date: '2026-08-24',
           f: [
             '«Мой аккаунт» → «Кто вы?»: сохранение выбора Ученик/Учитель в базу вообще не проверяло результат запроса — если запись в profiles не обновлялась (строки нет или не хватает прав), приложение всё равно писало «Сохранено», а на сервере уровень оставался прежним. Из-за этого сервер не считал пользователя учителем, и переставали работать анонимные вопросы на «Форуме» и ответы учителя, хотя в интерфейсе роль выглядела выставленной верно. Теперь приложение проверяет, что запись реально изменилась, и прямо сообщает об ошибке, если нет'
@@ -29632,12 +29723,14 @@ async function renderRegistrationSection() {
         return;
       }
       var tipHtml = tipCard(kk
-        ? 'Бұл бөлім тек ADMIN_EMAILS тізіміндегі email-мен кірген аккаунттарға көрінеді (кодта, AUTH бөлімінде). Бұл тек интерфейс деңгейіндегі шектеу — деректерді сервер жағынан да қорғау үшін Supabase-те profiles кестесіне RLS саясатын теке әкімшілерге рұқсат беретіндей етіп өзгертіңіз.'
-        : 'Этот раздел виден только аккаунтам, чей email указан в списке ADMIN_EMAILS (в коде, в блоке AUTH). Это ограничение только на уровне интерфейса — чтобы данные были защищены и на сервере, настройте в Supabase политику RLS для таблицы profiles так, чтобы читать её могли только администраторы.'
+        ? 'Бұл бөлім тек ADMIN_EMAILS тізіміндегі email-мен кірген аккаунттарға көрінеді (кодта, AUTH бөлімінде). Бұл тек интерфейс деңгейіндегі шектеу — деректерді сервер жағынан да қорғау үшін Supabase-те profiles кестесіне RLS саясатын теке әкімшілерге рұқсат беретіндей етіп өзгертіңіз. Блоктау email бойынша жүреді және blocked_emails кестесінде сақталады.'
+        : 'Этот раздел виден только аккаунтам, чей email указан в списке ADMIN_EMAILS (в коде, в блоке AUTH). Это ограничение только на уровне интерфейса — чтобы данные были защищены и на сервере, настройте в Supabase политику RLS для таблицы profiles так, чтобы читать её могли только администраторы. Блокировка идёт по email и хранится в таблице blocked_emails.'
       );
         if (!window._regPeriod) window._regPeriod = 'all';
         if (window._regOffset == null) window._regOffset = 0;
+        if (!window._regCat) window._regCat = 'active';
         var pCur = window._regPeriod || 'all';
+        var catCur = window._regCat || 'active';
         var periodBtns = ['day','week','month','year','all'].map(function(pid) {
           var lab = kk ? { day:'Күн', week:'Апта', month:'Ай', year:'Жыл', all:'Барлығы' }[pid]
                        : { day:'День', week:'Неделя', month:'Месяц', year:'Год', all:'Всё' }[pid];
@@ -29645,8 +29738,17 @@ async function renderRegistrationSection() {
           return '<button type="button" class="btn btn-sm st-reg-period" data-p="' + pid + '" style="border-radius:999px;' +
             (on ? 'background:var(--accent);color:#fff' : '') + '">' + lab + '</button>';
         }).join('');
+        var catBtns = [
+          { id:'active', lab: kk ? '👥 Тіркелгендер' : '👥 Зарегистрированные' },
+          { id:'blocked', lab: kk ? '🚫 Бұғатталғандар' : '🚫 Заблокированные' }
+        ].map(function(c) {
+          var on = c.id === catCur;
+          return '<button type="button" class="btn btn-sm st-reg-cat" data-c="' + c.id + '" style="border-radius:999px;' +
+            (on ? 'background:var(--danger);color:#fff' : '') + '">' + c.lab + '</button>';
+        }).join('');
         var html = tipHtml + '<div class="card"><b>👥 '+(kk ? 'Тіркелу' : 'Регистрация')+'</b>' +
-          '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.5rem 0">' + periodBtns + '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.5rem 0">' + catBtns + '</div>' +
+          (catCur === 'active' ? '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.5rem 0">' + periodBtns + '</div>' : '') +
           '<div id="stats-reg-body" class="ayah-translation" style="margin-top:0.35rem">'+(kk ? 'Жүктелуде…' : 'Загрузка…')+'</div></div>';
         el.innerHTML = html;
         try { bindTipToggles(el, 'registration'); } catch(e) {}
@@ -29657,13 +29759,19 @@ async function renderRegistrationSection() {
             renderRegistrationSection();
           });
         });
+        el.querySelectorAll('.st-reg-cat').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            window._regCat = btn.getAttribute('data-c') || 'active';
+            renderRegistrationSection();
+          });
+        });
         var sb = (typeof getSb === 'function') ? getSb() : null;
         var box = document.getElementById('stats-reg-body');
         if (!sb) {
           if (box) {
             var localUsers = [];
             try { localUsers = authUsers() || []; } catch(e) {}
-            box.innerHTML = '<p>'+(kk ? 'Жалпы статистика үшін интернет қажет (Supabase).' : 'Нужен интернет (Supabase) для общей статистики.')+'</p>' +
+            box.innerHTML = '<p>'+(kk ? 'Жалпы статистика үшін интернет қажет (Supabase).' : 'Нужен интернет (Supabase) для общей статистики и блокировки.')+'</p>' +
               '<p class="ayah-translation">'+(kk ? 'Осы құрылғыда жергілікті түрде: ' : 'Локально на этом устройстве: ')+'<b>'+localUsers.length+'</b></p>' +
               localUsers.map(function(u){
                 return '<div style="display:flex;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid var(--border);font-size:0.88rem"><span>'+String(u.nick||'—').replace(/</g,'&lt;')+'</span><span style="color:var(--text-muted)">'+(kk ? 'жергілікті' : 'локально')+'</span></div>';
@@ -29671,11 +29779,73 @@ async function renderRegistrationSection() {
           }
           return;
         }
+
+        // ==== Категория «Заблокированные» ====
+        if (catCur === 'blocked') {
+          try {
+            var blist = await fetchBlockedEmails();
+            if (blist === null) {
+              if (box) box.innerHTML = '<p style="color:var(--danger)">'+(kk ? 'blocked_emails кестесі табылмады немесе оқу құқығы жоқ.' : 'Таблица blocked_emails не найдена или нет прав на чтение.')+'</p>' +
+                '<p class="ayah-translation">'+(kk ? 'Supabase SQL Editor ішінде орындаңыз:' : 'Выполните в SQL Editor Supabase:')+'</p>' +
+                '<pre style="font-size:0.7rem;overflow:auto;background:var(--bg);padding:0.5rem;border-radius:0.4rem;white-space:pre-wrap">' +
+                'create table if not exists blocked_emails (\n' +
+                '  email text primary key,\n' +
+                '  nick text,\n' +
+                '  reason text,\n' +
+                '  blocked_by text,\n' +
+                '  blocked_at timestamptz default now()\n' +
+                ');\n' +
+                'alter table blocked_emails enable row level security;\n' +
+                'create policy "read blocked" on blocked_emails for select using (true);\n' +
+                'create policy "admins manage blocked" on blocked_emails for all\n' +
+                '  using (auth.jwt() ->> \'email\' in (' + ADMIN_EMAILS.map(function(e){return "'"+e+"'";}).join(', ') + '))\n' +
+                '  with check (auth.jwt() ->> \'email\' in (' + ADMIN_EMAILS.map(function(e){return "'"+e+"'";}).join(', ') + '));\n\n' +
+                'alter table profiles add column if not exists is_blocked boolean default false;' +
+                '</pre>';
+              return;
+            }
+            var brows = (blist || []).map(function(b) {
+              var em = String(b.email || '').replace(/</g, '&lt;');
+              var nk = String(b.nick || '—').replace(/</g, '&lt;');
+              var rs = b.reason ? String(b.reason).replace(/</g, '&lt;') : '';
+              var dt = b.blocked_at ? String(b.blocked_at).slice(0, 10) : '';
+              return '<div class="card" style="padding:0.65rem 0.8rem;margin-bottom:0.5rem">' +
+                '<div style="display:flex;justify-content:space-between;gap:0.5rem;align-items:flex-start">' +
+                '<div style="min-width:0"><div style="font-weight:600;word-break:break-all">' + em + '</div>' +
+                '<div style="font-size:0.8rem;color:var(--text-muted)">' + nk + (dt ? ' · ' + dt : '') + '</div>' +
+                (rs ? '<div style="font-size:0.8rem;color:var(--warning);margin-top:0.15rem">'+(kk?'Себебі: ':'Причина: ')+rs+'</div>' : '') +
+                '</div>' +
+                '<button type="button" class="btn btn-sm reg-unblock-btn" data-email="'+em+'" style="flex-shrink:0">'+(kk ? '✅ Ашу' : '✅ Разблокировать')+'</button>' +
+                '</div></div>';
+            }).join('') || '<p class="ayah-translation">'+(kk ? 'Бұғатталған email жоқ.' : 'Заблокированных email пока нет.')+'</p>';
+            if (box) box.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">'+(kk ? 'Барлығы: ' : 'Всего: ')+'<b>'+(blist||[]).length+'</b></div>' + brows;
+            el.querySelectorAll('.reg-unblock-btn').forEach(function(btn) {
+              btn.addEventListener('click', async function() {
+                var email = btn.getAttribute('data-email');
+                if (!confirm(kk ? '«'+email+'» бұғаттан шығару керек пе? Ол қайта кіре немесе тіркеле алады.' : 'Разблокировать «'+email+'»? Пользователь снова сможет входить и регистрироваться с этим email.')) return;
+                btn.disabled = true;
+                try {
+                  await unblockUserEmail(email);
+                  toast(kk ? 'Бұғаттан шығарылды' : 'Разблокирован(а)');
+                  renderRegistrationSection();
+                } catch(err) {
+                  btn.disabled = false;
+                  toast((kk?'Қате: ':'Ошибка: ') + (err && err.message ? err.message : err));
+                }
+              });
+            });
+          } catch(e) {
+            if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;');
+          }
+          return;
+        }
+
+        // ==== Категория «Зарегистрированные» (активные) ====
         try {
-          var ur = await sb.from('profiles').select('id,nick,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(1000);
+          var ur = await sb.from('profiles').select('id,nick,email,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(1000);
           if (ur && ur.error) {
             console.warn('profiles', ur.error);
-            ur = await sb.from('profiles').select('id,nick,created_at').limit(1000);
+            ur = await sb.from('profiles').select('id,nick,email,created_at').limit(1000);
           }
           if (ur && ur.error) {
             if (box) box.innerHTML = '<p style="color:var(--danger)">profiles: '+(ur.error.message||'')+'</p>' +
@@ -29683,7 +29853,7 @@ async function renderRegistrationSection() {
               '<pre style="font-size:0.7rem;overflow:auto;background:var(--bg);padding:0.5rem;border-radius:0.4rem;white-space:pre-wrap">' +
               'create table if not exists profiles (\n' +
               '  id uuid primary key references auth.users on delete cascade,\n' +
-              '  nick text, email text, created_at timestamptz default now()\n' +
+              '  nick text, email text, is_blocked boolean default false, created_at timestamptz default now()\n' +
               ');\n' +
               'alter table profiles enable row level security;\n' +
               'create policy "read profiles" on profiles for select using (true);\n' +
@@ -29703,7 +29873,7 @@ async function renderRegistrationSection() {
             localUsers.forEach(function(u){
               var n = (u.nick || '').trim();
               if (!n || have[n.toLowerCase()]) return;
-              list.push({ id: u.id || ('local-'+n), nick: n, created_at: u.created || null, _local: true });
+              list.push({ id: u.id || ('local-'+n), nick: n, email: u.email || '', created_at: u.created || null, _local: true });
               have[n.toLowerCase()] = 1;
             });
             if (count < list.length) count = list.length;
@@ -29718,6 +29888,12 @@ async function renderRegistrationSection() {
                 sb.from('profiles').upsert({ id: user.id, nick: nick, email: user.email || '', created_at: new Date().toISOString() }, { onConflict: 'id' }).then(function(){ try { renderStats(); } catch(e) {} });
               });
             }
+          } catch(e) {}
+          // список уже заблокированных email, чтобы не показывать им кнопку блокировки повторно
+          var blockedSet = {};
+          try {
+            var bl2 = await fetchBlockedEmails();
+            (bl2 || []).forEach(function(b){ if (b && b.email) blockedSet[String(b.email).toLowerCase()] = 1; });
           } catch(e) {}
           function dayKeyLocal(d) {
             d = d || new Date();
@@ -29744,9 +29920,21 @@ async function renderRegistrationSection() {
           var nToday = list.filter(function(u){ return String(u.created_at||'').slice(0,10) === today; }).length;
           var rows = filtered.map(function(u) {
             var nick = (u.nick || (kk ? 'қонақ' : 'гость')).replace(/</g, '&lt;');
+            var email = String(u.email || '').replace(/</g, '&lt;');
             var dt = u.created_at ? String(u.created_at).slice(0, 10) : '';
-            return '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.88rem">' +
-              '<span>' + nick + '</span><span style="color:var(--text-muted)">' + dt + '</span></div>';
+            var isBlockedAlready = email && blockedSet[email.toLowerCase()];
+            var blockBtn = (email && !u._local)
+              ? (isBlockedAlready
+                  ? '<span style="font-size:0.72rem;color:var(--danger);flex-shrink:0">'+(kk?'бұғатталған':'заблокирован')+'</span>'
+                  : '<button type="button" class="btn btn-sm reg-block-btn" data-email="'+email+'" data-nick="'+nick+'" style="flex-shrink:0;color:var(--danger)">🚫 '+(kk?'Бұғаттау':'Блок')+'</button>')
+              : '';
+            return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.85rem">' +
+              '<div style="min-width:0;flex:1"><div>' + nick + '</div>' +
+              (email ? '<div style="font-size:0.75rem;color:var(--text-muted);word-break:break-all">' + email + '</div>' : '') +
+              '</div>' +
+              '<div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0">' +
+              '<span style="color:var(--text-muted);font-size:0.75rem">' + dt + '</span>' + blockBtn +
+              '</div></div>';
           }).join('') || '<p class="ayah-translation">'+(kk ? 'Таңдалған кезеңде тіркелулер жоқ.' : 'Нет регистраций за выбранный период.')+'</p>';
           if (box) box.innerHTML =
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-bottom:0.65rem">' +
@@ -29755,7 +29943,24 @@ async function renderRegistrationSection() {
             '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">'+(kk ? 'Бүгін' : 'Сегодня')+'</div><div style="font-size:1.15rem;font-weight:700">'+nToday+'</div></div>' +
             '<div style="background:var(--bg);border-radius:0.6rem;padding:0.55rem;text-align:center"><div style="font-size:0.72rem;color:var(--text-muted)">'+(kk ? 'Жергілікті (құрылғы)' : 'Локально (устройство)')+'</div><div style="font-size:1.15rem;font-weight:700">'+localN+'</div></div></div>' +
             (count === 0 ? '<p class="ayah-translation" style="margin-bottom:0.5rem">'+(kk ? 'Егер «Барлығы» = 0 болса: тіркелу кезінде профиль сақталмады (RLS) немесе бос <code>profiles</code> кестесі оқылады. INSERT/SELECT саясаттары қажет. Бұлттағы жергілікті аккаунттар көрінбейді.' : 'Если «Всего» = 0: при регистрации профиль не записался (RLS) или читается пустая таблица <code>profiles</code>. Нужны политики INSERT/SELECT. Локальные аккаунты в облаке не видны.')+'</p>' : '') +
-            '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">'+(kk ? 'Кезең бойынша никтер (email-сіз)' : 'Ники за период (без email)')+'</div>' + rows;
+            '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">'+(kk ? 'Кезең бойынша тіркелгендер' : 'Зарегистрированные за период')+'</div>' + rows;
+          el.querySelectorAll('.reg-block-btn').forEach(function(btn) {
+            btn.addEventListener('click', async function() {
+              var email = btn.getAttribute('data-email');
+              var nick = btn.getAttribute('data-nick') || '';
+              if (!confirm(kk ? '«'+nick+'» ('+email+') бұғаттау керек пе? Ол кіре алмайды, ал бұл email қайта тіркеле алмайды.' : 'Заблокировать «'+nick+'» ('+email+')? Он не сможет войти, а этот email нельзя будет зарегистрировать повторно.')) return;
+              var reason = prompt(kk ? 'Себебі (міндетті емес):' : 'Причина блокировки (необязательно):', '') || '';
+              btn.disabled = true;
+              try {
+                await blockUserEmail(email, nick, reason);
+                toast(kk ? 'Бұғатталды' : 'Заблокирован(а)');
+                renderRegistrationSection();
+              } catch(err) {
+                btn.disabled = false;
+                toast((kk?'Қате: ':'Ошибка: ') + (err && err.message ? err.message : err));
+              }
+            });
+          });
         } catch(e) {
           if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;') +
             '<p class="ayah-translation" style="margin-top:0.5rem">'+(kk ? 'Тіркелу кезіндегі profiles кестесінің RLS және upsert параметрін тексеріңіз.' : 'Проверьте RLS таблицы profiles и upsert при регистрации.')+'</p>';
@@ -36024,7 +36229,13 @@ c.addEventListener('click', () => {
       var ml = qaMazhabLabel(q.mazhab, kk); if (ml) details.push(ml);
       var detailsLine = details.length ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.15rem">'+details.join(' · ')+'</div>' : '';
       var extraLine = q.extra_text ? '<div class="ayah-translation" style="margin-top:0.3rem;font-size:0.85rem">'+String(q.extra_text).replace(/</g,'&lt;')+'</div>' : '';
-      var anonBadge = q.is_anonymous ? ' <span style="font-size:0.72rem;color:var(--warning)">🔒'+(kk?' анонимды':' анонимно')+'</span>' : '';
+      // Если вопрос скрыт админом (hidden_by_admin) — показываем отдельный, более
+      // «тревожный» значок вместо обычного «анонимно», чтобы было видно, что это не
+      // сам автор выбрал анонимность, а решение администратора (обычно — слишком
+      // простой/неважный вопрос, чтобы тратить на него общее внимание на Форуме).
+      var anonBadge = q.hidden_by_admin
+        ? ' <span style="font-size:0.72rem;color:var(--danger)">🛡'+(kk?' әкімші жасырды':' скрыто админом')+'</span>'
+        : (q.is_anonymous ? ' <span style="font-size:0.72rem;color:var(--warning)">🔒'+(kk?' анонимды':' анонимно')+'</span>' : '');
       var answerBlock = q.answer_text
         ? '<div class="card" style="margin-top:0.5rem;background:var(--bg);border-color:var(--accent)"><b style="color:var(--accent)">'+(kk?'Жауап':'Ответ')+'</b><div class="ayah-translation" style="margin-top:0.25rem;white-space:pre-wrap">'+String(q.answer_text).replace(/</g,'&lt;')+'</div></div>'
         : '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.4rem">'+(kk?'Жауап әлі жоқ':'Ответа пока нет')+'</div>';
@@ -36045,13 +36256,24 @@ c.addEventListener('click', () => {
       var adminDelAnswerBtn = (opts.isAdmin && q.answer_text)
         ? '<button type="button" class="btn btn-sm" data-qa-admin-del-answer="'+q.id+'" style="width:100%;margin-top:0.35rem;color:var(--warning)">🛡 '+(kk?'Тек жауапты жою (админ)':'Удалить только ответ (админ)')+'</button>'
         : '';
+      // Админ: скрыть/показать вопрос вручную — не удаляя его, а лишь ограничивая
+      // видимость до учителей (тем же способом, что и обычная авторская анонимность),
+      // например когда вопрос слишком лёгкий/неважный, чтобы остальные тратили на
+      // него время. hidden_by_admin — отдельный флаг именно для этого значка/кнопки,
+      // отличающий решение админа от анонимности, выбранной самим автором вопроса.
+      var adminHideBtn = (opts.isAdmin && !q.hidden_by_admin)
+        ? '<button type="button" class="btn btn-sm" data-qa-admin-hide="'+q.id+'" style="width:100%;margin-top:0.35rem;color:var(--warning)">🛡 '+(kk?'Барлығынан жасыру (жеңіл сұрақ)':'Скрыть от всех (лёгкий вопрос)')+'</button>'
+        : '';
+      var adminUnhideBtn = (opts.isAdmin && q.hidden_by_admin)
+        ? '<button type="button" class="btn btn-sm" data-qa-admin-unhide="'+q.id+'" style="width:100%;margin-top:0.35rem;color:var(--accent)">🛡 '+(kk?'Барлығына қайта көрсету':'Показать всем снова')+'</button>'
+        : '';
       return '<div class="card" data-qa-id="'+q.id+'">' +
         '<div style="font-size:0.8rem;color:var(--text-muted)">'+authorLabel+anonBadge+(mine?(' · '+(kk?'сіздің сұрағыңыз':'ваш вопрос')):'')+'</div>' +
         detailsLine +
         '<div style="margin-top:0.4rem;white-space:pre-wrap">'+String(q.question_text||'').replace(/</g,'&lt;')+'</div>' +
         extraLine +
         answerBlock +
-        answerFormBtn + delBtn + adminDelAnswerBtn + adminDelFullBtn +
+        answerFormBtn + delBtn + adminDelAnswerBtn + adminDelFullBtn + adminHideBtn + adminUnhideBtn +
         '</div>';
     }
     // reloadFn — что вызывать после успешного действия (у «Мои вопросы/ответы» и «Форума»
@@ -36212,6 +36434,81 @@ c.addEventListener('click', () => {
               return;
             }
             toast(kk?'Жауап жойылды':'Ответ удалён');
+            if (reloadFn) reloadFn();
+          } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
+        });
+      });
+      // Админ: скрыть вопрос от всех, кроме учителей — переиспользует тот же механизм
+      // видимости, что и авторская анонимность (is_anonymous=true), плюс отдельный флаг
+      // hidden_by_admin — только для значка/различения, что скрыл именно админ.
+      wrap.querySelectorAll('[data-qa-admin-hide]').forEach(function(btn){
+        btn.addEventListener('click', async function() {
+          var id = btn.getAttribute('data-qa-admin-hide');
+          if (!confirm(kk?'Бұл сұрақты (әкімші ретінде) барлығынан жасыру керек пе? Тек мұғалімдер көреді.':'Скрыть этот вопрос от всех, кроме учителей (как администратор)?')) return;
+          var sb = getSb();
+          if (!sb) return;
+          try {
+            var chk = await sb.auth.getUser();
+            if (!(chk && chk.data && chk.data.user)) {
+              toast(kk?'Сессия аяқталды, қайта кіріңіз':'Сессия истекла, войдите заново');
+              if (reloadFn) reloadFn();
+              return;
+            }
+            var res = await sb.from('questions').update({
+              is_anonymous: true, hidden_by_admin: true
+            }).eq('id', id).select();
+            if (res && res.error) {
+              if (res.error.code === '42501' || /permission denied/i.test(res.error.message||'')) {
+                toast(kk?'Сессия жарамсыз, қайта кіріңіз':'Сессия недействительна, войдите заново');
+                if (reloadFn) reloadFn();
+              } else {
+                toast(res.error.message || (kk?'Қате':'Ошибка'));
+              }
+              return;
+            }
+            if (!res || !res.data || !res.data.length) {
+              toast(kk
+                ? 'Жасырылмады: құқық жетіспейді (Supabase-те questions кестесінің UPDATE саясатын, hidden_by_admin бағанын тексеріңіз)'
+                : 'Не скрылось: не хватает прав или в Supabase ещё нет колонки hidden_by_admin (проверьте RLS-политику UPDATE и саму колонку в таблице questions)');
+              return;
+            }
+            toast(kk?'Сұрақ жасырылды':'Вопрос скрыт');
+            if (reloadFn) reloadFn();
+          } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
+        });
+      });
+      // Админ: обратное действие — вернуть вопрос в общую видимость.
+      wrap.querySelectorAll('[data-qa-admin-unhide]').forEach(function(btn){
+        btn.addEventListener('click', async function() {
+          var id = btn.getAttribute('data-qa-admin-unhide');
+          var sb = getSb();
+          if (!sb) return;
+          try {
+            var chk = await sb.auth.getUser();
+            if (!(chk && chk.data && chk.data.user)) {
+              toast(kk?'Сессия аяқталды, қайта кіріңіз':'Сессия истекла, войдите заново');
+              if (reloadFn) reloadFn();
+              return;
+            }
+            var res = await sb.from('questions').update({
+              is_anonymous: false, hidden_by_admin: false
+            }).eq('id', id).select();
+            if (res && res.error) {
+              if (res.error.code === '42501' || /permission denied/i.test(res.error.message||'')) {
+                toast(kk?'Сессия жарамсыз, қайта кіріңіз':'Сессия недействительна, войдите заново');
+                if (reloadFn) reloadFn();
+              } else {
+                toast(res.error.message || (kk?'Қате':'Ошибка'));
+              }
+              return;
+            }
+            if (!res || !res.data || !res.data.length) {
+              toast(kk
+                ? 'Қайтарылмады: құқық жетіспейді'
+                : 'Не вернулось: не хватает прав');
+              return;
+            }
+            toast(kk?'Сұрақ барлығына қайта көрінеді':'Вопрос снова виден всем');
             if (reloadFn) reloadFn();
           } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
         });
