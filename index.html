@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- BUILD 4.02 2026-08-24: «Мои вопросы/ответы»: перед отправкой вопроса, ответа учителя и удалением теперь проверяется настоящая сессия Supabase (не только локальный флаг «вы вошли») — если токен истёк или недействителен, показывается понятное сообщение «Войдите заново» вместо непонятной ошибки «permission denied for table questions» -->
 <!-- BUILD 4.01 2026-08-24: Раздел «Мои вопросы/ответы» теперь рабочий — можно задать вопрос (с необязательными полями о себе: возраст, пол, страна, мазхаб) и отметить его анонимным (анонимные вопросы видны только учителям, остальным — нет); учителя отвечают прямо в списке. При регистрации/в «Мой аккаунт» добавлен выбор «Кто вы?» — Ученик/Учитель/Не выбрано, от него зависит доступ к ответам на анонимные вопросы -->
 <!-- BUILD 4.00 2026-08-24: Раздел «Регистрация» вынесен из вкладок «Статистики» в отдельный пункт меню «Ещё» → «Онлайн» и теперь виден/открывается только с аккаунтов администраторов (проверка по email); добавлены 2 новых пустых раздела «Мои вопросы/ответы» и «Форум» -->
 <!-- BUILD 3.92 2026-08-24: В карточку пословного разбора (иараб) при чтении добавлена постоянная подпись источника — традиционный иараб + The Quranic Arabic Corpus (Kais Dukes, Univ. of Leeds, GPL); ранее это было только в комментариях кода -->
@@ -8,7 +9,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 4.01</title>
+  <title>Коран — Изучение · 4.02</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -15751,7 +15752,7 @@ bKk:
     function renderAppUpdate() {
       var el = document.getElementById('appupdate-body');
       if (!el) return;
-      var ver = '4.01';
+      var ver = '4.02';
       try {
         var t = document.title || '';
         var m = t.match(/\d+\.\d+/);
@@ -15782,6 +15783,14 @@ bKk:
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн · .lan языки
       const log = [
+        { major: '4', v: '4.02', kinds: ['f'], date: '2026-08-24',
+          f: [
+            '«Мои вопросы/ответы»: если сессия аккаунта на сервере успевала истечь/оказывалась недействительной, отправка вопроса (а также ответ учителя и удаление вопроса) падала с непонятной ошибкой «permission denied for table questions», хотя права на таблице были настроены верно. Теперь перед этими действиями приложение по-настоящему проверяет сессию у сервера и, если она недействительна, сразу просит войти заново вместо криптичной ошибки'
+          ],
+          fKk: [
+            '«Сұрақ-жауаптарым»: аккаунт сессиясы серверде мерзімі өтіп кетсе немесе жарамсыз болса, сұрақ жіберу (сондай-ақ мұғалімнің жауабы мен сұрақты жою) кестеде рұқсаттар дұрыс орнатылған болса да түсініксіз «permission denied for table questions» қатесімен аяқталатын. Енді осы әрекеттер алдында қолданба сессияны серверден шынымен тексереді және ол жарамсыз болса, түсініксіз қате орнына бірден қайта кіруді сұрайды'
+          ]
+        },
         { major: '4', v: '4.01', kinds: ['a'], date: '2026-08-24',
           a: [
             'Раздел «Мои вопросы/ответы» заработал: можно задать вопрос и по желанию указать о себе возраст, пол, страну и мазхаб, а также написать доп. детали ситуации — для более понятного ответа. Вопрос можно сделать анонимным: тогда его видят только учителя (для ответа), а обычным пользователям он не показывается; неанонимные вопросы и ответы видят все',
@@ -35994,10 +36003,24 @@ c.addEventListener('click', () => {
             var sb = getSb(); var sess = authSession();
             if (!sb || !sess) return;
             try {
+              var chk = await sb.auth.getUser();
+              if (!(chk && chk.data && chk.data.user)) {
+                toast(kk?'Сессия аяқталды, қайта кіріңіз':'Сессия истекла, войдите заново');
+                renderMyQA();
+                return;
+              }
               var res = await sb.from('questions').update({
                 answer_text: txt, answered_by: sess.userId, answered_at: new Date().toISOString()
               }).eq('id', id);
-              if (res && res.error) { toast(res.error.message || (kk?'Қате':'Ошибка')); return; }
+              if (res && res.error) {
+                if (res.error.code === '42501' || /permission denied/i.test(res.error.message||'')) {
+                  toast(kk?'Сессия жарамсыз, қайта кіріңіз':'Сессия недействительна, войдите заново');
+                  renderMyQA();
+                } else {
+                  toast(res.error.message || (kk?'Қате':'Ошибка'));
+                }
+                return;
+              }
               toast(kk?'Жауап сақталды':'Ответ сохранён');
               renderMyQA();
             } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
@@ -36011,14 +36034,28 @@ c.addEventListener('click', () => {
           var sb = getSb();
           if (!sb) return;
           try {
+            var chk = await sb.auth.getUser();
+            if (!(chk && chk.data && chk.data.user)) {
+              toast(kk?'Сессия аяқталды, қайта кіріңіз':'Сессия истекла, войдите заново');
+              renderMyQA();
+              return;
+            }
             var res = await sb.from('questions').delete().eq('id', id);
-            if (res && res.error) { toast(res.error.message || (kk?'Қате':'Ошибка')); return; }
+            if (res && res.error) {
+              if (res.error.code === '42501' || /permission denied/i.test(res.error.message||'')) {
+                toast(kk?'Сессия жарамсыз, қайта кіріңіз':'Сессия недействительна, войдите заново');
+                renderMyQA();
+              } else {
+                toast(res.error.message || (kk?'Қате':'Ошибка'));
+              }
+              return;
+            }
             renderMyQA();
           } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
         });
       });
     }
-    function renderMyQA() {
+    async function renderMyQA() {
       var el = document.getElementById('myqa-body');
       if (!el) return;
       var kk = state.settings && state.settings.lang === 'kk';
@@ -36035,6 +36072,24 @@ c.addEventListener('click', () => {
         document.getElementById('myqa-go-login')?.addEventListener('click', function(){ showView('login'); });
         return;
       }
+      // Локальный флаг «online» мог устареть (токен истёк/недействителен) —
+      // проверяем реальную сессию у Supabase, иначе запрос уйдёт как anon
+      // и упадёт с "permission denied", хотя у authenticated права есть.
+      el.innerHTML = '<div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div>';
+      var authedUser = null;
+      try {
+        var ures = await sb.auth.getUser();
+        authedUser = ures && ures.data && ures.data.user;
+      } catch(e) { authedUser = null; }
+      if (!authedUser) {
+        authSetSession(null);
+        el.innerHTML =
+          '<div class="card"><p>'+(kk?'Сессия аяқталды немесе жарамсыз. Қайта кіріңіз.':'Сессия истекла или недействительна. Войдите заново.')+'</p>' +
+          '<button type="button" class="btn btn-primary" id="myqa-go-login" style="width:100%;margin-top:0.5rem">'+(kk?'Кіру':'Войти')+'</button></div>';
+        document.getElementById('myqa-go-login')?.addEventListener('click', function(){ showView('login'); });
+        return;
+      }
+      if (sess.userId !== authedUser.id) { sess.userId = authedUser.id; authSetSession(sess); }
       var isTeacher = sess.level === 'teacher';
       el.innerHTML =
         '<div class="card">' +
@@ -36078,6 +36133,14 @@ c.addEventListener('click', () => {
         var btn = this;
         btn.disabled = true;
         try {
+          // На случай, если токен истёк за время заполнения формы — свежая проверка
+          var chk = await sb.auth.getUser();
+          if (!(chk && chk.data && chk.data.user)) {
+            toast(kk?'Сессия аяқталды, қайта кіріңіз':'Сессия истекла, войдите заново');
+            btn.disabled = false;
+            renderMyQA();
+            return;
+          }
           var res = await sb.from('questions').insert({
             user_id: sess.userId,
             nick: sess.nick,
@@ -36089,7 +36152,16 @@ c.addEventListener('click', () => {
             extra_text: extra || null,
             is_anonymous: anon
           });
-          if (res && res.error) { toast(res.error.message || (kk?'Қате':'Ошибка')); btn.disabled = false; return; }
+          if (res && res.error) {
+            if (res.error.code === '42501' || /permission denied/i.test(res.error.message||'')) {
+              toast(kk?'Сессия жарамсыз, қайта кіріңіз':'Сессия недействительна, войдите заново');
+              renderMyQA();
+            } else {
+              toast(res.error.message || (kk?'Қате':'Ошибка'));
+            }
+            btn.disabled = false;
+            return;
+          }
           toast(kk?'Сұрақ жіберілді':'Вопрос отправлен');
           textEl.value = '';
           document.getElementById('qa-age').value = '';
