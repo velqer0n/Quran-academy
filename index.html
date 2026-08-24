@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- BUILD 4.03 2026-08-24: «Мои вопросы/ответы» и «Форум» переработаны по ролям доступа: в «Мои вопросы/ответы» теперь видны ТОЛЬКО собственные вопросы автора (учителя и админы чужих вопросов там больше не видят и не отвечают); в «Форум» перенесены все НЕанонимные вопросы/ответы — их видят все; анонимные вопросы видны и доступны для ответа только учителям. Также исправлен баг: при ответе учителя на чужой вопрос ответ мог «сохраняться» без ошибки, но не записываться и не показываться из-за RLS-политики UPDATE — теперь приложение проверяет, что строка реально обновилась, и если нет — прямо сообщает о нехватке прав вместо ложного «сохранено» -->
 <!-- BUILD 4.02 2026-08-24: «Мои вопросы/ответы»: перед отправкой вопроса, ответа учителя и удалением теперь проверяется настоящая сессия Supabase (не только локальный флаг «вы вошли») — если токен истёк или недействителен, показывается понятное сообщение «Войдите заново» вместо непонятной ошибки «permission denied for table questions» -->
 <!-- BUILD 4.01 2026-08-24: Раздел «Мои вопросы/ответы» теперь рабочий — можно задать вопрос (с необязательными полями о себе: возраст, пол, страна, мазхаб) и отметить его анонимным (анонимные вопросы видны только учителям, остальным — нет); учителя отвечают прямо в списке. При регистрации/в «Мой аккаунт» добавлен выбор «Кто вы?» — Ученик/Учитель/Не выбрано, от него зависит доступ к ответам на анонимные вопросы -->
 <!-- BUILD 4.00 2026-08-24: Раздел «Регистрация» вынесен из вкладок «Статистики» в отдельный пункт меню «Ещё» → «Онлайн» и теперь виден/открывается только с аккаунтов администраторов (проверка по email); добавлены 2 новых пустых раздела «Мои вопросы/ответы» и «Форум» -->
@@ -9,7 +10,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 4.02</title>
+  <title>Коран — Изучение · 4.03</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -6499,7 +6500,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
         }
       } catch(e) {}
       if (name === 'myqa') try { renderMyQA(); } catch(e) {}
-      if (name === 'forum') try { renderOnlinePlaceholder('forum'); } catch(e) {}
+      if (name === 'forum') try { renderForum(); } catch(e) {}
       if (name === 'achievements') try { if (achievementsHidden()) { toast('Достижения скрыты · Настройки → Другое'); showView('more'); } else renderAchievements(); } catch(e) {}
       if (name === 'appupdate') try { renderAppUpdate(); } catch(e) {}
       try { if (typeof trackSectionVisit === 'function') trackSectionVisit(name); } catch(e) {}
@@ -15752,7 +15753,7 @@ bKk:
     function renderAppUpdate() {
       var el = document.getElementById('appupdate-body');
       if (!el) return;
-      var ver = '4.02';
+      var ver = '4.03';
       try {
         var t = document.title || '';
         var m = t.match(/\d+\.\d+/);
@@ -15783,6 +15784,20 @@ bKk:
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн · .lan языки
       const log = [
+        { major: '4', v: '4.03', kinds: ['f','b'], date: '2026-08-24',
+          f: [
+            'Ответ учителя на «чужой» вопрос иногда выглядел так, будто он сохранился (без ошибки), но в списке вопрос оставался «без ответа» — причина в том, что запись в базе на самом деле не обновлялась (обычно из-за прав доступа), а приложение об этом не знало. Теперь после сохранения ответа приложение проверяет, что строка действительно изменилась, и если нет — прямо сообщает о нехватке прав вместо молчаливой неудачи'
+          ],
+          fKk: [
+            'Мұғалімнің «бөтен» сұраққа жауабы кейде қатесіз сақталғандай көрінетін, бірақ тізімде сұрақ «жауапсыз» болып қала беретін — себебі дерекқордағы жол іс жүзінде жаңармаған (әдетте құқық жетіспегендіктен), ал қолданба бұл туралы білмейтін. Енді жауап сақталғаннан кейін қолданба жолдың шынымен өзгергенін тексереді, өзгермесе — үнсіз сәтсіздіктің орнына тікелей құқық жетіспейтінін хабарлайды'
+          ],
+          b: [
+            '«Мои вопросы/ответы» теперь показывает только собственные вопросы автора — учителя, админы и другие пользователи чужие вопросы здесь больше не видят и отвечать на них отсюда не могут. Все неанонимные вопросы/ответы перенесены в раздел «Форум», где их видят все; анонимные вопросы в «Форуме» видны и доступны для ответа только учителям'
+          ],
+          bKk: [
+            '«Сұрақ-жауаптарым» енді тек автордың өз сұрақтарын көрсетеді — мұғалімдер, әкімшілер және басқа қолданушылар бөтен сұрақтарды бұдан былай мұнда көрмейді және оларға осы жерден жауап бере алмайды. Барлық анонимды емес сұрақ-жауаптар «Форум» бөліміне ауыстырылды, оларды барлығы көреді; «Форумдағы» анонимды сұрақтар тек мұғалімдерге көрінеді және тек олар жауап бере алады'
+          ]
+        },
         { major: '4', v: '4.02', kinds: ['f'], date: '2026-08-24',
           f: [
             '«Мои вопросы/ответы»: если сессия аккаунта на сервере успевала истечь/оказывалась недействительной, отправка вопроса (а также ответ учителя и удаление вопроса) падала с непонятной ошибкой «permission denied for table questions», хотя права на таблице были настроены верно. Теперь перед этими действиями приложение по-настоящему проверяет сессию у сервера и, если она недействительна, сразу просит войти заново вместо криптичной ошибки'
@@ -35952,7 +35967,14 @@ c.addEventListener('click', () => {
       };
       return map[m] || '';
     }
-    function renderQaCard(q, sess, isTeacher, kk) {
+    // opts.allowAnswer — показывать ли кнопку «Ответить» (решает вызывающий код —
+    //   он знает, учитель ли это и в каком разделе показывается карточка);
+    // opts.allowDelete — показывать ли кнопку «Удалить» (дополнительно требуется mine).
+    // Раньше право отвечать определялось прямо здесь через isTeacher, и это же
+    // право автоматически действовало и в «Мои вопросы/ответы», и на «Форуме» —
+    // теперь у каждого раздела свои правила видимости/прав, поэтому они передаются явно.
+    function renderQaCard(q, sess, kk, opts) {
+      opts = opts || {};
       var mine = !!(sess && q.user_id === sess.userId);
       var authorLabel = q.is_anonymous
         ? (kk ? 'Аноним' : 'Аноним')
@@ -35968,10 +35990,10 @@ c.addEventListener('click', () => {
       var answerBlock = q.answer_text
         ? '<div class="card" style="margin-top:0.5rem;background:var(--bg);border-color:var(--accent)"><b style="color:var(--accent)">'+(kk?'Жауап':'Ответ')+'</b><div class="ayah-translation" style="margin-top:0.25rem;white-space:pre-wrap">'+String(q.answer_text).replace(/</g,'&lt;')+'</div></div>'
         : '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.4rem">'+(kk?'Жауап әлі жоқ':'Ответа пока нет')+'</div>';
-      var answerFormBtn = (isTeacher && !q.answer_text)
+      var answerFormBtn = (opts.allowAnswer && !q.answer_text)
         ? '<button type="button" class="btn btn-sm" data-qa-answer="'+q.id+'" style="width:100%;margin-top:0.4rem">'+(kk?'Жауап беру':'Ответить')+'</button>'
         : '';
-      var delBtn = (mine && !q.answer_text)
+      var delBtn = (opts.allowDelete && mine && !q.answer_text)
         ? '<button type="button" class="btn btn-sm" data-qa-del="'+q.id+'" style="width:100%;margin-top:0.35rem;color:var(--danger)">'+(kk?'Жою':'Удалить')+'</button>'
         : '';
       return '<div class="card" data-qa-id="'+q.id+'">' +
@@ -35983,7 +36005,10 @@ c.addEventListener('click', () => {
         answerFormBtn + delBtn +
         '</div>';
     }
-    function bindQaAnswerButtons(wrap, kk) {
+    // reloadFn — что вызывать после успешного действия (у «Мои вопросы/ответы» и «Форума»
+    // разные функции перезагрузки, поэтому она передаётся вызывающим кодом, а не жёстко
+    // зашита в renderMyQA).
+    function bindQaAnswerButtons(wrap, kk, reloadFn) {
       wrap.querySelectorAll('[data-qa-answer]').forEach(function(btn){
         btn.addEventListener('click', function() {
           var id = btn.getAttribute('data-qa-answer');
@@ -36006,23 +36031,37 @@ c.addEventListener('click', () => {
               var chk = await sb.auth.getUser();
               if (!(chk && chk.data && chk.data.user)) {
                 toast(kk?'Сессия аяқталды, қайта кіріңіз':'Сессия истекла, войдите заново');
-                renderMyQA();
+                if (reloadFn) reloadFn();
                 return;
               }
+              // .select() в конце обязателен: без него Supabase при успешном запросе,
+              // но заблокированном RLS-политикой UPDATE (например, «отвечать может
+              // только автор вопроса», из-за чего учитель не может ответить на чужой
+              // вопрос), молча обновит 0 строк и НЕ вернёт ошибку — раньше это
+              // выглядело как «ответ сохранён», хотя в базе ничего не менялось.
+              // С .select() мы видим, что реально вернулось, и можем это проверить.
               var res = await sb.from('questions').update({
                 answer_text: txt, answered_by: sess.userId, answered_at: new Date().toISOString()
-              }).eq('id', id);
+              }).eq('id', id).select();
               if (res && res.error) {
                 if (res.error.code === '42501' || /permission denied/i.test(res.error.message||'')) {
                   toast(kk?'Сессия жарамсыз, қайта кіріңіз':'Сессия недействительна, войдите заново');
-                  renderMyQA();
+                  if (reloadFn) reloadFn();
                 } else {
                   toast(res.error.message || (kk?'Қате':'Ошибка'));
                 }
                 return;
               }
+              if (!res || !res.data || !res.data.length) {
+                // Ошибки нет, но ни одна строка не обновилась — почти всегда это
+                // RLS-политика UPDATE в Supabase, которая не разрешает эту запись.
+                toast(kk
+                  ? 'Жауап сақталмады: құқық жетіспейді (Supabase-те questions кестесінің UPDATE саясатын тексеріңіз)'
+                  : 'Ответ не сохранился: не хватает прав (проверьте RLS-политику UPDATE для таблицы questions в Supabase)');
+                return;
+              }
               toast(kk?'Жауап сақталды':'Ответ сохранён');
-              renderMyQA();
+              if (reloadFn) reloadFn();
             } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
           });
         });
@@ -36037,20 +36076,20 @@ c.addEventListener('click', () => {
             var chk = await sb.auth.getUser();
             if (!(chk && chk.data && chk.data.user)) {
               toast(kk?'Сессия аяқталды, қайта кіріңіз':'Сессия истекла, войдите заново');
-              renderMyQA();
+              if (reloadFn) reloadFn();
               return;
             }
             var res = await sb.from('questions').delete().eq('id', id);
             if (res && res.error) {
               if (res.error.code === '42501' || /permission denied/i.test(res.error.message||'')) {
                 toast(kk?'Сессия жарамсыз, қайта кіріңіз':'Сессия недействительна, войдите заново');
-                renderMyQA();
+                if (reloadFn) reloadFn();
               } else {
                 toast(res.error.message || (kk?'Қате':'Ошибка'));
               }
               return;
             }
-            renderMyQA();
+            if (reloadFn) reloadFn();
           } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
         });
       });
@@ -36090,8 +36129,16 @@ c.addEventListener('click', () => {
         return;
       }
       if (sess.userId !== authedUser.id) { sess.userId = authedUser.id; authSetSession(sess); }
-      var isTeacher = sess.level === 'teacher';
+      // «Мои вопросы/ответы» — приватный раздел: здесь показываются только вопросы,
+      // заданные самим пользователем. Ни учителя, ни админы, ни другие пользователи
+      // чужие вопросы отсюда не видят и отвечать отсюда не могут (для ответа учителя
+      // используют «Форум» — см. renderForum). Поэтому кнопки «Ответить» тут нет вовсе.
       el.innerHTML =
+        '<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.6rem">'+
+          (kk
+            ? 'Мұнда тек сіздің өз сұрақтарыңыз көрінеді — оларды басқа ешкім (мұғалімдер мен әкімшілерді қоса) көрмейді. Анонимды емес сұрақ сонымен қатар «Форумда» да көрінеді (жауап алғанға дейін де).'
+            : 'Здесь видны только ваши собственные вопросы — их не видит никто другой, включая учителей и админов. Неанонимный вопрос также виден в «Форуме» (даже пока ещё без ответа).')+
+        '</p>' +
         '<div class="card">' +
           '<b>'+(kk?'Сұрақ қою':'Задать вопрос')+'</b>' +
           '<label style="display:block;margin-top:0.5rem;font-size:0.85rem">'+(kk?'Сұрағыңыз':'Ваш вопрос')+'</label>' +
@@ -36177,17 +36224,92 @@ c.addEventListener('click', () => {
         var wrap = document.getElementById('qa-list-wrap');
         if (!wrap) return;
         wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div>';
-        sb.from('questions').select('*').order('created_at', { ascending: false }).limit(100).then(function(res) {
+        // Фильтр по user_id — показываем только вопросы самого пользователя. Это
+        // ограничение задано на клиенте явно, а не полагается только на RLS,
+        // но для настоящей защиты данных RLS на таблице questions всё равно нужен —
+        // клиентский фильтр можно обойти, обратившись к Supabase напрямую.
+        sb.from('questions').select('*').eq('user_id', sess.userId).order('created_at', { ascending: false }).limit(100).then(function(res) {
           if (res && res.error) { wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(res.error.message||'')+'</p></div>'; return; }
           var rows = (res && res.data) || [];
-          if (!rows.length) { wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Әзірге сұрақтар жоқ.':'Пока нет вопросов.')+'</p></div>'; return; }
-          wrap.innerHTML = rows.map(function(q){ return renderQaCard(q, sess, isTeacher, kk); }).join('');
-          bindQaAnswerButtons(wrap, kk);
+          if (!rows.length) { wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Әзірге сұрақтарыңыз жоқ.':'У вас пока нет вопросов.')+'</p></div>'; return; }
+          // allowAnswer: false — в «Мои вопросы/ответы» кнопки «Ответить» нет ни у кого,
+          // это приватная лента только для просмотра своих вопросов и удаления неотвеченных.
+          wrap.innerHTML = rows.map(function(q){ return renderQaCard(q, sess, kk, { allowAnswer: false, allowDelete: true }); }).join('');
+          bindQaAnswerButtons(wrap, kk, renderMyQA);
         }).catch(function(e) {
           wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(e.message||e)+'</p></div>';
         });
       }
       loadQaList();
+    }
+
+    // ===== Форум: неанонимные вопросы/ответы видят все; анонимные — только учителя =====
+    async function renderForum() {
+      var el = document.getElementById('forum-body');
+      if (!el) return;
+      var kk = state.settings && state.settings.lang === 'kk';
+      var sb = getSb();
+      if (!sb) {
+        el.innerHTML = '<div class="empty-state"><p>'+(kk?'Бөлім тек онлайн-режимде қолжетімді.':'Раздел доступен только в онлайн-режиме.')+'</p></div>';
+        return;
+      }
+      var sess = authSession();
+      if (!sess || !sess.online) {
+        el.innerHTML =
+          '<div class="card"><p>'+(kk?'Форумды көру үшін аккаунтқа кіріңіз.':'Чтобы посмотреть форум, войдите в аккаунт.')+'</p>' +
+          '<button type="button" class="btn btn-primary" id="forum-go-login" style="width:100%;margin-top:0.5rem">'+(kk?'Кіру/Тіркелу':'Войти / Зарегистрироваться')+'</button></div>';
+        document.getElementById('forum-go-login')?.addEventListener('click', function(){ showView('login'); });
+        return;
+      }
+      el.innerHTML = '<div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div>';
+      var authedUser = null;
+      try {
+        var ures = await sb.auth.getUser();
+        authedUser = ures && ures.data && ures.data.user;
+      } catch(e) { authedUser = null; }
+      if (!authedUser) {
+        authSetSession(null);
+        el.innerHTML =
+          '<div class="card"><p>'+(kk?'Сессия аяқталды немесе жарамсыз. Қайта кіріңіз.':'Сессия истекла или недействительна. Войдите заново.')+'</p>' +
+          '<button type="button" class="btn btn-primary" id="forum-go-login" style="width:100%;margin-top:0.5rem">'+(kk?'Кіру':'Войти')+'</button></div>';
+        document.getElementById('forum-go-login')?.addEventListener('click', function(){ showView('login'); });
+        return;
+      }
+      if (sess.userId !== authedUser.id) { sess.userId = authedUser.id; authSetSession(sess); }
+      var isTeacher = sess.level === 'teacher';
+      el.innerHTML =
+        '<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.6rem">' +
+          (isTeacher
+            ? (kk ? 'Сіз мұғаліміз, сондықтан анонимды сұрақтар да көрінеді және оларға жауап бере аласыз.' : 'Вы учитель, поэтому вам видны и анонимные вопросы — на них тоже можно отвечать.')
+            : (kk ? 'Мұнда тек анонимды емес сұрақ-жауаптар көрсетіледі — анонимды сұрақтар тек мұғалімдерге көрінеді.' : 'Здесь показаны только неанонимные вопросы и ответы — анонимные вопросы видны только учителям.')) +
+        '</p>' +
+        '<div id="forum-list-wrap"><div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div></div>';
+
+      function loadForumList() {
+        var wrap = document.getElementById('forum-list-wrap');
+        if (!wrap) return;
+        wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div>';
+        // Не-учителя запрашивают только is_anonymous = false — это клиентский фильтр,
+        // повторяющий требуемое правило видимости; окончательную гарантию защиты даёт
+        // только соответствующая RLS-политика SELECT на таблице questions в Supabase.
+        var query = sb.from('questions').select('*').order('created_at', { ascending: false }).limit(200);
+        if (!isTeacher) query = query.eq('is_anonymous', false);
+        query.then(function(res) {
+          if (res && res.error) { wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(res.error.message||'')+'</p></div>'; return; }
+          var rows = (res && res.data) || [];
+          // Подстраховка на клиенте: даже если сервер вдруг вернёт лишнее, не-учитель
+          // анонимные вопросы всё равно не увидит.
+          if (!isTeacher) rows = rows.filter(function(q){ return !q.is_anonymous; });
+          if (!rows.length) { wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Әзірге сұрақтар жоқ.':'Пока нет вопросов.')+'</p></div>'; return; }
+          // allowAnswer: только учитель может отвечать на форуме (на любой вопрос,
+          // включая анонимные); allowDelete: автор может удалить свой неотвеченный вопрос.
+          wrap.innerHTML = rows.map(function(q){ return renderQaCard(q, sess, kk, { allowAnswer: isTeacher, allowDelete: true }); }).join('');
+          bindQaAnswerButtons(wrap, kk, renderForum);
+        }).catch(function(e) {
+          wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(e.message||e)+'</p></div>';
+        });
+      }
+      loadForumList();
     }
 
     
