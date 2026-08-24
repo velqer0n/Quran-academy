@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<!-- BUILD 3.94 2026-08-24: Раздел «Регистрация» вынесен из вкладок «Статистики» в отдельный пункт меню «Ещё» → «Онлайн» и теперь виден/открывается только с аккаунтов администраторов (проверка по email); добавлены 2 новых пустых раздела «Мои вопросы/ответы» и «Форум» -->
+<!-- BUILD 4.01 2026-08-24: Раздел «Мои вопросы/ответы» теперь рабочий — можно задать вопрос (с необязательными полями о себе: возраст, пол, страна, мазхаб) и отметить его анонимным (анонимные вопросы видны только учителям, остальным — нет); учителя отвечают прямо в списке. При регистрации/в «Мой аккаунт» добавлен выбор «Кто вы?» — Ученик/Учитель/Не выбрано, от него зависит доступ к ответам на анонимные вопросы -->
+<!-- BUILD 4.00 2026-08-24: Раздел «Регистрация» вынесен из вкладок «Статистики» в отдельный пункт меню «Ещё» → «Онлайн» и теперь виден/открывается только с аккаунтов администраторов (проверка по email); добавлены 2 новых пустых раздела «Мои вопросы/ответы» и «Форум» -->
 <!-- BUILD 3.92 2026-08-24: В карточку пословного разбора (иараб) при чтении добавлена постоянная подпись источника — традиционный иараб + The Quranic Arabic Corpus (Kais Dukes, Univ. of Leeds, GPL); ранее это было только в комментариях кода -->
 <!-- BUILD 3.78 2026-08-23: "Хадис дня"/"Сунна дня" теперь берутся из реальной базы приложения (CITED_HADITHS и полного раздела «Сунны»), а не из отдельных коротких списков -->
 <html lang="ru">
@@ -7,7 +8,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Коран — Изучение · 3.75</title>
+  <title>Коран — Изучение · 4.01</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1960,6 +1961,15 @@
       z-index: 5;
       background: var(--bg);
       padding: 0.35rem 0;
+    }
+    /* Подвкладки («Меню» → Списки/Порядок/Шапка/Разделы, «Прочее» → Основное/…) —
+       общее правило выше делает их sticky с тем же top, что и у главных категорий
+       (#settings-cats), из-за чего оба ряда «липнут» в одну и ту же позицию и
+       накладываются друг на друга при прокрутке. Подвкладкам sticky не нужен —
+       отключаем его именно для них (специфичность выше за счёт двух классов). */
+    #view-settings .tabs-row.subtabs-row {
+      position: static;
+      top: auto;
     }
 
     .more-item .more-actions { display:none; gap:0.25rem; margin-top:0.35rem; }
@@ -6487,7 +6497,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
           renderRegistrationSection();
         }
       } catch(e) {}
-      if (name === 'myqa') try { renderOnlinePlaceholder('myqa'); } catch(e) {}
+      if (name === 'myqa') try { renderMyQA(); } catch(e) {}
       if (name === 'forum') try { renderOnlinePlaceholder('forum'); } catch(e) {}
       if (name === 'achievements') try { if (achievementsHidden()) { toast('Достижения скрыты · Настройки → Другое'); showView('more'); } else renderAchievements(); } catch(e) {}
       if (name === 'appupdate') try { renderAppUpdate(); } catch(e) {}
@@ -15363,6 +15373,11 @@ bKk:
     function authFormStyle() {
       return 'width:100%;padding:0.55rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);margin:0.25rem 0 0.55rem;box-sizing:border-box';
     }
+    function levelLabel(lvl, kk) {
+      if (lvl === 'student') return kk ? 'Оқушы (аз білемін)' : 'Ученик (знаю мало)';
+      if (lvl === 'teacher') return kk ? 'Мұғалім (көп білемін)' : 'Учитель (много знаю)';
+      return kk ? 'Таңдалмаған' : 'Не выбрано';
+    }
     async function authRefreshSession() {
       var sb = getSb();
       if (!sb) return authSession();
@@ -15372,7 +15387,8 @@ bKk:
         if (sess && sess.user) {
           var u = sess.user;
           var meta = u.user_metadata || {};
-          var s = { userId: u.id, nick: meta.nick || meta.nickname || (u.email||'').split('@')[0], email: u.email || meta.email || '', online: true };
+          var prevSess = authSession();
+          var s = { userId: u.id, nick: meta.nick || meta.nickname || (u.email||'').split('@')[0], email: u.email || meta.email || '', online: true, level: (meta.level !== undefined ? meta.level : (prevSess && prevSess.userId === u.id ? prevSess.level : '')) };
           authSetSession(s);
           try { if (typeof upsertMyProfile === 'function') upsertMyProfile(); } catch(e) {}
           return s;
@@ -15405,6 +15421,12 @@ bKk:
             '<div class="card"><b>'+(kk ? 'Сіз кірдіңіз' : 'Вы вошли')+(sess.online?(kk?' (онлайн)':' (онлайн)'):(kk?' (жергілікті)':' (локально)'))+'</b>' +
             '<div style="margin-top:0.5rem">'+(kk?'Никнейм':'Никнейм')+': <b id="acc-nick-view">'+String(sess.nick).replace(/</g,'&lt;')+'</b></div>' +
             '<div>Email: <b>'+String(sess.email||'').replace(/</g,'&lt;')+'</b></div>' +
+            '<div style="margin-top:0.5rem">'+(kk?'Сіз кімсіз?':'Кто вы?')+': <b id="acc-level-view">'+levelLabel(sess.level, kk)+'</b></div>' +
+            '<select id="acc-level-select" style="'+authFormStyle()+'">' +
+              '<option value=""'+(!sess.level?' selected':'')+'>'+(kk?'Таңдалмаған':'Не выбрано')+'</option>' +
+              '<option value="student"'+(sess.level==='student'?' selected':'')+'>'+(kk?'Оқушы (аз білемін)':'Ученик (знаю мало)')+'</option>' +
+              '<option value="teacher"'+(sess.level==='teacher'?' selected':'')+'>'+(kk?'Мұғалім (көп білемін)':'Учитель (много знаю)')+'</option>' +
+            '</select>' +
             '<p class="ayah-translation" style="margin-top:0.6rem">'+(online
               ? (kk ? 'Аккаунт Supabase-та: кез келген құрылғыдан кіруге болады.' : 'Аккаунт в Supabase: вход доступен с любого устройства.')
               : (kk ? 'Жергілікті режим. Онлайн-сервер қолжетімсіз.' : 'Локальный режим. Онлайн-сервер недоступен.'))+'</p>' +
@@ -15429,6 +15451,26 @@ bKk:
               toast(kk ? 'Ник жаңартылды' : 'Ник обновлён');
               renderAuthSync('account');
             } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
+          });
+          document.getElementById('acc-level-select')?.addEventListener('change', async function(e) {
+            var lvl = e.target.value || '';
+            try {
+              var sb = getSb();
+              if (sb && sess.online) {
+                await sb.auth.updateUser({ data: { level: lvl } });
+                var uid = (await sb.auth.getUser()).data.user.id;
+                await sb.from('profiles').update({ level: lvl }).eq('id', uid);
+              } else {
+                var users = authUsers();
+                var u = users.find(function(x){ return x.email === sess.email || x.nick === sess.nick || x.id === sess.userId; });
+                if (u) { u.level = lvl; authSaveUsers(users); }
+              }
+              sess.level = lvl;
+              authSetSession(sess);
+              var view = document.getElementById('acc-level-view');
+              if (view) view.textContent = levelLabel(lvl, kk);
+              toast(kk ? 'Сақталды' : 'Сохранено');
+            } catch(err) { toast((kk?'Қате: ':'Ошибка: ')+(err.message||err)); }
           });
           document.getElementById('btn-acc-pass')?.addEventListener('click', function() {
             var box = document.getElementById('acc-pass-form');
@@ -15553,12 +15595,14 @@ bKk:
                 var u = data.user || (data.session && data.session.user);
                 var meta = (u && u.user_metadata) || {};
                 var nickLogin = meta.nick || meta.nickname || (id.indexOf('@')>=0 ? id.split('@')[0] : id);
-                authSetSession({ userId: u.id, nick: nickLogin, email: u.email || emailForOnline, online: true });
+                var levelLogin = meta.level !== undefined ? meta.level : '';
+                authSetSession({ userId: u.id, nick: nickLogin, email: u.email || emailForOnline, online: true, level: levelLogin });
                 try {
                   await sb.from('profiles').upsert({
                     id: u.id,
                     nick: nickLogin,
                     email: u.email || emailForOnline || '',
+                    level: levelLogin,
                     created_at: new Date().toISOString()
                   }, { onConflict: 'id' });
                 } catch (pe) { console.warn('profile login', pe); }
@@ -15580,7 +15624,7 @@ bKk:
             toast(sb ? (kk ? 'Логин немесе құпиясөз қате (онлайн және жергілікті)' : 'Неверный логин или пароль (онлайн и локально)') : (kk ? 'Логин немесе құпиясөз қате' : 'Неверный логин или пароль'));
             return;
           }
-          authSetSession({ userId: u.id, nick: u.nick, email: u.email, online: false });
+          authSetSession({ userId: u.id, nick: u.nick, email: u.email, online: false, level: u.level });
           toast(kk ? 'Кіру (жергілікті)' : 'Вход (локально)');
           navigateAuth('account');
         });
@@ -15595,9 +15639,15 @@ bKk:
           '<label>Email</label><input id="reg-email" type="email" autocomplete="email" style="'+authFormStyle()+'">' +
           '<label>'+(kk?'Құпиясөз':'Пароль')+'</label><input id="reg-pass" type="password" autocomplete="new-password" style="'+authFormStyle()+'">' +
           '<label>'+(kk?'Құпиясөзді қайталау':'Повтор пароля')+'</label><input id="reg-pass2" type="password" autocomplete="new-password" style="'+authFormStyle()+'">' +
+          '<label>'+(kk?'Сіз кімсіз?':'Кто вы?')+'</label>' +
+          '<select id="reg-level" style="'+authFormStyle()+'">' +
+            '<option value="">'+(kk?'Таңдалмаған':'Не выбрано')+'</option>' +
+            '<option value="student">'+(kk?'Оқушы (аз білемін)':'Ученик (знаю мало)')+'</option>' +
+            '<option value="teacher">'+(kk?'Мұғалім (көп білемін)':'Учитель (много знаю)')+'</option>' +
+          '</select>' +
           '<div class="ayah-translation" style="margin-bottom:0.5rem">'+(kk
-            ? 'Аккаунт барлық құрылғыларға ортақ. Никнейм 3–20; email бірегей; құпиясөз ≥8, әріп пен сан.'
-            : 'Аккаунт общий для всех устройств. Никнейм 3–20; email уникальный; пароль ≥8, буква и цифра.')+'</div>' +
+            ? 'Аккаунт барлық құрылғыларға ортақ. Никнейм 3–20; email бірегей; құпиясөз ≥8, әріп пен сан. «Сіз кімсіз?» деген сұрақты қалдырмауға да болады — кейін аккаунтта өзгертуге болады.'
+            : 'Аккаунт общий для всех устройств. Никнейм 3–20; email уникальный; пароль ≥8, буква и цифра. Поле «Кто вы?» можно не заполнять — потом можно изменить в аккаунте.')+'</div>' +
           '<button type="button" class="btn btn-primary" id="btn-reg" style="width:100%">'+(kk?'Аккаунт құру':'Создать аккаунт')+'</button>' +
           '<button type="button" class="btn btn-sm" id="btn-reg-login" style="width:100%;margin-top:0.4rem">'+(kk?'Аккаунт бар — кіру':'Уже есть аккаунт — вход')+'</button>' +
           '</div>';
@@ -15608,6 +15658,7 @@ bKk:
           var email = (document.getElementById('reg-email').value || '').trim().toLowerCase();
           var pass = document.getElementById('reg-pass').value || '';
           var pass2 = document.getElementById('reg-pass2').value || '';
+          var level = (document.getElementById('reg-level') || {}).value || '';
           var err = authValidNick(nick) || authValidEmail(email) || authValidPass(pass);
           if (err) { toast(err); return; }
           if (pass !== pass2) { toast(kk ? 'Құпиясөздер сәйкес келмейді' : 'Пароли не совпадают'); return; }
@@ -15618,24 +15669,24 @@ bKk:
                 email: email,
                 password: pass,
                 options: {
-                  data: { nick: nick, nickname: nick },
+                  data: { nick: nick, nickname: nick, level: level },
                   emailRedirectTo: 'https://velqer0n.github.io/Quran-academy/'
                 }
               });
               if (error) { toast(error.message || (kk?'Тіркелу қатесі':'Ошибка регистрации')); return; }
               if (data.user) {
-                authSetSession({ userId: data.user.id, nick: nick, email: email, online: true });
+                authSetSession({ userId: data.user.id, nick: nick, email: email, online: true, level: level });
                 // локальная копия (чтобы вход работал и офлайн)
                 try {
                   var users = authUsers();
                   if (!authFindByEmail(email) && !authFindByNick(nick)) {
-                    users.push({ id: data.user.id, nick: nick, email: email, passHash: authHash(pass), created: Date.now(), onlineId: data.user.id });
+                    users.push({ id: data.user.id, nick: nick, email: email, passHash: authHash(pass), created: Date.now(), onlineId: data.user.id, level: level });
                     authSaveUsers(users);
                   }
                 } catch(e) {}
                 // профиль для статистики регистраций
                 try {
-                  await sb.from('profiles').upsert({ id: data.user.id, nick: nick, email: email, created_at: new Date().toISOString() }, { onConflict: 'id' });
+                  await sb.from('profiles').upsert({ id: data.user.id, nick: nick, email: email, level: level, created_at: new Date().toISOString() }, { onConflict: 'id' });
                 } catch(e) { console.warn('profile upsert', e); }
               }
               if (data.session) {
@@ -15652,10 +15703,10 @@ bKk:
           if (authFindByNick(nick)) { toast(kk ? 'Мұндай никнейм бос емес' : 'Такой никнейм уже занят'); return; }
           if (authFindByEmail(email)) { toast(kk ? 'Бұл email тіркелген' : 'Этот email уже зарегистрирован'); return; }
           var users = authUsers();
-          var u = { id: 'u'+Date.now().toString(36), nick: nick, email: email, passHash: authHash(pass), created: Date.now() };
+          var u = { id: 'u'+Date.now().toString(36), nick: nick, email: email, passHash: authHash(pass), created: Date.now(), level: level };
           users.push(u);
           authSaveUsers(users);
-          authSetSession({ userId: u.id, nick: u.nick, email: u.email, online: false });
+          authSetSession({ userId: u.id, nick: u.nick, email: u.email, online: false, level: u.level });
           toast(kk ? 'Аккаунт құрылды (жергілікті)' : 'Аккаунт создан (локально)');
           navigateAuth('account');
         });
@@ -15700,7 +15751,7 @@ bKk:
     function renderAppUpdate() {
       var el = document.getElementById('appupdate-body');
       if (!el) return;
-      var ver = '3.77';
+      var ver = '4.01';
       try {
         var t = document.title || '';
         var m = t.match(/\d+\.\d+/);
@@ -15731,20 +15782,44 @@ bKk:
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн · .lan языки
       const log = [
-        { major: '3', v: '3.94', kinds: ['a','b'], date: '2026-08-24',
+        { major: '4', v: '4.01', kinds: ['a'], date: '2026-08-24',
+          a: [
+            'Раздел «Мои вопросы/ответы» заработал: можно задать вопрос и по желанию указать о себе возраст, пол, страну и мазхаб, а также написать доп. детали ситуации — для более понятного ответа. Вопрос можно сделать анонимным: тогда его видят только учителя (для ответа), а обычным пользователям он не показывается; неанонимные вопросы и ответы видят все',
+            'Регистрация и «Мой аккаунт»: добавлен выбор «Кто вы?» — Ученик (знаю мало) / Учитель (много знаю) / Не выбрано. Можно оставить не выбранным и изменить позже в аккаунте. От этого выбора зависит, кто видит анонимные вопросы и может на них отвечать'
+          ],
+          aKk: [
+            '«Сұрақ-жауаптарым» бөлімі жұмыс істей бастады: сұрақ қоюға және қаласаңыз өзіңіз туралы жасын, жынысын, елін және мазһабын көрсетуге, сондай-ақ жағдайдың қосымша мән-жайларын жазуға болады — жауап дәлірек болу үшін. Сұрақты анонимды етуге болады: сол кезде оны тек мұғалімдер көреді (жауап беру үшін), әдеттегі қолданушыларға көрінбейді; анонимды емес сұрақтар мен жауаптарды барлығы көреді',
+            'Тіркелу және «Менің аккаунтым»: «Сіз кімсіз?» таңдауы қосылды — Оқушы (аз білемін) / Мұғалім (көп білемін) / Таңдалмаған. Таңдамай қалдыруға және кейін аккаунтта өзгертуге болады. Осы таңдауға байланысты анонимды сұрақтарды кім көріп, жауап бере алатыны анықталады'
+          ]
+        },
+        { major: '4', v: '4.00', kinds: ['a','f','admin'], date: '2026-08-24',
           a: [
             'Меню «Ещё» → раздел «Онлайн»: добавлено 2 новых пустых раздела — «Мои вопросы/ответы» и «Форум» (общие вопросы и ответы, которые смогут смотреть все). Пока это заготовки на будущее, без содержимого'
           ],
           aKk: [
             '«Тағы» мәзірі → «Онлайн» бөлімі: 2 жаңа бос бөлім қосылды — «Сұрақ-жауаптарым» және «Форум» (барлығы көре алатын жалпы сұрақ-жауаптар). Қазірше бұл болашаққа арналған дайындық, мазмұны жоқ'
           ],
-          b: [
-            'Раздел «Регистрация» (список зарегистрированных пользователей) убран из вкладок «Статистики» и вынесен отдельным пунктом в меню «Ещё» → «Онлайн» — вся прежняя функциональность (периоды, список ников) сохранена без изменений',
-            'Раздел «Регистрация» теперь виден и открывается только с аккаунтов из списка администраторов (проверка по email в коде приложения) — у остальных пользователей пункт скрыт в меню «Ещё» и прямой переход в раздел блокируется. Это ограничение только на уровне интерфейса; для защиты данных на сервере дополнительно нужна настройка Row Level Security в Supabase'
+          f: [
+            '«Обновить сайт»: экран показывал устаревший номер версии (3.75) вместо текущей — источник номера в заголовке страницы был не обновлён; теперь там верная версия',
+            'Настройки → «Меню» → «Разделы»: раздел «Достижения» продолжал показываться в списке разделов, даже если в настройках выбран режим «Скрыть полностью» — теперь при полностью скрытых достижениях пункт пропадает и из этого списка тоже, как будто раздела нет вовсе',
+            'Настройки → «Меню» и «Прочее»: при заходе в эти вкладки ряд подвкладок (например «Списки / Порядок / Шапка / Разделы») мог наложиться на ряд главных категорий настроек и «прыгнуть» при прокрутке — оба ряда одинаково «прилипали» к верху экрана и оказывались в одной позиции. Теперь к верху экрана прилипает только ряд главных категорий, подвкладки больше не наезжают на него'
           ],
-          bKk: [
+          fKk: [
+            '«Сайтты жаңарту»: экран ескірген нұсқа нөмірін (3.75) көрсететін — беттің тақырыбындағы нөмір жаңартылмаған еді; енді дұрыс нұсқа көрсетіледі',
+            'Баптаулар → «Мәзір» → «Бөлімдер»: «Жетістіктер» бөлімі «Толығымен жасыру» режимі таңдалған кезде де тізімде көрінуін жалғастыратын — енді толығымен жасырылған жетістіктер осы тізімнен де жоғалады, бөлім мүлдем жоқтай болады',
+            'Баптаулар → «Мәзір» және «Басқа»: осы қойындыларға кіргенде ішкі қойындылар қатары (мысалы «Тізімдер / Реті / Шапка / Бөлімдер») басты санаттар қатарына қабаттасып, айналдыру кезінде «секіруі» мүмкін еді — екі қатар да экранның үстіне бірдей жабысатын. Енді экранның үстіне тек басты санаттар қатары жабысады, ішкі қойындылар оған қабаттаспайды'
+          ],
+          admin: [
+            'Раздел «Регистрация» (список зарегистрированных пользователей) убран из вкладок «Статистики» и вынесен отдельным пунктом в меню «Ещё» → «Онлайн» — вся прежняя функциональность (периоды, список ников) сохранена без изменений',
+            'Раздел «Регистрация» теперь виден и открывается только с аккаунтов из списка администраторов (проверка по email в коде приложения) — у остальных пользователей пункт скрыт в меню «Ещё» и прямой переход в раздел блокируется. Это ограничение только на уровне интерфейса; для защиты данных на сервере дополнительно нужна настройка Row Level Security в Supabase',
+            'В журнале обновлений (этот раздел) добавлен отдельный тег «.admin» — записи с этим тегом (и сам тег в списке фильтров) видны только администраторам, у остальных пользователей их нет ни в списке, ни в поиске по журналу',
+            'Настройки → «Меню» → «Разделы»: пункт «Регистрация» больше не показывается в этом списке у обычных пользователей (раньше был виден и переключаем всем, хотя сам раздел для них уже был недоступен)'
+          ],
+          adminKk: [
             '«Тіркелу» бөлімі (тіркелген пайдаланушылар тізімі) «Статистика» қойындыларынан алынып, «Тағы» мәзірі → «Онлайн» бөлімінде бөлек тармақ ретінде шығарылды — бұрынғы барлық мүмкіндіктер (кезеңдер, никтер тізімі) өзгеріссіз сақталды',
-            '«Тіркелу» бөлімі енді тек әкімшілер тізіміндегі аккаунттарға көрінеді және ашылады (қолданба кодында email бойынша тексеріледі) — қалған пайдаланушыларда тармақ «Тағы» мәзірінде жасырылады және бөлімге тікелей өту бұғатталады. Бұл тек интерфейс деңгейіндегі шектеу; деректерді сервер жағынан да қорғау үшін Supabase-те Row Level Security баптау қажет'
+            '«Тіркелу» бөлімі енді тек әкімшілер тізіміндегі аккаунттарға көрінеді және ашылады (қолданба кодында email бойынша тексеріледі) — қалған пайдаланушыларда тармақ «Тағы» мәзірінде жасырылады және бөлімге тікелей өту бұғатталады. Бұл тек интерфейс деңгейіндегі шектеу; деректерді сервер жағынан да қорғау үшін Supabase-те Row Level Security баптау қажет',
+            'Жаңартулар журналында (осы бөлім) жеке «.admin» тегі қосылды — бұл тегі бар жазбалар (және сүзгі тізіміндегі тегтің өзі) тек әкімшілерге көрінеді, қалған пайдаланушыларда олар тізімде де, журналдағы іздеуде де жоқ',
+            'Баптаулар → «Мәзір» → «Бөлімдер»: «Тіркелу» тармағы енді әдеттегі пайдаланушыларда бұл тізімде көрсетілмейді (бұрын барлығына көрінетін және ауыстырылатын еді, дегенмен бөлімнің өзі оларға қолжетімсіз болатын)'
           ]
         },
         { major: '3', v: '3.93', kinds: ['f'], date: '2026-08-24',
@@ -19484,6 +19559,7 @@ bKk:
           ] }
         }
       ];
+      const isAdmin = (typeof isAdminUser === 'function') && isAdminUser();
       const actualMajors = Array.from(new Set(log.map(function(x){ return x.major; })));
       const maxActualMajor = actualMajors.length ? Math.max.apply(null, actualMajors.map(Number)) : 0;
       const nextMajor = String(maxActualMajor + 1);
@@ -19492,6 +19568,7 @@ bKk:
       // подтянется сам и по умолчанию будет открываться уже она — без ручной правки.
       if (!window._clMajor) window._clMajor = String(maxActualMajor || nextMajor);
       if (!window._clKind) window._clKind = 'all';
+      if (window._clKind === 'admin' && !isAdmin) window._clKind = 'all';
       const major = window._clMajor;
       const kind = window._clKind;
       const dataMajors = actualMajors.slice();
@@ -19502,7 +19579,7 @@ bKk:
         if (_clKk) return { id: m, lab: m + '-серия' };
         return { id: m, lab: (actualMajors.indexOf(m) === -1 ? 'серия ' + m : 'с ' + m) };
       }));
-      const kindTabs = _clKk ? [
+      const kindTabs = (_clKk ? [
         { id: 'all', lab: 'Барлығы' },
         { id: 'a', lab: '.a жаңа' },
         { id: 'b', lab: '.b өзгерістер' },
@@ -19526,14 +19603,20 @@ bKk:
         { id: 's', lab: '.s скорость' },
         { id: 'on', lab: '.on онлайн' },
         { id: 'lan', lab: '.lan языки' }
-      ];
+      ]).concat(isAdmin ? [{ id: 'admin', lab: '.admin' + (_clKk ? ' әкімші' : ' админ') }] : []);
       const filtered = log.filter(function(x){ return major === 'all' ? true : x.major === major; }).filter(function(x) {
+        if (isAdmin) return true;
+        // Запись, где есть контент только для админов (например .admin), не должна быть видна остальным вовсе.
+        const visibleKinds = ['a','b','f','d','ph','I','o','s','on','lan'];
+        return visibleKinds.some(function(k){ return x[k] && x[k].length; });
+      }).filter(function(x) {
         if (kind === 'all') return true;
+        if (kind === 'admin' && !isAdmin) return false;
         return x[kind] && x[kind].length;
       }).filter(function(x) {
         const q = (window._clQuery || '').trim().toLowerCase();
         if (!q) return true;
-        const blob = [x.v, x.date].concat(x.a||[], x.b||[], x.f||[], x.d||[], x.ph||[], x.I||[], x.o||[], x.s||[], x.on||[], x.lan||[]).join(' ').toLowerCase();
+        const blob = [x.v, x.date].concat(x.a||[], x.b||[], x.f||[], x.d||[], x.ph||[], x.I||[], x.o||[], x.s||[], x.on||[], x.lan||[]).concat(isAdmin ? (x.admin||[]) : []).join(' ').toLowerCase();
         return blob.indexOf(q) >= 0;
       });
       const _ps = (typeof getListPageSize === 'function') ? getListPageSize() : 25;
@@ -19562,23 +19645,24 @@ bKk:
           }
           const kk = x.kk || {};
           const blocks = [];
-          const rowDefs = _clKk
+          const rowDefs = (_clKk
             ? [['a','Жаңа',x.a],['b','Өзгерістер',x.b],['f','Түзету',x.f],['d','Дизайн',x.d],['ph','Фото',x.ph],['I','Жұмыста',x.I],['o','Басқа',x.o],['s','Жылдамдық',x.s],['on','Онлайн',x.on],['lan','Тілдер',x.lan]]
-            : [['a','Новое',x.a],['b','Изменения',x.b],['f','Фикс',x.f],['d','Дизайн',x.d],['ph','Фото',x.ph],['I','В работе',x.I],['o','Другое',x.o],['s','Скорость',x.s],['on','Онлайн',x.on],['lan','Языки',x.lan]];
+            : [['a','Новое',x.a],['b','Изменения',x.b],['f','Фикс',x.f],['d','Дизайн',x.d],['ph','Фото',x.ph],['I','В работе',x.I],['o','Другое',x.o],['s','Скорость',x.s],['on','Онлайн',x.on],['lan','Языки',x.lan]]
+          ).concat(isAdmin ? [[ 'admin', (_clKk ? 'Әкімшіге' : 'Для админов'), x.admin ]] : []);
           rowDefs.forEach(function(row) {
             if (kind !== 'all' && kind !== row[0]) return;
-            const items = (_clKk && kk[row[0]] && kk[row[0]].length) ? kk[row[0]] : row[2];
+            const items = (row[0] === 'admin') ? ((_clKk && x.adminKk && x.adminKk.length) ? x.adminKk : row[2]) : ((_clKk && kk[row[0]] && kk[row[0]].length) ? kk[row[0]] : row[2]);
             if (!items || !items.length) return;
             blocks.push('<div style="margin-top:0.45rem"><b style="color:var(--accent)">.'+row[0]+' · '+row[1]+'</b><ul style="margin:0.25rem 0 0 1.1rem;color:var(--text-muted);font-size:0.9rem;line-height:1.5">' +
               items.map(function(it){ return '<li>'+it+'</li>'; }).join('') + '</ul></div>');
           });
-          const kindOrder = ['a','b','f','d','ph','I','o','s','on','lan'];
+          const kindOrder = ['a','b','f','d','ph','I','o','s','on','lan'].concat(isAdmin ? ['admin'] : []);
           const tags = kindOrder.filter(function(k){
             return x[k] && x[k].length;
           }).map(function(k){
             return '<span style="font-size:0.7rem;border:1px solid var(--border);border-radius:0.3rem;padding:0.05rem 0.3rem;margin-left:0.25rem">.'+k+'</span>';
           }).join('');
-          const n = (x.a&&x.a.length||0)+(x.b&&x.b.length||0)+(x.f&&x.f.length||0)+(x.d&&x.d.length||0)+(x.ph&&x.ph.length||0)+(x.I&&x.I.length||0)+(x.o&&x.o.length||0)+(x.s&&x.s.length||0)+(x.lan&&x.lan.length||0);
+          const n = (x.a&&x.a.length||0)+(x.b&&x.b.length||0)+(x.f&&x.f.length||0)+(x.d&&x.d.length||0)+(x.ph&&x.ph.length||0)+(x.I&&x.I.length||0)+(x.o&&x.o.length||0)+(x.s&&x.s.length||0)+(x.lan&&x.lan.length||0)+(isAdmin ? (x.admin&&x.admin.length||0) : 0);
           return dateSep +
             '<div class="card more-expand" data-exp="cl'+i+'" style="cursor:pointer">' +
             '<b>'+x.v+'</b> '+tags+' <span style="color:var(--text-muted);font-size:0.85rem">· '+(function(){ try { if (/^\d{4}-\d{2}-\d{2}/.test(dt)) { const p=dt.split('-'); return p[2]+'.'+p[1]+'.'+p[0]; } if (/^\d{4}-\d{2}$/.test(dt)) { const p=dt.split('-'); return p[1]+'.'+p[0]; } return dt; } catch(e){ return dt; } })()+'</span>' +
@@ -35843,6 +35927,197 @@ c.addEventListener('click', () => {
       try { bindTipToggles(el, id); } catch(e) {}
     }
 
+    // ===== Мои вопросы/ответы: публичный/анонимный Q&A с учителями =====
+    function qaGenderLabel(g, kk) {
+      if (g === 'male') return kk ? 'Ер' : 'Муж.';
+      if (g === 'female') return kk ? 'Әйел' : 'Жен.';
+      return '';
+    }
+    function qaMazhabLabel(m, kk) {
+      var map = {
+        hanafi: 'Ханафи',
+        shafii: kk ? 'Шафиғи' : 'Шафии',
+        maliki: 'Малики',
+        hanbali: 'Ханбали',
+        other: kk ? 'Басқа/жоқ' : 'Другой/нет'
+      };
+      return map[m] || '';
+    }
+    function renderQaCard(q, sess, isTeacher, kk) {
+      var mine = !!(sess && q.user_id === sess.userId);
+      var authorLabel = q.is_anonymous
+        ? (kk ? 'Аноним' : 'Аноним')
+        : (String(q.nick || '').replace(/</g,'&lt;') || (kk ? 'Қолданушы' : 'Пользователь'));
+      var details = [];
+      if (q.age) details.push((kk ? 'Жасы: ' : 'Возраст: ') + parseInt(q.age,10));
+      var gl = qaGenderLabel(q.gender, kk); if (gl) details.push(gl);
+      if (q.country) details.push(String(q.country).replace(/</g,'&lt;'));
+      var ml = qaMazhabLabel(q.mazhab, kk); if (ml) details.push(ml);
+      var detailsLine = details.length ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.15rem">'+details.join(' · ')+'</div>' : '';
+      var extraLine = q.extra_text ? '<div class="ayah-translation" style="margin-top:0.3rem;font-size:0.85rem">'+String(q.extra_text).replace(/</g,'&lt;')+'</div>' : '';
+      var anonBadge = q.is_anonymous ? ' <span style="font-size:0.72rem;color:var(--warning)">🔒'+(kk?' анонимды':' анонимно')+'</span>' : '';
+      var answerBlock = q.answer_text
+        ? '<div class="card" style="margin-top:0.5rem;background:var(--bg);border-color:var(--accent)"><b style="color:var(--accent)">'+(kk?'Жауап':'Ответ')+'</b><div class="ayah-translation" style="margin-top:0.25rem;white-space:pre-wrap">'+String(q.answer_text).replace(/</g,'&lt;')+'</div></div>'
+        : '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.4rem">'+(kk?'Жауап әлі жоқ':'Ответа пока нет')+'</div>';
+      var answerFormBtn = (isTeacher && !q.answer_text)
+        ? '<button type="button" class="btn btn-sm" data-qa-answer="'+q.id+'" style="width:100%;margin-top:0.4rem">'+(kk?'Жауап беру':'Ответить')+'</button>'
+        : '';
+      var delBtn = (mine && !q.answer_text)
+        ? '<button type="button" class="btn btn-sm" data-qa-del="'+q.id+'" style="width:100%;margin-top:0.35rem;color:var(--danger)">'+(kk?'Жою':'Удалить')+'</button>'
+        : '';
+      return '<div class="card" data-qa-id="'+q.id+'">' +
+        '<div style="font-size:0.8rem;color:var(--text-muted)">'+authorLabel+anonBadge+(mine?(' · '+(kk?'сіздің сұрағыңыз':'ваш вопрос')):'')+'</div>' +
+        detailsLine +
+        '<div style="margin-top:0.4rem;white-space:pre-wrap">'+String(q.question_text||'').replace(/</g,'&lt;')+'</div>' +
+        extraLine +
+        answerBlock +
+        answerFormBtn + delBtn +
+        '</div>';
+    }
+    function bindQaAnswerButtons(wrap, kk) {
+      wrap.querySelectorAll('[data-qa-answer]').forEach(function(btn){
+        btn.addEventListener('click', function() {
+          var id = btn.getAttribute('data-qa-answer');
+          var card = wrap.querySelector('[data-qa-id="'+id+'"]');
+          if (!card || card.querySelector('.qa-answer-form')) return;
+          btn.style.display = 'none';
+          var form = document.createElement('div');
+          form.className = 'qa-answer-form';
+          form.style.marginTop = '0.4rem';
+          form.innerHTML =
+            '<textarea rows="3" style="'+authFormStyle()+'resize:vertical" placeholder="'+(kk?'Жауабыңыз...':'Ваш ответ...')+'"></textarea>' +
+            '<button type="button" class="btn btn-primary btn-sm" style="width:100%">'+(kk?'Сақтау':'Сохранить')+'</button>';
+          card.appendChild(form);
+          form.querySelector('button').addEventListener('click', async function() {
+            var txt = (form.querySelector('textarea').value || '').trim();
+            if (!txt) { toast(kk?'Жауапты жазыңыз':'Напишите ответ'); return; }
+            var sb = getSb(); var sess = authSession();
+            if (!sb || !sess) return;
+            try {
+              var res = await sb.from('questions').update({
+                answer_text: txt, answered_by: sess.userId, answered_at: new Date().toISOString()
+              }).eq('id', id);
+              if (res && res.error) { toast(res.error.message || (kk?'Қате':'Ошибка')); return; }
+              toast(kk?'Жауап сақталды':'Ответ сохранён');
+              renderMyQA();
+            } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
+          });
+        });
+      });
+      wrap.querySelectorAll('[data-qa-del]').forEach(function(btn){
+        btn.addEventListener('click', async function() {
+          var id = btn.getAttribute('data-qa-del');
+          if (!confirm(kk?'Сұрақты жою керек пе?':'Удалить вопрос?')) return;
+          var sb = getSb();
+          if (!sb) return;
+          try {
+            var res = await sb.from('questions').delete().eq('id', id);
+            if (res && res.error) { toast(res.error.message || (kk?'Қате':'Ошибка')); return; }
+            renderMyQA();
+          } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
+        });
+      });
+    }
+    function renderMyQA() {
+      var el = document.getElementById('myqa-body');
+      if (!el) return;
+      var kk = state.settings && state.settings.lang === 'kk';
+      var sb = getSb();
+      if (!sb) {
+        el.innerHTML = '<div class="empty-state"><p>'+(kk?'Бөлім тек онлайн-режимде қолжетімді.':'Раздел доступен только в онлайн-режиме.')+'</p></div>';
+        return;
+      }
+      var sess = authSession();
+      if (!sess || !sess.online) {
+        el.innerHTML =
+          '<div class="card"><p>'+(kk?'Сұрақ қою және жауаптарды көру үшін аккаунтқа кіріңіз.':'Чтобы задать вопрос и видеть ответы, войдите в аккаунт.')+'</p>' +
+          '<button type="button" class="btn btn-primary" id="myqa-go-login" style="width:100%;margin-top:0.5rem">'+(kk?'Кіру/Тіркелу':'Войти / Зарегистрироваться')+'</button></div>';
+        document.getElementById('myqa-go-login')?.addEventListener('click', function(){ showView('login'); });
+        return;
+      }
+      var isTeacher = sess.level === 'teacher';
+      el.innerHTML =
+        '<div class="card">' +
+          '<b>'+(kk?'Сұрақ қою':'Задать вопрос')+'</b>' +
+          '<label style="display:block;margin-top:0.5rem;font-size:0.85rem">'+(kk?'Сұрағыңыз':'Ваш вопрос')+'</label>' +
+          '<textarea id="qa-text" rows="3" style="'+authFormStyle()+'resize:vertical" placeholder="'+(kk?'Сұрағыңызды осында жазыңыз...':'Напишите ваш вопрос здесь...')+'"></textarea>' +
+          '<label style="display:block;font-size:0.85rem">'+(kk?'Өзіңіз туралы (міндетті емес, түсінікті болу үшін)':'О себе (необязательно, для ясности ситуации)')+'</label>' +
+          '<div style="display:flex;gap:0.4rem;flex-wrap:wrap">' +
+            '<input id="qa-age" type="number" min="1" max="120" placeholder="'+(kk?'Жасы':'Возраст')+'" style="flex:1;min-width:80px;'+authFormStyle()+'">' +
+            '<select id="qa-gender" style="flex:1;min-width:110px;'+authFormStyle()+'">' +
+              '<option value="">'+(kk?'Жынысы':'Пол')+'</option>' +
+              '<option value="male">'+(kk?'Ер':'Мужской')+'</option>' +
+              '<option value="female">'+(kk?'Әйел':'Женский')+'</option>' +
+            '</select>' +
+          '</div>' +
+          '<input id="qa-country" type="text" placeholder="'+(kk?'Ел':'Страна')+'" style="'+authFormStyle()+'">' +
+          '<select id="qa-mazhab" style="'+authFormStyle()+'">' +
+            '<option value="">'+(kk?'Мазһаб':'Мазхаб')+'</option>' +
+            '<option value="hanafi">Ханафи</option>' +
+            '<option value="shafii">'+(kk?'Шафиғи':'Шафии')+'</option>' +
+            '<option value="maliki">Малики</option>' +
+            '<option value="hanbali">Ханбали</option>' +
+            '<option value="other">'+(kk?'Басқа/жоқ':'Другой/нет')+'</option>' +
+          '</select>' +
+          '<textarea id="qa-extra" rows="2" style="'+authFormStyle()+'resize:vertical" placeholder="'+(kk?'Қосымша мән-жайлар (қаласаңыз)':'Дополнительные детали ситуации (по желанию)')+'"></textarea>' +
+          '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;margin:0.3rem 0 0.6rem"><input type="checkbox" id="qa-anon"> '+(kk?'Анонимды сұрақ (тек мұғалімдерге көрінеді, басқаларға көрінбейді)':'Анонимный вопрос (виден только учителям, остальным не виден)')+'</label>' +
+          '<button type="button" class="btn btn-primary" id="qa-submit" style="width:100%">'+(kk?'Жіберу':'Отправить')+'</button>' +
+        '</div>' +
+        '<div id="qa-list-wrap"><div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div></div>';
+
+      document.getElementById('qa-submit')?.addEventListener('click', async function() {
+        var textEl = document.getElementById('qa-text');
+        var text = (textEl.value || '').trim();
+        if (!text) { toast(kk?'Сұрақты жазыңыз':'Напишите вопрос'); return; }
+        var age = (document.getElementById('qa-age').value || '').trim();
+        var gender = document.getElementById('qa-gender').value || '';
+        var country = (document.getElementById('qa-country').value || '').trim();
+        var mazhab = document.getElementById('qa-mazhab').value || '';
+        var extra = (document.getElementById('qa-extra').value || '').trim();
+        var anon = !!document.getElementById('qa-anon').checked;
+        var btn = this;
+        btn.disabled = true;
+        try {
+          var res = await sb.from('questions').insert({
+            user_id: sess.userId,
+            nick: sess.nick,
+            question_text: text,
+            age: age ? parseInt(age,10) : null,
+            gender: gender || null,
+            country: country || null,
+            mazhab: mazhab || null,
+            extra_text: extra || null,
+            is_anonymous: anon
+          });
+          if (res && res.error) { toast(res.error.message || (kk?'Қате':'Ошибка')); btn.disabled = false; return; }
+          toast(kk?'Сұрақ жіберілді':'Вопрос отправлен');
+          textEl.value = '';
+          document.getElementById('qa-age').value = '';
+          document.getElementById('qa-country').value = '';
+          document.getElementById('qa-extra').value = '';
+          document.getElementById('qa-anon').checked = false;
+          loadQaList();
+        } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
+        btn.disabled = false;
+      });
+
+      function loadQaList() {
+        var wrap = document.getElementById('qa-list-wrap');
+        if (!wrap) return;
+        wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div>';
+        sb.from('questions').select('*').order('created_at', { ascending: false }).limit(100).then(function(res) {
+          if (res && res.error) { wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(res.error.message||'')+'</p></div>'; return; }
+          var rows = (res && res.data) || [];
+          if (!rows.length) { wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Әзірге сұрақтар жоқ.':'Пока нет вопросов.')+'</p></div>'; return; }
+          wrap.innerHTML = rows.map(function(q){ return renderQaCard(q, sess, isTeacher, kk); }).join('');
+          bindQaAnswerButtons(wrap, kk);
+        }).catch(function(e) {
+          wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(e.message||e)+'</p></div>';
+        });
+      }
+      loadQaList();
+    }
+
     
     function paintMoreConfig() {
       const listsEl = document.getElementById('morecfg-lists');
@@ -35870,7 +36145,12 @@ c.addEventListener('click', () => {
       // компактно: по спискам
       const byList = {};
       lists.forEach(function(g){ byList[g.id] = []; });
+      const secIsAdmin = (typeof isAdminUser === 'function') && isAdminUser();
+      const secAchHidden = (typeof achievementsHidden === 'function') && achievementsHidden();
       MORE_MENU_DEFAULT.forEach(function(it){
+        // «Регистрация» — только у администраторов; полностью скрытые (off) «Достижения» тут тоже не показываем
+        if (it.id === 'registration' && !secIsAdmin) return;
+        if (it.id === 'achievements' && secAchHidden) return;
         const g = it.group || 'system';
         if (!byList[g]) byList[g] = [];
         byList[g].push(it);
