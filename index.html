@@ -36005,6 +36005,9 @@ c.addEventListener('click', () => {
     // opts.allowAnswer — показывать ли кнопку «Ответить» (решает вызывающий код —
     //   он знает, учитель ли это и в каком разделе показывается карточка);
     // opts.allowDelete — показывать ли кнопку «Удалить» (дополнительно требуется mine).
+    // opts.isAdmin — показывать ли администраторские кнопки: «Удалить вопрос полностью»
+    //   (доступна всегда, даже если вопрос отвечен и не свой) и «Удалить только ответ»
+    //   (доступна, если есть ответ) — не требуют mine, в отличие от обычной «Удалить».
     // Раньше право отвечать определялось прямо здесь через isTeacher, и это же
     // право автоматически действовало и в «Мои вопросы/ответы», и на «Форуме» —
     // теперь у каждого раздела свои правила видимости/прав, поэтому они передаются явно.
@@ -36031,13 +36034,24 @@ c.addEventListener('click', () => {
       var delBtn = (opts.allowDelete && mine && !q.answer_text)
         ? '<button type="button" class="btn btn-sm" data-qa-del="'+q.id+'" style="width:100%;margin-top:0.35rem;color:var(--danger)">'+(kk?'Жою':'Удалить')+'</button>'
         : '';
+      // Кнопки администратора: работают для ЛЮБОГО вопроса (не только своего) и
+      // независимо от того, есть ли уже ответ. Требуют на стороне Supabase RLS-
+      // политик DELETE/UPDATE для админ-аккаунтов на таблице questions — без них
+      // сервер вернёт "permission denied", несмотря на то что кнопка видна в UI
+      // (сама по себе проверка ADMIN_EMAILS — это только UI-ограничение).
+      var adminDelFullBtn = opts.isAdmin
+        ? '<button type="button" class="btn btn-sm" data-qa-admin-del-full="'+q.id+'" style="width:100%;margin-top:0.35rem;color:var(--danger)">🛡 '+(kk?'Сұрақты толық жою (админ)':'Удалить вопрос полностью (админ)')+'</button>'
+        : '';
+      var adminDelAnswerBtn = (opts.isAdmin && q.answer_text)
+        ? '<button type="button" class="btn btn-sm" data-qa-admin-del-answer="'+q.id+'" style="width:100%;margin-top:0.35rem;color:var(--warning)">🛡 '+(kk?'Тек жауапты жою (админ)':'Удалить только ответ (админ)')+'</button>'
+        : '';
       return '<div class="card" data-qa-id="'+q.id+'">' +
         '<div style="font-size:0.8rem;color:var(--text-muted)">'+authorLabel+anonBadge+(mine?(' · '+(kk?'сіздің сұрағыңыз':'ваш вопрос')):'')+'</div>' +
         detailsLine +
         '<div style="margin-top:0.4rem;white-space:pre-wrap">'+String(q.question_text||'').replace(/</g,'&lt;')+'</div>' +
         extraLine +
         answerBlock +
-        answerFormBtn + delBtn +
+        answerFormBtn + delBtn + adminDelAnswerBtn + adminDelFullBtn +
         '</div>';
     }
     // reloadFn — что вызывать после успешного действия (у «Мои вопросы/ответы» и «Форума»
@@ -36124,6 +36138,80 @@ c.addEventListener('click', () => {
               }
               return;
             }
+            if (reloadFn) reloadFn();
+          } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
+        });
+      });
+      // Админ: удалить вопрос целиком (вместе с ответом, если он есть) — не требует mine.
+      wrap.querySelectorAll('[data-qa-admin-del-full]').forEach(function(btn){
+        btn.addEventListener('click', async function() {
+          var id = btn.getAttribute('data-qa-admin-del-full');
+          if (!confirm(kk?'Сұрақты (әкімші ретінде) толық жою керек пе? Бұл әрекетті қайтару мүмкін емес.':'Удалить вопрос полностью (как администратор)? Действие необратимо.')) return;
+          var sb = getSb();
+          if (!sb) return;
+          try {
+            var chk = await sb.auth.getUser();
+            if (!(chk && chk.data && chk.data.user)) {
+              toast(kk?'Сессия аяқталды, қайта кіріңіз':'Сессия истекла, войдите заново');
+              if (reloadFn) reloadFn();
+              return;
+            }
+            var res = await sb.from('questions').delete().eq('id', id).select();
+            if (res && res.error) {
+              if (res.error.code === '42501' || /permission denied/i.test(res.error.message||'')) {
+                toast(kk?'Сессия жарамсыз, қайта кіріңіз':'Сессия недействительна, войдите заново');
+                if (reloadFn) reloadFn();
+              } else {
+                toast(res.error.message || (kk?'Қате':'Ошибка'));
+              }
+              return;
+            }
+            if (!res || !res.data || !res.data.length) {
+              // Ошибки нет, но ни одна строка не удалилась — почти всегда это RLS-
+              // политика DELETE в Supabase, не разрешающая админу удалять чужие строки.
+              toast(kk
+                ? 'Жойылмады: құқық жетіспейді (Supabase-те questions кестесінің DELETE саясатын әкімшілер үшін тексеріңіз)'
+                : 'Не удалилось: не хватает прав (проверьте RLS-политику DELETE для админов в Supabase на таблице questions)');
+              return;
+            }
+            toast(kk?'Сұрақ жойылды':'Вопрос удалён');
+            if (reloadFn) reloadFn();
+          } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
+        });
+      });
+      // Админ: удалить только ответ, оставив сам вопрос (например, если ответ некорректный) — не требует mine.
+      wrap.querySelectorAll('[data-qa-admin-del-answer]').forEach(function(btn){
+        btn.addEventListener('click', async function() {
+          var id = btn.getAttribute('data-qa-admin-del-answer');
+          if (!confirm(kk?'Тек жауапты жою керек пе (сұрақ қалады)?':'Удалить только ответ (вопрос останется)?')) return;
+          var sb = getSb();
+          if (!sb) return;
+          try {
+            var chk = await sb.auth.getUser();
+            if (!(chk && chk.data && chk.data.user)) {
+              toast(kk?'Сессия аяқталды, қайта кіріңіз':'Сессия истекла, войдите заново');
+              if (reloadFn) reloadFn();
+              return;
+            }
+            var res = await sb.from('questions').update({
+              answer_text: null, answered_by: null, answered_at: null
+            }).eq('id', id).select();
+            if (res && res.error) {
+              if (res.error.code === '42501' || /permission denied/i.test(res.error.message||'')) {
+                toast(kk?'Сессия жарамсыз, қайта кіріңіз':'Сессия недействительна, войдите заново');
+                if (reloadFn) reloadFn();
+              } else {
+                toast(res.error.message || (kk?'Қате':'Ошибка'));
+              }
+              return;
+            }
+            if (!res || !res.data || !res.data.length) {
+              toast(kk
+                ? 'Жауап жойылмады: құқық жетіспейді (Supabase-те questions кестесінің UPDATE саясатын әкімшілер үшін тексеріңіз)'
+                : 'Ответ не удалился: не хватает прав (проверьте RLS-политику UPDATE для админов в Supabase на таблице questions)');
+              return;
+            }
+            toast(kk?'Жауап жойылды':'Ответ удалён');
             if (reloadFn) reloadFn();
           } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
         });
@@ -36269,7 +36357,10 @@ c.addEventListener('click', () => {
           if (!rows.length) { wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Әзірге сұрақтарыңыз жоқ.':'У вас пока нет вопросов.')+'</p></div>'; return; }
           // allowAnswer: false — в «Мои вопросы/ответы» кнопки «Ответить» нет ни у кого,
           // это приватная лента только для просмотра своих вопросов и удаления неотвеченных.
-          wrap.innerHTML = rows.map(function(q){ return renderQaCard(q, sess, kk, { allowAnswer: false, allowDelete: true }); }).join('');
+          // isAdmin: администраторские кнопки удаления доступны и здесь (это ведь и его
+          // собственные вопросы), хотя обычно это тот же результат, что и обычная «Удалить».
+          var qaIsAdmin = (typeof isAdminUser === 'function') && isAdminUser();
+          wrap.innerHTML = rows.map(function(q){ return renderQaCard(q, sess, kk, { allowAnswer: false, allowDelete: true, isAdmin: qaIsAdmin }); }).join('');
           bindQaAnswerButtons(wrap, kk, renderMyQA);
         }).catch(function(e) {
           wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(e.message||e)+'</p></div>';
@@ -36338,7 +36429,10 @@ c.addEventListener('click', () => {
           if (!rows.length) { wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Әзірге сұрақтар жоқ.':'Пока нет вопросов.')+'</p></div>'; return; }
           // allowAnswer: только учитель может отвечать на форуме (на любой вопрос,
           // включая анонимные); allowDelete: автор может удалить свой неотвеченный вопрос.
-          wrap.innerHTML = rows.map(function(q){ return renderQaCard(q, sess, kk, { allowAnswer: isTeacher, allowDelete: true }); }).join('');
+          // isAdmin: администратор (по ADMIN_EMAILS) видит кнопки «Удалить вопрос полностью»
+          // и «Удалить только ответ» на любой карточке — не только на своей.
+          var forumIsAdmin = (typeof isAdminUser === 'function') && isAdminUser();
+          wrap.innerHTML = rows.map(function(q){ return renderQaCard(q, sess, kk, { allowAnswer: isTeacher, allowDelete: true, isAdmin: forumIsAdmin }); }).join('');
           bindQaAnswerButtons(wrap, kk, renderForum);
         }).catch(function(e) {
           wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(e.message||e)+'</p></div>';
