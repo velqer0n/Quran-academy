@@ -2995,6 +2995,31 @@
       <div id="forum-body"></div>
     </div>
 
+    <div id="view-publicchat" class="view">
+      <h2 class="section-title">Общий чат</h2>
+      <div id="publicchat-body"></div>
+    </div>
+
+    <div id="view-dm" class="view">
+      <h2 class="section-title" id="dm-title">Личные сообщения</h2>
+      <div id="dm-body"></div>
+    </div>
+
+    <div id="view-friends" class="view">
+      <h2 class="section-title">Друзья</h2>
+      <div id="friends-body"></div>
+    </div>
+
+    <div id="view-groups" class="view">
+      <h2 class="section-title">Групповые чаты</h2>
+      <div id="groups-body"></div>
+    </div>
+
+    <div id="view-groupchat" class="view">
+      <h2 class="section-title" id="groupchat-title">Групповой чат</h2>
+      <div id="groupchat-body"></div>
+    </div>
+
     <div id="view-lessons" class="view">
       <h2 class="section-title" data-i18n="lessons">Короткие уроки</h2>
       <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:1rem">По 3–5 минут. Выберите тему.</p>
@@ -6317,7 +6342,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
           if (MAIN_TABS.has(name)) viewStack = [name];
           else {
             // разделы «Ещё» — под ними всегда more, чтобы «назад» шло в Ещё
-            const MORE_IDS = new Set(['prayertimes','stats','achievements','registration','myqa','forum','appupdate','account','settings','help','changelog','data','fiqh','aqidah','hadiths','stories','salah','adhkar','dict','myreading','topics']);
+            const MORE_IDS = new Set(['prayertimes','stats','achievements','registration','myqa','forum','publicchat','friends','groups','appupdate','account','settings','help','changelog','data','fiqh','aqidah','hadiths','stories','salah','adhkar','dict','myreading','topics']);
             if (MORE_IDS.has(name) && cur !== 'more' && !viewStack.includes('more')) {
               viewStack = ['more', name];
             } else {
@@ -6334,7 +6359,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       } catch(e) {}
       // Запомнить глубокий раздел «Ещё» для возврата; меню «Ещё» — сброс
       try {
-        const MORE_SET = new Set(['achievements','registration','myqa','forum','fiqh','madhhabs','sins','aqidah','sunnahs','family','hadith','hadiths','ihouse','stories','salah','adhkar','qol','names','qdict','cache','settings','export','duabuilder','qurandua','ramadan','adab','calendar','library','topics','search','changelog','help','prayertimes','account','login','register','forgot','more']);
+        const MORE_SET = new Set(['achievements','registration','myqa','forum','publicchat','friends','groups','fiqh','madhhabs','sins','aqidah','sunnahs','family','hadith','hadiths','ihouse','stories','salah','adhkar','qol','names','qdict','cache','settings','export','duabuilder','qurandua','ramadan','adab','calendar','library','topics','search','changelog','help','prayertimes','account','login','register','forgot','more']);
         if (name === 'more') {
           state.moreDeep = null;
           try { sessionStorage.removeItem('quran_more_deep'); } catch(e) {}
@@ -6503,6 +6528,18 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       } catch(e) {}
       if (name === 'myqa') try { renderMyQA(); } catch(e) {}
       if (name === 'forum') try { renderForum(); } catch(e) {}
+      // Общий чат: рендерим при входе; при выходе из раздела отписываемся от Realtime,
+      // чтобы не плодить открытые соединения, если пользователь переключает вкладки.
+      if (name === 'publicchat') { try { renderPublicChat(); } catch(e) {} }
+      else { try { unsubscribePublicChat(); } catch(e) {} }
+      // Личные сообщения: открываются не из меню «Ещё», а по кнопке в мини-профиле
+      // (см. openDmWith). Партнёр по переписке хранится в _dmPartner.
+      if (name === 'dm') { try { renderDmChat(); } catch(e) {} }
+      else { try { unsubscribeDm(); } catch(e) {} }
+      if (name === 'friends') try { renderFriends(); } catch(e) {}
+      if (name === 'groups') try { renderGroupsList(); } catch(e) {}
+      if (name === 'groupchat') { try { renderGroupChat(); } catch(e) {} }
+      else { try { unsubscribeGroupChat(); } catch(e) {} }
       if (name === 'achievements') try { if (achievementsHidden()) { toast('Достижения скрыты · Настройки → Другое'); showView('more'); } else renderAchievements(); } catch(e) {}
       if (name === 'appupdate') try { renderAppUpdate(); } catch(e) {}
       try { if (typeof trackSectionVisit === 'function') trackSectionVisit(name); } catch(e) {}
@@ -8828,7 +8865,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
 
         if (v === 'more') {
           const cur = (viewStack && viewStack.length) ? viewStack[viewStack.length - 1] : '';
-          const MORE_SET = new Set(['achievements','registration','myqa','forum','fiqh','madhhabs','sins','aqidah','sunnahs','family','hadith','hadiths','stories','salah','adhkar','qol','names','qdict','cache','settings','export','duabuilder','qurandua','ramadan','adab','calendar','library','topics','search','changelog','help','prayertimes','account']);
+          const MORE_SET = new Set(['achievements','registration','myqa','forum','publicchat','friends','groups','fiqh','madhhabs','sins','aqidah','sunnahs','family','hadith','hadiths','stories','salah','adhkar','qol','names','qdict','cache','settings','export','duabuilder','qurandua','ramadan','adab','calendar','library','topics','search','changelog','help','prayertimes','account']);
           let deep = state.moreDeep || null;
           try { deep = deep || sessionStorage.getItem('quran_more_deep'); } catch(e) {}
           // Уже в глубоком разделе «Ещё» → в меню «Ещё»
@@ -15380,7 +15417,10 @@ bKk:
       var sb = getSb();
       if (!sb) return [];
       var r = await sb.from('blocked_emails').select('email,nick,reason,blocked_at').order('blocked_at', { ascending: false }).limit(1000);
-      if (r && r.error) { console.warn('blocked_emails list', r.error); return null; }
+      if (r && r.error) {
+        console.warn('blocked_emails list', r.error);
+        return { _error: r.error };
+      }
       return r.data || [];
     }
     function authHash(str) {
@@ -15872,19 +15912,35 @@ bKk:
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн · .lan языки
       const log = [
-        { major: '4', v: '4.06', kinds: ['admin'], date: '2026-08-24',
-          admin: [
-            'Раздел «Форум»: у администраторов на карточке любого неанонимного вопроса появилась кнопка 🛡 «Скрыть от всех (лёгкий вопрос)» — переводит вопрос в режим видимости, как у обычного анонимного (виден только учителям и самому автору), не удаляя ни вопрос, ни ответ. Задумано для простых/неважных вопросов, на которые не стоит тратить общее внимание Форума',
-            'Скрытый администратором вопрос помечен собственным значком 🛡 «Скрыто админом» — отдельным от обычного значка «🔒 анонимно», чтобы было видно: это решение администратора, а не выбор автора при отправке вопроса. У такого вопроса появляется кнопка 🛡 «Показать всем снова» — действие обратимо в любой момент',
-            'На стороне базы данных потребуется новая колонка questions.hidden_by_admin (boolean, по умолчанию false) — без неё кнопки скрытия/показа будут завершаться ошибкой нехватки прав; действующая с версии 4.05 RLS-политика обновления строк для администраторов эту колонку уже покрывает, отдельно настраивать её не нужно'
+        { major: '4', v: '4.07', kinds: ['f'], date: '2026-08-25',
+          f: [
+            'Меню «Ещё»: у части пользователей список «Онлайн» (Мой аккаунт, Общий чат, Друзья, Групповые чаты и т.д.) мог полностью пропадать из меню. Причина — старая ошибка в функции чтения настроек списков меню: если пользователь хоть раз заходил в «Настройки → Меню → Списки», сохранённая конфигурация безусловно вырезала группу «Онлайн», как будто её вообще не существует. Теперь эта группа больше не вырезается, а если она уже потерялась в ранее сохранённых у пользователя настройках — при следующем открытии приложения возвращается автоматически, без необходимости что-либо сбрасывать вручную',
+            'Список «Онлайн» по умолчанию переставлен: сначала разделы, доступные всем — Мой аккаунт, Мои вопросы/ответы, Форум, Общий чат, Друзья, Групповые чаты, Достижения, Статистика — и только в конце «Регистрация» (видна исключительно администраторам). Это касается только заводского порядка; у тех, кто уже менял порядок вручную в «Настройки → Меню → Списки», их собственная настройка сохраняется'
           ],
-          adminKk: [
-            '«Форум» бөлімі: әкімшілерде кез келген анонимды емес сұрақ карточкасында 🛡 «Барлығынан жасыру (жеңіл сұрақ)» түймесі пайда болды — сұрақты әдеттегі анонимды сұрақ сияқты көрінетін етеді (тек мұғалімдер мен автордың өзі көреді), сұрақты да, жауапты да жоймай. Форумның жалпы назарын аудармауға тұрарлық қарапайым/маңызды емес сұрақтарға арналған',
-            'Әкімші жасырған сұрақ жеке 🛡 «Әкімші жасырды» белгісімен көрсетіледі — әдеттегі «🔒 анонимды» белгісінен бөлек, бұл автордың таңдауы емес, әкімшінің шешімі екенін көрсету үшін. Мұндай сұрақта 🛡 «Барлығына қайта көрсету» түймесі пайда болады — әрекет кез келген уақытта қайтымды',
-            'Дерекқор жағында жаңа questions.hidden_by_admin бағаны қажет болады (boolean, әдепкі бойынша false) — онсыз жасыру/көрсету түймелері құқық жетіспейді деген қатемен аяқталады; 4.05 нұсқасынан бері әрекет ететін әкімшілерге арналған жолдарды жаңарту RLS-саясаты бұл бағанды қамтиды, оны бөлек баптаудың қажеті жоқ'
+          fKk: [
+            '«Тағы» мәзірі: кейбір қолданушыларда «Онлайн» тізімі (Менің аккаунтым, Жалпы чат, Достар, Топтық чаттар т.б.) мәзірден мүлдем жоғалып кетуі мүмкін еді. Себебі — мәзір тізімдерінің баптауларын оқитын функциядағы ескі қате: қолданушы бір рет «Баптаулар → Мәзір → Тізімдер» бөліміне кірсе, сақталған баптаулар «Онлайн» тобын мүлдем жоқтай етіп қиып тастайтын. Енді бұл топ енді қиылмайды, ал егер ол бұрын сақталған баптауларда жоғалып қалған болса — қолданбаны келесі ашқанда қолмен ештеңе тастамай-ақ өздігінен қайта оралады',
+            '«Онлайн» тізімінің әдепкі реті ауыстырылды: алдымен барлығына қолжетімді бөлімдер — Менің аккаунтым, Сұрақ-жауаптарым, Форум, Жалпы чат, Достар, Топтық чаттар, Жетістіктер, Статистика — және тек соңында тек әкімшілерге ғана көрінетін «Тіркелу». Бұл тек зауыттық ретке қатысты; «Баптаулар → Мәзір → Тізімдер» бөлімінде ретті қолмен өзгерткендердің өз баптауы сақталады'
           ]
         },
-        { major: '4', v: '4.05', kinds: ['admin','f'], date: '2026-08-24',
+        { major: '4', v: '4.06', kinds: ['a'], date: '2026-08-25',
+          a: [
+            'Меню «Ещё» → «Онлайн»: добавлены четыре новых раздела — «Общий чат», профиль по нику, «Друзья» и «Групповые чаты». «Общий чат» — публичная переписка в реальном времени: сообщения всех пользователей появляются сразу у всех, без перезагрузки страницы (Supabase Realtime), история — последние 200 сообщений, лимит 500 символов на сообщение',
+            'Клик по нику автора в общем чате открывает мини-профиль с двумя кнопками: «Добавить в друзья» и «Написать сообщение». Кнопка добавления в друзья сама показывает актуальный статус — заявка отправлена / уже в друзьях / вам пришла заявка',
+            'Личные сообщения: переписка вдвоём, открывается из мини-профиля кнопкой «Написать сообщение», обновляется вживую. В отличие от общего чата, сообщение видят только отправитель и получатель — это защищено на уровне базы данных (Row Level Security), а не просто скрыто в интерфейсе',
+            'Новый раздел «Друзья»: входящие заявки (принять/отклонить), исходящие заявки (отменить) и список уже добавленных друзей (написать сообщение / удалить из друзей)',
+            'Новый раздел «Групповые чаты»: создание группы с названием и составом из списка друзей; переписка внутри группы вживую; кнопка «Участники» — у создателя группы есть добавление новых участников и удаление лишних, у любого участника — выход из группы',
+            'На стороне базы данных потребовались три новых набора таблиц с политиками Row Level Security и включённой Realtime-публикацией: chat_messages (общий чат); friends и direct_messages (друзья и личные сообщения); group_chats, group_chat_members и group_messages (групповые чаты). Без выполнения соответствующих SQL-скриптов новые разделы будут показывать ошибку доступа'
+          ],
+          aKk: [
+            '«Тағы» мәзірі → «Онлайн»: төрт жаңа бөлім қосылды — «Жалпы чат», ник бойынша профиль, «Достар» және «Топтық чаттар». «Жалпы чат» — нақты уақыттағы жария хат-хабар: барлық қолданушылардың хабарламалары бетті қайта жүктемей-ақ бәрінде бірден пайда болады (Supabase Realtime), тарих — соңғы 200 хабарлама, хабарламаға 500 таңба шегі',
+            'Жалпы чатта автордың нигіне басу екі түймесі бар мини-профильді ашады: «Достарға қосу» және «Хабарлама жазу». Достарға қосу түймесі ағымдағы мәртебені өзі көрсетеді — сұраныс жіберілді / достарда бар / сізге сұраныс келді',
+            'Жеке хабарламалар: екеуара хат-хабар, мини-профильден «Хабарлама жазу» түймесі арқылы ашылады, вживую жаңарады. Жалпы чаттан айырмашылығы — хабарламаны тек жіберуші мен алушы көреді, бұл дерекқор деңгейінде (Row Level Security) қорғалған, интерфейсте жай жасырылған емес',
+            'Жаңа «Достар» бөлімі: кіріс сұраныстар (қабылдау/бас тарту), шыққан сұраныстар (болдырмау) және қосылған достар тізімі (хабарлама жазу / достардан жою)',
+            'Жаңа «Топтық чаттар» бөлімі: атауы және достар тізімінен құрамы бар топ құру; топ ішінде вживую хат-хабар; «Мүшелер» түймесі — топ құрушыда жаңа мүшелерді қосу және артықтарын жою мүмкіндігі бар, кез келген мүшеде — топтан шығу',
+            'Дерекқор жағында Row Level Security саясаттары мен қосылған Realtime-жариялауы бар үш жаңа кесте жиынтығы қажет болды: chat_messages (жалпы чат); friends және direct_messages (достар мен жеке хабарламалар); group_chats, group_chat_members және group_messages (топтық чаттар). Тиісті SQL-скрипттерін орындамай, жаңа бөлімдер қолжетімділік қатесін көрсетеді'
+          ]
+        },
+        { major: '4', v: '4.05', kinds: ['admin','f'], date: '2026-08-25',
           f: [
             '«Мой аккаунт» → «Кто вы?»: даже после проверки ответа сервера (исправленной в 4.04) сохранение у части пользователей всё равно падало с ошибкой «permission denied for table profiles». Причина оказалась глубже RLS-политик: у роли authenticated в Supabase вообще не было прав на INSERT/UPDATE для таблицы profiles на уровне самой базы данных — Postgres блокирует такой запрос ещё до того, как успевает дойти до проверки RLS-политик. Права выданы, добавлена политика на вставку собственной строки профиля (нужна при первой синхронизации) — ошибка больше не возникает'
           ],
@@ -15894,12 +15950,26 @@ bKk:
           admin: [
             'Раздел «Форум» (а также «Мои вопросы/ответы»): на каждой карточке вопроса у администраторов (email из списка ADMIN_EMAILS, проверка через isAdminUser()) появились две дополнительные кнопки, независимо от того, чей это вопрос и есть ли на него ответ — 🛡 «Удалить вопрос полностью» (удаляет строку вопроса целиком, вместе с ответом) и 🛡 «Удалить только ответ» (показывается, только если ответ уже есть; обнуляет текст ответа, автора и дату ответа, сам вопрос остаётся)',
             'Обе кнопки перед действием проверяют реальную сессию Supabase (как остальные операции в этом разделе) и запрашивают подтверждение. После запроса к серверу приложение проверяет через .select(), что строка действительно изменилась, и если нет — прямо сообщает, что не хватает прав на уровне RLS (Row Level Security), вместо тихой неудачи',
-            'На стороне базы данных добавлена функция public.is_admin() (сверяет email из JWT-сессии со списком администраторов) и две RLS-политики: удаление любой строки в questions администратором, а также её обновление — вторая нужна, чтобы кнопка «Удалить только ответ» могла обнулить answer_text/answered_by/answered_at. Обе политики действуют вместе с уже существующими (для автора и учителя) через OR, ничего не отбирая у обычных пользователей'
+            'На стороне базы данных добавлена функция public.is_admin() (сверяет email из JWT-сессии со списком администраторов) и две RLS-политики: удаление любой строки в questions администратором, а также её обновление — вторая нужна, чтобы кнопка «Удалить только ответ» могла обнулить answer_text/answered_by/answered_at. Обе политики действуют вместе с уже существующими (для автора и учителя) через OR, ничего не отбирая у обычных пользователей',
+            'Раздел «Форум»: у администраторов на карточке любого неанонимного вопроса появилась кнопка 🛡 «Скрыть от всех (лёгкий вопрос)» — переводит вопрос в режим видимости, как у обычного анонимного (виден только учителям и самому автору), не удаляя ни вопрос, ни ответ. Задумано для простых/неважных вопросов, на которые не стоит тратить общее внимание Форума',
+            'Скрытый администратором вопрос помечен собственным значком 🛡 «Скрыто админом» — отдельным от обычного значка «🔒 анонимно», чтобы было видно: это решение администратора, а не выбор автора при отправке вопроса. У такого вопроса появляется кнопка 🛡 «Показать всем снова» — действие обратимо в любой момент',
+            'На стороне базы данных потребуется новая колонка questions.hidden_by_admin (boolean, по умолчанию false) — без неё кнопки скрытия/показа будут завершаться ошибкой нехватки прав; действующая RLS-политика обновления строк для администраторов эту колонку уже покрывает, отдельно настраивать её не нужно',
+            'Раздел «Регистрация»: у каждого зарегистрированного пользователя рядом с ником теперь виден email, а у администраторов появилась кнопка 🚫 «Блок» — блокирует пользователя по email с необязательной причиной блокировки',
+            'Добавлена отдельная категория «🚫 Заблокированные» внутри раздела «Регистрация» — полный список заблокированных email (ник, причина, дата блокировки) с кнопкой ✅ «Разблокировать» на каждой записи',
+            'Заблокированный email больше не может: (1) войти в существующий аккаунт — при попытке входа сессия сразу принудительно завершается; (2) зарегистрироваться повторно с этим же email',
+            'На стороне базы данных добавлена новая таблица blocked_emails (email, ник, причина, кто заблокировал, дата) с RLS-политиками (читать могут все — это нужно для проверки блокировки даже до входа в аккаунт; изменять список — только администраторы) и явно выданными правами GRANT на SELECT/INSERT/UPDATE/DELETE — без них Postgres блокирует запрос ещё до проверки RLS-политик, та же причина, что уже встречалась выше с таблицей profiles'
           ],
           adminKk: [
             '«Форум» бөлімі (сондай-ақ «Сұрақ-жауаптарым»): әр сұрақ карточкасында әкімшілерде (ADMIN_EMAILS тізіміндегі email, isAdminUser() арқылы тексеріледі) екі қосымша түйме пайда болды — сұрақ кімдікі болса да және жауабы бар-жоғына қарамастан — 🛡 «Сұрақты толығымен жою» (сұрақ жолын жауабымен қоса толығымен жояды) және 🛡 «Тек жауапты жою» (тек жауап болған жағдайда көрінеді; жауап мәтінін, авторын және күнін нөлдейді, сұрақтың өзі қалады)',
             'Екі түйме де әрекет алдында Supabase сессиясын шынымен тексереді (осы бөлімдегі басқа әрекеттер сияқты) және растауды сұрайды. Серверге сұраныстан кейін қолданба .select() арқылы жолдың шынымен өзгергенін тексереді, өзгермесе — үнсіз сәтсіздіктің орнына RLS (Row Level Security) деңгейінде құқық жетіспейтінін тікелей хабарлайды',
-            'Дерекқор жағында public.is_admin() функциясы (JWT-сессиядағы email-ді әкімшілер тізімімен салыстырады) және екі RLS-саясаты қосылды: questions кестесіндегі кез келген жолды әкімшінің жоюы, сондай-ақ жаңартуы — соңғысы «Тек жауапты жою» түймесіне answer_text/answered_by/answered_at өрістерін нөлдеу үшін қажет. Екі саясат та бар саясаттармен (автор мен мұғалім үшін) OR арқылы бірге жұмыс істейді, әдеттегі пайдаланушылардан ештеңе алып тастамайды'
+            'Дерекқор жағында public.is_admin() функциясы (JWT-сессиядағы email-ді әкімшілер тізімімен салыстырады) және екі RLS-саясаты қосылды: questions кестесіндегі кез келген жолды әкімшінің жоюы, сондай-ақ жаңартуы — соңғысы «Тек жауапты жою» түймесіне answer_text/answered_by/answered_at өрістерін нөлдеу үшін қажет. Екі саясат та бар саясаттармен (автор мен мұғалім үшін) OR арқылы бірге жұмыс істейді, әдеттегі пайдаланушылардан ештеңе алып тастамайды',
+            '«Форум» бөлімі: әкімшілерде кез келген анонимды емес сұрақ карточкасында 🛡 «Барлығынан жасыру (жеңіл сұрақ)» түймесі пайда болды — сұрақты әдеттегі анонимды сұрақ сияқты көрінетін етеді (тек мұғалімдер мен автордың өзі көреді), сұрақты да, жауапты да жоймай. Форумның жалпы назарын аудармауға тұрарлық қарапайым/маңызды емес сұрақтарға арналған',
+            'Әкімші жасырған сұрақ жеке 🛡 «Әкімші жасырды» белгісімен көрсетіледі — әдеттегі «🔒 анонимды» белгісінен бөлек, бұл автордың таңдауы емес, әкімшінің шешімі екенін көрсету үшін. Мұндай сұрақта 🛡 «Барлығына қайта көрсету» түймесі пайда болады — әрекет кез келген уақытта қайтымды',
+            'Дерекқор жағында жаңа questions.hidden_by_admin бағаны қажет болады (boolean, әдепкі бойынша false) — онсыз жасыру/көрсету түймелері құқық жетіспейді деген қатемен аяқталады; әрекет ететін әкімшілерге арналған жолдарды жаңарту RLS-саясаты бұл бағанды қамтиды, оны бөлек баптаудың қажеті жоқ',
+            '«Тіркелу» бөлімі: әр тіркелген пайдаланушының никінің қасында енді email көрінеді, ал әкімшілерде 🚫 «Блок» түймесі пайда болды — пайдаланушыны email бойынша, қаласаңыз себебін көрсетіп, бұғаттайды',
+            '«Тіркелу» бөлімінің ішінде жеке «🚫 Бұғатталғандар» санаты қосылды — бұғатталған барлық email тізімі (ник, себебі, бұғатталған күні) және әр жазбада ✅ «Ашу» түймесі',
+            'Бұғатталған email енді: (1) бар аккаунтқа кіре алмайды — кіру әрекеті кезінде сессия бірден мәжбүрлі түрде аяқталады; (2) осы email-мен қайта тіркеле алмайды',
+            'Дерекқор жағында жаңа blocked_emails кестесі қосылды (email, ник, себебі, кім бұғаттаған, күні) — RLS-саясаттарымен (оқу барлығына рұқсат — бұл тіпті аккаунтқа кірместен бұрын бұғатты тексеру үшін қажет; тізімді өзгерту тек әкімшілерге) және айқын берілген GRANT құқықтарымен (SELECT/INSERT/UPDATE/DELETE) — онсыз Postgres сұранысты RLS-саясаттарын тексеруге дейін-ақ бұғаттайды, бұл жоғарыда profiles кестесінде де кездескен себеп'
           ]
         },
         { major: '4', v: '4.04', kinds: ['f'], date: '2026-08-24',
@@ -29422,7 +29492,7 @@ async function trackSectionVisit(sectionId) {
       appupdate: 'Обновить сайт', account: 'Мой аккаунт', stats: 'Статистика',
       settings: 'Настройки', dailyhub: 'Ежедневное', home: 'Суры', learn: 'Теория',
       games: 'Практика', more: 'Ещё', reader: 'Чтение',
-      registration: 'Регистрация', myqa: 'Мои вопросы/ответы', forum: 'Форум'
+      registration: 'Регистрация', myqa: 'Мои вопросы/ответы', forum: 'Форум', publicchat: 'Общий чат', friends: 'Друзья', groups: 'Групповые чаты'
     };
     var SECTION_STAT_LABELS_KK = {
       fiqh: 'Фиқһ', aqidah: 'Ақида', hadiths: 'Хадистер', stories: 'Ислам тарихы',
@@ -29436,7 +29506,7 @@ async function trackSectionVisit(sectionId) {
       appupdate: 'Сайтты жаңарту', account: 'Менің аккаунтым', stats: 'Статистика',
       settings: 'Баптаулар', dailyhub: 'Күнделікті', home: 'Сүрелер', learn: 'Теория',
       games: 'Тәжірибе', more: 'Тағы', reader: 'Оқу',
-      registration: 'Тіркелу', myqa: 'Сұрақ-жауаптарым', forum: 'Форум'
+      registration: 'Тіркелу', myqa: 'Сұрақ-жауаптарым', forum: 'Форум', publicchat: 'Жалпы чат', friends: 'Достар', groups: 'Топтық чаттар'
     };
 async function renderStats() {
       const el = document.getElementById('stats-body');
@@ -29784,9 +29854,17 @@ async function renderRegistrationSection() {
         if (catCur === 'blocked') {
           try {
             var blist = await fetchBlockedEmails();
-            if (blist === null) {
-              if (box) box.innerHTML = '<p style="color:var(--danger)">'+(kk ? 'blocked_emails кестесі табылмады немесе оқу құқығы жоқ.' : 'Таблица blocked_emails не найдена или нет прав на чтение.')+'</p>' +
-                '<p class="ayah-translation">'+(kk ? 'Supabase SQL Editor ішінде орындаңыз:' : 'Выполните в SQL Editor Supabase:')+'</p>' +
+            if (blist && blist._error) {
+              var berr = blist._error;
+              var berrCode = berr && berr.code ? String(berr.code) : '';
+              var berrMsg = (berr && (berr.message || berr.details || berr.hint)) || String(berr);
+              if (box) box.innerHTML = '<p style="color:var(--danger)">'+(kk ? 'blocked_emails кестесін оқу мүмкін болмады.' : 'Не удалось прочитать таблицу blocked_emails.')+'</p>' +
+                '<p style="font-size:0.78rem;color:var(--text-muted);word-break:break-all">'+(berrCode ? '['+berrCode.replace(/</g,'&lt;')+'] ' : '')+String(berrMsg).replace(/</g,'&lt;')+'</p>' +
+                '<p class="ayah-translation" style="margin-top:0.4rem">'+(kk
+                  ? 'Егер кестені жаңа ғана құрған болсаңыз (PGRST205 / "not found in schema cache"): Supabase → Project Settings → API → «Reload schema» батырмасын басыңыз, немесе SQL Editor-де NOTIFY pgrst, \'reload schema\'; орындаңыз да, беттегі 30–60 сек. күтіп қайта жүктеңіз. Егер "permission denied" болса — саясаттар (policies) дұрыс қосылмаған.'
+                  : 'Если таблицу только что создали (ошибка вида PGRST205 / "not found in schema cache"): в Supabase зайдите в Project Settings → API и нажмите «Reload schema», либо выполните в SQL Editor команду NOTIFY pgrst, \'reload schema\'; — и подождите 30–60 сек, затем обновите страницу сайта (Ctrl+F5). Если ошибка "permission denied" — значит политики (policies) не применились как надо.')+'</p>' +
+                '<p class="ayah-translation" style="margin-top:0.4rem">'+(kk ? 'Кесте бар-жоғын Supabase → Table Editor бөлімінен тексеріңіз (аты дәл blocked_emails, схема public болуы керек).' : 'Проверьте в Supabase → Table Editor, что таблица действительно называется blocked_emails и находится в схеме public.')+'</p>' +
+                '<p class="ayah-translation" style="margin-top:0.4rem">'+(kk ? 'Немесе SQL-ды қайта орындаңыз:' : 'Или выполните SQL заново:')+'</p>' +
                 '<pre style="font-size:0.7rem;overflow:auto;background:var(--bg);padding:0.5rem;border-radius:0.4rem;white-space:pre-wrap">' +
                 'create table if not exists blocked_emails (\n' +
                 '  email text primary key,\n' +
@@ -29800,7 +29878,8 @@ async function renderRegistrationSection() {
                 'create policy "admins manage blocked" on blocked_emails for all\n' +
                 '  using (auth.jwt() ->> \'email\' in (' + ADMIN_EMAILS.map(function(e){return "'"+e+"'";}).join(', ') + '))\n' +
                 '  with check (auth.jwt() ->> \'email\' in (' + ADMIN_EMAILS.map(function(e){return "'"+e+"'";}).join(', ') + '));\n\n' +
-                'alter table profiles add column if not exists is_blocked boolean default false;' +
+                'alter table profiles add column if not exists is_blocked boolean default false;\n\n' +
+                'NOTIFY pgrst, \'reload schema\';' +
                 '</pre>';
               return;
             }
@@ -29893,7 +29972,7 @@ async function renderRegistrationSection() {
           var blockedSet = {};
           try {
             var bl2 = await fetchBlockedEmails();
-            (bl2 || []).forEach(function(b){ if (b && b.email) blockedSet[String(b.email).toLowerCase()] = 1; });
+            if (Array.isArray(bl2)) bl2.forEach(function(b){ if (b && b.email) blockedSet[String(b.email).toLowerCase()] = 1; });
           } catch(e) {}
           function dayKeyLocal(d) {
             d = d || new Date();
@@ -36043,11 +36122,14 @@ c.addEventListener('click', () => {
       { id:'sadaqa', icon:'🤲', label:'Садака', group:'life' },
       { id:'ask', icon:'❓', label:'Черновик вопроса', group:'life' },
       { id:'account', icon:'👤', label:'Мой аккаунт', group:'online' },
-      { id:'stats', icon:'📊', label:'Статистика', group:'online' },
-      { id:'achievements', icon:'🏅', label:'Достижения', group:'online' },
-      { id:'registration', icon:'👥', label:'Регистрация', group:'online' },
       { id:'myqa', icon:'❓', label:'Мои вопросы/ответы', group:'online' },
       { id:'forum', icon:'💬', label:'Форум', group:'online' },
+      { id:'publicchat', icon:'💭', label:'Общий чат', group:'online' },
+      { id:'friends', icon:'🧑\u200d🤝\u200d🧑', label:'Друзья', group:'online' },
+      { id:'groups', icon:'👥', label:'Групповые чаты', group:'online' },
+      { id:'achievements', icon:'🏅', label:'Достижения', group:'online' },
+      { id:'stats', icon:'📊', label:'Статистика', group:'online' },
+      { id:'registration', icon:'👥', label:'Регистрация', group:'online' },
       { id:'data', icon:'🗄️', label:'Данные', group:'system' },
       { id:'changelog', icon:'🆕', label:'Обновления', group:'system' },
       { id:'help', icon:'❓', label:'Справка', group:'system' },
@@ -36077,7 +36159,17 @@ c.addEventListener('click', () => {
         if (raw) {
           const arr = JSON.parse(raw);
           if (Array.isArray(arr) && arr.length) {
-            return arr.filter(function(g){ return g && g.id !== 'online'; }).slice(0, 8);
+            let cleaned = arr.filter(function(g){ return g && g.id; });
+            // Самолечение: раньше здесь была ошибка — группа «Онлайн»
+            // безусловно вырезалась из сохранённой конфигурации, из-за чего
+            // у всех, кто хоть раз настраивал списки меню, весь раздел
+            // «Онлайн» (аккаунт, чат, друзья, группы и т.д.) пропадал из
+            // «Ещё» насовсем. Если её нет в уже сохранённых у пользователя
+            // настройках — возвращаем обратно, а не прячем повторно.
+            if (!cleaned.some(function(g){ return g.id === 'online'; })) {
+              cleaned.push({ id: 'online', label: MORE_GROUP_LABELS.online || 'Онлайн', hidden: false });
+            }
+            return cleaned.slice(0, 8);
           }
         }
       } catch(e) {}
@@ -36738,7 +36830,1028 @@ c.addEventListener('click', () => {
       loadForumList();
     }
 
-    
+    // ========== ОБЩИЙ ЧАТ (публичный, все читают и пишут) ==========
+    // Таблица chat_messages создаётся отдельным SQL-скриптом (см. ниже в чате с пользователем).
+    // Здесь: загрузка истории, отправка сообщений и Realtime-подписка (новые сообщения
+    // появляются у всех участников без перезагрузки страницы).
+    var _publicChatChannel = null;   // текущая Realtime-подписка (канал Supabase)
+    var _publicChatBound = false;    // чтобы не вешать обработчик beforeunload повторно
+
+    // Отписка от Realtime-канала. Вызывается при уходе с раздела «Общий чат»
+    // (см. showView) — иначе при частом переключении вкладок будут копиться
+    // открытые сокет-соединения.
+    function unsubscribePublicChat() {
+      if (_publicChatChannel) {
+        try {
+          var sb = getSb();
+          if (sb) sb.removeChannel(_publicChatChannel);
+        } catch(e) { console.warn('unsubscribePublicChat', e); }
+        _publicChatChannel = null;
+      }
+    }
+
+    // Безопасная вставка текста в HTML (защита от XSS в чужих сообщениях чата).
+    function _chatEsc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function _chatTimeLabel(iso) {
+      try {
+        var d = new Date(iso);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch(e) { return ''; }
+    }
+
+    function _chatMessageHtml(m, myUserId) {
+      var mine = myUserId && m.user_id === myUserId;
+      return '<div class="card" data-msg-id="'+_chatEsc(m.id)+'" style="margin-bottom:0.5rem;padding:0.55rem 0.7rem;'+(mine ? 'border-color:var(--primary,#2e7d32)' : '')+'">' +
+        '<div style="display:flex;justify-content:space-between;gap:0.5rem;font-size:0.78rem;color:var(--text-muted)">' +
+          '<b class="pchat-nick" data-nick-click="1" data-uid="'+_chatEsc(m.user_id)+'" data-nick="'+_chatEsc(m.nick || '???')+'" style="color:var(--text);cursor:pointer;text-decoration:underline dotted">'+_chatEsc(m.nick || '???')+'</b>' +
+          '<span>'+_chatTimeLabel(m.created_at)+'</span>' +
+        '</div>' +
+        '<div style="margin-top:0.2rem;white-space:pre-wrap;word-break:break-word">'+_chatEsc(m.text)+'</div>' +
+      '</div>';
+    }
+
+    async function renderPublicChat() {
+      var el = document.getElementById('publicchat-body');
+      if (!el) return;
+      var kk = state.settings && state.settings.lang === 'kk';
+      var sb = getSb();
+      // Отписываемся от предыдущей подписки на случай повторного открытия раздела.
+      unsubscribePublicChat();
+      if (!sb) {
+        el.innerHTML = '<div class="empty-state"><p>'+(kk?'Бөлім тек онлайн-режимде қолжетімді.':'Раздел доступен только в онлайн-режиме.')+'</p></div>';
+        return;
+      }
+      var sess = authSession();
+      if (!sess || !sess.online) {
+        el.innerHTML =
+          '<div class="card"><p>'+(kk?'Жалпы чатты көру үшін аккаунтқа кіріңіз.':'Чтобы посмотреть общий чат, войдите в аккаунт.')+'</p>' +
+          '<button type="button" class="btn btn-primary" id="pchat-go-login" style="width:100%;margin-top:0.5rem">'+(kk?'Кіру/Тіркелу':'Войти / Зарегистрироваться')+'</button></div>';
+        document.getElementById('pchat-go-login')?.addEventListener('click', function(){ showView('login'); });
+        return;
+      }
+      el.innerHTML = '<div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div>';
+      var authedUser = null;
+      try {
+        var ures = await sb.auth.getUser();
+        authedUser = ures && ures.data && ures.data.user;
+      } catch(e) { authedUser = null; }
+      if (!authedUser) {
+        authSetSession(null);
+        el.innerHTML =
+          '<div class="card"><p>'+(kk?'Сессия аяқталды немесе жарамсыз. Қайта кіріңіз.':'Сессия истекла или недействительна. Войдите заново.')+'</p>' +
+          '<button type="button" class="btn btn-primary" id="pchat-go-login" style="width:100%;margin-top:0.5rem">'+(kk?'Кіру':'Войти')+'</button></div>';
+        document.getElementById('pchat-go-login')?.addEventListener('click', function(){ showView('login'); });
+        return;
+      }
+      if (sess.userId !== authedUser.id) { sess.userId = authedUser.id; authSetSession(sess); }
+      var myUserId = authedUser.id;
+
+      el.innerHTML =
+        '<div id="pchat-list" style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column-reverse;padding-right:0.15rem"><div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div></div>' +
+        '<form id="pchat-form" style="display:flex;gap:0.4rem;margin-top:0.6rem">' +
+          '<input id="pchat-input" type="text" maxlength="500" autocomplete="off" placeholder="'+(kk?'Хабарлама жазыңыз...':'Напишите сообщение...')+'" class="input" style="flex:1;padding:0.55rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
+          '<button type="submit" class="btn btn-primary" style="white-space:nowrap">'+(kk?'Жіберу':'Отправить')+'</button>' +
+        '</form>' +
+        '<p style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem">'+(kk?'Бұл — жалпыға ортақ чат, барлық пайдаланушылар хабарламаларды көреді.':'Это публичный чат — все сообщения видны всем пользователям.')+'</p>';
+
+      var listEl = document.getElementById('pchat-list');
+      // column-reverse: новые сообщения внизу визуально, но в DOM для простоты
+      // будем просто перерисовывать список целиком в хронологическом порядке
+      // и держать обычное направление — это проще и надёжнее, чем ручной автоскролл.
+      listEl.style.display = 'block';
+      listEl.style.flexDirection = '';
+
+      // Клик по нику автора сообщения — открывает мини-профиль (см. openProfileModal).
+      listEl.addEventListener('click', function(ev) {
+        var t = ev.target.closest('[data-nick-click]');
+        if (!t) return;
+        var uid = t.getAttribute('data-uid');
+        var nick = t.getAttribute('data-nick');
+        if (uid) openProfileModal(uid, nick);
+      });
+
+      var knownIds = {}; // id уже отрисованных сообщений, чтобы Realtime не дублировал их
+
+      function appendMessages(rows, scrollToBottom) {
+        rows.forEach(function(m) {
+          if (knownIds[m.id]) return;
+          knownIds[m.id] = true;
+          listEl.insertAdjacentHTML('beforeend', _chatMessageHtml(m, myUserId));
+        });
+        if (scrollToBottom) listEl.scrollTop = listEl.scrollHeight;
+      }
+
+      function loadHistory() {
+        // Последние 200 сообщений, отдаём в хронологическом порядке (старые сверху).
+        sb.from('chat_messages')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(200)
+          .then(function(res) {
+            if (res && res.error) {
+              listEl.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(res.error.message||'')+'</p></div>';
+              return;
+            }
+            var rows = (res && res.data) || [];
+            rows.reverse(); // в хронологический порядок (старые -> новые)
+            listEl.innerHTML = '';
+            if (!rows.length) {
+              listEl.innerHTML = '<div class="empty-state"><p>'+(kk?'Әзірге хабарламалар жоқ. Бірінші болыңыз!':'Пока нет сообщений. Будьте первым!')+'</p></div>';
+            } else {
+              appendMessages(rows, true);
+            }
+            subscribeRealtime();
+          })
+          .catch(function(e) {
+            listEl.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(e.message||e)+'</p></div>';
+          });
+      }
+
+      function subscribeRealtime() {
+        // Подписка на INSERT в chat_messages — новые сообщения приходят «вживую»
+        // всем, кто сейчас открыл раздел, без повторных запросов к базе.
+        try {
+          _publicChatChannel = sb.channel('public:chat_messages')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, function(payload) {
+              var m = payload && payload.new;
+              if (!m) return;
+              if (listEl.querySelector('.empty-state')) listEl.innerHTML = '';
+              var wasAtBottom = (listEl.scrollTop + listEl.clientHeight) >= (listEl.scrollHeight - 40);
+              appendMessages([m], wasAtBottom);
+            })
+            .subscribe();
+        } catch(e) { console.warn('publicchat subscribe', e); }
+      }
+
+      loadHistory();
+
+      var formEl = document.getElementById('pchat-form');
+      var inputEl = document.getElementById('pchat-input');
+      formEl.addEventListener('submit', function(ev) {
+        ev.preventDefault();
+        var text = (inputEl.value || '').trim();
+        if (!text) return;
+        if (text.length > 500) text = text.slice(0, 500);
+        inputEl.disabled = true;
+        // user_id проставляем сами (RLS всё равно проверит, что он совпадает с auth.uid());
+        // nick берём из текущей сессии, чтобы не делать лишний запрос к profiles.
+        sb.from('chat_messages').insert({
+          user_id: myUserId,
+          nick: sess.nick || (sess.email || '').split('@')[0] || '???',
+          text: text
+        }).then(function(res) {
+          inputEl.disabled = false;
+          if (res && res.error) { toast((kk?'Қате: ':'Ошибка: ')+(res.error.message||'')); return; }
+          inputEl.value = '';
+          inputEl.focus();
+          // Своё сообщение подхватится и через Realtime, но на случай задержки
+          // сети сразу показываем его локально (дубликат отсекается по knownIds).
+        }).catch(function(e) {
+          inputEl.disabled = false;
+          toast((kk?'Қате: ':'Ошибка: ')+(e.message||e));
+        });
+      });
+
+      // На всякий случай отписываемся при полном закрытии/перезагрузке страницы.
+      if (!_publicChatBound) {
+        _publicChatBound = true;
+        window.addEventListener('beforeunload', function(){ try { unsubscribePublicChat(); } catch(e) {} });
+      }
+    }
+
+    // ========== МИНИ-ПРОФИЛЬ ПО НИКУ (клик по нику в чате) ==========
+    // Показывает ник и две кнопки: «Добавить в друзья» и «Написать сообщение».
+    // Таблицы friends и direct_messages создаются отдельным SQL-скриптом
+    // (см. сообщение в чате с пользователем).
+    function _closeProfileModal() {
+      var ex = document.getElementById('profile-modal');
+      if (ex) ex.remove();
+    }
+
+    async function openProfileModal(userId, nick) {
+      var kk = state.settings && state.settings.lang === 'kk';
+      var sb = getSb();
+      var mySess = authSession();
+      _closeProfileModal();
+
+      var box = document.createElement('div');
+      box.id = 'profile-modal';
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+      box.innerHTML =
+        '<div class="card" style="max-width:22rem;width:100%">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">' +
+            '<b style="font-size:1.05rem;word-break:break-word">'+_chatEsc(nick)+'</b>' +
+            '<button type="button" id="pm-close" class="btn btn-sm" style="padding:0.15rem 0.55rem;flex-shrink:0">✕</button>' +
+          '</div>' +
+          '<div id="pm-body" style="margin-top:0.7rem"><p class="ayah-translation">'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div>' +
+        '</div>';
+      document.body.appendChild(box);
+      document.getElementById('pm-close').addEventListener('click', _closeProfileModal);
+      box.addEventListener('click', function(ev){ if (ev.target === box) _closeProfileModal(); });
+
+      var bodyEl = document.getElementById('pm-body');
+      var isSelf = mySess && mySess.userId === userId;
+      if (isSelf) {
+        bodyEl.innerHTML = '<p class="ayah-translation">'+(kk?'Бұл — сіздің профиліңіз.':'Это ваш профиль.')+'</p>';
+        return;
+      }
+      if (!sb || !mySess || !mySess.online) {
+        bodyEl.innerHTML = '<p class="ayah-translation">'+(kk?'Толық профильді көру үшін аккаунтқа кіріңіз.':'Войдите в аккаунт, чтобы увидеть подробности профиля.')+'</p>';
+        return;
+      }
+
+      // Текущий статус дружбы между мной и этим пользователем (в любом направлении).
+      var friendRow = null;
+      try {
+        var fr = await sb.from('friends').select('user_id,friend_id,status')
+          .or('and(user_id.eq.'+mySess.userId+',friend_id.eq.'+userId+'),and(user_id.eq.'+userId+',friend_id.eq.'+mySess.userId+')')
+          .maybeSingle();
+        if (fr && !fr.error) friendRow = fr.data;
+      } catch(e) { console.warn('friends lookup', e); }
+
+      var friendLabel, friendDisabled = false;
+      if (!friendRow) {
+        friendLabel = kk ? 'Достарға қосу' : 'Добавить в друзья';
+      } else if (friendRow.status === 'accepted') {
+        friendLabel = kk ? '✓ Достарыңызда' : '✓ Уже в друзьях';
+        friendDisabled = true;
+      } else if (friendRow.status === 'pending' && friendRow.user_id === mySess.userId) {
+        friendLabel = kk ? 'Сұраныс жіберілді' : 'Заявка отправлена';
+        friendDisabled = true;
+      } else if (friendRow.status === 'pending') {
+        friendLabel = kk ? 'Сізге сұраныс келді («Достар» бөлімін қараңыз)' : 'Вам пришла заявка (см. раздел «Друзья»)';
+        friendDisabled = true;
+      } else {
+        friendLabel = kk ? 'Достарға қосу' : 'Добавить в друзья';
+      }
+
+      bodyEl.innerHTML =
+        '<button type="button" id="pm-add-friend" class="btn btn-primary" style="width:100%;margin-bottom:0.45rem" '+(friendDisabled?'disabled':'')+'>'+friendLabel+'</button>' +
+        '<button type="button" id="pm-send-dm" class="btn" style="width:100%">'+(kk?'Хабарлама жазу':'Написать сообщение')+'</button>';
+
+      var addBtn = document.getElementById('pm-add-friend');
+      if (addBtn && !friendDisabled) {
+        addBtn.addEventListener('click', async function() {
+          addBtn.disabled = true;
+          try {
+            // status='pending' — заявка ждёт подтверждения на стороне получателя
+            // (принятие/отклонение будет в разделе «Друзья», следующий этап).
+            var res = await sb.from('friends').insert({ user_id: mySess.userId, friend_id: userId, status: 'pending' });
+            if (res && res.error) {
+              toast((kk?'Қате: ':'Ошибка: ')+(res.error.message||''));
+              addBtn.disabled = false;
+              return;
+            }
+            addBtn.textContent = kk ? 'Сұраныс жіберілді' : 'Заявка отправлена';
+          } catch(e) {
+            toast((kk?'Қате: ':'Ошибка: ')+(e.message||e));
+            addBtn.disabled = false;
+          }
+        });
+      }
+      document.getElementById('pm-send-dm').addEventListener('click', function() {
+        _closeProfileModal();
+        openDmWith(userId, nick);
+      });
+    }
+
+    // ========== ЛИЧНЫЕ СООБЩЕНИЯ (приватная переписка вдвоём) ==========
+    var _dmChannel = null;   // текущая Realtime-подписка на direct_messages
+    var _dmPartner = null;   // { id, nick } — с кем открыта переписка
+
+    function unsubscribeDm() {
+      if (_dmChannel) {
+        try {
+          var sb = getSb();
+          if (sb) sb.removeChannel(_dmChannel);
+        } catch(e) { console.warn('unsubscribeDm', e); }
+        _dmChannel = null;
+      }
+    }
+
+    // Открыть переписку с конкретным пользователем (вызывается из мини-профиля).
+    function openDmWith(userId, nick) {
+      _dmPartner = { id: userId, nick: nick };
+      showView('dm');
+    }
+
+    function _dmMessageHtml(m, myUserId, partnerNick, kk) {
+      var mine = m.from_user === myUserId;
+      return '<div class="card" style="margin-bottom:0.5rem;padding:0.55rem 0.7rem;'+(mine ? 'margin-left:12%;border-color:var(--primary,#2e7d32)' : 'margin-right:12%')+'">' +
+        '<div style="font-size:0.72rem;color:var(--text-muted)">'+(mine ? (kk?'Сіз':'Вы') : _chatEsc(partnerNick))+' · '+_chatTimeLabel(m.created_at)+'</div>' +
+        '<div style="margin-top:0.2rem;white-space:pre-wrap;word-break:break-word">'+_chatEsc(m.text)+'</div>' +
+      '</div>';
+    }
+
+    async function renderDmChat() {
+      var el = document.getElementById('dm-body');
+      if (!el) return;
+      var kk = state.settings && state.settings.lang === 'kk';
+      var sb = getSb();
+      unsubscribeDm();
+
+      if (!_dmPartner || !_dmPartner.id) {
+        el.innerHTML = '<div class="empty-state"><p>'+(kk?'Собеседник не выбран.':'Собеседник не выбран.')+'</p></div>';
+        return;
+      }
+      var titleEl = document.getElementById('dm-title');
+      if (titleEl) titleEl.textContent = (kk ? 'Хабарласу: ' : 'Переписка: ') + _dmPartner.nick;
+
+      if (!sb) {
+        el.innerHTML = '<div class="empty-state"><p>'+(kk?'Бөлім тек онлайн-режимде қолжетімді.':'Раздел доступен только в онлайн-режиме.')+'</p></div>';
+        return;
+      }
+      var sess = authSession();
+      if (!sess || !sess.online) {
+        el.innerHTML = '<div class="card"><p>'+(kk?'Хабарласу үшін аккаунтқа кіріңіз.':'Чтобы переписываться, войдите в аккаунт.')+'</p></div>';
+        return;
+      }
+      var authedUser = null;
+      try {
+        var ures = await sb.auth.getUser();
+        authedUser = ures && ures.data && ures.data.user;
+      } catch(e) { authedUser = null; }
+      if (!authedUser) {
+        authSetSession(null);
+        el.innerHTML = '<div class="card"><p>'+(kk?'Сессия аяқталды. Қайта кіріңіз.':'Сессия истекла. Войдите заново.')+'</p></div>';
+        return;
+      }
+      var myUserId = authedUser.id;
+      var partnerId = _dmPartner.id;
+      var partnerNick = _dmPartner.nick;
+
+      el.innerHTML =
+        '<div id="dm-list" style="max-height:55vh;overflow-y:auto;padding-right:0.15rem"><div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div></div>' +
+        '<form id="dm-form" style="display:flex;gap:0.4rem;margin-top:0.6rem">' +
+          '<input id="dm-input" type="text" maxlength="500" autocomplete="off" placeholder="'+(kk?'Хабарлама жазыңыз...':'Напишите сообщение...')+'" class="input" style="flex:1;padding:0.55rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
+          '<button type="submit" class="btn btn-primary" style="white-space:nowrap">'+(kk?'Жіберу':'Отправить')+'</button>' +
+        '</form>' +
+        '<p style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem">'+(kk?'Бұл жеке хат-хабар — тек сіз және әңгімелесушіңіз көре аласыз.':'Это личная переписка — сообщения видны только вам и собеседнику.')+'</p>';
+
+      var listEl = document.getElementById('dm-list');
+      var knownIds = {};
+
+      function appendMessages(rows, scrollToBottom) {
+        rows.forEach(function(m) {
+          if (knownIds[m.id]) return;
+          knownIds[m.id] = true;
+          listEl.insertAdjacentHTML('beforeend', _dmMessageHtml(m, myUserId, partnerNick, kk));
+        });
+        if (scrollToBottom) listEl.scrollTop = listEl.scrollHeight;
+      }
+
+      function belongsToThisConversation(m) {
+        return (m.from_user === myUserId && m.to_user === partnerId) ||
+               (m.from_user === partnerId && m.to_user === myUserId);
+      }
+
+      function loadHistory() {
+        sb.from('direct_messages')
+          .select('*')
+          .or('and(from_user.eq.'+myUserId+',to_user.eq.'+partnerId+'),and(from_user.eq.'+partnerId+',to_user.eq.'+myUserId+')')
+          .order('created_at', { ascending: true })
+          .limit(200)
+          .then(function(res) {
+            if (res && res.error) {
+              listEl.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(res.error.message||'')+'</p></div>';
+              return;
+            }
+            var rows = (res && res.data) || [];
+            listEl.innerHTML = '';
+            if (!rows.length) {
+              listEl.innerHTML = '<div class="empty-state"><p>'+(kk?'Хабарламалар жоқ. Алғашқы болыңыз!':'Сообщений пока нет. Напишите первым!')+'</p></div>';
+            } else {
+              appendMessages(rows, true);
+            }
+            subscribeRealtime();
+          })
+          .catch(function(e) {
+            listEl.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(e.message||e)+'</p></div>';
+          });
+      }
+
+      function subscribeRealtime() {
+        // Подписка без серверного фильтра (Realtime не умеет OR-фильтры по двум
+        // столбцам сразу) — фильтруем «свой» разговор на клиенте; RLS всё равно
+        // не даст получить чужие приватные сообщения через эту же подписку.
+        try {
+          _dmChannel = sb.channel('dm:'+[myUserId, partnerId].sort().join('_'))
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, function(payload) {
+              var m = payload && payload.new;
+              if (!m || !belongsToThisConversation(m)) return;
+              if (listEl.querySelector('.empty-state')) listEl.innerHTML = '';
+              var wasAtBottom = (listEl.scrollTop + listEl.clientHeight) >= (listEl.scrollHeight - 40);
+              appendMessages([m], wasAtBottom);
+            })
+            .subscribe();
+        } catch(e) { console.warn('dm subscribe', e); }
+      }
+
+      loadHistory();
+
+      var formEl = document.getElementById('dm-form');
+      var inputEl = document.getElementById('dm-input');
+      formEl.addEventListener('submit', function(ev) {
+        ev.preventDefault();
+        var text = (inputEl.value || '').trim();
+        if (!text) return;
+        if (text.length > 500) text = text.slice(0, 500);
+        inputEl.disabled = true;
+        sb.from('direct_messages').insert({
+          from_user: myUserId,
+          to_user: partnerId,
+          text: text
+        }).then(function(res) {
+          inputEl.disabled = false;
+          if (res && res.error) { toast((kk?'Қате: ':'Ошибка: ')+(res.error.message||'')); return; }
+          inputEl.value = '';
+          inputEl.focus();
+        }).catch(function(e) {
+          inputEl.disabled = false;
+          toast((kk?'Қате: ':'Ошибка: ')+(e.message||e));
+        });
+      });
+    }
+
+    // ========== ДРУЗЬЯ (список + входящие/исходящие заявки) ==========
+    // Работает поверх той же таблицы friends, что и мини-профиль
+    // (см. openProfileModal): там заявка создаётся, здесь — принимается,
+    // отклоняется, отменяется или разрывается.
+    async function renderFriends() {
+      var el = document.getElementById('friends-body');
+      if (!el) return;
+      var kk = state.settings && state.settings.lang === 'kk';
+      var sb = getSb();
+      if (!sb) {
+        el.innerHTML = '<div class="empty-state"><p>'+(kk?'Бөлім тек онлайн-режимде қолжетімді.':'Раздел доступен только в онлайн-режиме.')+'</p></div>';
+        return;
+      }
+      var sess = authSession();
+      if (!sess || !sess.online) {
+        el.innerHTML =
+          '<div class="card"><p>'+(kk?'Достар тізімін көру үшін аккаунтқа кіріңіз.':'Чтобы посмотреть список друзей, войдите в аккаунт.')+'</p>' +
+          '<button type="button" class="btn btn-primary" id="fr-go-login" style="width:100%;margin-top:0.5rem">'+(kk?'Кіру/Тіркелу':'Войти / Зарегистрироваться')+'</button></div>';
+        document.getElementById('fr-go-login')?.addEventListener('click', function(){ showView('login'); });
+        return;
+      }
+      el.innerHTML = '<div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div>';
+      var authedUser = null;
+      try {
+        var ures = await sb.auth.getUser();
+        authedUser = ures && ures.data && ures.data.user;
+      } catch(e) { authedUser = null; }
+      if (!authedUser) {
+        authSetSession(null);
+        el.innerHTML =
+          '<div class="card"><p>'+(kk?'Сессия аяқталды. Қайта кіріңіз.':'Сессия истекла. Войдите заново.')+'</p></div>';
+        return;
+      }
+      var myUserId = authedUser.id;
+
+      sb.from('friends').select('*')
+        .or('user_id.eq.'+myUserId+',friend_id.eq.'+myUserId)
+        .order('created_at', { ascending: false })
+        .then(async function(res) {
+          if (res && res.error) {
+            el.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(res.error.message||'')+'</p></div>';
+            return;
+          }
+          var rows = (res && res.data) || [];
+          var incoming = rows.filter(function(r){ return r.status === 'pending' && r.friend_id === myUserId; });
+          var outgoing = rows.filter(function(r){ return r.status === 'pending' && r.user_id === myUserId; });
+          var accepted = rows.filter(function(r){ return r.status === 'accepted'; });
+
+          // Собираем id всех «собеседников», чтобы одним запросом подтянуть их ники.
+          var otherIds = {};
+          rows.forEach(function(r) {
+            var other = (r.user_id === myUserId) ? r.friend_id : r.user_id;
+            otherIds[other] = true;
+          });
+          var idList = Object.keys(otherIds);
+          var nickById = {};
+          if (idList.length) {
+            try {
+              var pr = await sb.from('profiles').select('id,nick').in('id', idList);
+              if (pr && !pr.error && pr.data) {
+                pr.data.forEach(function(p){ nickById[p.id] = p.nick || '???'; });
+              }
+            } catch(e) { console.warn('friends nick lookup', e); }
+          }
+          function nickOf(id) { return nickById[id] || '???'; }
+
+          var html = '';
+
+          html += '<h3 style="font-size:0.95rem;margin:0.2rem 0 0.4rem">'+(kk?'Кіріс сұраныстар':'Входящие заявки')+(incoming.length ? ' ('+incoming.length+')' : '')+'</h3>';
+          if (!incoming.length) {
+            html += '<p class="ayah-translation" style="font-size:0.82rem;color:var(--text-muted)">'+(kk?'Сұраныс жоқ.':'Заявок нет.')+'</p>';
+          } else {
+            html += incoming.map(function(r) {
+              var otherId = r.user_id;
+              return '<div class="card" style="margin-bottom:0.4rem;padding:0.55rem 0.7rem;display:flex;justify-content:space-between;align-items:center;gap:0.5rem">' +
+                '<b class="fr-nick" data-uid="'+_chatEsc(otherId)+'" data-nick="'+_chatEsc(nickOf(otherId))+'" style="cursor:pointer;text-decoration:underline dotted">'+_chatEsc(nickOf(otherId))+'</b>' +
+                '<span style="display:flex;gap:0.3rem;flex-shrink:0">' +
+                  '<button type="button" class="btn btn-sm btn-primary fr-accept" data-id="'+_chatEsc(r.id)+'">'+(kk?'Қабылдау':'Принять')+'</button>' +
+                  '<button type="button" class="btn btn-sm fr-decline" data-id="'+_chatEsc(r.id)+'">'+(kk?'Бас тарту':'Отклонить')+'</button>' +
+                '</span>' +
+              '</div>';
+            }).join('');
+          }
+
+          html += '<h3 style="font-size:0.95rem;margin:0.8rem 0 0.4rem">'+(kk?'Шыққан сұраныстар':'Исходящие заявки')+(outgoing.length ? ' ('+outgoing.length+')' : '')+'</h3>';
+          if (!outgoing.length) {
+            html += '<p class="ayah-translation" style="font-size:0.82rem;color:var(--text-muted)">'+(kk?'Сұраныс жоқ.':'Заявок нет.')+'</p>';
+          } else {
+            html += outgoing.map(function(r) {
+              var otherId = r.friend_id;
+              return '<div class="card" style="margin-bottom:0.4rem;padding:0.55rem 0.7rem;display:flex;justify-content:space-between;align-items:center;gap:0.5rem">' +
+                '<b class="fr-nick" data-uid="'+_chatEsc(otherId)+'" data-nick="'+_chatEsc(nickOf(otherId))+'" style="cursor:pointer;text-decoration:underline dotted">'+_chatEsc(nickOf(otherId))+'</b>' +
+                '<button type="button" class="btn btn-sm fr-cancel" data-id="'+_chatEsc(r.id)+'">'+(kk?'Болдырмау':'Отменить')+'</button>' +
+              '</div>';
+            }).join('');
+          }
+
+          html += '<h3 style="font-size:0.95rem;margin:0.8rem 0 0.4rem">'+(kk?'Достар':'Друзья')+(accepted.length ? ' ('+accepted.length+')' : '')+'</h3>';
+          if (!accepted.length) {
+            html += '<div class="empty-state"><p>'+(kk?'Әзірге достар жоқ. Жалпы чатта біреудің никіне басып, достыққа қосыңыз.':'Пока нет друзей. В общем чате нажмите на чей-нибудь ник, чтобы добавить в друзья.')+'</p></div>';
+          } else {
+            html += accepted.map(function(r) {
+              var otherId = (r.user_id === myUserId) ? r.friend_id : r.user_id;
+              return '<div class="card" style="margin-bottom:0.4rem;padding:0.55rem 0.7rem;display:flex;justify-content:space-between;align-items:center;gap:0.5rem">' +
+                '<b class="fr-nick" data-uid="'+_chatEsc(otherId)+'" data-nick="'+_chatEsc(nickOf(otherId))+'" style="cursor:pointer;text-decoration:underline dotted">'+_chatEsc(nickOf(otherId))+'</b>' +
+                '<span style="display:flex;gap:0.3rem;flex-shrink:0">' +
+                  '<button type="button" class="btn btn-sm btn-primary fr-message" data-uid="'+_chatEsc(otherId)+'" data-nick="'+_chatEsc(nickOf(otherId))+'">'+(kk?'Хабарлама':'Сообщение')+'</button>' +
+                  '<button type="button" class="btn btn-sm fr-remove" data-id="'+_chatEsc(r.id)+'">'+(kk?'Жою':'Удалить')+'</button>' +
+                '</span>' +
+              '</div>';
+            }).join('');
+          }
+
+          el.innerHTML = html;
+
+          // Один делегированный обработчик кликов на контейнер — вешаем только
+          // один раз (флаг на самом элементе), а не при каждом рендере, иначе
+          // после {once:true} или повторных biddings клики переставали бы
+          // работать после первого же действия.
+          if (!el._friendsClickBound) {
+            el._friendsClickBound = true;
+            el.addEventListener('click', function onClick(ev) {
+              var t;
+              if ((t = ev.target.closest('.fr-nick'))) {
+                openProfileModal(t.getAttribute('data-uid'), t.getAttribute('data-nick'));
+                return;
+              }
+              if ((t = ev.target.closest('.fr-message'))) {
+                openDmWith(t.getAttribute('data-uid'), t.getAttribute('data-nick'));
+                return;
+              }
+              if ((t = ev.target.closest('.fr-accept'))) {
+                t.disabled = true;
+                sb.from('friends').update({ status: 'accepted' }).eq('id', t.getAttribute('data-id')).then(function(r) {
+                  if (r && r.error) { toast((kk?'Қате: ':'Ошибка: ')+(r.error.message||'')); t.disabled = false; return; }
+                  renderFriends();
+                });
+                return;
+              }
+              if ((t = ev.target.closest('.fr-decline')) || (t = ev.target.closest('.fr-cancel')) || (t = ev.target.closest('.fr-remove'))) {
+                t.disabled = true;
+                // Отклонение/отмена/разрыв дружбы — просто удаляем запись, чтобы
+                // при желании заявку можно было отправить заново в будущем.
+                sb.from('friends').delete().eq('id', t.getAttribute('data-id')).then(function(r) {
+                  if (r && r.error) { toast((kk?'Қате: ':'Ошибка: ')+(r.error.message||'')); t.disabled = false; return; }
+                  renderFriends();
+                });
+                return;
+              }
+            });
+          }
+        })
+        .catch(function(e) {
+          el.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(e.message||e)+'</p></div>';
+        });
+    }
+
+    // ========== ГРУППОВЫЕ ЧАТЫ ==========
+    // Три таблицы (SQL — отдельным файлом): group_chats, group_chat_members,
+    // group_messages. Логика UI: список моих групп -> создание группы из
+    // списка друзей -> сам групповой чат (тот же паттерн, что и в общем
+    // чате/ЛС, но с фильтром по group_id и управлением участниками).
+    var _groupChatChannel = null; // Realtime-подписка на текущий групповой чат
+    var _currentGroup = null;     // { id, name, isCreator }
+
+    function unsubscribeGroupChat() {
+      if (_groupChatChannel) {
+        try {
+          var sb = getSb();
+          if (sb) sb.removeChannel(_groupChatChannel);
+        } catch(e) { console.warn('unsubscribeGroupChat', e); }
+        _groupChatChannel = null;
+      }
+    }
+
+    function openGroupChat(id, name, isCreator) {
+      _currentGroup = { id: id, name: name, isCreator: !!isCreator };
+      showView('groupchat');
+    }
+
+    // ---- Список групповых чатов ----
+    async function renderGroupsList() {
+      var el = document.getElementById('groups-body');
+      if (!el) return;
+      var kk = state.settings && state.settings.lang === 'kk';
+      var sb = getSb();
+      if (!sb) {
+        el.innerHTML = '<div class="empty-state"><p>'+(kk?'Бөлім тек онлайн-режимде қолжетімді.':'Раздел доступен только в онлайн-режиме.')+'</p></div>';
+        return;
+      }
+      var sess = authSession();
+      if (!sess || !sess.online) {
+        el.innerHTML =
+          '<div class="card"><p>'+(kk?'Топтық чаттарды көру үшін аккаунтқа кіріңіз.':'Чтобы посмотреть групповые чаты, войдите в аккаунт.')+'</p>' +
+          '<button type="button" class="btn btn-primary" id="grp-go-login" style="width:100%;margin-top:0.5rem">'+(kk?'Кіру/Тіркелу':'Войти / Зарегистрироваться')+'</button></div>';
+        document.getElementById('grp-go-login')?.addEventListener('click', function(){ showView('login'); });
+        return;
+      }
+      el.innerHTML = '<div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div>';
+      var authedUser = null;
+      try {
+        var ures = await sb.auth.getUser();
+        authedUser = ures && ures.data && ures.data.user;
+      } catch(e) { authedUser = null; }
+      if (!authedUser) {
+        authSetSession(null);
+        el.innerHTML = '<div class="card"><p>'+(kk?'Сессия аяқталды. Қайта кіріңіз.':'Сессия истекла. Войдите заново.')+'</p></div>';
+        return;
+      }
+      var myUserId = authedUser.id;
+
+      el.innerHTML =
+        '<button type="button" id="grp-create-btn" class="btn btn-primary" style="width:100%;margin-bottom:0.7rem">'+(kk?'+ Топ құру':'+ Создать группу')+'</button>' +
+        '<div id="grp-list-wrap"><div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div></div>';
+
+      document.getElementById('grp-create-btn').addEventListener('click', function() { openCreateGroupModal(myUserId); });
+
+      // group_chat_members -> group_chats через связь по внешнему ключу
+      // (embed), чтобы одним запросом получить и мои группы, и их названия.
+      sb.from('group_chat_members')
+        .select('group_id, group_chats(id,name,created_by,created_at)')
+        .eq('user_id', myUserId)
+        .then(function(res) {
+          var wrap = document.getElementById('grp-list-wrap');
+          if (!wrap) return;
+          if (res && res.error) {
+            wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(res.error.message||'')+'</p></div>';
+            return;
+          }
+          var rows = (res && res.data) || [];
+          var groups = rows.map(function(r){ return r.group_chats; }).filter(Boolean);
+          groups.sort(function(a,b){ return new Date(b.created_at) - new Date(a.created_at); });
+          if (!groups.length) {
+            wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Әзірге топтық чаттар жоқ.':'Пока нет групповых чатов.')+'</p></div>';
+            return;
+          }
+          wrap.innerHTML = groups.map(function(g) {
+            return '<div class="card grp-item" data-id="'+_chatEsc(g.id)+'" data-name="'+_chatEsc(g.name)+'" data-creator="'+(g.created_by===myUserId?'1':'0')+'" style="margin-bottom:0.4rem;padding:0.6rem 0.7rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center">' +
+              '<b>'+_chatEsc(g.name)+'</b>' +
+              (g.created_by === myUserId ? '<span style="font-size:0.72rem;color:var(--text-muted)">'+(kk?'сіз құрғансыз':'вы создали')+'</span>' : '') +
+            '</div>';
+          }).join('');
+          wrap.querySelectorAll('.grp-item').forEach(function(card) {
+            card.addEventListener('click', function() {
+              openGroupChat(card.getAttribute('data-id'), card.getAttribute('data-name'), card.getAttribute('data-creator') === '1');
+            });
+          });
+        })
+        .catch(function(e) {
+          var wrap = document.getElementById('grp-list-wrap');
+          if (wrap) wrap.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(e.message||e)+'</p></div>';
+        });
+    }
+
+    // ---- Модалка создания группы (название + выбор друзей) ----
+    async function openCreateGroupModal(myUserId) {
+      var kk = state.settings && state.settings.lang === 'kk';
+      var sb = getSb();
+      var ex = document.getElementById('group-create-modal');
+      if (ex) ex.remove();
+
+      var box = document.createElement('div');
+      box.id = 'group-create-modal';
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+      box.innerHTML =
+        '<div class="card" style="max-width:24rem;width:100%;max-height:85vh;overflow-y:auto">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center">' +
+            '<b>'+(kk?'Жаңа топ':'Новая группа')+'</b>' +
+            '<button type="button" id="gcm-close" class="btn btn-sm" style="padding:0.15rem 0.55rem">✕</button>' +
+          '</div>' +
+          '<input id="gcm-name" type="text" maxlength="60" placeholder="'+(kk?'Топ атауы':'Название группы')+'" class="input" style="width:100%;margin:0.6rem 0;padding:0.5rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
+          '<div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.3rem">'+(kk?'Достарыңызды таңдаңыз:':'Выберите друзей:')+'</div>' +
+          '<div id="gcm-friends"><p class="ayah-translation">'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div>' +
+          '<button type="button" id="gcm-submit" class="btn btn-primary" style="width:100%;margin-top:0.7rem">'+(kk?'Топ құру':'Создать группу')+'</button>' +
+        '</div>';
+      document.body.appendChild(box);
+      document.getElementById('gcm-close').addEventListener('click', function(){ box.remove(); });
+      box.addEventListener('click', function(ev){ if (ev.target === box) box.remove(); });
+
+      var friendsWrap = document.getElementById('gcm-friends');
+      var friendList = [];
+      try {
+        var fr = await sb.from('friends').select('user_id,friend_id,status').eq('status', 'accepted')
+          .or('user_id.eq.'+myUserId+',friend_id.eq.'+myUserId);
+        var rows = (fr && !fr.error && fr.data) || [];
+        var otherIds = rows.map(function(r){ return (r.user_id === myUserId) ? r.friend_id : r.user_id; });
+        if (otherIds.length) {
+          var pr = await sb.from('profiles').select('id,nick').in('id', otherIds);
+          friendList = (pr && !pr.error && pr.data) || [];
+        }
+      } catch(e) { console.warn('load friends for group', e); }
+
+      if (!friendList.length) {
+        friendsWrap.innerHTML = '<p class="ayah-translation" style="font-size:0.82rem;color:var(--text-muted)">'+(kk?'Достарыңыз әлі жоқ. Алдымен «Достар» бөлімінен достар қосыңыз.':'У вас пока нет друзей. Сначала добавьте друзей в разделе «Друзья».')+'</p>';
+      } else {
+        friendsWrap.innerHTML = friendList.map(function(f) {
+          return '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0;border-bottom:1px solid var(--border)">' +
+            '<input type="checkbox" class="gcm-friend-cb" value="'+_chatEsc(f.id)+'"> '+_chatEsc(f.nick || '???') +
+          '</label>';
+        }).join('');
+      }
+
+      document.getElementById('gcm-submit').addEventListener('click', async function() {
+        var btn = this;
+        var name = (document.getElementById('gcm-name').value || '').trim();
+        if (!name) { toast(kk?'Топ атауын енгізіңіз':'Введите название группы'); return; }
+        var selected = Array.from(document.querySelectorAll('.gcm-friend-cb:checked')).map(function(cb){ return cb.value; });
+        btn.disabled = true;
+        try {
+          // 1) создаём саму группу
+          var gRes = await sb.from('group_chats').insert({ name: name, created_by: myUserId }).select().single();
+          if (gRes.error) { toast((kk?'Қате: ':'Ошибка: ')+(gRes.error.message||'')); btn.disabled = false; return; }
+          var groupId = gRes.data.id;
+          // 2) добавляем создателя и выбранных друзей как участников
+          var memberRows = [{ group_id: groupId, user_id: myUserId }]
+            .concat(selected.map(function(uid){ return { group_id: groupId, user_id: uid }; }));
+          var mRes = await sb.from('group_chat_members').insert(memberRows);
+          if (mRes.error) { toast((kk?'Қате: ':'Ошибка: ')+(mRes.error.message||'')); btn.disabled = false; return; }
+          box.remove();
+          openGroupChat(groupId, name, true);
+        } catch(e) {
+          toast((kk?'Қате: ':'Ошибка: ')+(e.message||e));
+          btn.disabled = false;
+        }
+      });
+    }
+
+    function _groupMessageHtml(m, myUserId) {
+      var mine = myUserId && m.user_id === myUserId;
+      return '<div class="card" style="margin-bottom:0.5rem;padding:0.55rem 0.7rem;'+(mine ? 'border-color:var(--primary,#2e7d32)' : '')+'">' +
+        '<div style="display:flex;justify-content:space-between;gap:0.5rem;font-size:0.78rem;color:var(--text-muted)">' +
+          '<b style="color:var(--text)">'+_chatEsc(m.nick || '???')+'</b>' +
+          '<span>'+_chatTimeLabel(m.created_at)+'</span>' +
+        '</div>' +
+        '<div style="margin-top:0.2rem;white-space:pre-wrap;word-break:break-word">'+_chatEsc(m.text)+'</div>' +
+      '</div>';
+    }
+
+    // ---- Сам групповой чат ----
+    async function renderGroupChat() {
+      var el = document.getElementById('groupchat-body');
+      if (!el) return;
+      var kk = state.settings && state.settings.lang === 'kk';
+      var sb = getSb();
+      unsubscribeGroupChat();
+
+      if (!_currentGroup || !_currentGroup.id) {
+        el.innerHTML = '<div class="empty-state"><p>'+(kk?'Топ таңдалмаған.':'Группа не выбрана.')+'</p></div>';
+        return;
+      }
+      var titleEl = document.getElementById('groupchat-title');
+      if (titleEl) titleEl.textContent = _currentGroup.name;
+
+      if (!sb) {
+        el.innerHTML = '<div class="empty-state"><p>'+(kk?'Бөлім тек онлайн-режимде қолжетімді.':'Раздел доступен только в онлайн-режиме.')+'</p></div>';
+        return;
+      }
+      var sess = authSession();
+      if (!sess || !sess.online) {
+        el.innerHTML = '<div class="card"><p>'+(kk?'Аккаунтқа кіріңіз.':'Войдите в аккаунт.')+'</p></div>';
+        return;
+      }
+      var authedUser = null;
+      try {
+        var ures = await sb.auth.getUser();
+        authedUser = ures && ures.data && ures.data.user;
+      } catch(e) { authedUser = null; }
+      if (!authedUser) {
+        authSetSession(null);
+        el.innerHTML = '<div class="card"><p>'+(kk?'Сессия аяқталды. Қайта кіріңіз.':'Сессия истекла. Войдите заново.')+'</p></div>';
+        return;
+      }
+      var myUserId = authedUser.id;
+      var groupId = _currentGroup.id;
+
+      el.innerHTML =
+        '<div style="display:flex;gap:0.4rem;margin-bottom:0.5rem">' +
+          '<button type="button" id="grpc-members-btn" class="btn btn-sm" style="flex:1">'+(kk?'👥 Мүшелер':'👥 Участники')+'</button>' +
+          '<button type="button" id="grpc-leave-btn" class="btn btn-sm" style="flex:1">'+(kk?'Топтан шығу':'Покинуть группу')+'</button>' +
+        '</div>' +
+        '<div id="grpc-list" style="max-height:50vh;overflow-y:auto;padding-right:0.15rem"><div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div></div>' +
+        '<form id="grpc-form" style="display:flex;gap:0.4rem;margin-top:0.6rem">' +
+          '<input id="grpc-input" type="text" maxlength="500" autocomplete="off" placeholder="'+(kk?'Хабарлама жазыңыз...':'Напишите сообщение...')+'" class="input" style="flex:1;padding:0.55rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
+          '<button type="submit" class="btn btn-primary" style="white-space:nowrap">'+(kk?'Жіберу':'Отправить')+'</button>' +
+        '</form>';
+
+      document.getElementById('grpc-members-btn').addEventListener('click', function() { openGroupMembersModal(myUserId); });
+      document.getElementById('grpc-leave-btn').addEventListener('click', async function() {
+        if (!confirm(kk?'Топтан шығуды растайсыз ба?':'Точно покинуть группу?')) return;
+        try {
+          var r = await sb.from('group_chat_members').delete().eq('group_id', groupId).eq('user_id', myUserId);
+          if (r.error) { toast((kk?'Қате: ':'Ошибка: ')+(r.error.message||'')); return; }
+          showView('groups');
+        } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
+      });
+
+      var listEl = document.getElementById('grpc-list');
+      var knownIds = {};
+
+      function appendMessages(rows, scrollToBottom) {
+        rows.forEach(function(m) {
+          if (knownIds[m.id]) return;
+          knownIds[m.id] = true;
+          listEl.insertAdjacentHTML('beforeend', _groupMessageHtml(m, myUserId));
+        });
+        if (scrollToBottom) listEl.scrollTop = listEl.scrollHeight;
+      }
+
+      function loadHistory() {
+        sb.from('group_messages')
+          .select('*')
+          .eq('group_id', groupId)
+          .order('created_at', { ascending: true })
+          .limit(300)
+          .then(function(res) {
+            if (res && res.error) {
+              listEl.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(res.error.message||'')+'</p></div>';
+              return;
+            }
+            var rows = (res && res.data) || [];
+            listEl.innerHTML = '';
+            if (!rows.length) {
+              listEl.innerHTML = '<div class="empty-state"><p>'+(kk?'Хабарламалар жоқ. Бірінші болыңыз!':'Сообщений пока нет. Будьте первым!')+'</p></div>';
+            } else {
+              appendMessages(rows, true);
+            }
+            subscribeRealtime();
+          })
+          .catch(function(e) {
+            listEl.innerHTML = '<div class="empty-state"><p>'+(kk?'Қате: ':'Ошибка: ')+(e.message||e)+'</p></div>';
+          });
+      }
+
+      function subscribeRealtime() {
+        // filter: 'group_id=eq.<id>' — Realtime поддерживает фильтр по одному
+        // столбцу на сервере, поэтому (в отличие от ЛС) можно не фильтровать
+        // на клиенте — придут только сообщения этой конкретной группы.
+        try {
+          _groupChatChannel = sb.channel('group:'+groupId)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_messages', filter: 'group_id=eq.'+groupId }, function(payload) {
+              var m = payload && payload.new;
+              if (!m) return;
+              if (listEl.querySelector('.empty-state')) listEl.innerHTML = '';
+              var wasAtBottom = (listEl.scrollTop + listEl.clientHeight) >= (listEl.scrollHeight - 40);
+              appendMessages([m], wasAtBottom);
+            })
+            .subscribe();
+        } catch(e) { console.warn('group chat subscribe', e); }
+      }
+
+      loadHistory();
+
+      var formEl = document.getElementById('grpc-form');
+      var inputEl = document.getElementById('grpc-input');
+      formEl.addEventListener('submit', function(ev) {
+        ev.preventDefault();
+        var text = (inputEl.value || '').trim();
+        if (!text) return;
+        if (text.length > 500) text = text.slice(0, 500);
+        inputEl.disabled = true;
+        sb.from('group_messages').insert({
+          group_id: groupId,
+          user_id: myUserId,
+          nick: sess.nick || (sess.email || '').split('@')[0] || '???',
+          text: text
+        }).then(function(res) {
+          inputEl.disabled = false;
+          if (res && res.error) { toast((kk?'Қате: ':'Ошибка: ')+(res.error.message||'')); return; }
+          inputEl.value = '';
+          inputEl.focus();
+        }).catch(function(e) {
+          inputEl.disabled = false;
+          toast((kk?'Қате: ':'Ошибка: ')+(e.message||e));
+        });
+      });
+    }
+
+    // ---- Модалка «Участники» (список + добавить/удалить, если ты создатель) ----
+    async function openGroupMembersModal(myUserId) {
+      var kk = state.settings && state.settings.lang === 'kk';
+      var sb = getSb();
+      var group = _currentGroup;
+      if (!group) return;
+      var ex = document.getElementById('group-members-modal');
+      if (ex) ex.remove();
+
+      var box = document.createElement('div');
+      box.id = 'group-members-modal';
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+      box.innerHTML =
+        '<div class="card" style="max-width:24rem;width:100%;max-height:85vh;overflow-y:auto">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center">' +
+            '<b>'+(kk?'Мүшелер':'Участники')+'</b>' +
+            '<button type="button" id="gmm-close" class="btn btn-sm" style="padding:0.15rem 0.55rem">✕</button>' +
+          '</div>' +
+          '<div id="gmm-list" style="margin-top:0.6rem"><p class="ayah-translation">'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div>' +
+          (group.isCreator ? '<button type="button" id="gmm-add-btn" class="btn btn-primary" style="width:100%;margin-top:0.7rem">'+(kk?'+ Дос қосу':'+ Добавить друга')+'</button>' : '') +
+        '</div>';
+      document.body.appendChild(box);
+      document.getElementById('gmm-close').addEventListener('click', function(){ box.remove(); });
+      box.addEventListener('click', function(ev){ if (ev.target === box) box.remove(); });
+
+      var listEl = document.getElementById('gmm-list');
+
+      function loadMembers() {
+        sb.from('group_chat_members').select('user_id').eq('group_id', group.id)
+          .then(async function(res) {
+            if (res.error) { listEl.innerHTML = '<p class="ayah-translation">'+(kk?'Қате: ':'Ошибка: ')+(res.error.message||'')+'</p>'; return; }
+            var ids = (res.data || []).map(function(r){ return r.user_id; });
+            var nickById = {};
+            if (ids.length) {
+              try {
+                var pr = await sb.from('profiles').select('id,nick').in('id', ids);
+                (pr.data || []).forEach(function(p){ nickById[p.id] = p.nick || '???'; });
+              } catch(e) {}
+            }
+            listEl.innerHTML = ids.map(function(uid) {
+              var canRemove = group.isCreator && uid !== myUserId;
+              return '<div class="card" style="margin-bottom:0.35rem;padding:0.5rem 0.65rem;display:flex;justify-content:space-between;align-items:center">' +
+                '<span>'+_chatEsc(nickById[uid] || '???')+(uid === myUserId ? (kk?' (сіз)':' (вы)') : '')+'</span>' +
+                (canRemove ? '<button type="button" class="btn btn-sm gmm-remove" data-uid="'+_chatEsc(uid)+'">'+(kk?'Жою':'Удалить')+'</button>' : '') +
+              '</div>';
+            }).join('');
+            listEl.querySelectorAll('.gmm-remove').forEach(function(btn) {
+              btn.addEventListener('click', async function() {
+                btn.disabled = true;
+                try {
+                  var r = await sb.from('group_chat_members').delete().eq('group_id', group.id).eq('user_id', btn.getAttribute('data-uid'));
+                  if (r.error) { toast((kk?'Қате: ':'Ошибка: ')+(r.error.message||'')); btn.disabled = false; return; }
+                  loadMembers();
+                } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); btn.disabled = false; }
+              });
+            });
+          });
+      }
+      loadMembers();
+
+      var addBtn = document.getElementById('gmm-add-btn');
+      if (addBtn) {
+        addBtn.addEventListener('click', async function() {
+          // Список друзей, которых ещё нет в группе.
+          var currentIds = Array.from(listEl.querySelectorAll('[data-uid]')).map(function(b){ return b.getAttribute('data-uid'); });
+          var fr = await sb.from('friends').select('user_id,friend_id,status').eq('status', 'accepted')
+            .or('user_id.eq.'+myUserId+',friend_id.eq.'+myUserId);
+          var rows = (fr && fr.data) || [];
+          var otherIds = rows.map(function(r){ return (r.user_id === myUserId) ? r.friend_id : r.user_id; })
+            .filter(function(id){ return currentIds.indexOf(id) === -1; });
+          if (!otherIds.length) { toast(kk?'Қосатын дос жоқ':'Некого добавить — все друзья уже в группе'); return; }
+          var pr = await sb.from('profiles').select('id,nick').in('id', otherIds);
+          var friendList = (pr && pr.data) || [];
+          var pickBox = document.createElement('div');
+          pickBox.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem';
+          pickBox.innerHTML = '<div class="card" style="max-width:22rem;width:100%">' +
+            '<b>'+(kk?'Кімді қосу керек?':'Кого добавить?')+'</b>' +
+            '<div style="margin-top:0.5rem">' + friendList.map(function(f) {
+              return '<button type="button" class="btn" style="width:100%;margin-bottom:0.3rem;text-align:left" data-uid="'+_chatEsc(f.id)+'">'+_chatEsc(f.nick||'???')+'</button>';
+            }).join('') + '</div>' +
+            '<button type="button" class="btn btn-sm" id="pick-cancel" style="width:100%;margin-top:0.3rem">'+(kk?'Болдырмау':'Отмена')+'</button>' +
+          '</div>';
+          document.body.appendChild(pickBox);
+          document.getElementById('pick-cancel').addEventListener('click', function(){ pickBox.remove(); });
+          pickBox.querySelectorAll('[data-uid]').forEach(function(b) {
+            b.addEventListener('click', async function() {
+              try {
+                var r = await sb.from('group_chat_members').insert({ group_id: group.id, user_id: b.getAttribute('data-uid') });
+                if (r.error) { toast((kk?'Қате: ':'Ошибка: ')+(r.error.message||'')); return; }
+                pickBox.remove();
+                loadMembers();
+              } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
+            });
+          });
+        });
+      }
+    }
+
     function paintMoreConfig() {
       const listsEl = document.getElementById('morecfg-lists');
       const secEl = document.getElementById('morecfg-sections');
