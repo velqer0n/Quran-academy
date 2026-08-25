@@ -15912,6 +15912,30 @@ bKk:
       if (!el) return;
       // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн · .lan языки
       const log = [
+        { major: '4', v: '4.09', kinds: ['a','admin'], date: '2026-08-25',
+          a: [
+            'Общий чат: у своего сообщения появилась кнопка 🗑 «Удалить» — доступна автору в любой момент. Сообщение не пропадает бесследно: вместо текста показывается пометка «Пользователь удалил своё сообщение», обновляется вживую у всех, кто сейчас в чате'
+          ],
+          aKk: [
+            'Жалпы чат: өз хабарламаңда 🗑 «Жою» түймесі пайда болды — авторға кез келген уақытта қолжетімді. Хабарлама іздеп-жоқ болмайды: мәтін орнына «Пайдаланушы өз хабарламасын жойды» деген белгі көрсетіледі, чатта отырғандардың бәрінде вживую жаңарады'
+          ],
+          admin: [
+            'Общий чат: у администраторов кнопка 🗑 «Удалить» появилась на любом чужом сообщении, не только на своём. При удалении чужого сообщения администратором след отличается от самоудаления — показывается «🛡 Сообщение удалено администратором», чтобы было видно, что это решение модератора, а не автора',
+            'На стороне базы данных: вместо настоящего удаления строки используется soft-delete — колонки chat_messages.deleted_at и deleted_by_admin; текст сообщения при этом обнуляется на сервере. RLS-политики разрешают такое обновление автору только своей строки, администратору (через уже существующую public.is_admin()) — любой. Отдельным триггером на UPDATE запрещено менять что-либо, кроме перехода в «удалено» — то есть подменить текст, ник или дату задним числом через прямой запрос к Supabase (в обход интерфейса) нельзя, как и выставить себе deleted_by_admin без реальных прав администратора'
+          ],
+          adminKk: [
+            'Жалпы чат: әкімшілерде 🗑 «Жою» түймесі енді кез келген бөтен хабарламада да пайда болды, тек өзінде емес. Әкімші бөтен хабарламаны жойғанда із өзін-өзі жоюдан ерекшеленеді — «🛡 Хабарлама әкімші тарапынан жойылды» көрсетіледі, бұл модератордың шешімі екенін, автордың емес екенін көрсету үшін',
+            'Дерекқор жағында: жолды нақты жоюдың орнына soft-delete қолданылады — chat_messages.deleted_at және deleted_by_admin бағандары; хабарлама мәтіні сервер жағында нөлденеді. RLS-саясаттары мұндай жаңартуды автордың тек өз жолына, әкімшіге (бар public.is_admin() арқылы) — кез келгеніне рұқсат етеді. UPDATE-ке жеке триггер «жойылды» күйіне өтуден басқа ештеңені өзгертуге тыйым салады — яғни Supabase-ке (интерфейсті айналып өтіп) тікелей сұраныс арқылы мәтінді, никті немесе күнді кейін ауыстыру мүмкін емес, сол сияқты нақты әкімші құқығынсыз deleted_by_admin қоя алмайсың'
+          ]
+        },
+        { major: '4', v: '4.08', kinds: ['f'], date: '2026-08-25',
+          f: [
+            '«Общий чат», «Друзья», личные сообщения и «Групповые чаты»: при отправке и загрузке сообщений/заявок приложение падало с ошибкой «permission denied for table chat_messages» (и так же для остальных новых таблиц), хотя RLS-политики были настроены верно. Причина та же, что уже встречалась с profiles и blocked_emails (см. записи 4.05 и 4.02): у роли authenticated в Supabase не было прав на саму таблицу на уровне базы данных — Postgres блокирует такой запрос ещё до проверки RLS-политик. Права выданы (GRANT SELECT/INSERT/UPDATE/DELETE) на все шесть новых таблиц и на функцию проверки членства в группе — ошибка больше не возникает'
+          ],
+          fKk: [
+            '«Жалпы чат», «Достар», жеке хабарламалар және «Топтық чаттар»: хабарлама/сұраныс жіберу және жүктеу кезінде қолданба «permission denied for table chat_messages» қатесімен құлайтын (басқа жаңа кестелерде де солай), RLS-саясаттары дұрыс бапталғанына қарамастан. Себебі profiles және blocked_emails кестелерінде бұрын кездескен себеппен бірдей (4.05 және 4.02 жазбаларын қараңыз): Supabase-те authenticated рөлінде кестенің өзіне дерекқор деңгейінде құқық болмаған — Postgres мұндай сұранысты RLS-саясаттарын тексеруге дейін-ақ бұғаттайды. Барлық алты жаңа кестеге және топ мүшелігін тексеру функциясына құқықтар берілді (GRANT SELECT/INSERT/UPDATE/DELETE) — қате енді шықпайды'
+          ]
+        },
         { major: '4', v: '4.07', kinds: ['f'], date: '2026-08-25',
           f: [
             'Меню «Ещё»: у части пользователей список «Онлайн» (Мой аккаунт, Общий чат, Друзья, Групповые чаты и т.д.) мог полностью пропадать из меню. Причина — старая ошибка в функции чтения настроек списков меню: если пользователь хоть раз заходил в «Настройки → Меню → Списки», сохранённая конфигурация безусловно вырезала группу «Онлайн», как будто её вообще не существует. Теперь эта группа больше не вырезается, а если она уже потерялась в ранее сохранённых у пользователя настройках — при следующем открытии приложения возвращается автоматически, без необходимости что-либо сбрасывать вручную',
@@ -36863,14 +36887,31 @@ c.addEventListener('click', () => {
       } catch(e) { return ''; }
     }
 
-    function _chatMessageHtml(m, myUserId) {
+    function _chatMessageHtml(m, myUserId, isAdmin) {
       var mine = myUserId && m.user_id === myUserId;
+      var canDelete = !m.deleted_at && (mine || isAdmin);
+      var bodyHtml;
+      if (m.deleted_at) {
+        // След от удаления: видно, кто именно удалил — сам автор или админ,
+        // сам текст сообщения не показывается (обнулён на сервере).
+        bodyHtml = '<div style="margin-top:0.2rem;font-style:italic;color:var(--text-muted)">' +
+          (m.deleted_by_admin ? '🛡 ' : '') +
+          (m.deleted_by_admin
+            ? 'Сообщение удалено администратором'
+            : 'Пользователь удалил своё сообщение') +
+        '</div>';
+      } else {
+        bodyHtml = '<div style="margin-top:0.2rem;white-space:pre-wrap;word-break:break-word">'+_chatEsc(m.text)+'</div>';
+      }
       return '<div class="card" data-msg-id="'+_chatEsc(m.id)+'" style="margin-bottom:0.5rem;padding:0.55rem 0.7rem;'+(mine ? 'border-color:var(--primary,#2e7d32)' : '')+'">' +
         '<div style="display:flex;justify-content:space-between;gap:0.5rem;font-size:0.78rem;color:var(--text-muted)">' +
           '<b class="pchat-nick" data-nick-click="1" data-uid="'+_chatEsc(m.user_id)+'" data-nick="'+_chatEsc(m.nick || '???')+'" style="color:var(--text);cursor:pointer;text-decoration:underline dotted">'+_chatEsc(m.nick || '???')+'</b>' +
-          '<span>'+_chatTimeLabel(m.created_at)+'</span>' +
+          '<span style="display:flex;align-items:center;gap:0.4rem">' +
+            '<span>'+_chatTimeLabel(m.created_at)+'</span>' +
+            (canDelete ? '<button type="button" class="pchat-del" data-del-id="'+_chatEsc(m.id)+'" data-mine="'+(mine?'1':'0')+'" title="Удалить" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.9rem;padding:0;line-height:1">🗑</button>' : '') +
+          '</span>' +
         '</div>' +
-        '<div style="margin-top:0.2rem;white-space:pre-wrap;word-break:break-word">'+_chatEsc(m.text)+'</div>' +
+        bodyHtml +
       '</div>';
     }
 
@@ -36909,6 +36950,7 @@ c.addEventListener('click', () => {
       }
       if (sess.userId !== authedUser.id) { sess.userId = authedUser.id; authSetSession(sess); }
       var myUserId = authedUser.id;
+      var isAdmin = (typeof isAdminUser === 'function') && isAdminUser();
 
       el.innerHTML =
         '<div id="pchat-list" style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column-reverse;padding-right:0.15rem"><div class="empty-state"><p>'+(kk?'Жүктелуде...':'Загрузка...')+'</p></div></div>' +
@@ -36925,24 +36967,64 @@ c.addEventListener('click', () => {
       listEl.style.display = 'block';
       listEl.style.flexDirection = '';
 
-      // Клик по нику автора сообщения — открывает мини-профиль (см. openProfileModal).
+      // Клик по нику — открывает мини-профиль; клик по 🗑 — удаляет сообщение
+      // (своё — любому, чужое — только администратору; проверка дублируется
+      // на сервере через RLS, так что подделать запрос с фронтенда бесполезно).
       listEl.addEventListener('click', function(ev) {
         var t = ev.target.closest('[data-nick-click]');
-        if (!t) return;
-        var uid = t.getAttribute('data-uid');
-        var nick = t.getAttribute('data-nick');
-        if (uid) openProfileModal(uid, nick);
+        if (t) {
+          var uid = t.getAttribute('data-uid');
+          var nick = t.getAttribute('data-nick');
+          if (uid) openProfileModal(uid, nick);
+          return;
+        }
+        var delBtn = ev.target.closest('.pchat-del');
+        if (delBtn) {
+          var msgId = delBtn.getAttribute('data-del-id');
+          var isMine = delBtn.getAttribute('data-mine') === '1';
+          if (!confirm(kk ? 'Хабарламаны жоясыз ба?' : 'Удалить сообщение?')) return;
+          delBtn.disabled = true;
+          // deleted_by_admin=true только если удаляют ЧУЖОЕ сообщение как админ;
+          // своё сообщение — всегда «пользователь удалил своё», даже если удаляет админ.
+          sb.from('chat_messages').update({
+            text: null,
+            deleted_at: new Date().toISOString(),
+            deleted_by_admin: !isMine
+          }).eq('id', msgId).then(function(res) {
+            if (res && res.error) {
+              toast((kk?'Қате: ':'Ошибка: ')+(res.error.message||''));
+              delBtn.disabled = false;
+              return;
+            }
+            // Своё изменение тоже подхватится через Realtime UPDATE, но
+            // применяем сразу на месте, чтобы не ждать сетевую задержку.
+            applyDeletedInPlace(msgId, !isMine);
+          });
+        }
       });
 
-      var knownIds = {}; // id уже отрисованных сообщений, чтобы Realtime не дублировал их
+      var knownIds = {}; // id -> объект сообщения (для точечного обновления при удалении)
 
       function appendMessages(rows, scrollToBottom) {
         rows.forEach(function(m) {
           if (knownIds[m.id]) return;
-          knownIds[m.id] = true;
-          listEl.insertAdjacentHTML('beforeend', _chatMessageHtml(m, myUserId));
+          knownIds[m.id] = m;
+          listEl.insertAdjacentHTML('beforeend', _chatMessageHtml(m, myUserId, isAdmin));
         });
         if (scrollToBottom) listEl.scrollTop = listEl.scrollHeight;
+      }
+
+      // Точечно заменяет карточку сообщения на «удалённый» вид, не перерисовывая
+      // весь список (используется и локально сразу после клика, и при
+      // получении чужого удаления через Realtime UPDATE).
+      function applyDeletedInPlace(msgId, byAdmin) {
+        var m = knownIds[msgId];
+        if (!m) return;
+        m.text = null;
+        m.deleted_at = m.deleted_at || new Date().toISOString();
+        m.deleted_by_admin = byAdmin;
+        var card = listEl.querySelector('[data-msg-id="'+String(msgId).replace(/"/g,'')+'"]');
+        if (card) card.outerHTML = _chatMessageHtml(m, myUserId, isAdmin);
       }
 
       function loadHistory() {
@@ -36972,8 +37054,9 @@ c.addEventListener('click', () => {
       }
 
       function subscribeRealtime() {
-        // Подписка на INSERT в chat_messages — новые сообщения приходят «вживую»
-        // всем, кто сейчас открыл раздел, без повторных запросов к базе.
+        // Подписка на INSERT (новые сообщения) и UPDATE (удаление сообщения
+        // оставляет след через soft-delete — см. applyDeletedInPlace) —
+        // обе живут вживую у всех, кто сейчас открыл раздел.
         try {
           _publicChatChannel = sb.channel('public:chat_messages')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, function(payload) {
@@ -36982,6 +37065,11 @@ c.addEventListener('click', () => {
               if (listEl.querySelector('.empty-state')) listEl.innerHTML = '';
               var wasAtBottom = (listEl.scrollTop + listEl.clientHeight) >= (listEl.scrollHeight - 40);
               appendMessages([m], wasAtBottom);
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_messages' }, function(payload) {
+              var m = payload && payload.new;
+              if (!m || !m.deleted_at) return;
+              applyDeletedInPlace(m.id, !!m.deleted_by_admin);
             })
             .subscribe();
         } catch(e) { console.warn('publicchat subscribe', e); }
