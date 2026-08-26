@@ -16031,6 +16031,44 @@ bKk:
     // отсюда же, а не полагаться на отдельно вписанный вручную номер версии.
     // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн · .lan языки
     const CHANGELOG_LOG = [
+        { major: '4', v: '4.34', kinds: ['f'], date: '2026-08-25',
+          f: [
+            'Личные сообщения и групповые чаты: отправка файла без текста (например, просто .docx или .pdf без подписи) падала с ошибкой базы данных «violates check constraint» — старое ограничение таблиц требовало обязательно текст или картинку, про новые вложения (build 4.25) оно не знало. Исправлено на стороне базы (SQL — в чате с пользователем)',
+            'Личные сообщения и групповые чаты: у уже отправленных фото не было способа скачать их на устройство — только просмотр на весь экран по тапу. Добавлена кнопка ⬇️ поверх миниатюры и внутри полноэкранного просмотра',
+            'Групповые чаты: если открыть чат и обновить страницу (F5) прямо в нём, показывался тупиковый экран «Группа не выбрана», хотя группа никуда не девалась — открытая группа хранилась только в памяти и терялась при перезагрузке. Теперь она восстанавливается вместе с остальным состоянием после обновления страницы',
+            'Личные сообщения: отправка сообщения полагалась только на эхо от Realtime-подписки (та же гонка, что чинили в групповых чатах в 4.28) — теперь сообщение дорисовывается сразу по ответу на отправку, как и в группах'
+          ],
+          fKk: [
+            'Жеке хабарламалар және топтық чаттар: мәтінсіз файл жіберу (мысалы, жай ғана .docx немесе .pdf, жазусыз) дерекқор қатесімен («violates check constraint») құлайтын — кестелердің ескі шектеуі міндетті түрде мәтін немесе сурет талап ететін, жаңа тіркемелер (build 4.25) туралы ол білмейтін. Дерекқор жағында түзетілді (SQL — қолданушымен чатта)',
+            'Жеке хабарламалар және топтық чаттар: бұрын жіберілген суреттерді құрылғыға жүктеп алудың жолы болмаған — тек түртіп толық экранда қарау ғана. Миниатюраның үстіне және толық экранды қараудың ішіне ⬇️ түймесі қосылды',
+            'Топтық чаттар: чатты ашып, дәл сол жерде парақты жаңартса (F5), «Топ таңдалмаған» деген тұйық экран көрсетілетін, ал топ жоғалмаған еді — ашылған топ тек жадта сақталатын, парақты жаңартқанда жоғалатын. Енді ол парақты жаңартқаннан кейін қалған күймен бірге қалпына келеді',
+            'Жеке хабарламалар: хабарлама жіберу тек Realtime-жазылымнан келетін эхоға сенетін (топтық чаттарда 4.28-де түзетілген сол гонка) — енді хабарлама топтардағыдай жіберу жауабы бойынша бірден өзі-ақ қосылады'
+          ]
+        },
+        { major: '4', v: '4.33', kinds: ['b'], date: '2026-08-25',
+          b: [
+            'Раздел «Жалобы»: убрана кнопка «✅ Рассмотрено» — по каждой жалобе теперь только два исхода: «🛡 Удалить сообщение» либо «🚫 Отклонить жалобу» (сообщение не трогается). В обоих случаях жалоба сразу переходит в соответствующую вкладку'
+          ],
+          bKk: [
+            '«Шағымдар» бөлімі: «✅ Рассмотрено» түймесі алынды — енді әр шағым бойынша тек екі шешім: «🛡 Хабарламаны жою» немесе «🚫 Шағымды қабылдамау» (хабарлама тиілмейді). Екі жағдайда да шағым тиісті қойындыға бірден көшеді'
+          ]
+        },
+        { major: '4', v: '4.32', kinds: ['f','a'], date: '2026-08-25',
+          f: [
+            'Групповые чаты: удаление сообщений (своё — автором, любое — админом) вообще не работало на уровне базы данных — таблица group_messages никогда не поддерживала soft-delete. Из-за этого кнопка «🛡 Удалить сообщение» в разделе жалоб для групповых чатов молча не срабатывала (для общего чата — работала, отсюда и «одни сообщения удаляются, другие нет»). Добавлены колонки group_messages.deleted_at/deleted_by_admin, RLS и триггер-страж — теперь удаление в группах работает как в общем чате, плюс у своих сообщений появилась кнопка 🗑 (её раньше не было вовсе)',
+            'Раздел «Жалобы»: «На кого: ???» — если ник в самой жалобе почему-то не сохранился, теперь подставляется актуальный ник пользователя из профиля вместо вопросиков'
+          ],
+          fKk: [
+            'Топтық чаттар: хабарламаны жою (авторы — өзінікін, әкімші — кез келгенін) дерекқор деңгейінде мүлдем жұмыс істемейтін — group_messages кестесі soft-delete-ті ешқашан қолдамаған. Сондықтан «Жалобы» бөліміндегі «🛡 Хабарламаны жою» түймесі топтық чаттар үшін үнсіз істемей қалатын (жалпы чат үшін жұмыс істейтін, содан «кейбір хабарлама жойылады, кейбірі жоқ»). group_messages.deleted_at/deleted_by_admin бағандары, RLS және страж-триггер қосылды — енді топтарда жою жалпы чаттағыдай жұмыс істейді, әрі өз хабарламаларда 🗑 түймесі пайда болды (бұрын мүлдем болмаған)',
+            '«Шағымдар» бөлімі: «Кімге: ???» — егер шағымның өзінде ник қандай да бір себеппен сақталмаса, енді сұрақ белгінің орнына пайдаланушының профилінен нақты нигі қойылады'
+          ],
+          a: [
+            'Раздел «Жалобы» получил вкладки: 🆕 Новые / 📋 Все / 🛡 Удалено сообщение / 🚫 Отклонена. Кнопка «✅ Отметить рассмотренной» переименована в «✅ Рассмотрено» с уточнением в подсказке: она ничего не удаляет, ни сообщение, ни саму жалобу — просто помечает, что админ посмотрел и решил не предпринимать действий. Кнопка «🗑 Удалить» (раньше стирала жалобу из базы без следа) заменена на «🚫 Отклонить жалобу» — жалоба остаётся видна во вкладке «Отклонена», просто помечается закрытой без удаления сообщения; полное безвозвратное удаление осталось отдельной маленькой кнопкой 🗑 в конце карточки'
+          ],
+          aKk: [
+            '«Шағымдар» бөлімі қойындыларға ие болды: 🆕 Жаңа / 📋 Барлығы / 🛡 Хабарлама жойылды / 🚫 Қабылданбады. «✅ Қаралды деп белгілеу» түймесі «✅ Рассмотрено» болып өзгертілді, кеңесте түсіндірме қосылды: ол ештеңені жоймайды, не хабарламаны, не шағымның өзін — жай ғана әкімші қарап, әрекет жасамауды шешкенін белгілейді. «🗑 Жою» түймесі (бұрын шағымды дерекқордан ізсіз өшіретін) «🚫 Шағымды қабылдамау» болып ауыстырылды — шағым «Қабылданбады» қойындысында көрінеді, жай ғана хабарламаны өшірместен жабылды деп белгіленеді; толық қайтарымсыз жою карточканың соңында бөлек шағын 🗑 түймесі түрінде қалды'
+          ]
+        },
         { major: '4', v: '4.31', kinds: ['a'], date: '2026-08-25',
           a: [
             'Пословный грамматический разбор (иараб) для сур 75-84 — весь блок целиком, все десять сур: 75 «Аль-Кыяма» (40 аятов), 76 «Аль-Инсан» (31 аят), 77 «Аль-Мурсалят» (50 аятов), 78 «Ан-Наба» (40 аятов), 79 «Ан-Назиат» (46 аятов), 80 «Абаса» (42 аята), 81 «Ат-Таквир» (29 аятов), 82 «Аль-Инфитар» (19 аятов), 83 «Аль-Мутаффифин» (36 аятов), 84 «Аль-Иншикак» (25 аятов). Построен по традиционному иарабу и структуре The Quranic Arabic Corpus'
@@ -16047,13 +16085,17 @@ bKk:
             'Шапка түймелерін баптау (Баптаулар → Мәзір → Шапка) 10 жаңа таңдау алды — Жеке хабарламалар, Достар, Хабарландырулар, Жалпы чат, Топтық чаттар, Форум, Сұрақ-жауаптарым, Жетістіктер, Статистика, Намаз уақыты және құбыла. Барлығы қалауыңызша, әдепкі бойынша жасырын (тізімдегі 👁 көзі қосады), шапкада бір мезгілде көрінетін 6 түйме шегі бұрынғыдай қалды — жай ғана енді сол 6-ны таңдайтын нұсқа көбейді'
           ]
         },
-        { major: '4', v: '4.29', kinds: ['a'], date: '2026-08-25',
+        { major: '4', v: '4.29', kinds: ['a','admin'], date: '2026-08-25',
           a: [
-            '«Регистрация» и «Жалобы» переехали из группы «Онлайн» в новую отдельную группу «Админ» в меню «Ещё» — видна только администраторам (как и сами эти два раздела). У обычных пользователей эта группа не отображается вообще и не отнимает место у их списков',
-            'Лимит количества списков в меню «Ещё» поднят до 9 для администраторов (у обычных пользователей остался прежний максимум — 8) — служебная группа «Админ» не в счёт обычных 8'
+            '«Регистрация» и «Жалобы» переехали из группы «Онлайн» в новую отдельную группу «Админ» в меню «Ещё» — видна только администраторам (как и сами эти два раздела). У обычных пользователей эта группа не отображается вообще и не отнимает место у их списков'
           ],
           aKk: [
-            '«Тіркелу» мен «Шағымдар» «Онлайн» тобынан «Тағы» мәзіріндегі жаңа жеке «Әкімші» тобына көшті — тек әкімшілерге көрінеді (осы екі бөлімнің өзі сияқты). Әдеттегі пайдаланушыларда бұл топ мүлдем көрінбейді және олардың тізімдер орнын алмайды',
+            '«Тіркелу» мен «Шағымдар» «Онлайн» тобынан «Тағы» мәзіріндегі жаңа жеке «Әкімші» тобына көшті — тек әкімшілерге көрінеді (осы екі бөлімнің өзі сияқты). Әдеттегі пайдаланушыларда бұл топ мүлдем көрінбейді және олардың тізімдер орнын алмайды'
+          ],
+          admin: [
+            'Лимит количества списков в меню «Ещё» поднят до 9 для администраторов (у обычных пользователей остался прежний максимум — 8) — служебная группа «Админ» не в счёт обычных 8'
+          ],
+          adminKk: [
             '«Тағы» мәзіріндегі тізімдер саны шегі әкімшілер үшін 9-ға дейін көтерілді (әдеттегі пайдаланушыларда бұрынғы шек — 8 — қалды) — қызметтік «Әкімші» тобы әдеттегі 8-ге кірмейді'
           ]
         },
@@ -30574,183 +30616,243 @@ async function renderRegistrationSection() {
         return;
       }
       var tipHtml = tipCard(kk
-        ? 'Мұнда — жалпы чат, жеке хабарламалар және топтық чаттардағы барлық шағымдар бір тізімде. Әр шағымда: қай бөлімнен екені, кімге және кімнен шағым екені (ник + email), хабарлама мәтіні мен шағым себебі көрінеді.<br><br>Не істей аласыз:<br>• «✅ Қаралды деп белгілеу» — шағымды жабу.<br>• «🗑 Жою» — шағымның өзін жою.<br>• «🛡 Хабарламаны жою» — жалпы чат пен топтарда хабарламаны да жою (жеке хабарламаларда бұл түйме жоқ — бөтен жеке хат-хабарды әкімші өшірмейді, негізді шағым болса пайдаланушыны бұғаттаңыз).'
-        : 'Здесь — все жалобы из общего чата, личных сообщений и групповых чатов в одном списке. У каждой жалобы видно: из какого раздела она, на кого и от кого (ник + email), текст сообщения и причину жалобы.<br><br>Что можно сделать:<br>• «✅ Отметить рассмотренной» — закрыть жалобу.<br>• «🗑 Удалить» — удалить саму жалобу.<br>• «🛡 Удалить сообщение» — для общего чата и групп можно удалить и само сообщение (в личных сообщениях этой кнопки нет намеренно — чужую частную переписку админ не удаляет, при обоснованной жалобе используйте блокировку пользователя).'
+        ? 'Мұнда — жалпы чат, жеке хабарламалар және топтық чаттардағы барлық шағымдар бір тізімде. Әр шағымда: қай бөлімнен екені, кімге және кімнен шағым екені (ник + email), хабарлама мәтіні мен шағым себебі көрінеді.<br><br>Шағым бойынша тек екі шешім болады:<br>• «🛡 Хабарламаны жою» — хабарламаның өзін жояды (жалпы чат пен топтарда; жеке хабарламаларда бұл түйме жоқ — бөтен жеке хат-хабарды әкімші өшірмейді).<br>• «🚫 Шағымды қабылдамау» — хабарламаны өшірместен шағымды жабады (негізсіз шағым).<br>Екі жағдайда да шағым тиісті қойындыға көшеді.'
+        : 'Здесь — все жалобы из общего чата, личных сообщений и групповых чатов в одном списке. У каждой жалобы видно: из какого раздела она, на кого и от кого (ник + email), текст сообщения и причину жалобы.<br><br>По жалобе только два решения:<br>• «🛡 Удалить сообщение» — удаляет само сообщение (для общего чата и групп; в личных сообщениях этой кнопки нет намеренно — чужую частную переписку админ не удаляет).<br>• «🚫 Отклонить жалобу» — закрывает жалобу, не трогая сообщение (для случаев, когда жалоба необоснованна).<br>В обоих случаях жалоба переходит в соответствующую вкладку.'
       );
-      el.innerHTML = tipHtml + '<div id="reports-list-body" class="ayah-translation">'+(kk ? 'Жүктелуде…' : 'Загрузка…')+'</div>';
+      var TABS = [
+        { id: 'new', lab: kk ? '🆕 Жаңа' : '🆕 Новые' },
+        { id: 'all', lab: kk ? '📋 Барлығы' : '📋 Все' },
+        { id: 'message_deleted', lab: kk ? '🛡 Хабарлама жойылды' : '🛡 Удалено сообщение' },
+        { id: 'dismissed', lab: kk ? '🚫 Қабылданбады' : '🚫 Отклонена' }
+      ];
+      if (!window._reportsTab) window._reportsTab = 'new';
+      var tabsHtml = '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.6rem">' +
+        TABS.map(function(t) {
+          var active = window._reportsTab === t.id;
+          return '<button type="button" class="btn btn-sm reports-tab-btn" data-tab="'+t.id+'" style="'+(active ? 'background:var(--accent);color:#04120c;border-color:var(--accent)' : '')+'">'+t.lab+'</button>';
+        }).join('') +
+        '</div>';
+      el.innerHTML = tipHtml + tabsHtml + '<div id="reports-list-body" class="ayah-translation">'+(kk ? 'Жүктелуде…' : 'Загрузка…')+'</div>';
+      el.querySelectorAll('.reports-tab-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          window._reportsTab = btn.getAttribute('data-tab');
+          renderReportsSection();
+        });
+      });
       var sb = (typeof getSb === 'function') ? getSb() : null;
       var box = document.getElementById('reports-list-body');
       if (!sb) {
         if (box) box.innerHTML = '<p>'+(kk ? 'Жалпы статистика үшін интернет қажет (Supabase).' : 'Нужен интернет (Supabase) для раздела жалоб.')+'</p>';
         return;
       }
+      try {
+        var q = sb.from('reports')
+          .select('id,source,message_id,group_id,message_text,message_nick,message_user_id,reporter_id,reporter_nick,reason,created_at,resolved,status');
+        if (window._reportsTab !== 'all') q = q.eq('status', window._reportsTab);
+        var rr = await q.order('created_at', { ascending: false }).limit(500);
+        if (rr && rr.error) {
+          var rerr = rr.error;
+          var rerrCode = rerr && rerr.code ? String(rerr.code) : '';
+          var rerrMsg = (rerr && (rerr.message || rerr.details || rerr.hint)) || String(rerr);
+          if (box) box.innerHTML = '<p style="color:var(--danger)">'+(kk ? 'reports кестесін оқу мүмкін болмады.' : 'Не удалось прочитать таблицу reports.')+'</p>' +
+            '<p style="font-size:0.78rem;color:var(--text-muted);word-break:break-all">'+(rerrCode ? '['+rerrCode.replace(/</g,'&lt;')+'] ' : '')+String(rerrMsg).replace(/</g,'&lt;')+'</p>' +
+            '<p class="ayah-translation" style="margin-top:0.4rem">'+(kk
+              ? 'Егер жаңа ғана SQL орындаған болсаңыз (PGRST205 / "not found in schema cache"): Supabase → Project Settings → API → «Reload schema» батырмасын басыңыз, немесе SQL Editor-де NOTIFY pgrst, \'reload schema\'; орындаңыз да, 30–60 сек. күтіп қайта жүктеңіз.'
+              : 'Если только что выполнили SQL (ошибка вида PGRST205 / "not found in schema cache"): в Supabase зайдите в Project Settings → API и нажмите «Reload schema», либо выполните в SQL Editor команду NOTIFY pgrst, \'reload schema\'; — подождите 30–60 сек и обновите страницу (Ctrl+F5).')+'</p>' +
+            '<p class="ayah-translation" style="margin-top:0.4rem">'+(kk ? 'Қажетті SQL (build 4.33 — reports.status және group_messages.deleted_at):' : 'Нужный SQL (build 4.33 — reports.status и group_messages.deleted_at):')+'</p>' +
+            '<pre style="font-size:0.7rem;overflow:auto;background:var(--bg);padding:0.5rem;border-radius:0.4rem;white-space:pre-wrap">' +
+            'create table if not exists reports (\n' +
+            '  id uuid primary key default gen_random_uuid(),\n' +
+            '  source text not null check (source in (\'general\',\'dm\',\'group\')),\n' +
+            '  message_id uuid not null,\n' +
+            '  group_id uuid references group_chats(id) on delete set null,\n' +
+            '  message_text text,\n' +
+            '  message_nick text,\n' +
+            '  message_user_id uuid references auth.users(id) on delete set null,\n' +
+            '  reporter_id uuid not null references auth.users(id) on delete cascade,\n' +
+            '  reporter_nick text,\n' +
+            '  reason text,\n' +
+            '  created_at timestamptz not null default now(),\n' +
+            '  resolved boolean not null default false,\n' +
+            '  resolved_at timestamptz,\n' +
+            '  resolved_by uuid references auth.users(id) on delete set null,\n' +
+            '  status text not null default \'new\' check (status in (\'new\',\'reviewed\',\'message_deleted\',\'dismissed\')),\n' +
+            '  unique(source, message_id, reporter_id)\n' +
+            ');\n' +
+            'alter table reports add column if not exists status text not null default \'new\';\n' +
+            'alter table reports drop constraint if exists reports_status_check;\n' +
+            'alter table reports add constraint reports_status_check check (status in (\'new\',\'reviewed\',\'message_deleted\',\'dismissed\'));\n' +
+            'update reports set status = case when resolved then \'reviewed\' else \'new\' end where status is null;\n' +
+            'alter table reports enable row level security;\n' +
+            'drop policy if exists "see own or admin" on reports;\n' +
+            'create policy "see own or admin" on reports for select\n' +
+            '  using (auth.uid() = reporter_id or public.is_admin());\n' +
+            'drop policy if exists "create own report" on reports;\n' +
+            'create policy "create own report" on reports for insert\n' +
+            '  with check (auth.uid() = reporter_id);\n' +
+            'drop policy if exists "admin resolves" on reports;\n' +
+            'create policy "admin resolves" on reports for update\n' +
+            '  using (public.is_admin());\n' +
+            'drop policy if exists "admin deletes" on reports;\n' +
+            'create policy "admin deletes" on reports for delete\n' +
+            '  using (public.is_admin());\n' +
+            'grant select, insert, update, delete on reports to authenticated;\n\n' +
+            '-- group_messages раньше вообще не поддерживали soft-delete —\n' +
+            '-- отсюда и «некоторые сообщения удаляются, другие нет»\n' +
+            'alter table group_messages add column if not exists deleted_at timestamptz;\n' +
+            'alter table group_messages add column if not exists deleted_by_admin boolean not null default false;\n' +
+            'drop policy if exists "author or admin soft-delete" on group_messages;\n' +
+            'create policy "author or admin soft-delete" on group_messages for update\n' +
+            '  using (auth.uid() = user_id or public.is_admin())\n' +
+            '  with check (auth.uid() = user_id or public.is_admin());\n' +
+            'create or replace function guard_group_message_delete_update() returns trigger as $$\n' +
+            'begin\n' +
+            '  if new.group_id <> old.group_id or new.user_id <> old.user_id or new.created_at <> old.created_at then\n' +
+            '    raise exception \'cannot change group_id/user_id/created_at\';\n' +
+            '  end if;\n' +
+            '  if new.deleted_by_admin and not public.is_admin() then\n' +
+            '    raise exception \'only admin can set deleted_by_admin\';\n' +
+            '  end if;\n' +
+            '  return new;\n' +
+            'end;\n' +
+            '$$ language plpgsql security definer;\n' +
+            'drop trigger if exists trg_guard_group_message_delete on group_messages;\n' +
+            'create trigger trg_guard_group_message_delete\n' +
+            'before update on group_messages\n' +
+            'for each row execute function guard_group_message_delete_update();\n' +
+            'NOTIFY pgrst, \'reload schema\';' +
+            '</pre>';
+          return;
+        }
+        var rlist = (rr && rr.data) || [];
+
+        // Email + ник — отдельными пакетными запросами (не по одному на
+        // жалобу). Ник берём с запасом: если message_nick/reporter_nick в
+        // самой жалобе почему-то пуст (например, старая жалоба или сбой при
+        // отправке), подставляем текущий ник пользователя из profiles —
+        // не оставляем «???», если это можно избежать.
+        var idsForProfiles = {};
+        rlist.forEach(function(r) {
+          if (r.reporter_id) idsForProfiles[r.reporter_id] = true;
+          if (r.message_user_id) idsForProfiles[r.message_user_id] = true;
+        });
+        var profileIds = Object.keys(idsForProfiles);
+        var emailByUid = {}, nickByUid = {};
+        if (profileIds.length) {
           try {
-            var rr = await sb.from('reports')
-              .select('id,source,message_id,group_id,message_text,message_nick,message_user_id,reporter_id,reporter_nick,reason,created_at,resolved')
-              .order('resolved', { ascending: true })
-              .order('created_at', { ascending: false })
-              .limit(500);
-            if (rr && rr.error) {
-              var rerr = rr.error;
-              var rerrCode = rerr && rerr.code ? String(rerr.code) : '';
-              var rerrMsg = (rerr && (rerr.message || rerr.details || rerr.hint)) || String(rerr);
-              if (box) box.innerHTML = '<p style="color:var(--danger)">'+(kk ? 'reports кестесін оқу мүмкін болмады.' : 'Не удалось прочитать таблицу reports.')+'</p>' +
-                '<p style="font-size:0.78rem;color:var(--text-muted);word-break:break-all">'+(rerrCode ? '['+rerrCode.replace(/</g,'&lt;')+'] ' : '')+String(rerrMsg).replace(/</g,'&lt;')+'</p>' +
-                '<p class="ayah-translation" style="margin-top:0.4rem">'+(kk
-                  ? 'Егер кестені жаңа ғана құрған болсаңыз (PGRST205 / "not found in schema cache"): Supabase → Project Settings → API → «Reload schema» батырмасын басыңыз, немесе SQL Editor-де NOTIFY pgrst, \'reload schema\'; орындаңыз да, беттегі 30–60 сек. күтіп қайта жүктеңіз.'
-                  : 'Если таблицу только что создали (ошибка вида PGRST205 / "not found in schema cache"): в Supabase зайдите в Project Settings → API и нажмите «Reload schema», либо выполните в SQL Editor команду NOTIFY pgrst, \'reload schema\'; — и подождите 30–60 сек, затем обновите страницу (Ctrl+F5).')+'</p>' +
-                '<p class="ayah-translation" style="margin-top:0.4rem">'+(kk ? 'Немесе SQL-ды қайта орындаңыз (жаңа бірыңғай reports кестесі — 4.26):' : 'Или выполните SQL заново (новая единая таблица reports — build 4.26):')+'</p>' +
-                '<pre style="font-size:0.7rem;overflow:auto;background:var(--bg);padding:0.5rem;border-radius:0.4rem;white-space:pre-wrap">' +
-                'create table if not exists reports (\n' +
-                '  id uuid primary key default gen_random_uuid(),\n' +
-                '  source text not null check (source in (\'general\',\'dm\',\'group\')),\n' +
-                '  message_id uuid not null,\n' +
-                '  group_id uuid references group_chats(id) on delete set null,\n' +
-                '  message_text text,\n' +
-                '  message_nick text,\n' +
-                '  message_user_id uuid references auth.users(id) on delete set null,\n' +
-                '  reporter_id uuid not null references auth.users(id) on delete cascade,\n' +
-                '  reporter_nick text,\n' +
-                '  reason text,\n' +
-                '  created_at timestamptz not null default now(),\n' +
-                '  resolved boolean not null default false,\n' +
-                '  resolved_at timestamptz,\n' +
-                '  resolved_by uuid references auth.users(id) on delete set null,\n' +
-                '  unique(source, message_id, reporter_id)\n' +
-                ');\n' +
-                'alter table reports enable row level security;\n' +
-                'create policy "see own or admin" on reports for select\n' +
-                '  using (auth.uid() = reporter_id or public.is_admin());\n' +
-                'create policy "create own report" on reports for insert\n' +
-                '  with check (auth.uid() = reporter_id);\n' +
-                'create policy "admin resolves" on reports for update\n' +
-                '  using (public.is_admin());\n' +
-                'create policy "admin deletes" on reports for delete\n' +
-                '  using (public.is_admin());\n' +
-                'grant select, insert, update, delete on reports to authenticated;\n' +
-                'NOTIFY pgrst, \'reload schema\';' +
-                '</pre>';
-              return;
-            }
-            var rlist = (rr && rr.data) || [];
+            var pr2 = await sb.from('profiles').select('id,email,nick').in('id', profileIds);
+            ((pr2 && pr2.data) || []).forEach(function(p) { emailByUid[p.id] = p.email || ''; nickByUid[p.id] = p.nick || ''; });
+          } catch(e) {}
+        }
+        var groupIds = Array.from(new Set(rlist.filter(function(r){ return r.source === 'group' && r.group_id; }).map(function(r){ return r.group_id; })));
+        var groupNameById = {};
+        if (groupIds.length) {
+          try {
+            var gr2 = await sb.from('group_chats').select('id,name').in('id', groupIds);
+            ((gr2 && gr2.data) || []).forEach(function(g) { groupNameById[g.id] = g.name || '???'; });
+          } catch(e) {}
+        }
 
-            // Email-ы и, для жалоб из группы, названия групп — отдельными
-            // пакетными запросами (не по одному на жалобу), чтобы не
-            // спамить базу N+1 запросами при большом списке жалоб.
-            var idsForProfiles = {};
-            rlist.forEach(function(r) {
-              if (r.reporter_id) idsForProfiles[r.reporter_id] = true;
-              if (r.message_user_id) idsForProfiles[r.message_user_id] = true;
-            });
-            var profileIds = Object.keys(idsForProfiles);
-            var emailByUid = {};
-            if (profileIds.length) {
-              try {
-                var pr2 = await sb.from('profiles').select('id,email').in('id', profileIds);
-                ((pr2 && pr2.data) || []).forEach(function(p) { emailByUid[p.id] = p.email || ''; });
-              } catch(e) {}
-            }
-            var groupIds = Array.from(new Set(rlist.filter(function(r){ return r.source === 'group' && r.group_id; }).map(function(r){ return r.group_id; })));
-            var groupNameById = {};
-            if (groupIds.length) {
-              try {
-                var gr2 = await sb.from('group_chats').select('id,name').in('id', groupIds);
-                ((gr2 && gr2.data) || []).forEach(function(g) { groupNameById[g.id] = g.name || '???'; });
-              } catch(e) {}
-            }
+        var SRC_LABEL = {
+          general: kk ? 'Жалпы чат' : 'Общий чат',
+          dm: kk ? 'Жеке хабарламалар' : 'Личные сообщения',
+          group: kk ? 'Топтық чат' : 'Групповой чат'
+        };
+        var STATUS_LABEL = {
+          new: kk ? '🆕 Жаңа' : '🆕 Новая',
+          reviewed: kk ? '✅ Рассмотрено' : '✅ Рассмотрено',
+          message_deleted: kk ? '🛡 Хабарлама жойылды' : '🛡 Сообщение удалено',
+          dismissed: kk ? '🚫 Қабылданбады' : '🚫 Отклонена'
+        };
 
-            var SRC_LABEL = {
-              general: kk ? 'Жалпы чат' : 'Общий чат',
-              dm: kk ? 'Жеке хабарламалар' : 'Личные сообщения',
-              group: kk ? 'Топтық чат' : 'Групповой чат'
-            };
+        var nNew = rlist.filter(function(r){ return (r.status || 'new') === 'new'; }).length;
+        var rrows = rlist.map(function(r) {
+          var status = r.status || (r.resolved ? 'reviewed' : 'new');
+          var mtext = r.message_text ? String(r.message_text).replace(/</g, '&lt;') : ('<i>'+(kk?'мәтін сақталмаған':'текст не сохранён')+'</i>');
+          var mnick = String(r.message_nick || nickByUid[r.message_user_id] || '???').replace(/</g, '&lt;');
+          var mEmail = String(emailByUid[r.message_user_id] || '').replace(/</g, '&lt;');
+          var rnick = String(r.reporter_nick || nickByUid[r.reporter_id] || '???').replace(/</g, '&lt;');
+          var rEmail = String(emailByUid[r.reporter_id] || '').replace(/</g, '&lt;');
+          var reason = r.reason ? String(r.reason).replace(/</g, '&lt;') : '';
+          var dt = r.created_at ? String(r.created_at).slice(0, 16).replace('T',' ') : '';
+          var srcLabel = SRC_LABEL[r.source] || r.source || '?';
+          if (r.source === 'group' && r.group_id) srcLabel += ' «'+String(groupNameById[r.group_id] || '???').replace(/</g,'&lt;')+'»';
+          var canDeleteMsg = (r.source === 'general' || r.source === 'group') && status !== 'message_deleted';
+          var delMsgBtn = canDeleteMsg ? '<button type="button" class="btn btn-sm rep-delmsg-btn" data-src="'+r.source+'" data-mid="'+_chatEsc(r.message_id)+'" data-id="'+r.id+'" style="flex-shrink:0;color:var(--danger)">🛡 '+(kk?'Хабарламаны жою':'Удалить сообщение')+'</button>' : '';
+          var dismissBtn = status !== 'dismissed' ? '<button type="button" class="btn btn-sm rep-dismiss-btn" data-id="'+r.id+'" style="flex-shrink:0;color:var(--warning)">🚫 '+(kk?'Шағымды қабылдамау':'Отклонить жалобу')+'</button>' : '';
+          var purgeBtn = '<button type="button" class="btn btn-sm rep-purge-btn" data-id="'+r.id+'" title="'+(kk?'Мүлдем жою (қалпына келтіру мүмкін емес)':'Удалить навсегда (без возврата)')+'" style="flex-shrink:0;color:var(--text-muted);margin-left:auto">🗑</button>';
+          return '<div class="card" style="padding:0.65rem 0.8rem;margin-bottom:0.5rem;'+(status === 'new' ? 'border-color:var(--danger)' : 'opacity:0.75')+'">' +
+            '<div style="display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap">' +
+              '<span style="display:flex;gap:0.35rem;flex-wrap:wrap">' +
+                '<span style="font-size:0.7rem;border:1px solid var(--border);border-radius:0.3rem;padding:0.05rem 0.35rem;color:var(--text-muted)">'+srcLabel+'</span>' +
+                '<span style="font-size:0.7rem;border-radius:0.3rem;padding:0.05rem 0.35rem;background:var(--bg);color:'+(status==='new'?'var(--danger)':(status==='message_deleted'?'var(--danger)':(status==='dismissed'?'var(--warning)':'var(--success)')))+'">'+STATUS_LABEL[status]+'</span>' +
+              '</span>' +
+              '<span style="font-size:0.75rem;color:var(--text-muted)">'+dt+'</span>' +
+            '</div>' +
+            '<div style="margin-top:0.4rem;font-size:0.78rem;color:var(--text-muted)">'+(kk?'Кімге: ':'На кого: ')+'<b style="color:var(--text)">'+mnick+'</b>'+(mEmail ? ' · '+mEmail : '')+'</div>' +
+            '<div style="margin-top:0.3rem;white-space:pre-wrap;word-break:break-word;font-size:0.88rem;padding:0.4rem 0.55rem;background:var(--bg);border-radius:0.4rem">' + mtext + '</div>' +
+            '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem">'+(kk?'Шағымданды: ':'Пожаловался: ')+'<b style="color:var(--text)">'+rnick+'</b>'+(rEmail ? ' · '+rEmail : '')+'</div>' +
+            (reason ? '<div style="font-size:0.8rem;color:var(--warning);margin-top:0.2rem">'+(kk?'Себебі: ':'Текст жалобы: ')+reason+'</div>' : '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem;font-style:italic">'+(kk?'Себебі көрсетілмеген':'Причина не указана')+'</div>') +
+            '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem;align-items:center">' +
+            delMsgBtn + dismissBtn + purgeBtn +
+            '</div></div>';
+        }).join('') || '<p class="ayah-translation">'+(kk ? 'Бұл санатта шағымдар жоқ.' : 'В этой категории жалоб нет.')+'</p>';
+        if (box) box.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">'+(kk ? 'Жаңа: ' : 'Новых: ')+'<b style="color:var(--danger)">'+nNew+'</b>'+(kk?' / көрсетілген: ':' / показано: ')+rlist.length+'</div>' + rrows;
 
-            var nOpen = rlist.filter(function(r){ return !r.resolved; }).length;
-            var rrows = rlist.map(function(r) {
-              var mtext = r.message_text ? String(r.message_text).replace(/</g, '&lt;') : ('<i>'+(kk?'мәтін сақталмаған':'текст не сохранён')+'</i>');
-              var mnick = String(r.message_nick || '???').replace(/</g, '&lt;');
-              var mEmail = String(emailByUid[r.message_user_id] || '').replace(/</g, '&lt;');
-              var rnick = String(r.reporter_nick || '???').replace(/</g, '&lt;');
-              var rEmail = String(emailByUid[r.reporter_id] || '').replace(/</g, '&lt;');
-              var reason = r.reason ? String(r.reason).replace(/</g, '&lt;') : '';
-              var dt = r.created_at ? String(r.created_at).slice(0, 16).replace('T',' ') : '';
-              var srcLabel = SRC_LABEL[r.source] || r.source || '?';
-              if (r.source === 'group' && r.group_id) srcLabel += ' «'+String(groupNameById[r.group_id] || '???').replace(/</g,'&lt;')+'»';
-              // Удаление самого сообщения администратором поддерживается
-              // только для общего и группового чата (там уже есть готовый
-              // soft-delete). Для личных сообщений это чужая частная
-              // переписка — сообщение не трогаем, админ решает вопрос
-              // через блокировку пользователя, если жалоба обоснована.
-              var delMsgBtn = '';
-              if (r.source === 'general') delMsgBtn = '<button type="button" class="btn btn-sm rep-delmsg-btn" data-src="general" data-mid="'+_chatEsc(r.message_id)+'" style="flex-shrink:0;color:var(--danger)">🛡 '+(kk?'Хабарламаны жою':'Удалить сообщение')+'</button>';
-              else if (r.source === 'group') delMsgBtn = '<button type="button" class="btn btn-sm rep-delmsg-btn" data-src="group" data-mid="'+_chatEsc(r.message_id)+'" style="flex-shrink:0;color:var(--danger)">🛡 '+(kk?'Хабарламаны жою':'Удалить сообщение')+'</button>';
-              return '<div class="card" style="padding:0.65rem 0.8rem;margin-bottom:0.5rem;'+(r.resolved ? 'opacity:0.6' : 'border-color:var(--danger)')+'">' +
-                '<div style="display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap"><span style="font-size:0.7rem;border:1px solid var(--border);border-radius:0.3rem;padding:0.05rem 0.35rem;color:var(--text-muted)">'+srcLabel+'</span><span style="font-size:0.75rem;color:var(--text-muted)">'+dt+'</span></div>' +
-                '<div style="margin-top:0.4rem;font-size:0.78rem;color:var(--text-muted)">'+(kk?'На кого: ':'На кого: ')+'<b style="color:var(--text)">'+mnick+'</b>'+(mEmail ? ' · '+mEmail : '')+'</div>' +
-                '<div style="margin-top:0.3rem;white-space:pre-wrap;word-break:break-word;font-size:0.88rem;padding:0.4rem 0.55rem;background:var(--bg);border-radius:0.4rem">' + mtext + '</div>' +
-                '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem">'+(kk?'Пожаловался: ':'Пожаловался: ')+'<b style="color:var(--text)">'+rnick+'</b>'+(rEmail ? ' · '+rEmail : '')+'</div>' +
-                (reason ? '<div style="font-size:0.8rem;color:var(--warning);margin-top:0.2rem">'+(kk?'Себебі: ':'Текст жалобы: ')+reason+'</div>' : '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem;font-style:italic">'+(kk?'Себебі көрсетілмеген':'Причина не указана')+'</div>') +
-                '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem">' +
-                (r.resolved
-                  ? '<span style="font-size:0.75rem;color:var(--success)">'+(kk?'✅ қаралды':'✅ рассмотрено')+'</span>'
-                  : '<button type="button" class="btn btn-sm rep-resolve-btn" data-id="'+r.id+'" style="flex-shrink:0">'+(kk?'✅ Қаралды деп белгілеу':'✅ Отметить рассмотренной')+'</button>') +
-                '<button type="button" class="btn btn-sm rep-del-btn" data-id="'+r.id+'" style="flex-shrink:0;color:var(--danger)">🗑 '+(kk?'Жою':'Удалить')+'</button>' +
-                delMsgBtn +
-                '</div></div>';
-            }).join('') || '<p class="ayah-translation">'+(kk ? 'Шағымдар жоқ.' : 'Жалоб пока нет.')+'</p>';
-            if (box) box.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">'+(kk ? 'Қаралмаған: ' : 'Не рассмотрено: ')+'<b style="color:var(--danger)">'+nOpen+'</b>'+(kk?' / барлығы: ':' / всего: ')+rlist.length+'</div>' + rrows;
-            el.querySelectorAll('.rep-resolve-btn').forEach(function(btn) {
-              btn.addEventListener('click', async function() {
-                var id = btn.getAttribute('data-id');
-                btn.disabled = true;
-                try {
-                  var myUid = (typeof _currentAuthedUserId === 'function') ? await _currentAuthedUserId() : null;
-                  var ures2 = await sb.from('reports').update({ resolved: true, resolved_at: new Date().toISOString(), resolved_by: myUid }).eq('id', id);
-                  if (ures2 && ures2.error) { toast((kk?'Қате: ':'Ошибка: ')+(ures2.error.message||'')); btn.disabled = false; return; }
-                  renderReportsSection();
-                } catch(err) {
-                  btn.disabled = false;
-                  toast((kk?'Қате: ':'Ошибка: ')+(err.message||err));
-                }
-              });
-            });
-            el.querySelectorAll('.rep-del-btn').forEach(function(btn) {
-              btn.addEventListener('click', async function() {
-                var id = btn.getAttribute('data-id');
-                if (!confirm(kk ? 'Шағымды жою керек пе?' : 'Удалить жалобу?')) return;
-                btn.disabled = true;
-                try {
-                  var dres = await sb.from('reports').delete().eq('id', id);
-                  if (dres && dres.error) { toast((kk?'Қате: ':'Ошибка: ')+(dres.error.message||'')); btn.disabled = false; return; }
-                  renderReportsSection();
-                } catch(err) {
-                  btn.disabled = false;
-                  toast((kk?'Қате: ':'Ошибка: ')+(err.message||err));
-                }
-              });
-            });
-            el.querySelectorAll('.rep-delmsg-btn').forEach(function(btn) {
-              btn.addEventListener('click', async function() {
-                var mid = btn.getAttribute('data-mid');
-                var src = btn.getAttribute('data-src');
-                var isGroup = src === 'group';
-                if (!confirm(isGroup ? (kk ? 'Топтық чаттағы хабарламаны жою керек пе?' : 'Удалить само сообщение в групповом чате?') : (kk ? 'Жалпы чаттағы хабарламаны жою керек пе?' : 'Удалить само сообщение в общем чате?'))) return;
-                btn.disabled = true;
-                try {
-                  var table = isGroup ? 'group_messages' : 'chat_messages';
-                  var ures3 = await sb.from(table).update({ text: null, deleted_at: new Date().toISOString(), deleted_by_admin: true }).eq('id', mid);
-                  if (ures3 && ures3.error) { toast((kk?'Қате: ':'Ошибка: ')+(ures3.error.message||'')); btn.disabled = false; return; }
-                  toast(kk ? 'Хабарлама жойылды' : 'Сообщение удалено');
-                  btn.disabled = false;
-                } catch(err) {
-                  btn.disabled = false;
-                  toast((kk?'Қате: ':'Ошибка: ')+(err.message||err));
-                }
-              });
-            });
-          } catch(e) {
-            if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;');
-          }
+        function refreshRow(id, patch) {
+          try { sb.from('reports').update(patch).eq('id', id).then(function(res){
+            if (res && res.error) { toast((kk?'Қате: ':'Ошибка: ')+(res.error.message||'')); return; }
+            renderReportsSection();
+          }); } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
+        }
+
+        el.querySelectorAll('.rep-dismiss-btn').forEach(function(btn) {
+          btn.addEventListener('click', async function() {
+            if (!confirm(kk ? 'Шағымды қабылдамайсыз ба? Хабарлама өшірілмейді.' : 'Отклонить жалобу? Само сообщение при этом не тронется.')) return;
+            btn.disabled = true;
+            var myUid = (typeof _currentAuthedUserId === 'function') ? await _currentAuthedUserId() : null;
+            refreshRow(btn.getAttribute('data-id'), { status: 'dismissed', resolved: true, resolved_at: new Date().toISOString(), resolved_by: myUid });
+          });
+        });
+        el.querySelectorAll('.rep-purge-btn').forEach(function(btn) {
+          btn.addEventListener('click', async function() {
+            if (!confirm(kk ? 'Шағымды МҮЛДЕМ жою керек пе? Бұл әрекетті болдырмау мүмкін емес.' : 'Удалить жалобу НАВСЕГДА? Действие необратимо.')) return;
+            btn.disabled = true;
+            try {
+              var dres = await sb.from('reports').delete().eq('id', btn.getAttribute('data-id'));
+              if (dres && dres.error) { toast((kk?'Қате: ':'Ошибка: ')+(dres.error.message||'')); btn.disabled = false; return; }
+              renderReportsSection();
+            } catch(err) {
+              btn.disabled = false;
+              toast((kk?'Қате: ':'Ошибка: ')+(err.message||err));
+            }
+          });
+        });
+        el.querySelectorAll('.rep-delmsg-btn').forEach(function(btn) {
+          btn.addEventListener('click', async function() {
+            var mid = btn.getAttribute('data-mid');
+            var src = btn.getAttribute('data-src');
+            var rid = btn.getAttribute('data-id');
+            var isGroup = src === 'group';
+            if (!confirm(isGroup ? (kk ? 'Топтық чаттағы хабарламаны жою керек пе?' : 'Удалить само сообщение в групповом чате?') : (kk ? 'Жалпы чаттағы хабарламаны жою керек пе?' : 'Удалить само сообщение в общем чате?'))) return;
+            btn.disabled = true;
+            try {
+              var table = isGroup ? 'group_messages' : 'chat_messages';
+              var ures3 = await sb.from(table).update({ text: null, deleted_at: new Date().toISOString(), deleted_by_admin: true }).eq('id', mid);
+              if (ures3 && ures3.error) { toast((kk?'Қате: ':'Ошибка: ')+(ures3.error.message||'')); btn.disabled = false; return; }
+              var myUid = (typeof _currentAuthedUserId === 'function') ? await _currentAuthedUserId() : null;
+              await sb.from('reports').update({ status: 'message_deleted', resolved: true, resolved_at: new Date().toISOString(), resolved_by: myUid }).eq('id', rid);
+              toast(kk ? 'Хабарлама жойылды' : 'Сообщение удалено');
+              renderReportsSection();
+            } catch(err) {
+              btn.disabled = false;
+              toast((kk?'Қате: ':'Ошибка: ')+(err.message||err));
+            }
+          });
+        });
+      } catch(e) {
+        if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;');
+      }
 
     }
 
@@ -40269,7 +40371,14 @@ c.addEventListener('click', () => {
     function _chatImgBlockHtml(url) {
       if (!url) return '';
       var esc = _chatEsc(url);
-      return '<div style="margin-top:0.35rem"><img src="' + esc + '" data-lightbox-src="' + esc + '" loading="lazy" alt="" style="max-width:220px;max-height:220px;border-radius:0.5rem;cursor:zoom-in;display:block;border:1px solid var(--border)"></div>';
+      // build 4.34: у фото не было способа сохранить его на устройство —
+      // только полноэкранный просмотр по тапу. Добавлена маленькая кнопка
+      // ⬇️ поверх миниатюры (свой клик, не открывает лайтбокс) и такая же
+      // кнопка внутри самого лайтбокса.
+      return '<div style="margin-top:0.35rem;position:relative;display:inline-block">' +
+        '<img src="' + esc + '" data-lightbox-src="' + esc + '" loading="lazy" alt="" style="max-width:220px;max-height:220px;border-radius:0.5rem;cursor:zoom-in;display:block;border:1px solid var(--border)">' +
+        '<a href="' + esc + '" download target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Скачать" style="position:absolute;bottom:0.35rem;right:0.35rem;background:rgba(0,0,0,0.55);color:#fff;border-radius:50%;width:1.7rem;height:1.7rem;display:flex;align-items:center;justify-content:center;font-size:0.9rem;text-decoration:none">⬇️</a>' +
+      '</div>';
     }
 
     // Блок нескольких вложений (build 4.28) — картинки миниатюрами в ряд
@@ -40285,7 +40394,10 @@ c.addEventListener('click', () => {
         html += '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.35rem">' +
           imgs.map(function(f) {
             var esc = _chatEsc(f.url);
-            return '<img src="' + esc + '" data-lightbox-src="' + esc + '" loading="lazy" alt="" style="max-width:150px;max-height:150px;border-radius:0.5rem;cursor:zoom-in;display:block;border:1px solid var(--border)">';
+            return '<div style="position:relative;display:inline-block">' +
+              '<img src="' + esc + '" data-lightbox-src="' + esc + '" loading="lazy" alt="" style="max-width:150px;max-height:150px;border-radius:0.5rem;cursor:zoom-in;display:block;border:1px solid var(--border)">' +
+              '<a href="' + esc + '" download target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Скачать" style="position:absolute;bottom:0.3rem;right:0.3rem;background:rgba(0,0,0,0.55);color:#fff;border-radius:50%;width:1.5rem;height:1.5rem;display:flex;align-items:center;justify-content:center;font-size:0.8rem;text-decoration:none">⬇️</a>' +
+            '</div>';
           }).join('') + '</div>';
       }
       if (others.length) {
@@ -40315,6 +40427,7 @@ c.addEventListener('click', () => {
       box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;cursor:zoom-out';
       var esc = _chatEsc(url);
       box.innerHTML = '<img src="' + esc + '" style="max-width:100%;max-height:100%;border-radius:0.5rem;object-fit:contain;cursor:default">' +
+        '<a href="' + esc + '" download target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="download" style="position:absolute;top:0.8rem;right:3.4rem;background:rgba(255,255,255,0.15);color:#fff;border-radius:50%;width:2.2rem;height:2.2rem;display:flex;align-items:center;justify-content:center;font-size:1.1rem;text-decoration:none">⬇️</a>' +
         '<button type="button" id="img-lightbox-close" aria-label="close" style="position:absolute;top:0.8rem;right:0.8rem;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:50%;width:2.2rem;height:2.2rem;font-size:1.2rem;cursor:pointer">✕</button>';
       document.body.appendChild(box);
       function close() { box.remove(); }
@@ -41566,8 +41679,19 @@ c.addEventListener('click', () => {
             }
             var payload = { from_user: myUserId, to_user: partnerId, text: text || null };
             if (filesMeta && filesMeta.length) payload.files = filesMeta;
-            var res = await sb.from('direct_messages').insert(payload);
+            // build 4.34: раньше ЛС полагались только на эхо от Realtime,
+            // как когда-то групповые чаты (см. 4.28) — та же гонка при
+            // недавно открытом чате. Дорисовываем сообщение сами.
+            var res = await sb.from('direct_messages').insert(payload).select();
             if (res && res.error) { toast((kk?'Қате: ':'Ошибка: ')+(res.error.message||'')); return; }
+            var savedRow = (res && res.data && res.data[0]) || null;
+            if (!savedRow) {
+              try {
+                var re2 = await sb.from('direct_messages').select('*').eq('from_user', myUserId).eq('to_user', partnerId).order('created_at', { ascending: false }).limit(1);
+                savedRow = (re2 && re2.data && re2.data[0]) || null;
+              } catch(e2) {}
+            }
+            if (savedRow) appendMessages([savedRow], true);
             inputEl.value = '';
             dmImgAttach.clear();
             inputEl.focus();
@@ -41824,6 +41948,13 @@ c.addEventListener('click', () => {
 
     function openGroupChat(id, name, isCreator) {
       _currentGroup = { id: id, name: name, isCreator: !!isCreator };
+      // build 4.34: _currentGroup — обычная JS-переменная, при обновлении
+      // страницы (F5) она пропадает, а «последний открытый раздел»
+      // (quran_last_view) восстанавливается и без неё показывает пустой
+      // экран «Группа не выбрана» — как будто ты в разделе, а групп нет.
+      // Сохраняем то же самое в sessionStorage, чтобы восстановить при
+      // перезагрузке (см. восстановление стартового экрана в конце файла).
+      try { sessionStorage.setItem('quran_last_group', JSON.stringify(_currentGroup)); } catch(e) {}
       showView('groupchat');
     }
 
@@ -42058,23 +42189,67 @@ c.addEventListener('click', () => {
       _grpOpenReadersPopup(readers, kkNow);
     });
 
-    function _groupMessageHtml(m, myUserId, myNick, members, kk) {
+    function _groupMessageHtml(m, myUserId, myNick, members, kk, isAdmin) {
       var mine = myUserId && m.user_id === myUserId;
       var mentioned = !mine && myNick && _textMentionsNick(m.text, myNick);
-      var textHtml = m.text ? '<div style="margin-top:0.2rem;white-space:pre-wrap;word-break:break-word">'+_highlightMentionHtml(_chatEsc(m.text), myNick)+'</div>' : '';
-      var reportBtn = !mine ? '<button type="button" class="grp-report" data-mid="'+_chatEsc(m.id)+'" title="'+(kk?'Шағымдану':'Пожаловаться')+'" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.85rem;padding:0;line-height:1">🚩</button>' : '';
+      // build 4.33: у групповых сообщений раньше вообще не было ни удаления,
+      // ни отметки «удалено» — 🛡 «Удалить сообщение» в разделе жалоб пыталась
+      // обновить несуществующие колонки group_messages.deleted_at/deleted_by_admin
+      // и молча падала. Добавлено по образцу общего чата (_chatMessageHtml).
+      var canDelete = !m.deleted_at && (mine || isAdmin);
+      var canReport = !m.deleted_at && !mine;
+      var textHtml;
+      if (m.deleted_at) {
+        textHtml = '<div style="margin-top:0.2rem;font-style:italic;color:var(--text-muted)">' +
+          (m.deleted_by_admin ? '🛡 ' : '') +
+          (m.deleted_by_admin
+            ? (kk?'Хабарламаны әкімші жойды':'Сообщение удалено администратором')
+            : (kk?'Пайдаланушы өз хабарламасын жойды':'Пользователь удалил своё сообщение')) +
+        '</div>';
+      } else {
+        textHtml = m.text ? '<div style="margin-top:0.2rem;white-space:pre-wrap;word-break:break-word">'+_highlightMentionHtml(_chatEsc(m.text), myNick)+'</div>' : '';
+      }
+      var reportBtn = canReport ? '<button type="button" class="grp-report" data-mid="'+_chatEsc(m.id)+'" title="'+(kk?'Шағымдану':'Пожаловаться')+'" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.85rem;padding:0;line-height:1">🚩</button>' : '';
+      var delBtn = canDelete ? '<button type="button" class="grp-del" data-mid="'+_chatEsc(m.id)+'" data-mine="'+(mine?'1':'0')+'" title="'+(kk?'Жою':'Удалить')+'" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.85rem;padding:0;line-height:1">🗑</button>' : '';
       return '<div class="card" data-mid="'+_chatEsc(m.id)+'" data-created-at="'+_chatEsc(m.created_at||'')+'" data-msg-uid="'+_chatEsc(m.user_id||'')+'" data-msg-nick="'+_chatEsc(m.nick||'')+'" data-msg-text="'+_chatEsc(m.text||'')+'" data-msg-img="'+_chatEsc(m.image_url||'')+'" style="margin-bottom:0.5rem;padding:0.55rem 0.7rem;'+(mine ? 'border-color:var(--primary,#2e7d32)' : (mentioned ? 'border-color:var(--accent)' : ''))+'">' +
         '<div style="display:flex;justify-content:space-between;gap:0.5rem;font-size:0.78rem;color:var(--text-muted)">' +
           '<b style="color:var(--text);cursor:pointer" data-nick-click data-uid="'+_chatEsc(m.user_id||'')+'" data-nick="'+_chatEsc(m.nick||'')+'">'+_chatEsc(m.nick || '???')+'</b>' +
           '<span style="display:flex;align-items:center;gap:0.4rem">' +
             '<button type="button" data-pin-msg="'+_chatEsc(m.id)+'" title="'+('Закрепить')+'" style="display:none;background:none;border:none;padding:0;cursor:pointer;font-size:0.9rem;opacity:0.55;line-height:1">📌</button>' +
             reportBtn +
+            delBtn +
             _chatTimeLabel(m.created_at) +
             (mine ? _grpStatusHtml(m, members, myUserId, kk) : '') +
           '</span>' +
         '</div>' +
-        textHtml + _chatImgBlockHtml(m.image_url) + _chatFilesBlockHtml(m.files) +
+        textHtml + (m.deleted_at ? '' : (_chatImgBlockHtml(m.image_url) + _chatFilesBlockHtml(m.files))) +
       '</div>';
+    }
+
+    async function deleteGroupMessageAction(mid, isMine, myUserId, isAdmin, kk, btnEl) {
+      var sb = getSb();
+      if (!sb) return;
+      if (!confirm(kk ? 'Хабарламаны жою керек пе?' : 'Удалить сообщение?')) return;
+      if (btnEl) btnEl.disabled = true;
+      try {
+        var res = await sb.from('group_messages').update({
+          text: null,
+          deleted_at: new Date().toISOString(),
+          deleted_by_admin: !isMine
+        }).eq('id', mid);
+        if (res && res.error) { toast((kk?'Қате: ':'Ошибка: ')+(res.error.message||'')); if (btnEl) btnEl.disabled = false; return; }
+        var card = btnEl && btnEl.closest('[data-mid="'+mid+'"]');
+        if (card) {
+          var deletedByAdmin = !isMine;
+          card.querySelectorAll('.grp-report,.grp-del,[data-pin-msg]').forEach(function(b){ b.style.display = 'none'; });
+          var textBlock = card.querySelector('div[style*="white-space:pre-wrap"]');
+          var msg = (deletedByAdmin ? '🛡 ' : '') + (deletedByAdmin ? (kk?'Хабарламаны әкімші жойды':'Сообщение удалено администратором') : (kk?'Пайдаланушы өз хабарламасын жойды':'Пользователь удалил своё сообщение'));
+          if (textBlock) textBlock.outerHTML = '<div style="margin-top:0.2rem;font-style:italic;color:var(--text-muted)">'+msg+'</div>';
+        }
+      } catch(e) {
+        toast((kk?'Қате: ':'Ошибка: ')+(e.message||e));
+        if (btnEl) btnEl.disabled = false;
+      }
     }
 
     // ---- Сам групповой чат ----
@@ -42086,7 +42261,10 @@ c.addEventListener('click', () => {
       unsubscribeGroupChat();
 
       if (!_currentGroup || !_currentGroup.id) {
-        el.innerHTML = '<div class="empty-state"><p>'+(kk?'Топ таңдалмаған.':'Группа не выбрана.')+'</p></div>';
+        // build 4.34: раньше тут был тупик («Группа не выбрана») без выхода
+        // — теперь просто уводим на список групп, откуда можно выбрать
+        // нужную заново.
+        try { showView('groups'); } catch(e) {}
         return;
       }
       var titleEl = document.getElementById('groupchat-title');
@@ -42114,6 +42292,7 @@ c.addEventListener('click', () => {
       var myUserId = authedUser.id;
       var groupId = _currentGroup.id;
       var myNick = sess.nick || (sess.email || '').split('@')[0] || '';
+      var isAdmin = (typeof isAdminUser === 'function') && isAdminUser();
 
       // Список участников группы — нужен для автодополнения «@ник» при наборе
       // сообщения, а с build 4.28 ещё и для галочек прочтения (last_read_at
@@ -42321,7 +42500,7 @@ c.addEventListener('click', () => {
             if (oldBtn) oldBtn.remove();
             var prevHeight = listEl.scrollHeight;
             var prevTop = listEl.scrollTop;
-            var html = newRows.map(function(m){ return _groupMessageHtml(m, myUserId, myNick, _grpMembers, kk); }).join('');
+            var html = newRows.map(function(m){ return _groupMessageHtml(m, myUserId, myNick, _grpMembers, kk, isAdmin); }).join('');
             if (html) listEl.insertAdjacentHTML('afterbegin', html);
             renderLoadMoreButton();
             rerenderPinButtons();
@@ -42359,11 +42538,20 @@ c.addEventListener('click', () => {
         submitReport('group', fakeMsg, groupId, myUserId, kk, repBtn);
       });
 
+      // 🗑 Удалить своё сообщение (или чужое — если админ).
+      listEl.addEventListener('click', function(ev) {
+        var delBtn = ev.target.closest && ev.target.closest('.grp-del');
+        if (!delBtn) return;
+        var mid = delBtn.getAttribute('data-mid');
+        var isMine = delBtn.getAttribute('data-mine') === '1';
+        deleteGroupMessageAction(mid, isMine, myUserId, isAdmin, kk, delBtn);
+      });
+
       function appendMessages(rows, scrollToBottom) {
         rows.forEach(function(m) {
           if (knownIds[m.id]) return;
           knownIds[m.id] = true;
-          listEl.insertAdjacentHTML('beforeend', _groupMessageHtml(m, myUserId, myNick, _grpMembers, kk));
+          listEl.insertAdjacentHTML('beforeend', _groupMessageHtml(m, myUserId, myNick, _grpMembers, kk, isAdmin));
         });
         rerenderPinButtons();
         if (scrollToBottom) listEl.scrollTop = listEl.scrollHeight;
@@ -42436,6 +42624,20 @@ c.addEventListener('click', () => {
               // сообщения тоже не страшно отмечать: guard-триггер на стороне
               // базы всё равно не даёт метке уйти назад).
               markGroupChatRead();
+            })
+            // build 4.33: сообщение удалено (своим автором или админом) —
+            // отражаем это сразу у всех, кто сейчас в чате, а не только у
+            // того, кто нажал 🗑 (раньше такого обработчика вообще не было).
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'group_messages', filter: 'group_id=eq.'+groupId }, function(payload) {
+              var m = payload && payload.new;
+              if (!m || !m.deleted_at) return;
+              var card = listEl.querySelector('[data-mid="'+m.id+'"]');
+              if (!card) return;
+              card.querySelectorAll('.grp-report,.grp-del,[data-pin-msg]').forEach(function(b){ b.style.display = 'none'; });
+              var textBlock = card.querySelector('div[style*="white-space:pre-wrap"]');
+              var msg = (m.deleted_by_admin ? '🛡 ' : '') + (m.deleted_by_admin ? (kk?'Хабарламаны әкімші жойды':'Сообщение удалено администратором') : (kk?'Пайдаланушы өз хабарламасын жойды':'Пользователь удалил своё сообщение'));
+              if (textBlock) textBlock.outerHTML = '<div style="margin-top:0.2rem;font-style:italic;color:var(--text-muted)">'+msg+'</div>';
+              var img = card.querySelector('img'); if (img) { var wrap = img.closest('div'); if (wrap) wrap.remove(); }
             })
             // Кто-то (в том числе я сам, с другого устройства) продвинул свою
             // отметку прочтения — пересчитываем галочки у всех своих сообщений.
@@ -42560,9 +42762,20 @@ c.addEventListener('click', () => {
             // Теперь дорисовываем сообщение сами по ответу insert — не
             // дожидаясь Realtime. knownIds внутри appendMessages не даст
             // показать его повторно, если Realtime всё же пришлёт то же id.
-            var res = await sb.from('group_messages').insert(payload).select().single();
+            var res = await sb.from('group_messages').insert(payload).select();
             if (res && res.error) { toast((kk?'Қате: ':'Ошибка: ')+(res.error.message||'')); return; }
-            if (res && res.data) appendMessages([res.data], true);
+            var savedRow = (res && res.data && res.data[0]) || null;
+            if (!savedRow) {
+              // Подстраховка (build 4.34): insert прошёл без ошибки, но
+              // сервер почему-то не вернул строку обратно — на всякий
+              // случай сами перезапрашиваем своё последнее сообщение в
+              // этой группе, вместо того чтобы просто ничего не показать.
+              try {
+                var re2 = await sb.from('group_messages').select('*').eq('group_id', groupId).eq('user_id', myUserId).order('created_at', { ascending: false }).limit(1);
+                savedRow = (re2 && re2.data && re2.data[0]) || null;
+              } catch(e2) {}
+            }
+            if (savedRow) appendMessages([savedRow], true);
             inputEl.value = '';
             grpImgAttach.clear();
             inputEl.focus();
@@ -46938,6 +47151,17 @@ function startApp() {
           }
         } catch(e) {}
         try{applyMainTabsOrder();}catch(e){}
+        // build 4.34: если восстанавливаем именно «groupchat» — сначала
+        // подтягиваем, какая конкретно группа была открыта (см.
+        // openGroupChat), иначе экран покажет «Группа не выбрана», хотя
+        // группы у пользователя есть.
+        if (restoreView === 'groupchat') {
+          try {
+            var savedGroup = JSON.parse(sessionStorage.getItem('quran_last_group') || 'null');
+            if (savedGroup && savedGroup.id) { _currentGroup = savedGroup; }
+            else { restoreView = 'groups'; }
+          } catch(e) { restoreView = 'groups'; }
+        }
         showView(restoreView);
         // Первый заход — предложить регистрацию
         try {
