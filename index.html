@@ -16451,6 +16451,18 @@ bKk:
     // отсюда же, а не полагаться на отдельно вписанный вручную номер версии.
     // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн · .lan языки
     const CHANGELOG_LOG = [
+        { major: '4', v: '4.53', kinds: ['f'], date: '2026-08-26',
+          f: [
+            'Личные сообщения: ник собеседника в переписке не открывал мини-профиль — раньше он был просто текстом, кликнуть было не на что. Теперь открывает, как и везде',
+            'Реакции эмодзи: кнопка «Ещё...» (полный список смайликов вместо быстрого набора) не работала — открывалась и тут же сама закрывалась. Причина — клик по «Ещё» переписывал содержимое окна прямо во время всплытия того же клика, а обработчик «закрыть при клике вне окна» на document к этому моменту уже не находил старую кнопку внутри окна (она успевала отсоединиться от страницы) и считал клик внешним',
+            'Реакции эмодзи: можно было накопить на одном сообщении две реакции от одного и того же человека вместо одной (с раздельными счётчиками рядом), а при добавлении третьей — пропадала первая вместо ожидаемого поведения «осталась только последняя». Причина в двух местах: ограничение в базе разрешало у одного пользователя несколько разных реакций на сообщение одновременно, а при переключении реакции клиент чистил в локальном кэше только первую найденную запись пользователя, а не все, из-за чего кэш расходился с базой'
+          ],
+          fKk: [
+            'Жеке хабарламалар: хат-хабардағы сұхбаттасушының нигі мини-профильді ашпайтын — бұрын ол жай мәтін болатын, басатын жер жоқ еді. Енді басқа жерлердегідей ашады',
+            'Эмодзи реакциялар: «Тағы...» түймесі (жылдам жиынтықтың орнына толық смайлик тізімі) істемейтін — ашылып, сол сәтте өзі жабылатын. Себебі — «Тағы» басқанда терезенің мазмұны дәл сол клик көтерілу кезінде қайта жазылатын, ал document-тегі «терезеден тыс басқанда жабу» өңдеушісі сол сәтте ескі түймені терезе ішінен таппай қалатын (ол беттен үлгеріп ажыратылады) және клик сыртта болды деп есептейтін',
+            'Эмодзи реакциялар: бір хабарламада бір адамнан екі реакция жиналуы мүмкін еді (жанында бөлек санақтармен), ал үшіншісін қосқанда — күтілгендей «тек соңғысы қалады» дегеннің орнына біріншісі жоғалатын. Себебі екі жерде: дерекқордағы шектеу бір пайдаланушыда бірнеше түрлі реакцияны бір мезгілде рұқсат ететін, ал реакцияны ауыстырғанда клиент жергілікті кэштен пайдаланушының тек бірінші табылған жазбасын ғана тазалайтын, барлығын емес — сондықтан кэш дерекқордан алшақтап кететін'
+          ]
+        },
         { major: '4', v: '4.52', kinds: ['a'], date: '2026-08-26',
           a: [
             'Форум: поиск по вопросам и ответам — ищет прямо по уже открытому списку, без задержки. Плюс тема вопроса (фикх, акида, намаз, пост/Рамадан, закят, хадж/умра, семья/брак, Коран/чтение, хадисы, другое) — выбирается при отправке вопроса (необязательно), фильтр по темам в самом Форуме, значок темы на карточке',
@@ -41860,6 +41872,14 @@ c.addEventListener('click', () => {
       }
       render();
       document.body.appendChild(box);
+      // build 4.53: клик по «Ещё...» (и по категориям) переписывает
+      // box.innerHTML прямо во время всплытия того же клика — к моменту,
+      // когда событие доходит до document, старая кнопка уже отсоединена от
+      // DOM, box.contains(ev.target) для неё возвращает false, и «закрыть
+      // по клику вне окна» срабатывал на СВОЙ же клик, сразу гася пикер.
+      // Останавливаем всплытие любого клика внутри окна — тогда до document
+      // вообще ничего не долетает.
+      box.addEventListener('click', function(ev) { ev.stopPropagation(); });
       var r = anchorEl.getBoundingClientRect();
       var top = r.bottom + 6, left = Math.max(6, Math.min(r.left, window.innerWidth - 300));
       if (top + 260 > window.innerHeight) top = Math.max(6, r.top - 266);
@@ -42296,16 +42316,24 @@ c.addEventListener('click', () => {
       var sb = getSb();
       if (!sb) return;
       var list = _chatReactionsCache[messageId] || (_chatReactionsCache[messageId] = []);
-      var mineIdx = list.findIndex(function(r){ return r.user_id === myUserId; });
-      var hadSame = mineIdx >= 0 && list[mineIdx].emoji === emoji;
+      // build 4.53: раньше при рассинхронизации кэша и базы (например если
+      // где-то уже успело накопиться больше одной реакции на пользователя —
+      // старое ограничение в базе такое допускало) из кэша убиралась только
+      // ПЕРВАЯ найденная запись пользователя, хотя DELETE в базе удаляет
+      // ВСЕ его реакции на это сообщение разом — кэш и база расходились, и
+      // «пропадала» не та реакция. Теперь чистим в кэше все свои записи.
+      var mineEntries = list.filter(function(r){ return r.user_id === myUserId; });
+      var hadSame = mineEntries.some(function(r){ return r.emoji === emoji; });
       try {
-        if (mineIdx >= 0) {
-          await sb.from('message_reactions').delete().eq('source', source).eq('message_id', messageId).eq('user_id', myUserId);
-          list.splice(mineIdx, 1);
+        if (mineEntries.length) {
+          var delRes = await sb.from('message_reactions').delete().eq('source', source).eq('message_id', messageId).eq('user_id', myUserId);
+          if (delRes && delRes.error) { toast('Ошибка: ' + (delRes.error.message||'')); return; }
+          _chatReactionsCache[messageId] = list.filter(function(r){ return r.user_id !== myUserId; });
         }
         if (!hadSame) {
-          await sb.from('message_reactions').insert({ source: source, message_id: messageId, user_id: myUserId, emoji: emoji });
-          list.push({ emoji: emoji, user_id: myUserId });
+          var insRes = await sb.from('message_reactions').insert({ source: source, message_id: messageId, user_id: myUserId, emoji: emoji });
+          if (insRes && insRes.error) { toast('Ошибка: ' + (insRes.error.message||'')); return; }
+          _chatReactionsCache[messageId].push({ emoji: emoji, user_id: myUserId });
         }
       } catch(e) { toast('Ошибка: ' + (e.message || e)); }
       if (container) _refreshReactionSlots(container, myUserId);
@@ -42787,9 +42815,12 @@ c.addEventListener('click', () => {
               var r = payload && payload.new;
               if (!r) return;
               if (!_chatReactionsCache[r.message_id]) _chatReactionsCache[r.message_id] = [];
-              if (!_chatReactionsCache[r.message_id].some(function(x){ return x.user_id===r.user_id && x.emoji===r.emoji; })) {
-                _chatReactionsCache[r.message_id].push({ emoji: r.emoji, user_id: r.user_id });
-              }
+              // build 4.53: у одного пользователя может быть только одна
+              // реакция — на всякий случай убираем в кэше любую его прежнюю
+              // запись перед добавлением новой (устойчиво к переупорядочиванию
+              // DELETE/INSERT-событий по сети).
+              _chatReactionsCache[r.message_id] = _chatReactionsCache[r.message_id].filter(function(x){ return x.user_id !== r.user_id; });
+              _chatReactionsCache[r.message_id].push({ emoji: r.emoji, user_id: r.user_id });
               var slot = listEl.querySelector('.chat-reactions-slot[data-slot-mid="'+r.message_id+'"]');
               if (slot) slot.innerHTML = _chatReactionsHtml(r.message_id, myUserId);
             })
@@ -43564,7 +43595,11 @@ c.addEventListener('click', () => {
       var fwdBtn = '<button type="button" class="dm-fwd" data-mid="'+_chatEsc(m.id)+'" title="'+(kk?'Жіберу':'Переслать')+'" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.85rem;padding:0;line-height:1;margin-left:0.4rem">➡️</button>';
       var editBtn = (mine && m.text) ? '<button type="button" class="dm-edit" data-mid="'+_chatEsc(m.id)+'" title="'+(kk?'Өзгерту':'Изменить')+'" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.85rem;padding:0;line-height:1;margin-left:0.4rem">✏️</button>' : '';
       return '<div class="card dm-msg" data-mid="'+_chatEsc(m.id)+'" style="margin-bottom:0.5rem;padding:0.55rem 0.7rem;'+(mine ? 'margin-left:12%;border-color:var(--primary,#2e7d32)' : 'margin-right:12%')+'">' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);display:flex;align-items:center;flex-wrap:wrap">'+(mine ? (kk?'Сіз':'Вы') : _chatEsc(partnerNick))+' · '+_chatTimeLabel(m.created_at)+editedMark+replyBtn+fwdBtn+reactBtn+editBtn+(mine ? _dmStatusHtml(m, kk) : reportBtn)+'</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);display:flex;align-items:center;flex-wrap:wrap">' +
+          (mine
+            ? (kk?'Сіз':'Вы')
+            : '<b class="dm-nick-click" data-uid="'+_chatEsc(m.from_user)+'" data-nick="'+_chatEsc(partnerNick)+'" style="color:var(--text);font-weight:normal;cursor:pointer;text-decoration:underline dotted">'+_chatEsc(partnerNick)+'</b>') +
+          ' · '+_chatTimeLabel(m.created_at)+editedMark+replyBtn+fwdBtn+reactBtn+editBtn+(mine ? _dmStatusHtml(m, kk) : reportBtn)+'</div>' +
         _chatForwardedMarkHtml(m) + _chatReplyQuoteHtml(m) + textHtml + _chatImgBlockHtml(m.image_url) + _chatFilesBlockHtml(m.files) +
         '<div class="chat-reactions-slot" data-slot-mid="'+_chatEsc(m.id)+'">'+_chatReactionsHtml(m.id, myUserId)+'</div>' +
       '</div>';
@@ -43737,6 +43772,13 @@ c.addEventListener('click', () => {
         if (scrollToBottom) listEl.scrollTop = listEl.scrollHeight;
       }
       listEl.addEventListener('click', function(ev) {
+        var nickBtn = ev.target.closest && ev.target.closest('.dm-nick-click');
+        if (nickBtn) {
+          var nUid = nickBtn.getAttribute('data-uid');
+          var nNick = nickBtn.getAttribute('data-nick');
+          if (nUid) openProfileModal(nUid, nNick);
+          return;
+        }
         var repBtn = ev.target.closest && ev.target.closest('.dm-report');
         if (repBtn) {
           var mid = repBtn.getAttribute('data-mid');
@@ -43890,9 +43932,12 @@ c.addEventListener('click', () => {
               var r = payload && payload.new;
               if (!r) return;
               if (!_chatReactionsCache[r.message_id]) _chatReactionsCache[r.message_id] = [];
-              if (!_chatReactionsCache[r.message_id].some(function(x){ return x.user_id===r.user_id && x.emoji===r.emoji; })) {
-                _chatReactionsCache[r.message_id].push({ emoji: r.emoji, user_id: r.user_id });
-              }
+              // build 4.53: у одного пользователя может быть только одна
+              // реакция — на всякий случай убираем в кэше любую его прежнюю
+              // запись перед добавлением новой (устойчиво к переупорядочиванию
+              // DELETE/INSERT-событий по сети).
+              _chatReactionsCache[r.message_id] = _chatReactionsCache[r.message_id].filter(function(x){ return x.user_id !== r.user_id; });
+              _chatReactionsCache[r.message_id].push({ emoji: r.emoji, user_id: r.user_id });
               var slot = listEl.querySelector('.chat-reactions-slot[data-slot-mid="'+r.message_id+'"]');
               if (slot) slot.innerHTML = _chatReactionsHtml(r.message_id, myUserId);
             })
@@ -45441,9 +45486,12 @@ c.addEventListener('click', () => {
               var r = payload && payload.new;
               if (!r || !grpMsgById[r.message_id]) return;
               if (!_chatReactionsCache[r.message_id]) _chatReactionsCache[r.message_id] = [];
-              if (!_chatReactionsCache[r.message_id].some(function(x){ return x.user_id===r.user_id && x.emoji===r.emoji; })) {
-                _chatReactionsCache[r.message_id].push({ emoji: r.emoji, user_id: r.user_id });
-              }
+              // build 4.53: у одного пользователя может быть только одна
+              // реакция — на всякий случай убираем в кэше любую его прежнюю
+              // запись перед добавлением новой (устойчиво к переупорядочиванию
+              // DELETE/INSERT-событий по сети).
+              _chatReactionsCache[r.message_id] = _chatReactionsCache[r.message_id].filter(function(x){ return x.user_id !== r.user_id; });
+              _chatReactionsCache[r.message_id].push({ emoji: r.emoji, user_id: r.user_id });
               var slot = listEl.querySelector('.chat-reactions-slot[data-slot-mid="'+r.message_id+'"]');
               if (slot) slot.innerHTML = _chatReactionsHtml(r.message_id, myUserId);
             })
