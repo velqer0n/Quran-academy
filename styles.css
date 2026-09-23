@@ -1,0 +1,3199 @@
+:root {
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-hover: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --border: #334155;
+      --arabic: #e2e8f0;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #22c55e;
+      /* build 5.68: единая система теней/скруглений/переходов — раньше
+         тени не использовались нигде вовсе (плоский дизайн), скругления
+         были россыпью разных rem-значений по всему файлу. Новые переменные
+         подключены в базовые .card/.btn и не ломают ни одну тему, потому
+         что цвет тени завязан на var(--accent) с низкой непрозрачностью —
+         в каждой теме она автоматически подстраивается под акцентный цвет.
+         Ничего не переименовано и не удалено — только добавлено. */
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.14), 0 2px 4px rgba(0,0,0,0.08);
+      --shadow-lg: 0 10px 28px rgba(0,0,0,0.18), 0 4px 10px rgba(0,0,0,0.1);
+      --shadow-accent: 0 4px 14px color-mix(in srgb, var(--accent) 28%, transparent);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      /* метки источников — переопределяются в темах */
+      --src-ayah: #34d399;
+      --src-ayah-bg: rgba(16, 185, 129, 0.14);
+      --src-ayah-bd: rgba(52, 211, 153, 0.45);
+      --src-hadith: #93c5fd;
+      --src-hadith-bg: rgba(59, 130, 246, 0.16);
+      --src-hadith-bd: rgba(147, 197, 253, 0.45);
+      --src-opinion: #fbbf24;
+      --src-opinion-bg: rgba(245, 158, 11, 0.14);
+      --src-opinion-bd: rgba(251, 191, 36, 0.45);
+      --src-note: var(--text-muted);
+      --src-note-bg: rgba(148, 163, 184, 0.12);
+      --src-note-bd: var(--border);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    /* build 5.68: тонкий, аккуратный скроллбар и фирменное выделение текста
+       вместо стандартного синего браузерного — мелочи, которые сразу
+       выдают неряшливость интерфейса, если их не трогать. */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); background-clip: padding-box; }
+    * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); color: var(--text); }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* build 5.68: видимое, но аккуратное кольцо фокуса — доступность
+       (навигация с клавиатуры) без «уродования» вида при обычных кликах
+       мышью/пальцем (:focus-visible игнорирует клик мышью). */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+
+    /* build 5.68: мягкое появление контента при переключении разделов —
+       вместо мгновенной подмены innerHTML («моргания»). Класс навешивается
+       через JS один раз на контейнер вида, анимация короткая (180мс), не
+       мешает быстрой навигации и не аффектит внутренние перерисовки (тикающие
+       счётчики, чаты) — те не трогают этот класс повторно. */
+    @keyframes fadeInUp5_68 { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .view-fade-in { animation: fadeInUp5_68 0.22s var(--ease); }
+    @media (prefers-reduced-motion: reduce) {
+      .view-fade-in { animation: none; }
+      html { scroll-behavior: auto; }
+    }
+
+    .arabic {
+      font-family: 'Amiri', serif;
+      font-size: calc(1.55rem * var(--ar-scale, 1));
+      line-height: 2.1;
+      direction: rtl;
+      text-align: right;
+      color: var(--arabic);
+    }
+
+    /* build 5.27: «Суры → Учёба» — все слова аята сразу (арабский +
+       транскрипция + перевод под каждым словом), вместо пролистывания
+       по одному слову. */
+    .wbw-all-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 0.4rem;
+      justify-content: flex-start;
+    }
+    .wbw-all-cell {
+      min-width: 3.6rem;
+      max-width: 7rem;
+      text-align: center;
+      cursor: pointer;
+      padding: 0.35rem 0.3rem 0.45rem;
+      border-radius: 0.6rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .wbw-all-cell:active, .wbw-all-cell:hover {
+      background: var(--bg-card);
+      border-color: var(--accent);
+    }
+    .wbw-all-ar {
+      font-size: calc(1.5rem * var(--ar-scale, 1));
+      line-height: 1.6;
+      margin-bottom: 0.15rem;
+    }
+    .wbw-all-tr {
+      direction: ltr;
+      unicode-bidi: isolate;
+      font-size: calc(0.72rem * var(--ru-scale, 1));
+      color: var(--accent);
+      font-style: italic;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+    .wbw-all-meaning {
+      direction: ltr;
+      unicode-bidi: isolate;
+      font-size: calc(0.72rem * var(--ru-scale, 1));
+      color: var(--text-muted);
+      line-height: 1.25;
+      margin-top: 0.1rem;
+      word-break: break-word;
+    }
+    /* build 5.31: настройка «Слова в Озвучке: сразу / по нажатию» —
+       по умолчанию транскрипция и перевод слова скрыты, пока не нажали
+       на само слово (нажатие также включает звук). */
+    .wbw-all-cell.wbw-tap-hide .wbw-all-info { display: none; }
+    .wbw-all-cell.wbw-tap-hide.wbw-revealed .wbw-all-info { display: block; }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+    }
+
+    .header-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--accent);
+    }
+
+    .logo span {
+      color: var(--text);
+    }
+
+    nav {
+      display: flex;
+      gap: 0.35rem;
+    }
+
+    nav button {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.45rem 0.7rem;
+      border-radius: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    nav button:hover,
+    nav button.active {
+      background: var(--bg-card);
+      color: var(--text);
+    }
+
+    nav button.active {
+      color: var(--accent);
+    }
+
+    /* Layout */
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1rem;
+      padding-bottom: 3rem;
+    }
+
+    .view {
+      display: none;
+    }
+
+    .ayah-translation, .card, .arabic, p, .section-title {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+    .view.active {
+      display: block;
+      animation: fadeIn 0.25s ease;
+      padding-bottom: calc(2.4rem + env(safe-area-inset-bottom, 0px));
+      min-height: 0;
+    }
+    main {
+      padding-bottom: calc(3.25rem + env(safe-area-inset-bottom, 0px));
+    }
+    #view-dict .dict-add-row {
+      position: sticky;
+      bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+      background: var(--bg);
+      padding: 0.5rem 0;
+      z-index: 5;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Окно чата (личные сообщения, групповые чаты, общий чат) — шапка
+       (ник/название + поиск) и панель ввода сообщения остаются на месте,
+       а прокручивается только сама лента сообщений (как в Telegram), а не
+       вся страница целиком. */
+    .chat-topbar {
+      position: sticky;
+      top: var(--app-header-h, 0px);
+      z-index: 30;
+      background: var(--bg);
+      margin: -1rem -1rem 0.6rem;
+      padding: 0.85rem 1rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .chat-bottombar {
+      position: sticky;
+      bottom: 0;
+      z-index: 30;
+      background: var(--bg);
+      margin: 0.5rem -1rem 0;
+      padding: 0.5rem 1rem 0.6rem;
+    }
+    @media (max-width: 640px) {
+      .chat-bottombar {
+        bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+      }
+    }
+
+    /* Cards & lists */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1rem 1.15rem;
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.2s var(--ease), background 0.2s var(--ease), box-shadow 0.2s var(--ease), transform 0.2s var(--ease);
+    }
+
+    .card:hover {
+      border-color: #475569;
+      box-shadow: var(--shadow-md);
+    }
+
+    /* build 5.68: карточки, явно предназначенные для клика (курсор pointer
+       уже стоит в вёрстке через inline-style), получают лёгкий тактильный
+       отклик — чуть приподнимаются и слегка «садятся» при нажатии. Ничего
+       не задевает обычные, некликабельные карточки. */
+    .card[style*="cursor:pointer"]:hover, .card[style*="cursor: pointer"]:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+    }
+    .card[style*="cursor:pointer"]:active, .card[style*="cursor: pointer"]:active {
+      transform: translateY(0) scale(0.99);
+    }
+
+    /* build 4.72: чёткие «пузыри» сообщений во всех трёх чатах (как в
+       Telegram) — видимая рамка со всех 4 сторон + разный оттенок фона для
+       своих/чужих сообщений, вместо еле заметной var(--border) на обычном
+       .card. Плюс место под постоянно видимую кнопку «переслать» в углу. */
+    .chat-msg-card {
+      position: relative;
+      border-width: 1.5px;
+      border-radius: 0.9rem;
+      /* build 4.74: без этого свайп горизонтально «залипал» через пару
+         пикселей — браузер на телефоне решал, что жест = вертикальная
+         прокрутка списка, отменял его нашему JS (pointercancel), и
+         карточка откатывалась назад. pan-y явно говорит браузеру: вертикаль
+         — его дело (прокрутка списка работает как обычно), горизонталь —
+         дело JS (наш свайп-ответ), не отбирать её на полпути. */
+      touch-action: pan-y;
+    }
+    /* build 4.86: «как в Telegram» — свои сообщения справа с отступом
+       слева (не доходят до левого края), чужие слева с отступом справа
+       (не доходят до правого края). Раньше так было только в ЛС (через
+       инлайн margin в шаблоне), а общий чат и группы растягивали все
+       карточки на всю ширину независимо от автора — теперь общее правило
+       для всех трёх чатов через классы .msg-mine/.msg-theirs, инлайновый
+       margin в шаблоне ЛС убран как дублирующий.
+       build 4.96: было 12% с каждой стороны — на узком телефоне это
+       заметно урезало саму карточку, а вместе с зонами-исключениями под
+       текст/кнопки (см. _bindMsgCardGestures) от короткого сообщения типа
+       «Hs» под удержание оставалось совсем мало места. Сокращено до 8% —
+       асимметрия «своё/чужое» всё ещё хорошо видна, но карточка снова
+       ощутимо шире. */
+    .chat-msg-card.msg-mine {
+      background: color-mix(in srgb, var(--primary, #2e7d32) 10%, var(--bg-card));
+      border-color: color-mix(in srgb, var(--primary, #2e7d32) 55%, var(--border));
+      margin-left: 8%;
+    }
+    .chat-msg-card.msg-theirs {
+      background: var(--bg-card);
+      border-color: var(--border);
+      margin-right: 8%;
+    }
+    .chat-msg-card.msg-mentioned {
+      border-color: var(--accent);
+    }
+    /* build 4.112: тема переписки — применяется через класс body.chat-themed
+       (ставится/снимается из _applyChatTheme при открытии чата) и CSS-
+       переменные --chat-theme-bg/--chat-theme-mine/--chat-theme-theirs.
+       Затрагивает только сам экран переписки (список сообщений и карточки
+       внутри него), общий фон и цвета остального сайта не трогает вообще —
+       поэтому переопределения тут узко нацелены только на #pchat-list,
+       #dm-body/#dm-list, #grpc-list и карточки сообщений внутри них. */
+    body.chat-themed #pchat-list,
+    body.chat-themed #dm-list,
+    body.chat-themed #grpc-list {
+      background: var(--chat-theme-bg);
+      border-radius: 0.6rem;
+      transition: background 0.3s;
+    }
+    body.chat-themed .chat-msg-card.msg-mine {
+      background: var(--chat-theme-mine) !important;
+      border-color: var(--chat-theme-mine) !important;
+    }
+    body.chat-themed .chat-msg-card.msg-theirs {
+      background: var(--chat-theme-theirs) !important;
+      border-color: var(--chat-theme-theirs) !important;
+    }
+    /* build 4.74: текст сообщения был обычным выделяемым текстом
+       (user-select: text), поэтому долгое удержание параллельно с нашим
+       собственным меню действий (см. _bindLongPressReveal) ещё и запускало
+       нативное выделение слова в браузере — оно перехватывало жест и
+       поверх нашего меню всплывала совершенно другая функция «добавить
+       слово в словарь» (see build 4.73, там был закрыт только один из двух
+       путей к этой функции — через её собственный pointerdown-таймер, а
+       через нативное выделение + событие selectionchange она всё ещё
+       пролезала). build 4.76: точечных исключений (.chat-msg-text и т.п.)
+       оказалось недостаточно — удержание в любом другом месте той же
+       карточки (отступы, область времени, пустое место рядом с текстом)
+       всё ещё запускало нативное выделение соседнего текста, если оно
+       начиналось за пределами явно перечисленных селекторов. Теперь
+       правило применяется ко всей карточке сообщения целиком — единственная
+       гарантия, что удержание в любой точке внутри её границы управляется
+       только нашим меню действий, а не браузером. */
+    .chat-msg-card, .chat-msg-card * {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+    /* build 4.79: по просьбе пользователя — удержание именно на самом
+       ТЕКСТЕ сообщения теперь особый случай: включено нативное выделение
+       текста (можно выбрать слово/фразу за счёт стандартных маркеров
+       браузера), а _bindMsgCardGestures ниже отдельно исключает
+       .chat-msg-text из своей логики (не открывает меню действий и не
+       начинает свайп, если жест стартовал именно на тексте) — иначе меню
+       и нативное выделение продолжили бы конфликтовать. Удержание в любом
+       ДРУГОМ месте карточки (не на тексте) по-прежнему открывает меню
+       действий, как и раньше. Копирование выделенного фрагмента — через
+       всплывающую кнопку «📋 Копировать выделенное» (см. selectionchange
+       ниже в JS), отдельную от «📋 Копировать» в меню действий (та
+       копирует сообщение целиком). */
+    .chat-msg-card .chat-msg-text,
+    .chat-msg-card .chat-msg-text * {
+      -webkit-user-select: text;
+      user-select: text;
+      -webkit-touch-callout: default;
+    }
+    .chat-msg-quickfwd {
+      position: absolute;
+      right: 0.5rem;
+      bottom: 0.45rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      padding: 0.15rem;
+      line-height: 1;
+      opacity: 0.55;
+    }
+    .chat-msg-quickfwd:hover, .chat-msg-quickfwd:active { opacity: 1; }
+    /* build 4.78: кнопки в меню действий сообщения (↩️🙂+📋⭐✏️🚩🗑) были
+       мелкими и тесными — раньше font-size:0.85–0.9rem без своих отступов,
+       только line-height:1. Увеличены сами значки и добавлен отступ вокруг
+       каждого — это и читаемее, и заметно проще попасть пальцем именно в
+       нужную кнопку, не задев соседнюю. */
+    .msg-actions-row button {
+      font-size: 1.4rem !important;
+      padding: 0.3rem !important;
+      line-height: 1 !important;
+      min-width: 2.1rem;
+      min-height: 2.1rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Выделение сообщения, у которого сейчас открыто меню действий — как в
+       Telegram/WhatsApp: понятно, к какому именно сообщению относится
+       меню, а не только «где-то тут снизу появился ряд иконок». Снимается
+       автоматически при закрытии меню (см. _closeAllMsgActionRows). */
+    .chat-msg-card.msg-selected {
+      background: color-mix(in srgb, var(--accent) 16%, var(--bg-card)) !important;
+      border-color: var(--accent) !important;
+    }
+    .chat-msg-card[data-swiping="1"] { transition: none; }
+    .chat-msg-card:not([data-swiping="1"]) { transition: transform 0.18s ease, border-color 0.15s, background 0.15s, background-color 0.15s; }
+    .chat-msg-swipe-reply-icon {
+      position: absolute;
+      left: -1.8rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.1rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+
+    /* build 4.81: массовый выбор сообщений для удаления — чекбокс скрыт,
+       пока список не в режиме выбора; в этом режиме карточки, которые
+       нельзя выбрать (чужие сообщения без прав модератора/админа), слегка
+       гасятся, чтобы сразу было видно, что здесь выбор недоступен. */
+    .chat-msg-select-box {
+      display: none;
+      position: absolute;
+      left: 0.4rem;
+      top: 0.4rem;
+      width: 1.15rem;
+      height: 1.15rem;
+      border-radius: 50%;
+      border: 2px solid var(--text-muted);
+      background: var(--bg-card);
+      cursor: pointer;
+      z-index: 3;
+    }
+    .chat-msg-select-box.checked {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .chat-msg-select-box.checked::after {
+      content: '✓';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .msg-list-selecting .chat-msg-card { padding-left: 2.1rem !important; transition: padding-left 0.15s; }
+    .msg-list-selecting .chat-msg-select-box { display: block; }
+    .msg-list-selecting .chat-msg-card:not(.msg-select-eligible) { opacity: 0.4; }
+    .msg-list-selecting .chat-msg-card:not(.msg-select-eligible) .chat-msg-select-box { display: none; }
+    .msg-select-bar {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 200;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      padding: 0.55rem 0.75rem calc(0.55rem + env(safe-area-inset-bottom,0px));
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 -4px 16px rgba(0,0,0,0.35);
+    }
+
+    /* build 4.106: тот же принцип массового выбора, что и у сообщений
+       (см. .chat-msg-select-box выше), только для карточек переписок и
+       групп в самих списках «Личные сообщения» и «Мои группы». */
+    .list-select-box {
+      display: none;
+      position: absolute;
+      left: 0.4rem;
+      top: 0.4rem;
+      width: 1.15rem;
+      height: 1.15rem;
+      border-radius: 50%;
+      border: 2px solid var(--text-muted);
+      background: var(--bg-card);
+      cursor: pointer;
+      z-index: 3;
+    }
+    .list-select-box.checked {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .list-select-box.checked::after {
+      content: '✓';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .list-selecting .dml-item, .list-selecting .grp-item { padding-left: 2.1rem !important; position: relative; transition: padding-left 0.15s; }
+    .list-selecting .list-select-box { display: block; }
+
+    .surah-item {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      cursor: pointer;
+    }
+
+    .surah-num {
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 0.6rem;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .surah-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .surah-name {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .surah-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    .progress-ring {
+      width: 2.6rem;
+      height: 2.6rem;
+      flex-shrink: 0;
+    }
+
+    .progress-ring circle {
+      fill: none;
+      stroke-width: 3;
+    }
+
+    .progress-ring .bg {
+      stroke: var(--border);
+    }
+
+    .progress-ring .fg {
+      stroke: var(--accent);
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.4s;
+    }
+
+    /* Search */
+    .search-box {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 0.75rem 1rem 0.75rem 2.6rem;
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .search-box input:focus {
+      border-color: var(--accent);
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 0.9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      width: 1.15rem;
+      height: 1.15rem;
+    }
+
+    /* Reader */
+    .reader-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .reader-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .reader-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem 0.85rem;
+      border-radius: 0.6rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.18s var(--ease), border-color 0.18s var(--ease), box-shadow 0.18s var(--ease), transform 0.12s var(--ease);
+    }
+
+    .btn:hover {
+      background: var(--bg-hover);
+    }
+    /* build 5.68: тактильный отклик при нажатии на любую кнопку сайта —
+       мелочь, но именно такие мелочи создают ощущение «живого», а не
+       статичного интерфейса. Не требует правки ни одного места вызова. */
+    .btn:active { transform: scale(0.96); }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: var(--shadow-accent);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-sm {
+      padding: 0.35rem 0.65rem;
+      font-size: 0.8rem;
+    }
+
+    .btn-icon {
+      padding: 0.45rem;
+      width: 2.2rem;
+      height: 2.2rem;
+      justify-content: center;
+    }
+
+    .ayah {
+      padding: 1.1rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ayah:last-child {
+      border-bottom: none;
+    }
+
+    .ayah-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.7rem;
+      height: 1.7rem;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+      transition: border-color 0.18s var(--ease), transform 0.18s var(--ease);
+    }
+
+    .ayah-text {
+      margin-bottom: 0.6rem;
+    }
+
+    .ayah-translation {
+      font-size: calc(0.95rem * var(--ru-scale, 1));
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .ayah-actions {
+      display: flex;
+      gap: 0.4rem;
+      margin-top: 0.7rem;
+      flex-wrap: wrap;
+    }
+
+    /* Единый шаблон источников */
+    .src-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+      margin-top: 0.55rem;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+    .src-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.28rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 0.45rem;
+      border: 1px solid var(--src-note-bd);
+      background: var(--src-note-bg);
+      color: var(--src-note);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      line-height: 1.35;
+      max-width: 100%;
+      word-break: break-word;
+    }
+    .src-chip.ayah {
+      color: var(--src-ayah);
+      background: var(--src-ayah-bg);
+      border-color: var(--src-ayah-bd);
+    }
+    .src-chip.hadith {
+      color: var(--src-hadith);
+      background: var(--src-hadith-bg);
+      border-color: var(--src-hadith-bd);
+    }
+    .src-chip.opinion {
+      color: var(--src-opinion);
+      background: var(--src-opinion-bg);
+      border-color: var(--src-opinion-bd);
+    }
+    .src-chip.note {
+      color: var(--src-note);
+      background: var(--src-note-bg);
+      border-color: var(--src-note-bd);
+    }
+    .src-disclaimer {
+      margin-top: 0.55rem;
+      padding: 0.5rem 0.7rem;
+      border-radius: 0.5rem;
+      border-left: 3px solid var(--warning);
+      background: color-mix(in srgb, var(--warning) 10%, transparent);
+      font-size: 0.8rem;
+      color: var(--text);
+      opacity: 0.92;
+      line-height: 1.5;
+    }
+    /* чуть плотнее основной текст карточек в разделах знания */
+    .exp-detail, .exp-detail .ayah-translation, .tip-body {
+      color: var(--text);
+      opacity: 0.95;
+    }
+    .exp-detail .ayah-translation {
+      color: var(--text);
+    }
+
+    .ayah.learned {
+      opacity: 0.7;
+    }
+
+    .ayah.learned .ayah-num {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .tafsir-box {
+      margin-top: 0.75rem;
+      padding: 0.85rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+      display: none;
+    }
+    .tafsir-box.open { display: block; }
+    .tafsir-box .tafsir-label {
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+    .tafsir-box .tafsir-ar {
+      font-family: 'Amiri', serif;
+      direction: rtl;
+      text-align: right;
+      color: var(--arabic);
+      font-size: 1.05rem;
+      line-height: 1.9;
+    }
+    .offline-badge {
+      display: none;
+      position: fixed;
+      top: 0.6rem;
+      right: 0.75rem;
+      z-index: 60;
+      background: var(--warning);
+      color: #000;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.25rem 0.55rem;
+      border-radius: 0.4rem;
+    }
+    .offline-badge.show { display: block; }
+
+    /* Lock screen */
+    #lock-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+    }
+    #lock-screen.hidden { display: none; }
+    body.app-locked .audio-bar,
+    body.app-locked .audio-bar.visible,
+    body.app-locked #audio-bar {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+    body.app-locked #audio-player { display: none !important; }
+    body.app-locked #device-mode-btn { display: none !important; }
+    #lock-screen { z-index: 10050; }
+    .audio-bar { z-index: 35; }
+    .lock-box {
+      width: 100%;
+      max-width: 360px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.75rem 1.5rem;
+      text-align: center;
+    }
+    .lock-box .lock-icon { font-size: 2.4rem; margin-bottom: 0.5rem; }
+    .lock-box h2 { font-size: 1.15rem; margin-bottom: 0.35rem; }
+    .lock-box p.lock-sub { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.1rem; }
+    .lock-box input[type="password"],
+    .lock-box input[type="text"],
+    .lock-box input {
+      width: 100%;
+      background: var(--bg) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 0.65rem;
+      padding: 0.7rem 2.6rem 0.7rem 0.85rem;
+      color: var(--text) !important;
+      font-size: 1rem;
+      margin-bottom: 0.65rem;
+      box-sizing: border-box;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .lock-box input:focus {
+      outline: none;
+      border-color: var(--accent) !important;
+    }
+    .lock-box button.lock-submit {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 0.65rem;
+      padding: 0.75rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      margin-top: 0.25rem;
+    }
+    .lock-box button.lock-submit:hover { background: var(--accent-hover); }
+    .lock-error {
+      color: var(--danger);
+      font-size: 0.85rem;
+      min-height: 1.2rem;
+      margin-top: 0.5rem;
+    }
+    .lock-reset-link {
+      display: inline-block;
+      margin-top: 1rem;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      text-decoration: underline;
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+    .lock-btn-header {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0.35rem;
+      line-height: 1;
+    }
+    .lock-btn-header:hover { color: var(--text); }
+    #btn-lang-toggle { font-size: 1rem; display: inline-flex; align-items: center; gap: 0.15rem; }
+    #lang-toggle-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.02em; }
+    .cache-info {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+
+    /* Study / Flashcards */
+    .study-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .flashcard {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 1.25rem;
+      padding: 2rem 1.5rem;
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.2s, border-color 0.2s;
+      position: relative;
+    }
+
+    .flashcard:hover {
+      border-color: var(--accent);
+    }
+
+    .flashcard .hint {
+      position: absolute;
+      bottom: 1rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .flashcard-front .arabic {
+      font-size: 1.8rem;
+    }
+
+    .flashcard-back .translation {
+      font-size: 1.1rem;
+      line-height: 1.6;
+    }
+
+    .study-progress {
+      text-align: center;
+      margin-bottom: 1rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .study-actions {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    /* Progress page */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.1rem;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    /* Bookmarks */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state svg {
+      width: 3rem;
+      height: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* Пресет «Минимум отвлечений»: гасим анимации/переходы почти до нуля,
+       чтобы не ломать код, который может ждать событий transitionend/animationend */
+    body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after {
+      animation-duration: 0.001ms !important;
+      animation-delay: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+      transition-delay: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    /* Settings */
+
+    /* build 5.68: заголовков не было стилизовано вообще — наследовали
+       голые браузерные умолчания. Добавлена аккуратная, единая иерархия
+       (вес, интервал, отступ снизу для «воздуха») без изменения размера
+       шрифта (он часто уже задан инлайново под конкретный экран). */
+    h1, h2, h3 { font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; }
+    h1 { margin-bottom: 0.3rem; }
+    h2 { margin-bottom: 0.25rem; }
+    h3 { margin-bottom: 0.2rem; }
+
+    select, .toggle {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.4rem 0.7rem;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+    }
+
+    /* build 5.69: у текстовых полей по всему сайту (десятки мест — словарь,
+       поиск, заметки, планировщик сообщений и т.д.) уже везде стоит
+       class="input", но самого CSS-правила для него не было вообще —
+       вся стилизация дублировалась инлайново в каждом месте отдельно, без
+       единого состояния наведения/фокуса. Добавление одного правила здесь
+       разом улучшает все эти поля, не трогая ни одной инлайновой строки. */
+    .input, input[type], textarea {
+      transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+    }
+    .input:hover, input[type]:hover, textarea:hover {
+      border-color: var(--text-muted) !important;
+    }
+    .input:focus-visible, input[type]:focus-visible, textarea:focus-visible,
+    .input:focus, input[type]:focus, textarea:focus {
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+      outline: none;
+    }
+    select:hover, .toggle:hover { border-color: var(--text-muted); }
+    select:focus-visible, .toggle:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); outline: none; }
+
+    /* build 5.68: строки настроек/списков чуть подсвечиваются при наведении —
+       раньше были полностью статичны, из-за чего длинные списки казались
+       скучным текстом, а не интерактивным интерфейсом. */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 0.4rem;
+      margin: 0 -0.4rem;
+      border-bottom: 1px solid var(--border);
+      border-radius: 0.5rem;
+      transition: background 0.15s var(--ease);
+    }
+    .setting-row:hover { background: color-mix(in srgb, var(--bg-hover) 55%, transparent); }
+
+    .setting-row:last-child {
+      border-bottom: none;
+    }
+
+    .setting-row.setting-row-disabled {
+      opacity: 0.45;
+    }
+    .setting-row.setting-row-disabled select {
+      pointer-events: none;
+      cursor: not-allowed;
+    }
+
+    /* Loading & toast */
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      width: 2rem;
+      height: 2rem;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .toast {
+      position: fixed;
+      bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px));
+      left: 50%;
+      transform: translateX(-50%) translateY(120%);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.75rem 1.25rem;
+      border-radius: 0.75rem;
+      font-size: 0.9rem;
+      z-index: 200;
+      max-width: min(92vw, 420px);
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: transform 0.28s ease, opacity 0.28s ease, visibility 0.28s;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    @media (min-width: 641px) {
+      .toast {
+        bottom: 1.5rem;
+      }
+    }
+
+    /* Bottom nav for mobile */
+    .bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      padding: 0.4rem 0.5rem calc(0.4rem + env(safe-area-inset-bottom));
+      z-index: 40;
+      justify-content: space-around;
+    }
+
+    .bottom-nav button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+      font-size: 0.7rem;
+      padding: 0.4rem 0.6rem;
+      cursor: pointer;
+      border-radius: 0.5rem;
+      position: relative;
+    }
+
+    .bottom-nav button.active {
+      color: var(--accent);
+    }
+
+
+    .font-pick-list { display:flex; flex-direction:column; gap:0.4rem; margin-top:0.45rem; width:100%; }
+    .font-pick-item {
+      display:block; width:100%; text-align:left; padding:0.55rem 0.7rem;
+      border:1px solid var(--border); border-radius:0.5rem;
+      background:var(--bg); color:var(--text); cursor:pointer;
+      line-height:1.45;
+    }
+    .font-pick-item.active {
+      border-color:var(--accent); background:rgba(16,185,129,0.12);
+      box-shadow:0 0 0 1px var(--accent);
+    }
+    .font-pick-item .fp-name { font-size:0.75rem; color:var(--text-muted); margin-bottom:0.2rem; }
+    .font-pick-item .fp-sample { font-size:1.05rem; }
+    .font-pick-item.ar-sample { text-align:right; direction:rtl; font-size:1.25rem; }
+    .size-pick-list { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.4rem; }
+    .size-pick-item {
+      flex:1; min-width:3.5rem; padding:0.5rem 0.4rem; border:1px solid var(--border);
+      border-radius:0.5rem; background:var(--bg); color:var(--text); cursor:pointer; text-align:center;
+    }
+    .size-pick-item.active { border-color:var(--accent); background:rgba(16,185,129,0.12); }
+    /* Модалка быстрого выбора темы из шапки */
+    #theme-picker-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10060;
+      background: rgba(4, 8, 16, 0.75);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0.75rem;
+      box-sizing: border-box;
+    }
+    #theme-picker-overlay.open { display: flex !important; }
+    #theme-picker-card {
+      width: 100%;
+      max-width: 28rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -12px 40px rgba(0,0,0,0.6);
+    }
+    #theme-picker-card h3 { font-size: 1rem; margin-bottom: 0.6rem; color: var(--text); }
+    #theme-picker-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+    #theme-picker-list .theme-pick-item {
+      padding: 0.6rem 0.4rem; border: 1px solid var(--border); border-radius: 0.6rem;
+      cursor: pointer; text-align: center; font-size: 0.8rem;
+    }
+    #theme-picker-list .theme-pick-item.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+    #theme-picker-close { width: 100%; margin-top: 0.75rem; }
+    #fontsize-picker-overlay {
+      position: fixed; inset: 0; z-index: 10060; background: rgba(4, 8, 16, 0.75);
+      display: none; align-items: flex-end; justify-content: center; padding: 0.75rem; box-sizing: border-box;
+    }
+    #fontsize-picker-overlay.open { display: flex !important; }
+    #fontsize-picker-card {
+      width: 100%; max-width: 28rem; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 1rem; padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -12px 40px rgba(0,0,0,0.6);
+    }
+    #fontsize-picker-card h3 { font-size: 1rem; margin-bottom: 0.6rem; color: var(--text); }
+    #fontsize-picker-list, #fontsize-picker-list-ar, #fontsize-picker-list-tr { display: grid; grid-template-columns: repeat(auto-fill, minmax(4.2rem, 1fr)); gap: 0.45rem; }
+    #fontsize-picker-card .fp-section-title { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin: 0.65rem 0 0.35rem; }
+    #fontsize-picker-card .fp-section-title:first-child { margin-top: 0; }
+    #fontsize-picker-body { overflow-y: auto; max-height: min(70vh, 28rem); -webkit-overflow-scrolling: touch; }
+    #fontsize-picker-list .fontsize-pick-item {
+      padding: 0.5rem 0.3rem; border: 1px solid var(--border); border-radius: 0.6rem;
+      cursor: pointer; text-align: center; font-size: 0.75rem; background: var(--bg); color: var(--text);
+    }
+    #fontsize-picker-list .fontsize-pick-item.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+    #fontsize-picker-close { width: 100%; }
+    #view-settings.view.active { padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)) !important; }
+    #view-settings .card { margin-bottom: 0.5rem; }
+    .bottom-nav { z-index: 100; }
+
+    .bottom-nav svg {
+      width: 1.35rem;
+      height: 1.35rem;
+    }
+
+    @media (max-width: 640px) {
+      header nav {
+        display: none;
+      }
+      .bottom-nav {
+        display: flex;
+      }
+      main {
+        padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+      }
+      #view-settings.view.active { padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px)) !important; }
+      /* build 5.58: было font-size: 1.4rem (фиксированный, без --ar-scale) —
+         на любом мобильном экране (эта медиа-граница ловит практически все
+         телефоны) это правило перебивало базовое .arabic (calc(1.55rem *
+         var(--ar-scale, 1))), т.к. у обоих селекторов одинаковая
+         специфичность и это правило идёт позже в файле. В результате
+         настройка размера арабского текста не действовала вообще нигде на
+         телефоне — в том числе на ячейках слов в «Озвучке» (.wbw-all-ar
+         тоже несёт класс .arabic). Возвращена переменная --ar-scale, база
+         уменьшена под мобильный экран, как и было задумано. */
+      .arabic {
+        font-size: calc(1.4rem * var(--ar-scale, 1));
+      }
+    }
+
+    /* Audio player mini */
+    .audio-bar {
+      display: none;
+      position: fixed;
+      bottom: 4.2rem;
+      left: 0;
+      right: 0;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      padding: 0.65rem 0.85rem 0.75rem;
+      z-index: 35;
+      flex-direction: column;
+      gap: 0.35rem;
+      max-width: 900px;
+      margin: 0 auto;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.25);
+    }
+
+    .audio-bar.visible {
+      display: flex;
+    }
+
+    @media (min-width: 641px) {
+      .audio-bar {
+        bottom: 0;
+        border-radius: 0.75rem 0.75rem 0 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 2rem);
+        max-width: 860px;
+      }
+    }
+
+    .audio-bar .player-top {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    .audio-bar .info {
+      flex: 1;
+      min-width: 0;
+      font-size: 0.85rem;
+    }
+
+    .audio-bar .info .title {
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .audio-bar .info .sub {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .audio-bar .player-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      width: 100%;
+    }
+
+    .audio-bar .btn-player {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 50%;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      position: relative;
+    }
+    /* Увеличенная невидимая область нажатия для людей с моторными затруднениями —
+       визуальный размер кнопки не меняется, но попасть по ней проще */
+    .audio-bar .player-controls .btn-player::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 2.75rem;
+      height: 2.75rem;
+      min-width: 44px;
+      min-height: 44px;
+      transform: translate(-50%, -50%);
+    }
+    .audio-bar .player-modes .btn-player.active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .audio-bar .btn-player.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0f172a;
+      width: 2.8rem;
+      height: 2.8rem;
+      font-size: 1.05rem;
+    }
+    .audio-bar .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      width: 100%;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+    .audio-bar .progress-row input[type=range] {
+      flex: 1;
+      accent-color: var(--accent);
+      height: 0.35rem;
+    }
+    .ayah.playing-ayah {
+      outline: 2px solid var(--accent);
+      background: rgba(16,185,129,0.08);
+    }
+    .card.playing-item {
+      outline: 2px solid var(--accent);
+      background: rgba(16,185,129,0.08);
+    }
+  
+    .letter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .letter-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 0.75rem 0.4rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .letter-card:hover, .letter-card.active {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .letter-card .char {
+      font-family: 'Amiri', serif;
+      font-size: 1.8rem;
+      color: var(--arabic);
+      line-height: 1.2;
+    }
+    .letter-card .name {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+    .letter-detail .ayah-translation{unicode-bidi:isolate;direction:ltr;text-align:center}.letter-detail {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .letter-detail.open { display: block; }
+    .letter-forms {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 1rem 0;
+    }
+    .letter-forms div {
+      text-align: center;
+      min-width: 3.5rem;
+    }
+    .letter-forms .fchar {
+      font-family: 'Amiri', serif;
+      font-size: 2rem;
+      color: var(--arabic);
+    }
+    .letter-forms .flabel {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+    .rule-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1rem 1.15rem;
+      margin-bottom: 0.75rem;
+    }
+    .rule-card h3 {
+      font-size: 1rem;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+    .rule-card p, .rule-card li {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+    .rule-card ul { padding-right: 1.2rem; margin-top: 0.4rem; }
+    .quiz-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .quiz-q {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    .quiz-q .arabic-q {
+      font-family: 'Amiri', serif;
+      font-size: 2.2rem;
+      display: block;
+      margin-bottom: 0.5rem;
+      color: var(--arabic);
+    }
+    .quiz-opts {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .quiz-opts button {
+      text-align: right;
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.6rem;
+      color: var(--text);
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .quiz-opts button:hover { border-color: var(--accent); }
+    .quiz-opts button.correct {
+      border-color: var(--success);
+      background: rgba(34,197,94,0.15);
+    }
+    .quiz-opts button.wrong {
+      border-color: var(--danger);
+      background: rgba(239,68,68,0.12);
+    }
+    .quiz-score {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 1rem 0;
+    }
+    .tabs-row {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .tabs-row button {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .tabs-row button.active {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .subtabs-row {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      margin: 0.6rem 0 0.75rem;
+    }
+    .subtabs-row button {
+      flex: 1;
+      min-width: 5.5rem;
+    }
+    .subtab-panel {
+      animation: fadeIn 0.2s ease;
+    }
+    .tafsir-ru {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px dashed var(--border);
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .tafsir-ru .lbl {
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+    .section-title {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      font-weight: 700;
+    }
+
+    /* Хлебные крошки внутри длинных разделов (напр. Фикх → Мазхабы → тема) */
+    .section-breadcrumb {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-bottom: 0.85rem;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+    .section-breadcrumb .bc-back {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 0.6rem;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 2.5rem;
+      min-width: 2.5rem;
+    }
+    .section-breadcrumb .bc-back:hover {
+      background: var(--bg-hover);
+    }
+    .section-breadcrumb .bc-crumbs {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      color: var(--text-muted);
+      min-width: 0;
+    }
+    .section-breadcrumb .bc-sep {
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+    .section-breadcrumb .bc-item {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      padding: 0.2rem 0.15rem;
+      cursor: pointer;
+      min-height: 1.75rem;
+    }
+    .section-breadcrumb .bc-item:hover {
+      color: var(--text);
+      text-decoration: underline;
+    }
+    .section-breadcrumb .bc-item.bc-current {
+      color: var(--text);
+      font-weight: 700;
+      cursor: default;
+      text-decoration: none;
+    }
+
+    .rule-card {
+      direction: ltr;
+      text-align: left;
+    }
+    .rule-card h3 {
+      direction: rtl;
+      text-align: right;
+      font-family: 'Amiri', 'Inter', sans-serif;
+    }
+    .rule-ar {
+      direction: rtl;
+      text-align: right;
+      font-family: 'Amiri', serif;
+      font-size: 1.05rem;
+      color: var(--arabic);
+      margin-bottom: 0.5rem;
+      line-height: 1.8;
+    }
+    .rule-ru {
+      direction: ltr;
+      text-align: left;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+    #view-learn {
+      direction: ltr;
+      text-align: left;
+    }
+    #view-learn .section-title {
+      direction: ltr;
+      text-align: center;
+    }
+    #view-learn .learn-nav {
+      direction: ltr;
+      flex-direction: row;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+    .letter-grid {
+      direction: rtl;
+    }
+    .letter-detail {
+      direction: ltr;
+      text-align: center;
+    }
+    .letter-detail .detail-ar {
+      direction: rtl;
+      font-family: 'Amiri', serif;
+    }
+    .letter-forms {
+      direction: rtl;
+      flex-direction: row;
+      justify-content: center;
+    }
+    .speak-btn {
+      margin-top: 0.75rem;
+    }
+    .mic-active {
+      border-color: var(--danger) !important;
+      color: var(--danger) !important;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      50% { opacity: 0.6; }
+    }
+
+
+    #view-learn, #learn-alphabet, #learn-rules, #learn-tajweed, #learn-alphabet, #acad-path, #view-learn {
+      direction: ltr;
+      text-align: left;
+    }
+    #view-learn .section-title, #view-learn .learn-nav {
+      direction: ltr;
+      text-align: left;
+    }
+    #view-learn .rule-ar, #view-learn .arabic, #view-learn .detail-ar {
+      direction: rtl;
+      text-align: right;
+    }
+    #view-learn .learn-nav {
+      direction: ltr;
+      flex-direction: row;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+    .letter-grid {
+      direction: rtl;
+    }
+    .letter-detail {
+      direction: rtl;
+      text-align: right;
+    }
+    .letter-forms {
+      direction: rtl;
+      flex-direction: row-reverse;
+    }
+    .rule-card {
+      direction: rtl;
+      text-align: right;
+    }
+    .rule-card ul {
+      padding-right: 0;
+      padding-left: 1.2rem;
+      list-style-position: inside;
+    }
+    #view-games .quiz-q .arabic-q {
+      direction: rtl;
+    }
+    /* keep Russian buttons LTR-friendly labels but section RTL */
+    #view-learn .btn, #view-learn button {
+      direction: ltr;
+    }
+    #view-learn .arabic, #view-learn .rule-ar, #view-learn .detail-ar,
+    #view-learn .letter-card .char, #view-learn [dir="rtl"] {
+      direction: rtl;
+    }
+    .acad-quiz-opt.correct { border-color: var(--success) !important; background: rgba(34,197,94,0.15) !important; }
+    .acad-quiz-opt.wrong { border-color: var(--danger) !important; background: rgba(239,68,68,0.12) !important; }
+    .acad-locked { opacity: 0.55; pointer-events: none; }
+    .streak-badge {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      background: rgba(16,185,129,0.15); border: 1px solid var(--accent);
+      border-radius: 2rem; padding: 0.25rem 0.7rem; font-size: 0.85rem;
+    }
+    .tajweed-ex {
+      font-family: Amiri, serif; font-size: 1.35rem; direction: rtl; text-align: right;
+      line-height: 2; margin: 0.5rem 0;
+    }
+    .tj-ghunna { color: #22c55e; }
+    .tj-madd { color: #3b82f6; }
+    .tj-qalqala { color: #f59e0b; }
+    .tj-idgham { color: #a855f7; }
+    .form-trainer-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.75rem;
+    }
+    .form-trainer-grid button { font-family: Amiri, serif; font-size: 1.6rem; padding: 0.75rem; }
+
+    .learn-nav {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+      direction: ltr;
+      flex-direction: row;
+      justify-content: flex-start;
+    }
+
+  
+    body.theme-light {
+      --bg: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-hover: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #cbd5e1;
+      --arabic: #1e293b;
+      --accent: #047857;
+      --accent-hover: #065f46;
+      --src-ayah: #047857;
+      --src-ayah-bg: rgba(16, 185, 129, 0.12);
+      --src-ayah-bd: rgba(4, 120, 87, 0.35);
+      --src-hadith: #1d4ed8;
+      --src-hadith-bg: rgba(37, 99, 235, 0.1);
+      --src-hadith-bd: rgba(29, 78, 216, 0.35);
+      --src-opinion: #b45309;
+      --src-opinion-bg: rgba(245, 158, 11, 0.12);
+      --src-opinion-bd: rgba(180, 83, 9, 0.35);
+      --src-note: #475569;
+      --src-note-bg: rgba(100, 116, 139, 0.1);
+      --src-note-bd: #cbd5e1;
+    }
+    body.theme-light header,
+    body.theme-light .bottom-nav,
+    body.theme-light .audio-bar {
+      background: rgba(248, 250, 252, 0.95);
+    }
+    body.theme-sepia {
+      --bg: #f4ecd8;
+      --bg-card: #efe4c6;
+      --bg-hover: #e6d5a8;
+      --text: #3e2723;
+      --text-muted: #6d4c41;
+      --border: #d7c4a0;
+      --arabic: #2c1810;
+      --src-ayah: #5d4037;
+      --src-ayah-bg: rgba(141, 110, 99, 0.18);
+      --src-ayah-bd: rgba(93, 64, 55, 0.4);
+      --src-hadith: #4e342e;
+      --src-hadith-bg: rgba(78, 52, 46, 0.1);
+      --src-hadith-bd: rgba(78, 52, 46, 0.35);
+      --src-opinion: #8d6e63;
+      --src-opinion-bg: rgba(141, 110, 99, 0.15);
+      --src-opinion-bd: rgba(141, 110, 99, 0.4);
+      --src-note: #6d4c41;
+      --src-note-bg: rgba(109, 76, 65, 0.1);
+      --src-note-bd: #d7c4a0;
+      --accent: #5d4037;
+      --accent-hover: #4e342e;
+    }
+    body.theory-ar-only .ayah-translation { opacity: 0.15; }
+    body.theory-ar-only.theory-ar-strict .ayah-translation { display: none !important; }
+    body.theme-sepia header,
+    body.theme-sepia .bottom-nav,
+    body.theme-sepia .audio-bar {
+      background: rgba(244, 236, 216, 0.95);
+    }
+    .ayah-translation.hidden-tr {
+      display: none;
+    }
+    .ayah-translation.reveal-hint {
+      display: block;
+      font-style: italic;
+      opacity: 0.6;
+      cursor: pointer;
+    }
+    .compare-box {
+      margin-top: 0.5rem;
+      padding: 0.6rem;
+      background: var(--bg);
+      border-radius: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .compare-box .cmp-label {
+      font-size: 0.7rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .word-chip {
+      display: inline-block;
+      margin: 0.15rem;
+      padding: 0.25rem 0.45rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.4rem;
+      font-family: Amiri, serif;
+      font-size: 1.15rem;
+      cursor: pointer;
+      direction: rtl;
+    }
+    .word-chip:hover { border-color: var(--accent); }
+
+  
+    .ayah-note {
+      margin-top: 0.5rem;
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.65rem;
+      font-size: 0.85rem;
+      min-height: 2.5rem;
+      resize: vertical;
+    }
+    .page-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.35rem;
+      padding: 0.1rem 0.4rem;
+      margin-left: 0.35rem;
+    }
+    .aotd-card {
+      background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05));
+      border: 1px solid var(--accent);
+      border-radius: 1rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      cursor: pointer;
+    }
+    .topic-chip {
+      display: inline-block;
+      padding: 0.35rem 0.75rem;
+      margin: 0.25rem;
+      border-radius: 2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .topic-chip:active, .topic-chip.active { border-color: var(--accent); color: var(--accent); }
+    .name-card .arabic { font-size: 1.5rem; color: var(--arabic); }
+
+  
+    .more-tip-wrap { grid-column: 1 / -1 !important; width: 100%; display: block; }
+    /* build 4.116: категории «Мой аккаунт» — скрыто по умолчанию, JS
+       показывает только активную категорию (см. обработчик .acc-tab-btn).
+       Класс, не id — у профиля два не подряд идущих блока (личность +
+       аватар), у обоих одинаковый класс .acc-tab-profile. */
+    .acc-tab-content { display: none; }
+    .acc-tab-content.acc-tab-active { display: block; }
+    .acc-tab-btn.acc-tab-active-btn { background: var(--accent); color: #04120c; border-color: var(--accent); }
+    .more-tip-wrap > .card { width: 100%; max-width: none; }
+    .more-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:0.5rem; }
+    .more-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:0.45rem; }
+    /* build 4.110: виджет лимитов хранилища на главном экране «Онлайн» —
+       в сетке 2/3 колонок сам виджет вставлен ДО плиток разделов, но
+       живёт в том же родителе с display:grid — без этого правила он
+       занимал бы всего одну «клетку» сетки (узкую), как обычная плитка,
+       вместо того чтобы растягиваться на всю ширину строки, как в списке.
+       Тот же приём, что уже применён для .more-tip-wrap чуть выше. */
+    #online-storage-widget { grid-column: 1 / -1 !important; width: 100%; display: block; }
+    /* build 4.74: без min-width:0 браузер иногда считал «минимальную»
+       ширину карточки по её контенту (иконка+подпись) и раздвигал именно
+       эту колонку сетки шире остальных — 1fr не гарантирует равные колонки,
+       если контент одной из них «не помещается» в свою долю. Из-за этого
+       при переключении на «Сетка 3» первая карточка иногда оказывалась
+       заметно (примерно в полтора раза) крупнее второй и третьей. */
+    .more-grid > *, .more-grid-3 > * { min-width: 0; }
+    .more-grid-3 .more-item { font-size:0.78rem; padding:0.65rem 0.35rem; }
+    .more-grid .more-item { text-align:center; padding:0.85rem 0.5rem; font-size:0.9rem; }
+    .more-item { cursor:pointer; position:relative; }
+    .more-item .mini-badge {
+      position:absolute;
+      top:-0.4rem;
+      right:-0.4rem;
+      min-width:1.15rem;
+      height:1.15rem;
+      padding:0 0.3rem;
+      border-radius:999px;
+      background:var(--danger);
+      color:#fff;
+      font-size:0.68rem;
+      font-weight:700;
+      line-height:1.15rem;
+      text-align:center;
+      box-shadow:0 0 0 2px var(--bg-card);
+      pointer-events:none;
+      z-index:2;
+    }
+    .more-grid-3 .more-item .mini-badge { top:-0.35rem; right:-0.35rem; }
+    .online-hub-item { cursor:pointer; position:relative; }
+    .online-hub-item .mini-badge {
+      position:absolute;
+      top:-0.4rem;
+      right:-0.4rem;
+      min-width:1.15rem;
+      height:1.15rem;
+      padding:0 0.3rem;
+      border-radius:999px;
+      background:var(--danger);
+      color:#fff;
+      font-size:0.68rem;
+      font-weight:700;
+      line-height:1.15rem;
+      text-align:center;
+      box-shadow:0 0 0 2px var(--bg-card);
+      pointer-events:none;
+      z-index:2;
+    }
+    .more-grid-3 .online-hub-item .mini-badge { top:-0.35rem; right:-0.35rem; }
+    .nav-mini-badge {
+      position: absolute;
+      top: 0.05rem;
+      right: 0.1rem;
+      min-width: 1.05rem;
+      height: 1.05rem;
+      padding: 0 0.28rem;
+      border-radius: 999px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 0.62rem;
+      font-weight: 700;
+      line-height: 1.05rem;
+      text-align: center;
+      pointer-events: none;
+      z-index: 5;
+      box-shadow: 0 0 0 2px var(--bg);
+    }
+    .nf-item { transition: opacity 0.15s; }
+    button.card, #view-dailyhub button.card, #view-dailyhub button.card b {
+      color: var(--text) !important;
+      background: var(--bg-card);
+    }
+    #view-dailyhub button.card .ayah-translation { color: var(--text-muted) !important; }
+    body.quran-only-mode #view-learn,
+    body.quran-only-mode #view-games { display: none !important; }
+    body.quran-only-mode .bottom-nav button[data-view="study"],
+    body.quran-only-mode header nav button[data-view="study"],
+    body.quran-only-mode .bottom-nav button[data-view="learn"],
+    body.quran-only-mode .bottom-nav button[data-view="games"],
+    body.quran-only-mode header nav button[data-view="learn"],
+    body.quran-only-mode header nav button[data-view="games"] { display: none !important; }
+    body.quran-only-mode .bottom-nav {
+      justify-content: space-around;
+      padding: 0.45rem 0.15rem calc(0.45rem + env(safe-area-inset-bottom));
+    }
+    body.quran-only-mode .bottom-nav button {
+      flex: 1 1 0;
+      max-width: none;
+      min-width: 0;
+      font-size: 0.65rem;
+      padding: 0.35rem 0.15rem;
+      overflow: visible;
+      white-space: normal;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+    .bottom-nav button {
+      overflow: visible;
+      white-space: normal;
+      line-height: 1.15;
+      max-width: 22%;
+    }
+    /* Настройки: отступ снизу чтобы нижнее меню не перекрывало */
+    #view-settings.view.active {
+      padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)) !important;
+      box-sizing: border-box;
+    }
+    body.settings-other-open #view-settings.view.active {
+      padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+    body.settings-other-open main {
+      padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+    /* Все вкладки настроек: каждая строка — колонка (подпись сверху, select снизу) —
+       select с длинным текстом (например «Последний открытый раздел») не наезжает
+       и не перекрывает подпись/описание строки на узких экранах */
+    #view-settings .set-cat .setting-row {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 0.4rem;
+      padding: 0.85rem 0;
+    }
+    #view-settings .set-cat .setting-row > span {
+      width: 100%;
+      line-height: 1.35;
+    }
+    #view-settings .set-cat .setting-row > select {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    #view-settings.view.active {
+      padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+    body.settings-other-open #view-settings.view.active {
+      padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+    .exp-detail {
+      line-height: 1.6 !important;
+      cursor: text !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-user-select: text;
+      user-select: text;
+      /* тело карточки не выглядит «кнопкой» */
+      pointer-events: auto;
+    }
+    /* Единый стиль карточек по всему сайту (как в разделе «Грехи»):
+       превью-текст перед раскрытием больше не показываем нигде. */
+    .exp-short { display: none !important; }
+    .exp-detail br + br { display: block; margin-top: 0.35rem; }
+    /* Раскрывающиеся карточки: курсор и нажатие только у зоны заголовка */
+    .card.more-expand,
+    [data-exp].card {
+      -webkit-tap-highlight-color: transparent;
+      /* На части мобильных WebView (Samsung Internet и т.п.) быстрая вставка
+         большого числа карточек через innerHTML иногда оставляет отдельные
+         строки текста непрорисованными до следующего скролла/тача —
+         классический частичный repaint-баг. Принудительно выносим карточку
+         на свой composite-слой, это заставляет движок отрисовать её целиком
+         сразу, а не полагаться на неполный частичный repaint. */
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .card.more-expand.exp-open,
+    [data-exp].card.exp-open {
+      /* зона заголовка (всё кроме .exp-detail) кликабельна — в т.ч. пустое место справа */
+      cursor: pointer;
+    }
+    .card.more-expand.exp-open .exp-detail,
+    [data-exp].card.exp-open .exp-detail {
+      cursor: text !important;
+    }
+    .card.more-expand.exp-open:hover,
+    [data-exp].card.exp-open:hover {
+      border-color: var(--border);
+    }
+    .card.more-expand .exp-detail:active,
+    [data-exp] .exp-detail:active,
+    .card.more-expand.exp-open:active {
+      /* убрать системный «flash» нажатия на теле */
+      background: inherit;
+    }
+    .exp-detail * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* «История ислама»: тело рассказа не мерцает при нажатии/попытке скопировать —
+       тот же приём, что и для .exp-detail в других разделах. */
+    .story-detail {
+      cursor: text !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+    .story-detail * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    .card[data-si]:active,
+    .card[data-si] .story-detail:active {
+      background: inherit;
+    }
+
+    /* —— Интерактивный тур «Помощь» —— */
+    #btn-site-help {
+      position: fixed;
+      z-index: 96;
+      left: 0.7rem;
+      right: auto;
+      bottom: calc(4.7rem + env(safe-area-inset-bottom, 0px));
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      font-size: 1.35rem;
+      font-weight: 800;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    body.hide-help-btn #btn-site-help { display: none !important; }
+    body.hide-ui-hints .hint,
+    body.hide-ui-hints .install-hint,
+    body.hide-ui-hints #install-banner,
+    body.hide-ui-hints #more-edit-hint,
+    body.hide-ui-hints .reveal-hint,
+    body.hide-ui-hints .flashcard .hint,
+    body.hide-ui-hints #audio-mode-tip,
+    body.hide-ui-hints .theory-intro,
+    body.hide-ui-hints .section-hint,
+    body.hide-ui-hints [data-ui-hint] {
+      display: none !important;
+    }
+    [data-tip-toggle] .tip-body {
+      cursor: text !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+    [data-tip-toggle].tip-open {
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    [data-tip-toggle].tip-open .tip-body {
+      cursor: text !important;
+    }
+    body.hide-ui-hints [data-tip-toggle] .tip-body {
+      display: none !important;
+    }
+    body.hide-ui-hints [data-tip-toggle].tip-open .tip-body,
+    body.hide-ui-hints [data-tip-toggle] .tip-body.tip-shown {
+      display: block !important;
+    }
+    /* подробности только по клику */
+    .exp-detail[hidden],
+    .les-full[hidden],
+    .exp-detail[style*="display: none"],
+    .exp-detail[style*="display:none"] {
+      display: none !important;
+    }
+    body.app-locked #btn-site-help,
+    body.tour-active #btn-site-help { display: none !important; }
+    /* build 4.109: см. комментарий у isChatScreen в showView() — обе
+       плавающие кнопки закрывали часть переписки, пока их не скрывали
+       вручную. */
+    body.chat-screen-active #btn-site-help,
+    body.chat-screen-active #device-mode-btn { display: none !important; }
+    body.mode-desktop #btn-site-help {
+      bottom: 1.25rem;
+      left: 1.25rem;
+      right: auto;
+    }
+    body.view-reader #btn-site-help { opacity: 0.75; }
+    #site-tour-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10050;
+      background: rgba(4, 8, 16, 0.8);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 4.5rem 0.75rem calc(5.5rem + env(safe-area-inset-bottom, 0px));
+      box-sizing: border-box;
+      overscroll-behavior: contain;
+    }
+    #site-tour-overlay.open { display: flex !important; }
+    #site-tour-card {
+      position: relative;
+      z-index: 10051;
+      width: 100%;
+      max-width: 28rem;
+      max-height: calc(100vh - 10rem - env(safe-area-inset-bottom, 0px));
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 0.85rem 1rem 0.75rem;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.65);
+      display: flex;
+      flex-direction: column;
+      pointer-events: auto;
+    }
+    #site-tour-card h3 {
+      margin: 0 0 0.35rem;
+      font-size: 1.05rem;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    #site-tour-card .tour-progress {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+      flex-shrink: 0;
+    }
+    #site-tour-card .tour-body {
+      font-size: 0.88rem;
+      line-height: 1.45;
+      color: var(--text);
+      white-space: pre-wrap;
+      overflow-y: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+    }
+    #site-tour-card .tour-actions {
+      display: flex !important;
+      flex-wrap: nowrap;
+      gap: 0.35rem;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--card);
+    }
+    #site-tour-card .tour-actions .btn {
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 2.55rem;
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+    body.tour-active main { pointer-events: none; }
+    body.tour-active #site-tour-overlay,
+    body.tour-active #site-tour-card,
+    body.tour-active #site-tour-card * { pointer-events: auto; }
+    body.tour-active #device-mode-btn { display: none !important; }
+    body.tour-active .bottom-nav {
+      pointer-events: none;
+      z-index: 10040;
+      /* не «просвечивать» другой цвет при overscroll */
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.35);
+    }
+    body.tour-active .bottom-nav button[data-view].tour-highlight {
+      box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--accent), 0 0 20px rgba(46, 204, 113, 0.65);
+      border-radius: 0.75rem;
+      background: var(--accent) !important;
+      color: #fff !important;
+      transform: translateY(-3px) scale(1.05);
+      position: relative;
+      z-index: 10045;
+    }
+    /* перекрытие зоны над нижним меню, чтобы не мигал фон */
+    body.tour-active #site-tour-overlay::after {
+      content: '';
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      height: calc(4.2rem + env(safe-area-inset-bottom, 0px));
+      background: rgba(4, 8, 16, 0.8);
+      pointer-events: none;
+      z-index: 10039;
+    }
+    body.tour-active #site-tour-overlay {
+      isolation: isolate;
+      touch-action: none;
+    }
+    body.tour-active {
+      overscroll-behavior: none;
+    }
+
+    /* Точечный шаг тура: подсказка «нажми сюда» — подсвеченная кнопка кликабельна поверх затемнения */
+    body.tour-active.tour-point .bottom-nav,
+    body.tour-active.tour-point #main-nav,
+    body.tour-active.tour-point header {
+      z-index: 10052;
+    }
+    body.tour-active.tour-point .bottom-nav button[data-view]:not(.tour-highlight),
+    body.tour-active.tour-point #main-nav [data-view]:not(.tour-highlight) {
+      opacity: 0.3;
+    }
+    body.tour-active.tour-point .bottom-nav button[data-view].tour-highlight,
+    body.tour-active.tour-point #main-nav [data-view].tour-highlight {
+      pointer-events: auto !important;
+      cursor: pointer;
+    }
+    body.tour-active.tour-point #site-tour-card .tour-actions .btn-primary {
+      display: none;
+    }
+    #site-tour-card .tour-point-hint {
+      font-size: 0.78rem;
+      color: var(--accent);
+      font-weight: 700;
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    #site-tour-card .tour-point-hint .arrow {
+      display: inline-block;
+      animation: tourBounce 1s infinite;
+    }
+    @keyframes tourBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(5px); }
+    }
+
+    /* Плавающая кнопка «Продолжить тур» во время свободного просмотра раздела */
+    #site-tour-continue {
+      position: fixed;
+      right: 0.75rem;
+      bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+      z-index: 10053;
+      display: none;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 0.65rem 1.05rem;
+      font-weight: 700;
+      font-size: 0.85rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      cursor: pointer;
+    }
+    #site-tour-continue.show { display: flex; }
+    body.mode-desktop #site-tour-continue { bottom: 1.25rem; right: 1.25rem; }
+    body.tour-free #btn-site-help { display: none !important; }
+
+    .settings-bottom-spacer {
+      display: block !important;
+      height: 0.75rem;
+      min-height: 0.75rem;
+      width: 100%;
+      pointer-events: none;
+    }
+    #view-settings .set-cat[data-set-panel="other"] .settings-bottom-spacer {
+      height: 0.5rem !important;
+      min-height: 0.5rem !important;
+    }
+    body.settings-other-open #view-settings.view.active {
+      padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+    #view-settings .tabs-row {
+      position: sticky;
+      top: var(--app-header-h, 3.6rem);
+      z-index: 5;
+      background: var(--bg);
+      padding: 0.35rem 0;
+    }
+    /* Подвкладки («Меню» → Списки/Порядок/Шапка/Разделы, «Прочее» → Основное/…) —
+       общее правило выше делает их sticky с тем же top, что и у главных категорий
+       (#settings-cats), из-за чего оба ряда «липнут» в одну и ту же позицию и
+       накладываются друг на друга при прокрутке. Подвкладкам sticky не нужен —
+       отключаем его именно для них (специфичность выше за счёт двух классов). */
+    #view-settings .tabs-row.subtabs-row {
+      position: static;
+      top: auto;
+    }
+
+    .more-item .more-actions { display:none; gap:0.25rem; margin-top:0.35rem; }
+    body.more-editing .more-item .more-actions { display:flex; justify-content:center; }
+    .online-hub-item .more-actions { display:none; gap:0.25rem; margin-top:0.35rem; }
+    body.online-editing .online-hub-item .more-actions { display:flex; justify-content:center; }
+    /* build 4.87: и в «Ещё», и в «Онлайн» стрелки ←↑↓→ порядка выглядели
+       неровно — левая не на одном уровне с правой, а сами кнопки съезжали
+       влево от центра карточки. Причина — они были обычным flex-рядом
+       (или смесью flex/grid с «пустыми» ячейками неточного размера),
+       собственная ширина каждой кнопки определялась её текстом/паддингом,
+       а не задавалась явно, поэтому центрирование «на глаз» плыло.
+       .dpad — общий, единый для обоих мест крест: 3×2 сетка с именованными
+       областями, кнопки — строго квадратные фиксированного размера,
+       поэтому визуально идентичны и точно симметричны независимо от того,
+       сколько их (в списке — только ↑↓, в сетке — все четыре). */
+    .more-actions.dpad {
+      grid-template-columns: 1.5rem 1.5rem 1.5rem;
+      grid-template-areas: ". up ." "left down right";
+      justify-items: center;
+      align-items: center;
+      justify-content: center;
+      gap: 0.2rem;
+    }
+    body.more-editing .more-item .more-actions.dpad,
+    body.online-editing .online-hub-item .more-actions.dpad {
+      display: grid;
+    }
+    .more-actions.dpad button {
+      width: 1.5rem;
+      height: 1.5rem;
+      padding: 0;
+      font-size: 0.72rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .more-actions.dpad [data-up], .more-actions.dpad [data-oh-up] { grid-area: up; }
+    .more-actions.dpad [data-down], .more-actions.dpad [data-oh-down] { grid-area: down; }
+    .more-actions.dpad [data-left], .more-actions.dpad [data-oh-left] { grid-area: left; }
+    .more-actions.dpad [data-right], .more-actions.dpad [data-oh-right] { grid-area: right; }
+    .inline-detail { margin:0.5rem 0 0.75rem; padding:0.75rem; background:var(--bg); border-radius:0.75rem; border:1px solid var(--accent); white-space:pre-line; }
+    
+    .install-hint, #install-banner { max-width:100%; box-sizing:border-box; word-break:break-word; }
+    
+    /* Режим телефона / компьютера */
+    body.mode-desktop {
+      --content-max: min(1400px, 96vw);
+    }
+    body.mode-desktop .app-shell,
+    body.mode-desktop #app,
+    body.mode-desktop main,
+    body.mode-desktop .view.active {
+      max-width: var(--content-max, 1400px);
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      padding-left: 1.25rem;
+      padding-right: 1.25rem;
+      box-sizing: border-box;
+    }
+    body.mode-desktop header .header-inner {
+      max-width: var(--content-max, 1400px);
+      width: 100%;
+      margin: 0 auto;
+      padding-left: 1.25rem;
+      padding-right: 1.25rem;
+      box-sizing: border-box;
+    }
+    body.mode-desktop .card {
+      max-width: 100%;
+    }
+    body.mode-desktop .bottom-nav {
+      max-width: var(--content-max, 1100px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+    }
+    body.mode-desktop .arabic {
+      font-size: 1.45em;
+    }
+    /* С телефона в режиме ПК: шире сетка «Ещё», 2–3 колонки карточек */
+    body.mode-desktop .more-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 0.55rem;
+    }
+    body.mode-desktop .more-grid-3 {
+      display: grid !important;
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 0.5rem;
+    }
+    body.mode-desktop .card {
+      max-width: none;
+    }
+    body.mode-desktop .section-title {
+      font-size: 1.35rem;
+    }
+    body.mode-desktop #device-mode-btn {
+      font-size: 0.85rem;
+      padding: 0.45rem 0.75rem;
+    }
+    body.mode-phone .bottom-nav {
+      /* as is */
+    }
+    #device-mode-btn {
+      position: fixed;
+      bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+      right: 0.55rem;
+      z-index: 9999;
+      font-size: 0.72rem;
+      padding: 0.35rem 0.55rem;
+      border-radius: 999px;
+      opacity: 0.9;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      pointer-events: auto;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #device-mode-btn:active, #device-mode-btn:hover {
+      opacity: 1;
+    }
+    /* Не мешать чтению: в reader чуть прозрачнее и ниже */
+    body.view-reader #device-mode-btn {
+      opacity: 0.4;
+      bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* build 4.78: «Мой аккаунт → Переписки» — скрыть шапку и/или нижнюю
+       панель конкретно на экранах переписки (общий чат/ЛС/группа), чтобы
+       под сообщения оставалось больше места. Шапка — обычный поток (sticky,
+       не fixed), её высота ничем не компенсируется — просто освобождается
+       при скрытии. У нижней панели — наоборот, position:fixed, и main
+       резервирует под неё отступ снизу (padding-bottom); без сброса этого
+       отступа при скрытии панели внизу просто осталась бы пустая полоса. */
+    body.chat-hide-header header { display: none !important; }
+    body.chat-hide-bottomnav .bottom-nav { display: none !important; }
+    body.chat-hide-bottomnav main { padding-bottom: env(safe-area-inset-bottom, 0px) !important; }
+    /* build 4.83: скрытие шапки/панели реально освобождало место на экране,
+       но сама лента сообщений (#pchat-list/#dm-list/#grpc-list) держала
+       фиксированную высоту в vh (55/55/50), никак не зная об этом — в
+       освободившемся месте просто оставалась пустая полоса, а не место под
+       сообщения. Плюс отдельно — .view.active всегда добавляет свой
+       нижний отступ (~2.4rem), не связанный с нижней панелью напрямую, но
+       на глаз воспринимающийся как «тот же лишний сдвиг». Теперь высота
+       ленты и этот отступ подстраиваются под то, что реально скрыто. */
+    body.chat-hide-bottomnav #view-publicchat.view.active,
+    body.chat-hide-bottomnav #view-dm.view.active,
+    body.chat-hide-bottomnav #view-groupchat.view.active {
+      padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    }
+    /* build 4.85: настоящая причина «наложения» ленты сообщений на панель
+       ввода при скрытой нижней панели — не высота ленты сама по себе (та
+       уже была увеличена в 4.83), а то, что .chat-bottombar (панель ввода)
+       держит sticky-отступ от низа в calc(4.5rem + safe-area) — этот отступ
+       жёстко зарезервирован под нижнюю панель навигации и не знал, что она
+       вообще может быть скрыта. Без сброса панель всё ещё «плавала» на
+       4.5rem выше настоящего низа экрана, будто нижняя панель по-прежнему
+       там — а увеличенная лента сообщений тем временем росла в реально
+       свободное место позади неё, отсюда видимое наложение текста на
+       панель ввода и пустые зоны при скролле в начало/конец переписки. */
+    body.chat-hide-bottomnav .chat-bottombar {
+      bottom: env(safe-area-inset-bottom, 0px) !important;
+    }
+    body.chat-hide-header #pchat-list, body.chat-hide-header #dm-list,
+    body.chat-hide-bottomnav #pchat-list, body.chat-hide-bottomnav #dm-list {
+      max-height: 66vh !important;
+    }
+    body.chat-hide-header #grpc-list, body.chat-hide-bottomnav #grpc-list {
+      max-height: 61vh !important;
+    }
+    body.chat-hide-header.chat-hide-bottomnav #pchat-list, body.chat-hide-header.chat-hide-bottomnav #dm-list {
+      max-height: 78vh !important;
+    }
+    body.chat-hide-header.chat-hide-bottomnav #grpc-list {
+      max-height: 73vh !important;
+    }
+
+    
+
+    /* Подкатегории: ниже категорий, отступ, линия слева */
+    
+    .tabs-row .btn.btn-primary {
+      box-shadow: 0 0 0 2px var(--accent);
+      font-weight: 600;
+    }
+
+    
+    .tabs-row .btn {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+    .tabs-row .btn.btn-primary {
+      /* keep same box model as non-primary */
+      border-width: 1px;
+    }
+
+    .subcat-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin: 0.15rem 0 0.85rem 0.65rem;
+      padding-left: 0.55rem;
+      border-left: 2px solid var(--accent);
+      align-items: center;
+    }
+    .subcat-label {
+      margin: 0.6rem 0 0.1rem 0.65rem;
+      padding-top: 0.5rem;
+      border-top: 1px dashed var(--border);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+    .subcat-row .btn {
+      font-size: 0.8rem !important;
+      padding: 0.28rem 0.55rem !important;
+      opacity: 0.95;
+    }
+
+    body.theme-night, body.night-read {
+      --bg: #1c1917;
+      --bg-card: #292524;
+      --bg-elevated: #44403c;
+      --text: #e7e5e4;
+      --text-muted: #a8a29e;
+      --border: #57534e;
+      --accent: #d6b27c;
+      --arabic: #f5e6c8;
+      --src-ayah: #e8c48a;
+      --src-ayah-bg: rgba(214, 178, 124, 0.16);
+      --src-ayah-bd: rgba(214, 178, 124, 0.4);
+      --src-hadith: #c4b5a0;
+      --src-hadith-bg: rgba(168, 162, 158, 0.14);
+      --src-hadith-bd: rgba(168, 162, 158, 0.35);
+      --src-opinion: #fbbf24;
+      --src-opinion-bg: rgba(245, 158, 11, 0.14);
+      --src-opinion-bd: rgba(251, 191, 36, 0.4);
+      --src-note: #a8a29e;
+      --src-note-bg: rgba(168, 162, 158, 0.12);
+      --src-note-bd: #57534e;
+    }
+    body.theme-night header,
+    body.theme-night .bottom-nav,
+    body.theme-night .audio-bar,
+    body.night-read .bottom-nav {
+      background: rgba(28, 25, 23, 0.97);
+    }
+    /* Монохром: только серые, без цветного акцента */
+    body.theme-mono {
+      --bg: #111111;
+      --bg-card: #1a1a1a;
+      --bg-elevated: #242424;
+      --text: #f0f0f0;
+      --text-muted: #9a9a9a;
+      --border: #333333;
+      --accent: #d0d0d0;
+      --arabic: #ffffff;
+      --src-ayah: #e8e8e8;
+      --src-ayah-bg: rgba(255, 255, 255, 0.08);
+      --src-ayah-bd: rgba(208, 208, 208, 0.4);
+      --src-hadith: #c8c8c8;
+      --src-hadith-bg: rgba(255, 255, 255, 0.06);
+      --src-hadith-bd: rgba(154, 154, 154, 0.4);
+      --src-opinion: #f0f0f0;
+      --src-opinion-bg: rgba(255, 255, 255, 0.1);
+      --src-opinion-bd: rgba(240, 240, 240, 0.35);
+      --src-note: #9a9a9a;
+      --src-note-bg: rgba(154, 154, 154, 0.1);
+      --src-note-bd: #333333;
+    }
+    body.theme-mono header,
+    body.theme-mono .bottom-nav,
+    body.theme-mono .audio-bar {
+      background: rgba(17, 17, 17, 0.97);
+    }
+    /* OLED: почти чёрный фон, экономия на AMOLED */
+    body.theme-oled {
+      --bg: #000000;
+      --bg-card: #0a0a0a;
+      --bg-elevated: #141414;
+      --text: #e8e8e8;
+      --text-muted: #888888;
+      --border: #222222;
+      --accent: #4ade80;
+      --arabic: #fafafa;
+      --src-ayah: #4ade80;
+      --src-ayah-bg: rgba(74, 222, 128, 0.12);
+      --src-ayah-bd: rgba(74, 222, 128, 0.4);
+      --src-hadith: #7dd3fc;
+      --src-hadith-bg: rgba(56, 189, 248, 0.12);
+      --src-hadith-bd: rgba(125, 211, 252, 0.4);
+      --src-opinion: #fbbf24;
+      --src-opinion-bg: rgba(251, 191, 36, 0.12);
+      --src-opinion-bd: rgba(251, 191, 36, 0.4);
+      --src-note: #a3a3a3;
+      --src-note-bg: rgba(136, 136, 136, 0.12);
+      --src-note-bd: #222222;
+    }
+    body.theme-oled header,
+    body.theme-oled .bottom-nav,
+    body.theme-oled .audio-bar {
+      background: rgba(0, 0, 0, 0.98);
+    }
+    /* Океан */
+    body.theme-ocean {
+      --bg: #0b1220;
+      --bg-card: #132037;
+      --bg-elevated: #1a2d4d;
+      --text: #e2eaf6;
+      --text-muted: #8ba3c7;
+      --border: #243b5c;
+      --accent: #38bdf8;
+      --arabic: #e0f2fe;
+      --src-ayah: #5eead4;
+      --src-ayah-bg: rgba(45, 212, 191, 0.12);
+      --src-ayah-bd: rgba(94, 234, 212, 0.4);
+      --src-hadith: #7dd3fc;
+      --src-hadith-bg: rgba(56, 189, 248, 0.14);
+      --src-hadith-bd: rgba(125, 211, 252, 0.45);
+      --src-opinion: #fcd34d;
+      --src-opinion-bg: rgba(252, 211, 77, 0.12);
+      --src-opinion-bd: rgba(252, 211, 77, 0.4);
+      --src-note: #8ba3c7;
+      --src-note-bg: rgba(139, 163, 199, 0.12);
+      --src-note-bd: #243b5c;
+    }
+    body.theme-ocean header,
+    body.theme-ocean .bottom-nav,
+    body.theme-ocean .audio-bar {
+      background: rgba(11, 18, 32, 0.96);
+    }
+    /* Лес */
+    body.theme-forest {
+      --bg: #0f1a14;
+      --bg-card: #17241c;
+      --bg-elevated: #1f3228;
+      --text: #e4efe8;
+      --text-muted: #8fad9c;
+      --border: #2a4034;
+      --accent: #4ade80;
+      --arabic: #ecfdf5;
+      --src-ayah: #86efac;
+      --src-ayah-bg: rgba(74, 222, 128, 0.14);
+      --src-ayah-bd: rgba(134, 239, 172, 0.4);
+      --src-hadith: #a7f3d0;
+      --src-hadith-bg: rgba(52, 211, 153, 0.12);
+      --src-hadith-bd: rgba(167, 243, 208, 0.35);
+      --src-opinion: #fde68a;
+      --src-opinion-bg: rgba(253, 230, 138, 0.12);
+      --src-opinion-bd: rgba(253, 230, 138, 0.4);
+      --src-note: #8fad9c;
+      --src-note-bg: rgba(143, 173, 156, 0.12);
+      --src-note-bd: #2a4034;
+    }
+    body.theme-forest header,
+    body.theme-forest .bottom-nav,
+    body.theme-forest .audio-bar {
+      background: rgba(15, 26, 20, 0.96);
+    }
+    /* Бумага — удобно днём */
+    body.theme-paper {
+      --bg: #f7f3ea;
+      --bg-card: #fffdf7;
+      --bg-elevated: #efe8d8;
+      --text: #2b2118;
+      --text-muted: #7a6a58;
+      --border: #ddd2bc;
+      --accent: #b45309;
+      --arabic: #1c1410;
+      --src-ayah: #166534;
+      --src-ayah-bg: rgba(22, 101, 52, 0.1);
+      --src-ayah-bd: rgba(22, 101, 52, 0.35);
+      --src-hadith: #1e40af;
+      --src-hadith-bg: rgba(30, 64, 175, 0.1);
+      --src-hadith-bd: rgba(30, 64, 175, 0.3);
+      --src-opinion: #92400e;
+      --src-opinion-bg: rgba(180, 83, 9, 0.12);
+      --src-opinion-bd: rgba(146, 64, 14, 0.35);
+      --src-note: #6b5a4a;
+      --src-note-bg: rgba(122, 106, 88, 0.1);
+      --src-note-bd: #ddd2bc;
+    }
+    body.theme-paper header,
+    body.theme-paper .bottom-nav,
+    body.theme-paper .audio-bar {
+      background: rgba(247, 243, 234, 0.96);
+    }
+    /* Контраст */
+    body.theme-contrast {
+      --bg: #000000;
+      --bg-card: #111111;
+      --bg-elevated: #1a1a1a;
+      --text: #ffffff;
+      --text-muted: #c0c0c0;
+      --border: #ffffff;
+      --accent: #ffff00;
+      --arabic: #ffffff;
+      --src-ayah: #ffff00;
+      --src-ayah-bg: rgba(255, 255, 0, 0.12);
+      --src-ayah-bd: #ffff00;
+      --src-hadith: #00ffff;
+      --src-hadith-bg: rgba(0, 255, 255, 0.12);
+      --src-hadith-bd: #00ffff;
+      --src-opinion: #ff9900;
+      --src-opinion-bg: rgba(255, 153, 0, 0.15);
+      --src-opinion-bd: #ff9900;
+      --src-note: #ffffff;
+      --src-note-bg: rgba(255, 255, 255, 0.08);
+      --src-note-bd: #ffffff;
+    }
+    body.theme-contrast header,
+    body.theme-contrast .bottom-nav,
+    body.theme-contrast .audio-bar {
+      background: #000;
+      border-color: #fff;
+    }
+    /* Сланцевая / midnight */
+    body.theme-slate {
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-elevated: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #475569;
+      --accent: #a78bfa;
+      --arabic: #f8fafc;
+      --src-ayah: #c4b5fd;
+      --src-ayah-bg: rgba(167, 139, 250, 0.16);
+      --src-ayah-bd: rgba(196, 181, 253, 0.4);
+      --src-hadith: #93c5fd;
+      --src-hadith-bg: rgba(96, 165, 250, 0.14);
+      --src-hadith-bd: rgba(147, 197, 253, 0.4);
+      --src-opinion: #fcd34d;
+      --src-opinion-bg: rgba(252, 211, 77, 0.12);
+      --src-opinion-bd: rgba(252, 211, 77, 0.4);
+      --src-note: #94a3b8;
+      --src-note-bg: rgba(148, 163, 184, 0.12);
+      --src-note-bd: #475569;
+    }
+    body.theme-slate header,
+    body.theme-slate .bottom-nav,
+    body.theme-slate .audio-bar {
+      background: rgba(15, 23, 42, 0.96);
+    }
+    /* Мягкая серая (глаза) */
+    body.theme-soft {
+      --bg: #e8eaed;
+      --bg-card: #f5f6f8;
+      --bg-elevated: #dde0e5;
+      --text: #202124;
+      --text-muted: #5f6368;
+      --border: #c5c9d0;
+      --accent: #174ea6;
+      --accent-hover: #103b82;
+      --arabic: #202124;
+      --src-ayah: #0f766e;
+      --src-ayah-bg: rgba(13, 148, 136, 0.12);
+      --src-ayah-bd: rgba(15, 118, 110, 0.35);
+      --src-hadith: #1d4ed8;
+      --src-hadith-bg: rgba(26, 115, 232, 0.1);
+      --src-hadith-bd: rgba(29, 78, 216, 0.35);
+      --src-opinion: #b45309;
+      --src-opinion-bg: rgba(245, 158, 11, 0.12);
+      --src-opinion-bd: rgba(180, 83, 9, 0.35);
+      --src-note: #5f6368;
+      --src-note-bg: rgba(95, 99, 104, 0.1);
+      --src-note-bd: #c5c9d0;
+    }
+    body.theme-soft header,
+    body.theme-soft .bottom-nav,
+    body.theme-soft .audio-bar {
+      background: rgba(232, 234, 237, 0.96);
+    }
+    /* Янтарная тёплая */
+    body.theme-amber {
+      --bg: #1a1208;
+      --bg-card: #2a1c0e;
+      --bg-elevated: #3d2a16;
+      --text: #fef3c7;
+      --text-muted: #d6a15c;
+      --border: #78350f;
+      --accent: #f59e0b;
+      --arabic: #fef3c7;
+      --src-ayah: #fcd34d;
+      --src-ayah-bg: rgba(245, 158, 11, 0.16);
+      --src-ayah-bd: rgba(252, 211, 77, 0.4);
+      --src-hadith: #fdba74;
+      --src-hadith-bg: rgba(253, 186, 116, 0.14);
+      --src-hadith-bd: rgba(253, 186, 116, 0.4);
+      --src-opinion: #fde68a;
+      --src-opinion-bg: rgba(253, 230, 138, 0.14);
+      --src-opinion-bd: rgba(253, 230, 138, 0.4);
+      --src-note: #d97706;
+      --src-note-bg: rgba(185, 83, 9, 0.15);
+      --src-note-bd: #78350f;
+    }
+    body.theme-amber header,
+    body.theme-amber .bottom-nav,
+    body.theme-amber .audio-bar {
+      background: rgba(26, 18, 8, 0.96);
+    }
+    /* Роза — светлая тёплая */
+    body.theme-rose {
+      --bg: #fdf2f4;
+      --bg-card: #fff7f8;
+      --bg-elevated: #fbe4e8;
+      --text: #431419;
+      --text-muted: #8a5a60;
+      --border: #f3d0d6;
+      --accent: #be123c;
+      --accent-hover: #9f1239;
+      --arabic: #3a0f14;
+      --src-ayah: #9f1239;
+      --src-ayah-bg: rgba(190, 18, 60, 0.1);
+      --src-ayah-bd: rgba(159, 18, 57, 0.35);
+      --src-hadith: #9d174d;
+      --src-hadith-bg: rgba(157, 23, 77, 0.1);
+      --src-hadith-bd: rgba(157, 23, 77, 0.35);
+      --src-opinion: #9a3412;
+      --src-opinion-bg: rgba(154, 52, 18, 0.1);
+      --src-opinion-bd: rgba(154, 52, 18, 0.35);
+      --src-note: #8a5a60;
+      --src-note-bg: rgba(138, 90, 96, 0.1);
+      --src-note-bd: #f3d0d6;
+    }
+    body.theme-rose header,
+    body.theme-rose .bottom-nav,
+    body.theme-rose .audio-bar {
+      background: rgba(253, 242, 244, 0.96);
+    }
+    /* Лаванда — светлая фиолетовая */
+    body.theme-lavender {
+      --bg: #f6f3ff;
+      --bg-card: #ffffff;
+      --bg-elevated: #ede7ff;
+      --text: #2e1065;
+      --text-muted: #6d5a9e;
+      --border: #ddd3fb;
+      --accent: #6d28d9;
+      --accent-hover: #5b21b6;
+      --arabic: #25073d;
+      --src-ayah: #6d28d9;
+      --src-ayah-bg: rgba(109, 40, 217, 0.1);
+      --src-ayah-bd: rgba(109, 40, 217, 0.35);
+      --src-hadith: #7e22ce;
+      --src-hadith-bg: rgba(126, 34, 206, 0.1);
+      --src-hadith-bd: rgba(126, 34, 206, 0.35);
+      --src-opinion: #a16207;
+      --src-opinion-bg: rgba(161, 98, 7, 0.1);
+      --src-opinion-bd: rgba(161, 98, 7, 0.35);
+      --src-note: #6d5a9e;
+      --src-note-bg: rgba(109, 90, 158, 0.1);
+      --src-note-bd: #ddd3fb;
+    }
+    body.theme-lavender header,
+    body.theme-lavender .bottom-nav,
+    body.theme-lavender .audio-bar {
+      background: rgba(246, 243, 255, 0.96);
+    }
+    /* Индиго — тёмная сине-фиолетовая */
+    body.theme-indigo {
+      --bg: #181433;
+      --bg-card: #242049;
+      --bg-elevated: #302a5e;
+      --text: #e6e3ff;
+      --text-muted: #a79ee0;
+      --border: #3b336e;
+      --accent: #a78bfa;
+      --accent-hover: #8b6ef0;
+      --arabic: #f3f0ff;
+      --src-ayah: #c4b5fd;
+      --src-ayah-bg: rgba(167, 139, 250, 0.14);
+      --src-ayah-bd: rgba(196, 181, 253, 0.4);
+      --src-hadith: #93c5fd;
+      --src-hadith-bg: rgba(147, 197, 253, 0.12);
+      --src-hadith-bd: rgba(147, 197, 253, 0.4);
+      --src-opinion: #fcd34d;
+      --src-opinion-bg: rgba(252, 211, 77, 0.12);
+      --src-opinion-bd: rgba(252, 211, 77, 0.4);
+      --src-note: #a79ee0;
+      --src-note-bg: rgba(167, 158, 224, 0.12);
+      --src-note-bd: #3b336e;
+    }
+    body.theme-indigo header,
+    body.theme-indigo .bottom-nav,
+    body.theme-indigo .audio-bar {
+      background: rgba(24, 20, 51, 0.97);
+    }
+    /* Мята — светлая зелёная */
+    body.theme-mint {
+      --bg: #ecfdf5;
+      --bg-card: #ffffff;
+      --bg-elevated: #d1fae5;
+      --text: #053b2c;
+      --text-muted: #3f7a63;
+      --border: #bbf0d8;
+      --accent: #047857;
+      --accent-hover: #065f46;
+      --arabic: #042f24;
+      --src-ayah: #047857;
+      --src-ayah-bg: rgba(4, 120, 87, 0.1);
+      --src-ayah-bd: rgba(4, 120, 87, 0.35);
+      --src-hadith: #1d4ed8;
+      --src-hadith-bg: rgba(29, 78, 216, 0.1);
+      --src-hadith-bd: rgba(29, 78, 216, 0.35);
+      --src-opinion: #b45309;
+      --src-opinion-bg: rgba(180, 83, 9, 0.1);
+      --src-opinion-bd: rgba(180, 83, 9, 0.35);
+      --src-note: #3f7a63;
+      --src-note-bg: rgba(63, 122, 99, 0.1);
+      --src-note-bd: #bbf0d8;
+    }
+    body.theme-mint header,
+    body.theme-mint .bottom-nav,
+    body.theme-mint .audio-bar {
+      background: rgba(236, 253, 245, 0.96);
+    }
+
+    
+    .font-pick-wrap { margin-top: 0.35rem; width: 100%; }
+    .font-pick-toggle {
+      width: 100%; text-align: left; padding: 0.55rem 0.75rem;
+      border: 1px solid var(--border); border-radius: 0.5rem;
+      background: var(--bg-card); color: var(--text); cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.95rem;
+    }
+    .font-pick-list.collapsed { display: none !important; }
+
+    .morph-word {
+      cursor: pointer;
+      border-bottom: 1.5px dotted var(--accent);
+      transition: background 0.15s;
+      border-radius: 0.2rem;
+      padding: 0 0.05rem;
+    }
+    .morph-word:active, .morph-word.active {
+      background: rgba(16, 185, 129, 0.22);
+      border-bottom-style: solid;
+    }
+    .morph-card {
+      margin-top: 0.6rem;
+      padding: 0.7rem 0.85rem;
+      background: var(--bg);
+      border: 1px solid var(--accent);
+      border-radius: 0.7rem;
+    }
+    .morph-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+    .ach-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.65rem;
+      margin-top: 0.75rem;
+    }
+    .ach-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 0.9rem 0.75rem;
+      text-align: center;
+      position: relative;
+      transition: border-color 0.15s, opacity 0.15s;
+    }
+    .ach-card.locked { opacity: 0.55; filter: grayscale(0.35); }
+    .ach-card.earned {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(16,185,129,0.25);
+    }
+    .ach-icon { font-size: 1.85rem; line-height: 1.2; margin-bottom: 0.35rem; }
+    .ach-title { font-weight: 700; font-size: 0.88rem; margin-bottom: 0.25rem; }
+    .ach-how { font-size: 0.75rem; color: var(--text-muted); line-height: 1.35; }
+    .ach-date { font-size: 0.7rem; color: var(--accent); margin-top: 0.4rem; font-weight: 600; }
+    .ach-cat-title { font-size: 0.95rem; font-weight: 700; margin: 1.1rem 0 0.35rem; color: var(--text); }
+    .ach-summary { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .ach-summary .stat-card { flex: 1 1 120px; }
+    body.hide-achievements .more-item[data-view="achievements"],
+    body.hide-achievements [data-goto="achievements"] { display: none !important; }
+
+    #hadith-full-overlay {
+      position: fixed; inset: 0; z-index: 10070;
+      background: rgba(4, 8, 16, 0.78);
+      display: none; align-items: flex-end; justify-content: center;
+      padding: 0.75rem; box-sizing: border-box;
+    }
+    #hadith-full-overlay.open { display: flex !important; }
+    #hadith-full-card {
+      width: 100%; max-width: 28rem;
+      max-height: calc(100vh - 5rem - env(safe-area-inset-bottom, 0px));
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 1rem; padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -12px 40px rgba(0,0,0,0.55);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    #hadith-full-card h3 { font-size: 1rem; margin: 0 0 0.35rem; color: var(--accent); flex-shrink: 0; }
+    #hadith-full-body { overflow-y: auto; flex: 1 1 auto; min-height: 0; -webkit-overflow-scrolling: touch; }
+    #hadith-full-card .hadith-full-actions {
+      display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.65rem; padding-top: 0.55rem;
+      border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    #hadith-full-card .hadith-full-actions .btn { flex: 1 1 auto; min-height: 2.5rem; }
+    button.src-chip.hadith, .src-chip.hadith[data-hadith-key] { cursor: pointer; }
