@@ -2085,6 +2085,46 @@
       background: var(--bg-card);
     }
     #view-dailyhub button.card .ayah-translation { color: var(--text-muted) !important; }
+    /* build 5.73: «Спокойный режим» чтения — по просьбе пользователя такого
+       режима раньше не было вообще (только тёмная тема night-read и общий
+       quran-only-mode, ни один не прячет шапку/навигацию). Прячем всё,
+       кроме самого текста аятов, приглушаем фон, оставляем только одну
+       плавающую кнопку выхода — она всегда на экране, чтобы не запереть
+       пользователя без выхода. */
+    body.quiet-reading header,
+    body.quiet-reading .bottom-nav,
+    body.quiet-reading .reader-actions,
+    body.quiet-reading #reader-audio-controls,
+    body.quiet-reading .ayah-actions,
+    body.quiet-reading .morph-level-badge,
+    body.quiet-reading .morph-hint,
+    body.quiet-reading #btn-site-help { display: none !important; }
+    body.quiet-reading #view-reader { padding-bottom: 1rem; }
+    body.quiet-reading .reader-header { border-bottom: none; margin-bottom: 0.5rem; }
+    body.quiet-reading .card {
+      background: color-mix(in srgb, var(--bg-card) 92%, black 8%);
+      border-color: transparent;
+      box-shadow: none;
+    }
+    #quiet-read-exit {
+      position: fixed;
+      right: 1rem;
+      bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+      z-index: 300;
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-size: 1.1rem;
+      box-shadow: var(--shadow-lg);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    body.quiet-reading #quiet-read-exit { display: flex; }
     body.quran-only-mode #view-learn,
     body.quran-only-mode #view-games { display: none !important; }
     body.quran-only-mode .bottom-nav button[data-view="study"],

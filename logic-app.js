@@ -12175,6 +12175,29 @@ bKk:
       let θ = Math.atan2(y, x) * 180 / Math.PI;
       return ((θ % 360) + 360) % 360;
     }
+    // build 5.74: точка на сфере на заданном азимуте и расстоянии от старта —
+    // используется для короткой стрелки-направления на карте киблы (не для
+    // линии до самой Мекки: на плоской проекции карты прямая линия через
+    // тысячи км была бы геометрически неверной для истинного азимута).
+    function destinationPoint(lat, lon, bearingDeg, distanceMeters) {
+      const R = 6371000;
+      const δ = distanceMeters / R;
+      const θ = bearingDeg * Math.PI / 180;
+      const φ1 = lat * Math.PI / 180;
+      const λ1 = lon * Math.PI / 180;
+      const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ));
+      const λ2 = λ1 + Math.atan2(Math.sin(θ) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2));
+      return { lat: φ2 * 180 / Math.PI, lon: λ2 * 180 / Math.PI };
+    }
+    // build 5.74: расстояние по прямой между двумя точками на сфере (метры) —
+    // для сортировки найденных мечетей/намазхана по удалённости от пользователя.
+    function haversineDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const toRad = d => d * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
 
     // Часовые пояса по стране (WebView часто даёт UTC — не опираемся только на getTimezoneOffset)
 
@@ -12862,7 +12885,7 @@ let body = '';
                       '</div>' +
                       '<div id="pt-prayer-countdown" data-until="' + info.whenDate.getTime() + '" style="color:#fff;font-size:2.1rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:0.03em;margin-top:0.2rem;text-shadow:0 1px 3px rgba(0,0,0,0.15)">' + formatCountdownHMS(info.diffMs) + '</div>' +
                       (frac2 != null ? '<div style="height:5px;background:rgba(255,255,255,0.28);border-radius:3px;margin-top:0.55rem;overflow:hidden"><div id="pt-prayer-progress" style="height:100%;width:' + Math.round(frac2*100) + '%;background:#fff;border-radius:3px;transition:width 0.6s linear"></div></div>' : '') +
-                      (selKey ? '<div style="color:rgba(255,255,255,0.75);font-size:0.72rem;margin-top:0.4rem">' + (kk2 ? '↻ Автоматты режимге қайту үшін төмендегі уақытты қайта басыңыз' : '↻ Нажмите на выбранное время в списке ниже ещё раз, чтобы вернуться к ближайшему') + '</div>' : '') +
+                      (selKey ? '<div data-reset-prayer-pt="1" style="color:rgba(255,255,255,0.9);font-size:0.72rem;margin-top:0.4rem;text-decoration:underline;cursor:pointer">' + (kk2 ? '↻ Автоматты режимге қайту (жақындағыға)' : '↻ Вернуться к ближайшему намазу') + '</div>' : '') +
                       '</div>';
                   }
                 } catch(e) {}
@@ -12897,8 +12920,40 @@ let body = '';
                     '</div>' +
                     '<div style="position:absolute;left:50%;top:50%;width:10px;height:10px;background:var(--accent);border-radius:50%;transform:translate(-50%,-50%)"></div></div>' +
                     '<p class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin:0.35rem 0 0">'+qiblaExplain+'</p>' +
-                    '<button type="button" class="btn btn-sm" id="pt-compass" style="margin-top:0.5rem">'+compassBtnLabel+'</button>' +
-                    '<div id="qibla-status" class="ayah-translation" style="margin-top:0.35rem;font-size:calc(0.8rem * var(--ru-scale, 1))">'+compassStatusLabel+'</div></div>';
+                    '<div style="display:flex;gap:0.4rem;justify-content:center;flex-wrap:wrap;margin-top:0.5rem">' +
+                    '<button type="button" class="btn btn-sm" id="pt-compass">'+compassBtnLabel+'</button>' +
+                    '<button type="button" class="btn btn-sm" id="pt-qibla-map-toggle">🗺️ '+(kk?'Картада көрсету':'Показать на карте')+'</button>' +
+                    '<button type="button" class="btn btn-sm" id="pt-qibla-help-toggle">❓ '+(kk?'Қалай қолдану керек':'Как этим пользоваться')+'</button>' +
+                    '</div>' +
+                    '<div id="qibla-status" class="ayah-translation" style="margin-top:0.35rem;font-size:calc(0.8rem * var(--ru-scale, 1))">'+compassStatusLabel+'</div>' +
+                    // build 5.74: карта-подсказка направления — по требованию пользователя,
+                    // чтобы можно было запомнить, куда поворачиваться, глядя на реальные
+                    // ориентиры местности (дома, улицы), а не только держа телефон плашмя
+                    // для компаса. Стрелка на карте — короткий отрезок в ТОЧНО том же
+                    // азимуте (q), что и стрелка компаса, от текущей точки пользователя —
+                    // это технически корректный способ показать «куда идти сейчас»
+                    // (в отличие от прямой линии через полкарты до Мекки, которая на плоской
+                    // проекции была бы геометрически неверной на таком расстоянии).
+                    '<div id="qibla-map-wrap" style="display:none;margin-top:0.6rem">' +
+                    '<div id="qibla-map" style="width:100%;height:220px;border-radius:0.6rem;overflow:hidden;border:1px solid var(--border)"></div>' +
+                    '<p class="ayah-translation" style="font-size:calc(0.75rem * var(--ru-scale, 1));margin-top:0.35rem">'+(kk?'Зелёный сызық — қазіргі жеріңізден құбылаға дәл бағыт. Осы бағытта не тұрғанын (үй, көше) есте сақтаңыз — солай қарай бұрылсаңыз болды.':'Зелёная линия — точное направление на киблу от вашего текущего места. Запомните, что находится в этом направлении (дом, улица) — и сможете поворачиваться туда без компаса.')+'</p>' +
+                    '</div>' +
+                    '<div id="qibla-help-wrap" style="display:none;margin-top:0.6rem;text-align:'+(kk?'left':'left')+';background:var(--bg);border-radius:0.6rem;padding:0.65rem 0.8rem;font-size:calc(0.82rem * var(--ru-scale, 1))">' +
+                    (kk
+                      ? '<b>Компас:</b> телефонды жерге қарай жалпақ ұстаңыз (үстел үстіндегідей). 🕋 белгісі бар жасыл көрсеткі экранның үстіне қараған кезде — сіз құбылаға қарап тұрсыз.<br><br><b>Карта:</b> қазіргі орныңыздан шыққан жасыл сызық нақ құбыла бағытын көрсетеді — картадағы көшелерге/үйлерге қарап, сол бағытты есте сақтаңыз, кейін компассыз-ақ дәл сол жаққа бұрыла аласыз.'
+                      : '<b>Компас:</b> держите телефон плашмя, как поднос. Когда зелёная стрелка с символом 🕋 указывает точно вверх экрана — вы стоите лицом к кибле.<br><br><b>Карта:</b> зелёная линия от вашей точки показывает точное направление на киблу — посмотрите, что расположено в эту сторону на карте (дом, улица), запомните ориентир, и сможете поворачиваться в нужную сторону даже без компаса.') +
+                    '</div>' +
+                    '</div>';
+                  // build 5.74: «Рядом с тобой» — мечети и намазхана (молельные
+                  // комнаты) поблизости через бесплатный Overpass API (данные
+                  // OpenStreetMap, без API-ключа). Честно: намазхана размечены
+                  // волонтёрами OSM непоследовательно — покажет то, что реально
+                  // есть в базе, но не гарантирует полноту в каждом городе.
+                  body +=
+                    '<div class="card"><b>🕌 '+(kk?'Жаныңыздағы мешіт/намазхана':'Рядом мечети/намазхана')+'</b>' +
+                    '<p class="ayah-translation">'+(kk?'OpenStreetMap дерекқоры бойынша, 3 км аймақта.':'По данным OpenStreetMap, в радиусе 3 км.')+'</p>' +
+                    '<button type="button" class="btn btn-sm" id="pt-find-nearby">🔍 '+(kk?'Іздеу':'Найти рядом')+'</button>' +
+                    '<div id="nearby-results" style="margin-top:0.6rem"></div></div>';
                 } catch(e) {}
               }
             }
@@ -12989,8 +13044,24 @@ let body = '';
               paint(tab);
             });
           });
+          el.querySelectorAll('[data-reset-prayer-pt]').forEach(function(b){
+            b.addEventListener('click', function(){
+              state._dhSelectedPrayerKey = null;
+              paint(tab);
+            });
+          });
           clearInterval(window._ptPrayerCountdownTimer);
+          // build 5.71: та же проблема, что и в виджете «Ежедневного» — без
+          // смены даты сетка времён в разделе «Время намаза» тоже оставалась
+          // бы «замороженной» на дне последней отрисовки после полуночи.
+          window._ptPrayerCountdownDate = new Date().toDateString();
           window._ptPrayerCountdownTimer = setInterval(function() {
+            const todayStr2 = new Date().toDateString();
+            if (todayStr2 !== window._ptPrayerCountdownDate) {
+              window._ptPrayerCountdownDate = todayStr2;
+              paint(window._ptTab || 'today');
+              return;
+            }
             const cd = document.getElementById('pt-prayer-countdown');
             if (!cd) { clearInterval(window._ptPrayerCountdownTimer); return; }
             const until = +cd.dataset.until;
@@ -13007,6 +13078,21 @@ let body = '';
               if (frac2 != null) prog.style.width = Math.round(frac2 * 100) + '%';
             }
           }, 1000);
+          // build 5.72: та же подстраховка, что и в виджете «Ежедневного» —
+          // принудительная проверка даты сразу при возврате на вкладку,
+          // не дожидаясь замедленного тика фонового интервала.
+          document.removeEventListener('visibilitychange', window._ptVisibilityHandler || function(){});
+          window._ptVisibilityHandler = function() {
+            if (document.visibilityState !== 'visible') return;
+            const cd = document.getElementById('pt-prayer-countdown');
+            if (!cd) return;
+            const todayStr2 = new Date().toDateString();
+            if (todayStr2 !== window._ptPrayerCountdownDate) {
+              window._ptPrayerCountdownDate = todayStr2;
+              paint(window._ptTab || 'today');
+            }
+          };
+          document.addEventListener('visibilitychange', window._ptVisibilityHandler);
           el.querySelectorAll('[data-pt-cat]').forEach(function(b){
             b.addEventListener('click', function(){
               window._ptCat = b.getAttribute('data-pt-cat');
@@ -13255,6 +13341,108 @@ let body = '';
 
           // compass
           const compassBtn = document.getElementById('pt-compass');
+
+          // build 5.74: карта-подсказка направления и блок обучения — инициализация
+          // карты только по требованию (лениво), при первом показе, чтобы не тратить
+          // ресурсы, если пользователь ими не воспользовался вообще.
+          const qiblaMapToggle = document.getElementById('pt-qibla-map-toggle');
+          const qiblaHelpToggle = document.getElementById('pt-qibla-help-toggle');
+          if (qiblaMapToggle) qiblaMapToggle.addEventListener('click', function(){
+            const wrap = document.getElementById('qibla-map-wrap');
+            if (!wrap) return;
+            const showing = wrap.style.display !== 'none';
+            wrap.style.display = showing ? 'none' : 'block';
+            if (showing) return;
+            if (!window._qiblaMapInited) {
+              window._qiblaMapInited = true;
+              if (typeof L === 'undefined') {
+                document.getElementById('qibla-map').innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text-muted);font-size:0.85rem">' + ((typeof isKk === 'function' && isKk()) ? 'Карта жүктелмеді (интернетті тексеріңіз)' : 'Карта не загрузилась (проверьте интернет)') + '</div>';
+                return;
+              }
+              try {
+                const qDegNow = qiblaBearing(+loc.lat, +loc.lon);
+                const dest = destinationPoint(+loc.lat, +loc.lon, qDegNow, 400);
+                const map = L.map('qibla-map', { zoomControl: false, attributionControl: true }).setView([+loc.lat, +loc.lon], 16);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                  maxZoom: 19,
+                  attribution: '© OpenStreetMap'
+                }).addTo(map);
+                L.circleMarker([+loc.lat, +loc.lon], { radius: 7, color: '#fff', weight: 2, fillColor: '#10b981', fillOpacity: 1 }).addTo(map);
+                L.polyline([[+loc.lat, +loc.lon], [dest.lat, dest.lon]], { color: '#10b981', weight: 4, opacity: 0.9 }).addTo(map);
+                L.marker([dest.lat, dest.lon], {
+                  icon: L.divIcon({ html: '🕋', className: '', iconSize: [24,24], iconAnchor: [12,12] })
+                }).addTo(map);
+                window._qiblaLeafletMap = map;
+              } catch(e) {
+                document.getElementById('qibla-map').innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text-muted);font-size:0.85rem">' + (e.message || e) + '</div>';
+              }
+            } else if (window._qiblaLeafletMap) {
+              setTimeout(function(){ try { window._qiblaLeafletMap.invalidateSize(); } catch(e) {} }, 50);
+            }
+          });
+          if (qiblaHelpToggle) qiblaHelpToggle.addEventListener('click', function(){
+            const wrap = document.getElementById('qibla-help-wrap');
+            if (wrap) wrap.style.display = (wrap.style.display !== 'none') ? 'none' : 'block';
+          });
+
+          // build 5.74: поиск мечетей/намазхана рядом — бесплатный Overpass API
+          // (данные OpenStreetMap). Запрашиваем и place_of_worship (мечети), и
+          // отдельно amenity=prayer_room (молельные комнаты в ТРЦ/аэропортах) —
+          // это реальный, отдельный тег OSM, не то же самое, что мечеть.
+          const findNearbyBtn = document.getElementById('pt-find-nearby');
+          if (findNearbyBtn) findNearbyBtn.addEventListener('click', async function(){
+            const kk = (typeof isKk === 'function') && isKk();
+            const results = document.getElementById('nearby-results');
+            if (!results) return;
+            results.innerHTML = '<div class="ayah-translation">' + (kk ? 'Іздеп жатыр…' : 'Ищу поблизости…') + '</div>';
+            const radius = 3000;
+            const query = '[out:json][timeout:15];(' +
+              'node["amenity"="place_of_worship"]["religion"="muslim"](around:'+radius+','+loc.lat+','+loc.lon+');' +
+              'way["amenity"="place_of_worship"]["religion"="muslim"](around:'+radius+','+loc.lat+','+loc.lon+');' +
+              'node["amenity"="prayer_room"](around:'+radius+','+loc.lat+','+loc.lon+');' +
+              'way["amenity"="prayer_room"](around:'+radius+','+loc.lat+','+loc.lon+');' +
+              ');out center;';
+            try {
+              const resp = await fetch('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                body: 'data=' + encodeURIComponent(query)
+              });
+              if (!resp.ok) throw new Error('HTTP ' + resp.status);
+              const data = await resp.json();
+              const items = (data.elements || []).map(function(el){
+                const elLat = el.lat != null ? el.lat : (el.center && el.center.lat);
+                const elLon = el.lon != null ? el.lon : (el.center && el.center.lon);
+                if (elLat == null || elLon == null) return null;
+                const isPrayerRoom = el.tags && el.tags.amenity === 'prayer_room';
+                const name = (el.tags && (el.tags['name:ru'] || el.tags.name)) ||
+                  (isPrayerRoom ? (kk ? 'Намазхана' : 'Намазхана') : (kk ? 'Мешіт' : 'Мечеть'));
+                return {
+                  name: name,
+                  isPrayerRoom: isPrayerRoom,
+                  lat: elLat, lon: elLon,
+                  dist: haversineDistance(+loc.lat, +loc.lon, elLat, elLon)
+                };
+              }).filter(Boolean).sort(function(a,b){ return a.dist - b.dist; });
+
+              if (!items.length) {
+                results.innerHTML = '<div class="ayah-translation">' + (kk
+                  ? 'Осы аймақта OpenStreetMap дерекқорында ештеңе табылмады. Бұл жерде шынымен жоқ дегенді білдірмейді — карта деректері толық болмауы мүмкін.'
+                  : 'В радиусе поиска в базе OpenStreetMap ничего не найдено. Это не значит, что рядом точно ничего нет — картографические данные могут быть неполными.') + '</div>';
+                return;
+              }
+              results.innerHTML = items.slice(0, 15).map(function(it){
+                const distLabel = it.dist < 1000 ? Math.round(it.dist) + ' ' + (kk?'м':'м') : (it.dist/1000).toFixed(1) + ' ' + (kk?'км':'км');
+                const mapUrl = 'https://www.openstreetmap.org/?mlat=' + it.lat + '&mlon=' + it.lon + '#map=18/' + it.lat + '/' + it.lon;
+                return '<div class="setting-row" style="cursor:pointer" onclick="window.open(\'' + mapUrl + '\',\'_blank\')">' +
+                  '<span>' + (it.isPrayerRoom ? '🛐' : '🕌') + ' ' + it.name.replace(/</g,'&lt;') + (it.isPrayerRoom ? (' <span style="color:var(--text-muted);font-size:0.75rem">('+(kk?'намазхана':'намазхана')+')</span>') : '') + '</span>' +
+                  '<b style="color:var(--accent)">' + distLabel + '</b></div>';
+              }).join('') + '<p class="ayah-translation" style="font-size:0.75rem;margin-top:0.4rem">' + (kk
+                ? '© OpenStreetMap үлескерлері. Тізе басу — картада ашу.'
+                : '© Данные OpenStreetMap. Нажмите на строку — открыть на карте.') + '</p>';
+            } catch(e) {
+              results.innerHTML = '<div class="ayah-translation">' + (kk ? 'Қате: ' : 'Ошибка: ') + (e.message || e) + '</div>';
+            }
+          });
 
           if (window._qiblaOn && compassBtn) {
             // экран перерисовался — слушатели слетели; перезапуск без confirm
@@ -15752,7 +15940,16 @@ function renderDict() {
               data.ayahs[ctxFrom].number + '–' + data.ayahs[ctxTo].number +
               (ctx.note ? ' · ' + ctx.note : '') + '</div>';
             for (let ci = ctxFrom; ci <= ctxTo; ci++) {
-              if (ci === idx) continue;
+              if (ci === idx) {
+                // build 5.71: раньше главный (выбранный) аят молча пропускался в
+                // списке контекста — заголовок честно говорит «аяты 1–6», но в
+                // самом списке образовывалась незаметная дыра без пояснения
+                // (например, «1 2 4 5 6»), что пользователь принимал за баг.
+                // Теперь вместо тихого пропуска — заметная строка-пометка на его месте.
+                html += '<div style="margin:0.45rem 0;padding:0.35rem 0.4rem;border-radius:0.4rem;opacity:0.75;font-style:italic;text-align:center">' +
+                  '<div class="surah-meta">' + s + ':' + data.ayahs[ci].number + ' · ' + (isKk() ? '↑ жоғарыда негізгі ретінде көрсетілген' : '↑ показан выше как главный') + '</div></div>';
+                continue;
+              }
               const ca = data.ayahs[ci];
               html += '<div style="margin:0.45rem 0;padding:0.35rem 0.4rem;border-radius:0.4rem;opacity:0.9">' +
                 '<div class="surah-meta">' + s + ':' + ca.number + '</div>' +
@@ -15767,7 +15964,11 @@ function renderDict() {
             html += '<div class="card" style="margin:0.4rem 0"><div class="surah-meta" style="margin-bottom:0.35rem">' + (isKk() ? 'Кеңейтілген мәтінмән · аяттар ' : 'Расширенный контекст · аяты ') +
               data.ayahs[wFrom].number + '–' + data.ayahs[wTo].number + (isKk() ? ' · жасыруға болады' : ' · можно скрыть') + '</div>';
             for (let ci = wFrom; ci <= wTo; ci++) {
-              if (ci === idx) continue;
+              if (ci === idx) {
+                html += '<div style="margin:0.45rem 0;padding:0.35rem 0.4rem;border-radius:0.4rem;opacity:0.75;font-style:italic;text-align:center">' +
+                  '<div class="surah-meta">' + s + ':' + data.ayahs[ci].number + ' · ' + (isKk() ? '↑ жоғарыда негізгі ретінде көрсетілген' : '↑ показан выше как главный') + '</div></div>';
+                continue;
+              }
               const ca = data.ayahs[ci];
               html += '<div style="margin:0.45rem 0;padding:0.35rem 0.4rem;border-radius:0.4rem;opacity:0.9">' +
                 '<div class="surah-meta">' + s + ':' + ca.number + '</div>' +
@@ -15787,6 +15988,7 @@ function renderDict() {
           '<button type="button" class="btn btn-sm" id="aotd-play">▶ ' + (isKk() ? 'Аудио' : 'Аудио') + '</button>' +
           '<button type="button" class="btn btn-sm" id="aotd-tafsir">📖 ' + (isKk() ? 'Тәфсір' : 'Тафсир') + '</button>' +
           '<button type="button" class="btn btn-sm" id="aotd-mode">' + (aotdMode === 'hour' ? (isKk() ? 'Тәулігіне бір рет' : 'Раз в сутки') : (isKk() ? 'Сағат сайын' : 'Каждый час')) + '</button>' +
+          '<button type="button" class="btn btn-sm" id="aotd-share" title="' + (isKk() ? 'Бөлісу' : 'Поделиться') + '">📤</button>' +
           '<button type="button" class="btn btn-sm" id="aotd-open">' + (isKk() ? 'Аятты ашу →' : 'Открыть аят →') + '</button>' +
           '</div>';
 
@@ -15811,6 +16013,16 @@ function renderDict() {
         el.querySelector('#aotd-play')?.addEventListener('click', (ev) => {
           ev.stopPropagation();
           playAudio(a.audio, sName + ' · аят ' + a.number, { ayah: a.number, surah: s });
+        });
+        el.querySelector('#aotd-share')?.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          shareCardAsImage({
+            kicker: (isKk() ? 'Сағат/күн аяты' : 'Аят часа/дня') + ' · ' + s + ':' + a.number,
+            arabic: a.text,
+            translation: a.translation,
+            source: sName,
+            kk: isKk()
+          });
         });
         el.querySelector('.aotd-ayah-tap')?.addEventListener('click', (ev) => {
           ev.stopPropagation();
@@ -22995,6 +23207,16 @@ async function renderRegistrationSection() {
       toast(readerReversed ? 'Порядок: с конца (и в плеере)' : 'Порядок: с начала');
     });
 
+    // build 5.73: «Спокойный режим» чтения — прячет шапку/навигацию/панель
+    // инструментов, оставляя только текст аятов и одну плавающую кнопку
+    // выхода. Раньше такого режима не было вообще (только тёмная тема).
+    document.getElementById('btn-quiet-read')?.addEventListener('click', () => {
+      document.body.classList.add('quiet-reading');
+    });
+    document.getElementById('quiet-read-exit')?.addEventListener('click', () => {
+      document.body.classList.remove('quiet-reading');
+    });
+
     document.getElementById('btn-loop-range')?.addEventListener('click', async () => {
       if (!state.currentSurah) return;
       const from = parseInt(document.getElementById('loop-from').value, 10);
@@ -23418,7 +23640,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
                   '</div>' +
                   '<div id="dh-prayer-countdown" data-until="' + info.whenDate.getTime() + '" style="color:#fff;font-size:1.9rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:0.03em;margin-top:0.15rem;text-shadow:0 1px 3px rgba(0,0,0,0.15)">' + formatCountdownHMS(info.diffMs) + '</div>' +
                   (frac != null ? '<div style="height:5px;background:rgba(255,255,255,0.28);border-radius:3px;margin-top:0.5rem;overflow:hidden"><div id="dh-prayer-progress" style="height:100%;width:' + Math.round(frac*100) + '%;background:#fff;border-radius:3px;transition:width 0.6s linear"></div></div>' : '') +
-                  (selKey ? '<div style="color:rgba(255,255,255,0.75);font-size:0.7rem;margin-top:0.35rem">' + (kk ? '↻ Автоматты режимге қайту үшін таңдалғанды қайта басыңыз' : '↻ Нажмите на выбранное время ещё раз, чтобы вернуться к ближайшему') + '</div>' : '') +
+                  (selKey ? '<div data-reset-prayer-dh="1" style="color:rgba(255,255,255,0.9);font-size:0.7rem;margin-top:0.35rem;text-decoration:underline;cursor:pointer">' + (kk ? '↻ Автоматты режимге қайту (жақындағыға)' : '↻ Вернуться к ближайшему намазу') + '</div>' : '') +
                   '</div>';
               }
               // 2 в ряд, 3+ строки — каждая карточка кликабельна для выбора отсчёта
@@ -23512,7 +23734,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         story: '<div id="dailyhub-story"></div>',
         dua: '<div class="card" style="cursor:pointer" data-go-dua="1" title="'+(isKk?'Басыңыз — «Азкар және дұға» бөлімінде ашу':'Нажмите — открыть в разделе «Азкары и дуа»')+'"><div style="display:flex;justify-content:space-between"><b>🤲 '+(isKk?'Күн дұғасы':'Дуа дня')+'</b><span><button type="button" class="btn btn-sm" data-speak-dua="1">🔊</button> <button type="button" class="btn btn-sm" data-daily-next="dua" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="dua" data-daily-dir="next">→</button></span></div><div class="arabic" style="font-size:calc(1.3rem * var(--ar-scale, 1));margin:0.5rem 0">'+dua.ar+'</div>'+(dua.tr?'<div style="color:var(--accent);margin:0.25rem 0;font-size:0.95rem">'+dua.tr+'</div>':'')+'<div class="ayah-translation">'+(isKk&&dua.kk?dua.kk:dua.ru)+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Азкар және дұға» бөлімінде ашу →':'Нажмите — открыть в разделе «Азкары и дуа» →')+'</div></div>',
         name: nameCard,
-        hadith: '<div class="card" style="cursor:pointer" data-go-hadith="1" title="'+(isKk?'Басыңыз — «Хадистер» бөлімінде ашу':'Нажмите — открыть в разделе «Хадисы»')+'"><div style="display:flex;justify-content:space-between"><b>📜 '+(isKk?'Күн хадисі':'Хадис дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="hadith" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="hadith" data-daily-dir="next">→</button></span></div><div class="arabic" style="margin:0.5rem 0">'+had.ar+'</div><div class="ayah-translation">'+(isKk&&had.kk?had.kk:had.ru)+'</div><div style="color:var(--text-muted);font-size:0.85rem">'+had.src+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Хадистер» бөлімінде ашу →':'Нажмите — открыть в разделе «Хадисы» →')+'</div></div>',
+        hadith: '<div class="card" style="cursor:pointer" data-go-hadith="1" title="'+(isKk?'Басыңыз — «Хадистер» бөлімінде ашу':'Нажмите — открыть в разделе «Хадисы»')+'"><div style="display:flex;justify-content:space-between"><b>📜 '+(isKk?'Күн хадисі':'Хадис дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="hadith" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="hadith" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-hadith="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic" style="margin:0.5rem 0">'+had.ar+'</div><div class="ayah-translation">'+(isKk&&had.kk?had.kk:had.ru)+'</div><div style="color:var(--text-muted);font-size:0.85rem">'+had.src+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Хадистер» бөлімінде ашу →':'Нажмите — открыть в разделе «Хадисы» →')+'</div></div>',
         sunnah: '<div class="card" style="cursor:pointer" data-go-sunnah="1" title="'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу':'Нажмите — открыть в разделе «Сунны»')+'"><div style="display:flex;justify-content:space-between"><b>🌱 '+(isKk?'Күн сүннеті':'Сунна дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="next">→</button></span></div><b>'+(isKk&&sun.titleKk?sun.titleKk:sun.title)+'</b><div class="ayah-translation">'+(isKk&&sun.kk?sun.kk:sun.ru)+'</div><div style="font-size:0.85rem;color:var(--text-muted)">'+sun.proof+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу →':'Нажмите — открыть в разделе «Сунны» →')+'</div></div>',
         word: '<div class="card"><div style="display:flex;justify-content:space-between"><b>🔤 '+(isKk?'Күн сөзі':'Слово дня')+'</b><button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="next">→</button></div><div class="arabic">'+word.ar+'</div><div>'+word.tr+' — '+(isKk&&word.kk?word.kk:word.ru)+'</div></div>'
       };
@@ -23528,7 +23750,20 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       // сам интервал гасит себя, если элемент пропал с экрана (ушли с
       // «Ежедневного» на другой раздел).
       clearInterval(window._dhPrayerCountdownTimer);
+      // build 5.71: если оставить вкладку открытой на ночь без единого клика,
+      // раньше тикал только сам отсчёт секунд, а сетка времён (Фаджр/Зухр/
+      // Аср и т.д.) оставалась «замороженной» на дне, когда виджет был
+      // отрисован в последний раз — после полуночи она показывала времена
+      // уже прошедшего дня. Теперь каждую секунду сверяем календарную дату,
+      // и при её смене перерисовываем виджет целиком со свежим днём.
+      window._dhPrayerCountdownDate = new Date().toDateString();
       window._dhPrayerCountdownTimer = setInterval(function() {
+        const todayStr = new Date().toDateString();
+        if (todayStr !== window._dhPrayerCountdownDate) {
+          window._dhPrayerCountdownDate = todayStr;
+          renderDailyHub();
+          return;
+        }
         const cd = document.getElementById('dh-prayer-countdown');
         if (!cd) { clearInterval(window._dhPrayerCountdownTimer); return; }
         const until = +cd.dataset.until;
@@ -23545,6 +23780,26 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           if (frac != null) prog.style.width = Math.round(frac * 100) + '%';
         }
       }, 1000);
+      // build 5.72: у фоновых (свёрнутых/неактивных) вкладок браузеры ради
+      // энергосбережения замедляют setInterval — секундный тик может
+      // реально срабатывать раз в несколько минут, если вкладку оставить
+      // открытой в фоне на всю ночь. Логика смены даты выше в итоге всё
+      // равно сработает на следующем реальном тике, но не мгновенно.
+      // Подстраховка: как только вкладка снова становится видимой активной
+      // (человек вернулся к ней), сразу принудительно проверяем дату, не
+      // дожидаясь очередного тика интервала.
+      document.removeEventListener('visibilitychange', window._dhVisibilityHandler || function(){});
+      window._dhVisibilityHandler = function() {
+        if (document.visibilityState !== 'visible') return;
+        const cd = document.getElementById('dh-prayer-countdown');
+        if (!cd) return; // виджет сейчас не на экране — сам интервал уже погашен
+        const todayStr = new Date().toDateString();
+        if (todayStr !== window._dhPrayerCountdownDate) {
+          window._dhPrayerCountdownDate = todayStr;
+          renderDailyHub();
+        }
+      };
+      document.addEventListener('visibilitychange', window._dhVisibilityHandler);
       // build 5.66: клик по карточке конкретного намаза — выбрать его для
       // отсчёта; повторный клик по уже выбранной — снять выбор (вернуться
       // к автоматическому «ближайшему»).
@@ -23553,6 +23808,30 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           const key = cellEl.dataset.selectPrayer;
           state._dhSelectedPrayerKey = (state._dhSelectedPrayerKey === key) ? null : key;
           renderDailyHub();
+        });
+      });
+      // build 5.71: явная кнопка «вернуться к ближайшему» прямо под отсчётом —
+      // пользователь интуитивно пытался нажать на сам текст подсказки, а не
+      // на карточку выбранного намаза; теперь текст сам по себе кликабелен.
+      el.querySelectorAll('[data-reset-prayer-dh]').forEach(function(b){
+        b.addEventListener('click', function(){
+          state._dhSelectedPrayerKey = null;
+          renderDailyHub();
+        });
+      });
+      // build 5.73: «Поделиться» у хадиса дня — stopPropagation обязателен,
+      // иначе клик по кнопке дополнительно сработает и как клик по всей
+      // карточке (она сама целиком кликабельна для перехода в «Хадисы»).
+      el.querySelectorAll('[data-share-hadith]').forEach(function(b){
+        b.addEventListener('click', function(e){
+          e.stopPropagation();
+          shareCardAsImage({
+            kicker: isKk ? 'Күн хадисі' : 'Хадис дня',
+            arabic: had.ar,
+            translation: (isKk && had.kk) ? had.kk : had.ru,
+            source: had.src,
+            kk: isKk
+          });
         });
       });
       el.querySelectorAll('[data-go]').forEach(function(b){
@@ -31006,6 +31285,46 @@ c.addEventListener('click', () => {
         pdf.save(title.replace(/[^\w\-]+/g, '_') + '.pdf');
       } catch(e) {
         toast((kk?'Қате: ':'Ошибка: ')+(e.message||e));
+      } finally {
+        holder.remove();
+      }
+    }
+    // build 5.73: «Поделиться карточкой» — рендерит аят/хадис/дуа в красиво
+    // оформленную картинку для соцсетей тем же проверенным приёмом, что и
+    // экспорт переписок в PDF (offscreen-div → html2canvas), только вместо
+    // PDF получаем PNG. На телефоне — сразу системное меню «Поделиться»
+    // (WhatsApp/Instagram/Telegram напрямую), на десктопе — скачивание файла.
+    async function shareCardAsImage(opts) {
+      // opts: { kicker, arabic, translation, source, kk }
+      if (!window.html2canvas) { toast(opts.kk ? 'Кітапхана жүктелмеді (интернетті тексеріңіз)' : 'Библиотека не загрузилась (проверьте интернет)'); return; }
+      const holder = document.createElement('div');
+      holder.style.cssText = 'position:fixed;left:-9999px;top:0;width:1080px;height:1350px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:90px 80px;box-sizing:border-box;background:linear-gradient(150deg,#0f172a 0%,#134e3a 55%,#0f172a 100%);color:#f1f5f9;font-family:system-ui,sans-serif;text-align:center';
+      holder.innerHTML =
+        '<div style="font-size:32px;color:#6ee7b7;font-weight:700;letter-spacing:0.04em;margin-bottom:56px">' + (opts.kicker || '').replace(/</g,'&lt;') + '</div>' +
+        (opts.arabic ? '<div style="font-family:\'Amiri\',\'Scheherazade New\',serif;font-size:58px;line-height:1.9;margin-bottom:48px;direction:rtl">' + opts.arabic + '</div>' : '') +
+        '<div style="font-size:34px;line-height:1.55;color:#e2e8f0;margin-bottom:40px;max-width:880px">' + (opts.translation || '').replace(/</g,'&lt;') + '</div>' +
+        (opts.source ? '<div style="font-size:24px;color:#94a3b8;margin-bottom:70px">' + opts.source.replace(/</g,'&lt;') + '</div>' : '') +
+        '<div style="font-size:22px;color:#6ee7b7;opacity:0.85;margin-top:auto">📖 ' + (opts.kk ? 'Құран академиясы' : 'Quran Academy') + '</div>';
+      document.body.appendChild(holder);
+      try {
+        const canvas = await window.html2canvas(holder, { backgroundColor: null, scale: 1 });
+        const blob = await new Promise(function(res){ canvas.toBlob(res, 'image/png', 0.95); });
+        if (!blob) throw new Error('canvas.toBlob вернул пусто');
+        const file = new File([blob], 'quran-academy-card.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: opts.kicker || '' });
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'quran-academy-card.png';
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+          toast(opts.kk ? 'Сурет жүктелді' : 'Картинка сохранена');
+        }
+      } catch(e) {
+        // Пользователь просто закрыл системное меню «Поделиться» — не ошибка, промолчать
+        if (e && e.name === 'AbortError') return;
+        toast((opts.kk ? 'Қате: ' : 'Ошибка: ') + (e.message || e));
       } finally {
         holder.remove();
       }
