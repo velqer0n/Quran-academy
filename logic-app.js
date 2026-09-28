@@ -1,6 +1,32 @@
 // logic-app.js — вся логика приложения (функции, обработчики, состояние).
 // Загружается ПОСЛЕДНИМ, после всех data-*.js файлов, от которых зависит.
 
+// build 5.78: доступность — у иконок-кнопок (🔒 🌐 🔍 ⚙️ 🔊 📤 ← → и т.д.)
+// почти везде уже есть title (всплывающая подсказка), но title не всегда
+// озвучивается скринридерами так же надёжно, как aria-label, а переписывать
+// вручную тысячи мест генерации кнопок по всему файлу нереально. Вместо
+// этого — один мост: копируем title → aria-label везде, где aria-label ещё
+// нет, и переприменяем при каждом изменении DOM (почти весь интерфейс
+// рисуется через innerHTML). MutationObserver раз в 300мс, не чаще — чтобы
+// не грузить браузер на разделах с частыми перерисовками (чат, тесты).
+function _applyAriaLabelsFromTitles(root) {
+  (root || document).querySelectorAll('button[title]:not([aria-label])').forEach(function(b) {
+    var t = b.getAttribute('title');
+    if (t) b.setAttribute('aria-label', t);
+  });
+}
+_applyAriaLabelsFromTitles();
+(function() {
+  var pending = false;
+  try {
+    var _ariaObserver = new MutationObserver(function() {
+      if (pending) return;
+      pending = true;
+      setTimeout(function() { pending = false; _applyAriaLabelsFromTitles(); }, 300);
+    });
+    _ariaObserver.observe(document.body, { childList: true, subtree: true });
+  } catch(e) {}
+})();
 
     // ========== STATE & STORAGE ==========
     const STORAGE_KEY = 'quran-study-v1';
@@ -767,9 +793,13 @@
       });
 
       // Bottom nav
+      // build 5.76: было ['learn','nav_learn'] и ['games','nav_games'], но
+      // реальные data-view нижнего меню — «study» (Учёба) и «online»
+      // (Онлайн); из-за несовпадения ключей querySelector ничего не находил,
+      // и обе кнопки никогда не переводились на казахский.
       const navMap = [
-        ['dailyhub', 'nav_daily'], ['home', 'nav_surahs'], ['learn', 'nav_learn'],
-        ['games', 'nav_games'], ['more', 'nav_more']
+        ['dailyhub', 'nav_daily'], ['home', 'nav_surahs'], ['study', 'nav_study'],
+        ['online', 'nav_online'], ['more', 'nav_more']
       ];
       navMap.forEach(([view, key]) => {
         const btn = document.querySelector('.bottom-nav button[data-view="'+view+'"]');
@@ -816,7 +846,16 @@
         'Выученные суры': 'Жаттаған сүрелер', 'Сбросить весь прогресс': 'Барлық үлгерімді нөлдеу',
         'Порядок по риваяту ат-Тирмизи (начиная с «Аллах»). Нажмите имя — описание, аяты, хадисы. 🔊 — произношение (качество выше при интернете).':
           'Тіртімі ат-Тирмизи риуаяты бойынша («Алла»дан бастап). Есімді басыңыз — сипаттама, аяттар, хадистер. 🔊 — айтылуы (интернетпен сапалырақ).',
-        'Время намаза и кибла': 'Намаз уақыты және құбыла'
+        'Время намаза и кибла': 'Намаз уақыты және құбыла',
+        // build 5.76: не хватало вовсе — кнопки переключателя «Теория/Практика»
+        // и вкладки внутри «Практики» никогда не переводились на казахский.
+        '📖 Теория': '📖 Теория', '🎯 Практика': '🎯 Тәжірибе',
+        'Тест: буквы': 'Тест: әріптер', 'Тест: названия': 'Тест: атаулар',
+        'Тест: правила': 'Тест: ережелер', 'Тест: аят': 'Тест: аят',
+        '🎤 Буквы': '🎤 Әріптер', '🎤 Аят': '🎤 Аят',
+        'Слова': 'Сөздер', 'Диктовка': 'Диктант', 'Начать': 'Бастау', 'Ещё раз': 'Қайта',
+        '📝 Тесты': '📝 Тесттер', '🎤 Устно': '🎤 Ауызша', '🎯 Тренажёры': '🎯 Жаттықтырғыштар',
+        'Различие звуков': 'Дыбыстарды ажырату', 'Лёгкий': 'Жеңіл', 'Средний': 'Орташа', 'Сложный': 'Қиын'
       } : {};
 
       // Раздел «Настройки» — словарь RU → KK
@@ -2191,6 +2230,108 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       } catch(e) {}
       return def;
     }
+    // build 5.78: отдельный список скрытых карточек «Ежедневного» (скрыть
+    // можно долгим нажатием на карточку — быстрое меню). Отдельно от
+    // порядка, потому что «Порядок» никогда не убирал виджеты насовсем —
+    // только переставлял; здесь же — именно скрытие/показ.
+    function getHiddenDailyWidgets() {
+      try { return JSON.parse(localStorage.getItem('quran_dailyhub_widgets_hidden') || '[]'); } catch(e) { return []; }
+    }
+    function setHiddenDailyWidgets(arr) {
+      try { localStorage.setItem('quran_dailyhub_widgets_hidden', JSON.stringify(arr)); } catch(e) {}
+    }
+    function hideDailyWidget(id) {
+      var h = getHiddenDailyWidgets();
+      if (h.indexOf(id) < 0) { h.push(id); setHiddenDailyWidgets(h); }
+    }
+    function unhideDailyWidget(id) {
+      setHiddenDailyWidgets(getHiddenDailyWidgets().filter(function(x){ return x !== id; }));
+    }
+
+    // build 5.78: долгое нажатие на карточку «Ежедневного» → быстрое меню
+    // (поделиться / скрыть) без открытия целиком. Переиспользует уже
+    // существующую кнопку 📤 внутри самой карточки (если есть), чтобы не
+    // дублировать логику шаринга для каждого типа виджета отдельно.
+    function _dhQuickMenuShareBtn(wrap) {
+      return wrap.querySelector('[data-share-dua],[data-share-hadith],[data-share-sunnah],[data-share-word],[data-share-name],#aotd-share,#home-story-share');
+    }
+    function showDhQuickMenu(wrap, x, y) {
+      var old = document.getElementById('dh-quick-menu'); if (old) old.remove();
+      var widgetId = wrap.getAttribute('data-dh-widget');
+      var kkM = (typeof isKk === 'function') && isKk();
+      var shareBtn = _dhQuickMenuShareBtn(wrap);
+      var menuW = 190;
+      var menuX = Math.max(8, Math.min(x, window.innerWidth - menuW - 8));
+      var menuY = Math.max(8, Math.min(y, window.innerHeight - 140));
+      var backdrop = document.createElement('div');
+      backdrop.id = 'dh-quick-menu';
+      backdrop.style.cssText = 'position:fixed;inset:0;z-index:9999';
+      backdrop.innerHTML =
+        '<div class="card" style="position:absolute;left:'+menuX+'px;top:'+menuY+'px;width:'+menuW+'px;padding:0.4rem;box-shadow:var(--shadow-lg)">' +
+        (shareBtn ? '<button type="button" class="btn btn-sm" style="width:100%;text-align:left;margin-bottom:0.3rem" id="dhqm-share">📤 '+(kkM?'Бөлісу':'Поделиться')+'</button>' : '') +
+        (widgetId ? '<button type="button" class="btn btn-sm" style="width:100%;text-align:left;color:var(--danger)" id="dhqm-hide">🙈 '+(kkM?'«Күнделіктіден» жасыру':'Скрыть с «Ежедневного»')+'</button>' : '') +
+        '</div>';
+      document.body.appendChild(backdrop);
+      backdrop.addEventListener('click', function(e) { if (e.target === backdrop) backdrop.remove(); });
+      document.getElementById('dhqm-share')?.addEventListener('click', function() {
+        backdrop.remove();
+        if (shareBtn) shareBtn.click();
+      });
+      document.getElementById('dhqm-hide')?.addEventListener('click', function() {
+        backdrop.remove();
+        if (!widgetId) return;
+        hideDailyWidget(widgetId);
+        toast(kkM ? 'Жасырылды. Қайтару: Баптаулар → Мәзір → Реті.' : 'Скрыто. Вернуть: Настройки → Меню → Порядок.');
+        try { renderDailyHub(); } catch(e) {}
+      });
+    }
+    (function() {
+      var lpTimer = null, lpStartX = 0, lpStartY = 0, lpWrap = null, suppressNextClick = false;
+      function clearLp() { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } }
+      document.addEventListener('touchstart', function(e) {
+        clearLp();
+        var wrap = e.target.closest && e.target.closest('#dailyhub-body [data-dh-widget]');
+        if (!wrap) return;
+        if (e.target.closest('button,a,select,input')) return; // не мешать стрелкам/🔊/📤
+        if (!e.touches || e.touches.length !== 1) return;
+        lpStartX = e.touches[0].clientX; lpStartY = e.touches[0].clientY;
+        lpWrap = wrap;
+        lpTimer = setTimeout(function() {
+          lpTimer = null;
+          suppressNextClick = true;
+          setTimeout(function(){ suppressNextClick = false; }, 400);
+          try { if (navigator.vibrate) navigator.vibrate(15); } catch(e2) {}
+          showDhQuickMenu(lpWrap, lpStartX, lpStartY);
+        }, 550);
+      }, { passive: true });
+      document.addEventListener('touchmove', function(e) {
+        if (!lpTimer || !e.touches || !e.touches.length) return;
+        var dx = e.touches[0].clientX - lpStartX, dy = e.touches[0].clientY - lpStartY;
+        if (Math.abs(dx) > 12 || Math.abs(dy) > 12) clearLp();
+      }, { passive: true });
+      document.addEventListener('touchend', clearLp, { passive: true });
+      document.addEventListener('touchcancel', clearLp, { passive: true });
+      // После срабатывания долгого нажатия мобильные браузеры всё равно шлют
+      // следующий click по тому же месту — гасим именно его, чтобы карточка
+      // не открывалась целиком поверх уже открытого быстрого меню.
+      document.addEventListener('click', function(e) {
+        if (!suppressNextClick) return;
+        var wrap = e.target.closest && e.target.closest('#dailyhub-body [data-dh-widget]');
+        if (!wrap) return;
+        suppressNextClick = false;
+        e.stopPropagation();
+        e.preventDefault();
+      }, true);
+      // Десктоп: правая кнопка мыши на карточке — то же меню вместо системного.
+      document.addEventListener('contextmenu', function(e) {
+        var wrap = e.target.closest && e.target.closest('#dailyhub-body [data-dh-widget]');
+        if (!wrap) return;
+        if (e.target.closest('button,a,select,input')) return;
+        e.preventDefault();
+        showDhQuickMenu(wrap, e.clientX, e.clientY);
+      });
+    })();
+
     var DAILY_WIDGET_LABELS = { events:'Календарь событий', streak:'Стрик (дни подряд)', prayer:'Время намаза', ayah:'Аят часа/дня', story:'История дня', dua:'Дуа дня', name:'Имя Аллаха', hadith:'Хадис дня', sunnah:'Сунна дня', word:'Слово дня' };
     function getDailyWidgetOrder() {
       // По умолчанию: календарь событий вместо стрика; стрик/хатм/тема дня — скрыты
@@ -2214,16 +2355,43 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       } catch(e) {}
       return def.slice();
     }
+    // build 5.77: поле «Ваше имя для приветствия» на «Ежедневном» —
+    // простой локальный текст, без привязки к онлайн-аккаунту, чтобы
+    // работал и без регистрации.
+    function bindDhGreetingNameInput() {
+      var inp = document.getElementById('dh-greeting-name');
+      if (!inp) return;
+      inp.value = (state.settings && state.settings.dhGreetingName) || '';
+      if (inp.dataset.bound) return;
+      inp.dataset.bound = '1';
+      inp.addEventListener('change', function() {
+        if (!state.settings) state.settings = {};
+        state.settings.dhGreetingName = inp.value.trim().slice(0, 30);
+        saveState();
+        try { renderDailyHub(); } catch(e) {}
+      });
+    }
     function renderDailyWidgetsOrder() {
       var el = document.getElementById('dailyhub-widgets-order');
       if (!el) return;
       var order = getDailyWidgetOrder();
+      var hidden = getHiddenDailyWidgets();
       el.innerHTML = order.map(function(id, idx) {
-        return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:0.45rem;background:var(--bg)">' +
-          '<span style="flex:1">'+(DAILY_WIDGET_LABELS[id]||id)+'</span>' +
+        var isHidden = hidden.indexOf(id) >= 0;
+        return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:0.45rem;background:var(--bg);'+(isHidden?'opacity:0.55':'')+'">' +
+          '<span style="flex:1">'+(DAILY_WIDGET_LABELS[id]||id)+(isHidden?' <span style="font-size:0.75rem;color:var(--text-muted)">(скрыто)</span>':'')+'</span>' +
+          '<button type="button" class="btn btn-sm dw-hide" data-id="'+id+'" title="'+(isHidden?'Показать на «Ежедневном»':'Скрыть с «Ежедневного»')+'">'+(isHidden?'👁':'🙈')+'</button>' +
           '<button type="button" class="btn btn-sm dw-up" data-i="'+idx+'" '+(idx===0?'disabled':'')+'>↑</button>' +
           '<button type="button" class="btn btn-sm dw-dn" data-i="'+idx+'" '+(idx===order.length-1?'disabled':'')+'>↓</button></div>';
       }).join('');
+      el.querySelectorAll('.dw-hide').forEach(function(btn) {
+        btn.onclick = function() {
+          var id = btn.getAttribute('data-id');
+          if (getHiddenDailyWidgets().indexOf(id) >= 0) unhideDailyWidget(id); else hideDailyWidget(id);
+          renderDailyWidgetsOrder();
+          try { renderDailyHub(); } catch(e) {}
+        };
+      });
       el.querySelectorAll('.dw-up').forEach(function(btn) {
         btn.onclick = function() {
           var i = +btn.getAttribute('data-i');
@@ -2602,6 +2770,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
         if (acad && acad.dataset.acadTab) sessionStorage.setItem('quran_acad_tab', acad.dataset.acadTab);
       } catch(e) {}
       if (name === 'dailyhub') try { renderDailyHub(); } catch(e) {}
+      if (name === 'games') try { renderGamesTip(); } catch(e) {}
       if (name === 'duabuilder') try { renderDuaBuilder(); } catch(e) {}
       if (name === 'qurandua') try { renderQuranDua(); } catch(e) {}
       if (name === 'qol') try { renderQol(); } catch(e) {}
@@ -2914,6 +3083,57 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
     }
 
     // Reader
+    // build 5.78: свайп влево/вправо между сурами прямо в режиме чтения —
+    // раньше сменить суру можно было только вернувшись в список. Свайп
+    // влево — следующая сура, вправо — предыдущая. Не срабатывает, если
+    // палец начал жест на элементе с собственной горизонтальной прокруткой
+    // (например, таблица «слово в слово»), на кнопке/поле ввода, или если
+    // сам жест больше вертикальный, чем горизонтальный (обычный скролл).
+    (function() {
+      var startX = 0, startY = 0, tracking = false;
+      function isHorizontallyScrollable(el) {
+        while (el && el !== document.body) {
+          if (el.scrollWidth > el.clientWidth + 4) {
+            var ov = window.getComputedStyle(el).overflowX;
+            if (ov === 'auto' || ov === 'scroll') return true;
+          }
+          el = el.parentElement;
+        }
+        return false;
+      }
+      document.addEventListener('touchstart', function(e) {
+        tracking = false;
+        var readerEl = document.getElementById('view-reader');
+        if (!readerEl || !readerEl.classList.contains('active')) return;
+        if (!e.touches || e.touches.length !== 1) return;
+        var target = e.target;
+        if (target.closest && target.closest('select,input,textarea,button,.audio-controls-bar,.reader-actions')) return;
+        if (isHorizontallyScrollable(target)) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        tracking = true;
+      }, { passive: true });
+      document.addEventListener('touchend', function(e) {
+        if (!tracking) return;
+        tracking = false;
+        if (!e.changedTouches || !e.changedTouches.length) return;
+        var dx = e.changedTouches[0].clientX - startX;
+        var dy = e.changedTouches[0].clientY - startY;
+        if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+        var cur = +state.currentSurah || 1;
+        var kkSw = (typeof isKk === 'function') && isKk();
+        if (dx < 0 && cur < 114) {
+          var nx = cur + 1;
+          openSurah(nx);
+          toast('→ ' + (typeof surahNameLocal === 'function' ? surahNameLocal(nx) : ((kkSw?'Сүре ':'Сура ') + nx)));
+        } else if (dx > 0 && cur > 1) {
+          var pv = cur - 1;
+          openSurah(pv);
+          toast('← ' + (typeof surahNameLocal === 'function' ? surahNameLocal(pv) : ((kkSw?'Сүре ':'Сура ') + pv)));
+        }
+      }, { passive: true });
+    })();
+
     async function openSurah(num, focusAyah) {
       num = +num;
       // второй аргумент — номер аята для прокрутки (из поиска / закладок)
@@ -5285,7 +5505,7 @@ function speakLetter(ch, name) {
       }
       name = name || ch || '';
       if (!window.speechSynthesis) {
-        toast('Озвучка недоступна. Буква: «' + name + '»');
+        toast((isKk() ? 'Дыбысталу қолжетімсіз. Әріп: «' : 'Озвучка недоступна. Буква: «') + name + '»');
         return;
       }
       try { window.speechSynthesis.cancel(); } catch(e) {}
@@ -5624,8 +5844,9 @@ function speakLetter(ch, name) {
     function renderSyllables(rootEl) {
       const el = rootEl || document.getElementById('learn-syllables') || document.querySelector('#game-area #learn-syllables');
       if (!el) return;
+      const kkS = isKk();
       el.innerHTML =
-        '<p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:0.75rem">Читайте справа налево. Сначала медленно по слогам, потом слитно.</p>' +
+        '<p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:0.75rem">' + (kkS ? 'Оңнан солға қарай оқыңыз. Алдымен баяу буындап, содан кейін қосып.' : 'Читайте справа налево. Сначала медленно по слогам, потом слитно.') + '</p>' +
         SYLLABLE_DRILLS.map((g,gi) =>
           '<div class="card"><b>'+g.title+'</b>' +
           '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.6rem;justify-content:flex-end;direction:rtl">' +
@@ -5671,23 +5892,26 @@ function speakLetter(ch, name) {
           paintForms();
           return;
         }
+        const kkP = isKk();
         const list = mode === 'words' ? PRACTICE_WORDS : PRACTICE_PHRASES;
-        el.innerHTML = tipCard('Что можно сделать в практике:<br>• Вкладки режимов сверху.<br>• Выберите режим и отвечайте на вопросы.<br>• Ошибки полезно повторить.<br>• Сначала теория — практика закрепляет.') + 
+        el.innerHTML = tipCard(kkP
+            ? 'Тәжірибеде не істеуге болады:<br>• Жоғарыдағы режим қойындылары.<br>• Режимді таңдап, сұрақтарға жауап беріңіз.<br>• Қателерді қайталаған пайдалы.<br>• Алдымен теория — тәжірибе бекітеді.'
+            : 'Что можно сделать в практике:<br>• Вкладки режимов сверху.<br>• Выберите режим и отвечайте на вопросы.<br>• Ошибки полезно повторить.<br>• Сначала теория — практика закрепляет.') +
           '<div class="tabs-row" style="margin-bottom:0.75rem">' +
-          '<button type="button" class="btn btn-sm '+(mode==='words'?'btn-primary':'')+'" data-pm="words">Слова</button>' +
-          '<button type="button" class="btn btn-sm '+(mode==='phrases'?'btn-primary':'')+'" data-pm="phrases">Фразы</button>' +
-          '<button type="button" class="btn btn-sm" data-pm="forms">Формы букв</button>' +
-          '<button type="button" class="btn btn-sm" id="pr-hide">'+(hideTr?'Показать':'Скрыть')+' подсказки</button></div>' +
-          '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">Сначала прочитайте вслух, затем откройте подсказку. 🔊 — озвучка.</p>' +
+          '<button type="button" class="btn btn-sm '+(mode==='words'?'btn-primary':'')+'" data-pm="words">' + (kkP ? 'Сөздер' : 'Слова') + '</button>' +
+          '<button type="button" class="btn btn-sm '+(mode==='phrases'?'btn-primary':'')+'" data-pm="phrases">' + (kkP ? 'Тіркестер' : 'Фразы') + '</button>' +
+          '<button type="button" class="btn btn-sm" data-pm="forms">' + (kkP ? 'Әріп түрлері' : 'Формы букв') + '</button>' +
+          '<button type="button" class="btn btn-sm" id="pr-hide">'+(hideTr ? (kkP?'Көрсету':'Показать') : (kkP?'Жасыру':'Скрыть'))+ (kkP ? ' кеңестерді' : ' подсказки') +'</button></div>' +
+          '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">' + (kkP ? 'Алдымен дауыстап оқыңыз, содан кейін кеңесті ашыңыз. 🔊 — дыбысталу.' : 'Сначала прочитайте вслух, затем откройте подсказку. 🔊 — озвучка.') + '</p>' +
           list.map((w,i) =>
             '<div class="card" data-pr="'+i+'">' +
             '<div style="display:flex;align-items:center;gap:0.5rem">' +
             '<div class="arabic" style="font-size:calc(1.6rem * var(--ar-scale, 1));flex:1;text-align:right" dir="rtl">'+w.ar+'</div>' +
-            '<button type="button" class="btn btn-sm btn-icon" data-spk="'+i+'" title="Слушать">🔊</button></div>' +
+            '<button type="button" class="btn btn-sm btn-icon" data-spk="'+i+'" title="' + (kkP?'Тыңдау':'Слушать') + '">🔊</button></div>' +
             '<div class="pr-reveal" style="display:'+(hideTr?'none':'none')+';margin-top:0.4rem">' +
             '<div style="color:var(--accent)">'+w.tr+'</div>' +
             '<div class="ayah-translation">'+w.meaning+'</div></div>' +
-            '<button type="button" class="btn btn-sm" style="margin-top:0.4rem" data-reveal="'+i+'">Показать смысл</button></div>'
+            '<button type="button" class="btn btn-sm" style="margin-top:0.4rem" data-reveal="'+i+'">' + (kkP ? 'Мағынасын көрсету' : 'Показать смысл') + '</button></div>'
           ).join('');
         el.querySelectorAll('[data-pm]').forEach(b => b.addEventListener('click', () => { mode = b.dataset.pm; paint(); }));
         document.getElementById('pr-hide')?.addEventListener('click', () => { hideTr = !hideTr; paint(); });
@@ -5702,39 +5926,41 @@ function speakLetter(ch, name) {
         }));
       };
       const paintForms = () => {
+        const kkF = isKk();
         const letters = ARABIC_LETTERS.filter(l => l.forms && l.forms.length >= 4);
         let cur = letters[Math.floor(Math.random() * letters.length)];
         let formIdx = Math.floor(Math.random() * 4);
-        const formNames = ['изолированная','начальная','срединная','конечная'];
+        const formNames = kkF ? ['оқшау','бастапқы','ортаңғы','соңғы'] : ['изолированная','начальная','срединная','конечная'];
         const show = () => {
           const wrong = letters.filter(x => x.ch !== cur.ch).sort(() => Math.random()-0.5).slice(0,3);
           const opts = [cur].concat(wrong).sort(() => Math.random()-0.5);
           el.innerHTML =
             '<div class="tabs-row" style="margin-bottom:0.75rem">' +
-            '<button type="button" class="btn btn-sm" data-pm="words">Слова</button>' +
-            '<button type="button" class="btn btn-sm" data-pm="phrases">Фразы</button>' +
-            '<button type="button" class="btn btn-sm btn-primary" data-pm="forms">Формы букв</button></div>' +
+            '<button type="button" class="btn btn-sm" data-pm="words">' + (kkF ? 'Сөздер' : 'Слова') + '</button>' +
+            '<button type="button" class="btn btn-sm" data-pm="phrases">' + (kkF ? 'Тіркестер' : 'Фразы') + '</button>' +
+            '<button type="button" class="btn btn-sm btn-primary" data-pm="forms">' + (kkF ? 'Әріп түрлері' : 'Формы букв') + '</button></div>' +
             '<div class="card" style="text-align:center">' +
-            '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:0.5rem">Какая это буква? ('+formNames[formIdx]+' форма)</div>' +
+            '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:0.5rem">' + (kkF ? 'Бұл қай әріп? ('+formNames[formIdx]+' түрі)' : 'Какая это буква? ('+formNames[formIdx]+' форма)') + '</div>' +
             '<div class="arabic" style="font-size:calc(3rem * var(--ar-scale, 1))" dir="rtl">'+cur.forms[formIdx]+'</div>' +
             '<div class="form-trainer-grid" id="form-opts"></div>' +
             '<div id="form-feedback" style="margin-top:0.75rem;min-height:1.5rem"></div>' +
-            '<button type="button" class="btn btn-sm" id="form-next" style="margin-top:0.5rem">Следующая</button></div>';
+            '<button type="button" class="btn btn-sm" id="form-next" style="margin-top:0.5rem">' + (kkF ? 'Келесі' : 'Следующая') + '</button></div>';
           const box = document.getElementById('form-opts');
           opts.forEach(o => {
             const b = document.createElement('button');
             b.type = 'button';
             b.className = 'btn';
-            b.textContent = o.ch + ' ' + o.name;
+            b.textContent = o.ch + ' ' + (kkF && o.nameKk ? o.nameKk : o.name);
             b.addEventListener('click', () => {
               const fb = document.getElementById('form-feedback');
               box.querySelectorAll('button').forEach(x => x.disabled = true);
+              const curName = kkF && cur.nameKk ? cur.nameKk : cur.name;
               if (o.ch === cur.ch) {
                 b.classList.add('btn-primary');
-                fb.innerHTML = '<span style="color:var(--success)">✓ Верно: '+cur.name+'</span>';
+                fb.innerHTML = '<span style="color:var(--success)">✓ ' + (kkF ? 'Дұрыс: ' : 'Верно: ') + curName + '</span>';
               } else {
                 b.style.borderColor = 'var(--danger)';
-                fb.innerHTML = '<span style="color:var(--danger)">✗ Это '+cur.name+' ('+cur.ch+')</span>';
+                fb.innerHTML = '<span style="color:var(--danger)">✗ ' + (kkF ? 'Бұл ' : 'Это ') + curName + ' ('+cur.ch+')</span>';
               }
             });
             box.appendChild(b);
@@ -6079,6 +6305,27 @@ function speakLetter(ch, name) {
     async function downloadJuzOffline(juz, onProgress) {
       const r = JUZ_SURAH_RANGE[+juz] || [1, 1];
       return downloadSurahRange(r[0], r[1], onProgress);
+    }
+    // build 5.78: «Скачать всё для офлайн» одной кнопкой — раньше нужно
+    // было по отдельности жать «1–114», знать про кэш аудио и т.д. Здесь —
+    // весь текст Корана (1–114) + принудительная подгрузка файлов самого
+    // приложения (html/css/js), чтобы сайт грузился офлайн «с нуля», а не
+    // только если раньше уже открывался хотя бы раз при сети.
+    async function downloadEverythingOffline(onProgress) {
+      const shellFiles = ['./', 'styles.css', 'data-changelog.js', 'data-quran-learning.js',
+        'data-reading-library.js', 'data-islamic-knowledge.js', 'data-hajj-and-names.js',
+        'data-daily-practice.js', 'data-app-settings.js', 'logic-app.js', 'quran-offline-data.js'];
+      let shellOk = 0;
+      for (let i = 0; i < shellFiles.length; i++) {
+        try { await fetch(shellFiles[i]); shellOk++; } catch(e) {}
+        if (onProgress) onProgress('shell', i + 1, shellFiles.length);
+      }
+      let quranOk = false;
+      try {
+        await downloadFullQuranOffline(function(n) { if (onProgress) onProgress('quran', n, 114); });
+        quranOk = true;
+      } catch(e) {}
+      return { shellOk: shellOk, shellTotal: shellFiles.length, quranOk: quranOk };
     }
     function loadSurahForStudy(n, cb) {
       // 1) built-in offline
@@ -6614,9 +6861,10 @@ function speakLetter(ch, name) {
       if (!el) return;
       if (!state.academyProgress) state.academyProgress = {};
       const srs = state.academyProgress._srs || {};
+      const kkR = isKk();
       // pool: letters + practice words
       const pool = [];
-      ARABIC_LETTERS.forEach(l => pool.push({ id:'L-'+l.ch, front:l.ch, back:l.name+' · '+(l.tr||''), note:l.note||'' }));
+      ARABIC_LETTERS.forEach(l => pool.push({ id:'L-'+l.ch, front:l.ch, back:(kkR && l.nameKk ? l.nameKk : l.name)+' · '+(l.tr||''), note:(kkR && l.noteKk ? l.noteKk : l.note)||'' }));
       PRACTICE_WORDS.forEach((w,i) => pool.push({ id:'W-'+i, front:w.ar, back:w.tr+' — '+w.meaning, note:'' }));
       const now = Date.now();
       let due = pool.filter(c => {
@@ -6632,27 +6880,27 @@ function speakLetter(ch, name) {
 
       const paint = () => {
         if (idx >= due.length) {
-          el.innerHTML = '<div class="empty-state"><p>Карточки на сегодня разобраны 🌱</p>' +
-            '<button type="button" class="btn btn-primary" id="srs-again">Ещё раз все</button></div>';
+          el.innerHTML = '<div class="empty-state"><p>' + (kkR ? 'Бүгінге карточкалар бітті 🌱' : 'Карточки на сегодня разобраны 🌱') + '</p>' +
+            '<button type="button" class="btn btn-primary" id="srs-again">' + (kkR ? 'Барлығын қайта' : 'Ещё раз все') + '</button></div>';
           document.getElementById('srs-again')?.addEventListener('click', () => { due = pool.sort(()=>Math.random()-0.5); idx=0; paint(); });
           return;
         }
         const c = due[idx];
         const st = srs[c.id] || { level: 0 };
         el.innerHTML =
-          '<div class="card" style="border-color:var(--accent)"><b>Интервальные карточки (SRS)</b>' +
-          '<div class="ayah-translation">Повторение с увеличением интервала. Осталось: '+(due.length-idx)+'</div></div>' +
+          '<div class="card" style="border-color:var(--accent)"><b>' + (kkR ? 'Аралықты карточкалар (SRS)' : 'Интервальные карточки (SRS)') + '</b>' +
+          '<div class="ayah-translation">' + (kkR ? 'Аралығы ұлғаятын қайталау. Қалды: ' : 'Повторение с увеличением интервала. Осталось: ') + (due.length-idx)+'</div></div>' +
           '<div class="flashcard" id="srs-card" style="min-height:220px;margin-top:0.75rem">' +
           (flipped
             ? '<div class="arabic" style="font-size:calc(2rem * var(--ar-scale, 1))" dir="rtl">'+c.front+'</div><div style="margin-top:0.75rem;font-size:1.1rem">'+c.back+'</div>'+(c.note?'<div class="ayah-translation" style="margin-top:0.5rem">'+c.note+'</div>':'')
-            : '<div class="arabic" style="font-size:calc(2.6rem * var(--ar-scale, 1))" dir="rtl">'+c.front+'</div><div class="hint">Нажмите, чтобы перевернуть</div>') +
+            : '<div class="arabic" style="font-size:calc(2.6rem * var(--ar-scale, 1))" dir="rtl">'+c.front+'</div><div class="hint">' + (kkR ? 'Аудару үшін басыңыз' : 'Нажмите, чтобы перевернуть') + '</div>') +
           '</div>' +
           '<div class="study-actions" style="margin-top:1rem">' +
           (flipped
-            ? '<button type="button" class="btn" id="srs-hard" style="color:var(--warning)">Снова</button>' +
-              '<button type="button" class="btn" id="srs-ok">Трудно</button>' +
-              '<button type="button" class="btn btn-primary" id="srs-easy">Знаю</button>'
-            : '<button type="button" class="btn btn-primary" id="srs-flip">Показать</button>' +
+            ? '<button type="button" class="btn" id="srs-hard" style="color:var(--warning)">' + (kkR ? 'Қайта' : 'Снова') + '</button>' +
+              '<button type="button" class="btn" id="srs-ok">' + (kkR ? 'Қиын' : 'Трудно') + '</button>' +
+              '<button type="button" class="btn btn-primary" id="srs-easy">' + (kkR ? 'Білемін' : 'Знаю') + '</button>'
+            : '<button type="button" class="btn btn-primary" id="srs-flip">' + (kkR ? 'Көрсету' : 'Показать') + '</button>' +
               '<button type="button" class="btn btn-sm" id="srs-speak">🔊</button>') +
           '</div>';
         document.getElementById('srs-card')?.addEventListener('click', () => { flipped = !flipped; paint(); });
@@ -6778,14 +7026,54 @@ function renderMistakes() {
       ];
       el.innerHTML =
         '<div class="tabs-row" style="margin-bottom:0.75rem">' +
-        '<button type="button" class="btn btn-sm btn-primary" data-mist="err">'+(kkM ? 'Оқу қателері' : 'Ошибки чтения')+'</button>' +
+        '<button type="button" class="btn btn-sm btn-primary" data-mist="mine">'+(kkM ? 'Менің қателерім' : 'Мои ошибки')+'</button>' +
+        '<button type="button" class="btn btn-sm" data-mist="err">'+(kkM ? 'Оқу қателері' : 'Ошибки чтения')+'</button>' +
         '<button type="button" class="btn btn-sm" data-mist="art">'+(kkM ? 'Артикуляция' : 'Артикуляция')+'</button></div>' +
         '<p class="ayah-translation" style="font-size:calc(0.82rem * var(--ru-scale, 1));margin:0 0 0.5rem">'+(kkM ? 'Сөз бойынша сүрелер — теорияның «Сүрелер» бетінде (сол жердегі кэштен де).' : 'Суры по словам — во вкладке «Суры» теории (и из кэша там же).')+'</p>' +
         '<div id="mist-panel"></div>';
       const panel = document.getElementById('mist-panel');
       const show = (tab) => {
         el.querySelectorAll('[data-mist]').forEach(b => b.classList.toggle('btn-primary', b.dataset.mist === tab));
-        if (tab === 'cache') {
+        if (tab === 'mine') {
+          // build 5.80: настоящий персональный журнал — на чём конкретно
+          // спотыкается именно этот человек в тестах «буквы/названия/
+          // правила», по данным recordMistake(), а не общий текст для всех.
+          const pool = ARABIC_RULES.concat(TAJWEED_RULES);
+          const cats = [
+            { id: 'letters', label: kkM ? 'Әріптер (Тест: буквы)' : 'Буквы (Тест: буквы)' },
+            { id: 'names', label: kkM ? 'Атаулар (Тест: названия)' : 'Названия (Тест: названия)' },
+            { id: 'rules', label: kkM ? 'Ережелер (Тест: правила)' : 'Правила (Тест: правила)' }
+          ];
+          let html = '';
+          cats.forEach(function(c) {
+            const weak = getWeakItems(c.id, 2).slice(0, 10);
+            if (!weak.length) return;
+            html += '<div class="card"><b>'+c.label+'</b>' +
+              '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">' +
+              weak.map(function(w) {
+                const pct = Math.round(w.rate * 100);
+                if (c.id === 'rules') {
+                  const r = pool.find(function(x){ return x.title === w.key; });
+                  const label = r ? (kkM && r.titleKk ? r.titleKk : r.title) : w.key;
+                  return '<span class="page-badge" title="'+w.wrong+'/'+w.total+'">'+label+' · '+pct+'%</span>';
+                }
+                const lo = ARABIC_LETTERS.find(function(l){ return l.ch === w.key; });
+                const nm = lo ? (kkM && lo.nameKk ? lo.nameKk : lo.name) : '';
+                return '<span class="page-badge" style="font-family:Amiri,serif" title="'+w.wrong+'/'+w.total+'">'+w.key+' '+nm+' · '+pct+'%</span>';
+              }).join('') +
+              '</div>' +
+              '<button type="button" class="btn btn-sm btn-primary" data-train="'+c.id+'" style="width:100%">🎯 '+(kkM ? 'Осыны жаттықтыру' : 'Тренировать это')+'</button></div>';
+          });
+          if (!html) {
+            html = '<div class="empty-state"><p>'+(kkM
+              ? 'Әлі деректер жеткіліксіз. Бірнеше тест өткеннен кейін мұнда нақты сіздің әлсіз тұстарыңыз көрінеді.'
+              : 'Пока данных недостаточно. После нескольких пройденных тестов здесь появятся именно ваши слабые места.')+'</p></div>';
+          }
+          panel.innerHTML = html;
+          panel.querySelectorAll('[data-train]').forEach(function(b) {
+            b.addEventListener('click', function(){ startTargetedPractice(b.dataset.train); });
+          });
+        } else if (tab === 'cache') {
           const all = getCachedSurahList();
           const groups = { short: [], medium: [], long: [] };
           all.forEach(s => { groups[surahLengthCat(s.count)].push(s); });
@@ -6829,7 +7117,40 @@ function renderMistakes() {
         }
       };
       el.querySelectorAll('[data-mist]').forEach(b => b.addEventListener('click', () => show(b.dataset.mist)));
-      show('err');
+      show('mine');
+    }
+
+    // Запуск теста только по слабым местам конкретного человека (из «Мои ошибки»).
+    function startTargetedPractice(cat) {
+      const weak = getWeakItems(cat, 2);
+      const kkT = isKk();
+      if (!weak.length) { toast(kkT ? 'Жеткілікті дерек жоқ' : 'Недостаточно данных'); return; }
+      showView('games');
+      document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'tests'); });
+      document.querySelectorAll('#games-tabs button').forEach(function(b){
+        b.style.display = (b.dataset.group === 'tests') ? '' : 'none';
+        b.classList.toggle('active', b.dataset.game === cat);
+      });
+      currentGame = cat;
+      try { _updateDifficultyPanelVisibility(); } catch(e) {}
+      gameScore = 0; gameTotal = 0;
+      if (cat === 'rules') {
+        const pool = ARABIC_RULES.concat(TAJWEED_RULES);
+        const otherN = Math.max(1, quizOptionCount() - 1);
+        const chosen = weak.map(function(w){ return pool.find(function(r){ return r.title === w.key; }); }).filter(Boolean);
+        gameQueue = chosen.map(function(r) {
+          const others = shuffle(pool.filter(function(x){ return x.title !== r.title; })).slice(0, otherN);
+          const txt = (kkT && r.shortKk) ? r.shortKk : (r.short || r.ru || r.body || r.ar || r.title || '');
+          const ans = (kkT && r.titleKk) ? r.titleKk : r.title;
+          const otherAns = others.map(function(o){ return (kkT && o.titleKk) ? o.titleKk : o.title; });
+          return { q: String(txt).replace(/<[^>]+>/g,'').slice(0, 140), answer: ans, id: r.title, opts: shuffle([ans].concat(otherAns)) };
+        });
+        nextRulesQuestion();
+      } else {
+        const chosen = weak.map(function(w){ return ARABIC_LETTERS.find(function(l){ return l.ch === w.key; }); }).filter(Boolean);
+        gameQueue = shuffle(chosen.concat(chosen)).slice(0, Math.max(6, chosen.length));
+        nextLetterQuestion();
+      }
     }
 
 
@@ -7463,35 +7784,138 @@ function renderMistakes() {
     let currentGame = 'letters';
     let gameScore = 0, gameTotal = 0, gameQueue = [];
 
+    // build 5.76: группы кнопок «Практики» (Тесты / Устно / Тренажёры) —
+    // показываем только кнопки активной группы, чтобы не было сразу 10
+    // кнопок в одном ряду. Сама логика запуска тренировки (data-game)
+    // ниже не меняется.
+    // build 5.76: подробная подсказка для «Практики» — что за 3 группы
+    // кнопок (Тесты/Устно/Тренажёры) и что делает каждая конкретно.
+    function renderGamesTip() {
+      const el = document.getElementById('games-tip');
+      if (!el) return;
+      const kkT = isKk();
+      el.innerHTML = tipCard(kkT ?
+        'Мұнда 3 топ бар (жоғарыдағы 📝/🎤/🎯 ауыстырғыш), әр топта — өз батырмалары:<br>' +
+        '• <b>📝 Тесттер</b> — «буквы/названия/правила/аят» деген 4 батырма: көп таңдаулы сұрақтар, дұрыс/бұрыс жауап бірден көрінеді, соңында есеп (X/Y және пайыз). Осы 3 тестте (аяттан басқа) жоғарыда «Лёгкий/Средний/Сложный» — жауап нұсқаларының саны өзгереді.<br>' +
+        '• <b>🎤 Ауызша</b> — «Буквы» мен «Аят»: тыңдап, өзіңізді дауыс жазу арқылы жазып, содан кейін екеуін салыстырасыз (микрофон рұқсаты керек).<br>' +
+        '• <b>🎯 Жаттықтырғыштар</b> — есеппен тексерілмейді, өз ырғағыңызбен: «Слоги» (буын оқу+дыбыстау), «Слова» (сөздер/тіркестер/әріп түрлері), «Карточки» (SRS — аралығы ұлғаятын қайталау), «Диктовка» (естігенді жазу), «Различие звуков» (ұқсас дыбыстарды — ت/ط, س/ص және т.б. — тыңдап ажырату; мұнда да қиындық деңгейі бар).<br>' +
+        '• «Начать» батырмасы — таңдалған тестті/жаттығуды бастайды; тестте әр сұрақтан кейін автоматты түрде келесі сұраққа өтеді.<br>' +
+        '• «Учёба → Ошибки → Менің қателерім» — қай әріп/ереже жиі шатастырылатынын өзі есептейді және дәл соны жаттықтыруды ұсынады.'
+      :
+        'Здесь 3 группы (переключатель 📝/🎤/🎯 сверху), в каждой — свои кнопки:<br>' +
+        '• <b>📝 Тесты</b> — «буквы/названия/правила/аят»: вопросы с вариантами ответа, верно/неверно видно сразу, в конце — счёт (X/Y и процент). В этих 3 тестах (кроме аята) сверху есть «Лёгкий/Средний/Сложный» — меняет число вариантов ответа.<br>' +
+        '• <b>🎤 Устно</b> — «Буквы» и «Аят»: слушаете пример, записываете себя голосом и сравниваете (нужен доступ к микрофону).<br>' +
+        '• <b>🎯 Тренажёры</b> — без оценки, в своём темпе: «Слоги» (чтение по слогам + озвучка), «Слова» (слова/фразы/формы букв), «Карточки» (SRS — повторение с увеличением интервала), «Диктовка» (записать услышанное), «Различие звуков» (на слух отличать похожие буквы — ت/ط, س/ص и т.п.; тоже есть уровень сложности).<br>' +
+        '• Кнопка «Начать» запускает выбранный тест/тренажёр; в тестах после каждого вопроса автоматически открывается следующий.<br>' +
+        '• «Учёба → Ошибки → Мои ошибки» сам считает, какую букву/правило вы путаете чаще всего, и предлагает потренировать именно это.'
+      );
+    }
+
+    document.querySelectorAll('#games-group-switch button').forEach(gbtn => {
+      gbtn.addEventListener('click', () => {
+        document.querySelectorAll('#games-group-switch button').forEach(b => b.classList.remove('btn-primary'));
+        gbtn.classList.add('btn-primary');
+        const grp = gbtn.dataset.gamegroup;
+        document.querySelectorAll('#games-tabs button').forEach(b => {
+          b.style.display = (b.dataset.group === grp) ? '' : 'none';
+        });
+      });
+    });
+
+    // build 5.80: сложность (число вариантов ответа) — единая настройка для
+    // тестов «буквы/названия/правила» и режима «Различие звуков».
+    function getQuizDifficulty() {
+      return (state.settings && state.settings.quizDifficulty) || 'medium';
+    }
+    function quizOptionCount() {
+      var d = getQuizDifficulty();
+      return d === 'easy' ? 2 : (d === 'hard' ? 6 : 4);
+    }
+    // build 5.80: личный журнал ошибок — раньше «Ошибки» был статичным общим
+    // текстом, одинаковым для всех. Теперь реально считаем, на чём именно
+    // ошибается конкретный человек в тестах (буквы/названия/правила), чтобы
+    // предложить потренировать именно слабые места.
+    function recordMistake(cat, key, correct) {
+      if (!key) return;
+      if (!state.academyProgress) state.academyProgress = {};
+      if (!state.academyProgress._mistakes) state.academyProgress._mistakes = {};
+      if (!state.academyProgress._mistakes[cat]) state.academyProgress._mistakes[cat] = {};
+      var m = state.academyProgress._mistakes[cat][key] || { wrong: 0, total: 0 };
+      m.total++;
+      if (!correct) m.wrong++;
+      state.academyProgress._mistakes[cat][key] = m;
+      saveState();
+    }
+    // Слабые места: минимум 2 попытки (иначе один случайный промах уже
+    // выглядел бы как «всегда ошибается»), сортировка по доле ошибок.
+    function getWeakItems(cat, minAttempts) {
+      minAttempts = minAttempts || 2;
+      var data = (state.academyProgress && state.academyProgress._mistakes && state.academyProgress._mistakes[cat]) || {};
+      var out = Object.keys(data).map(function(key) {
+        var m = data[key];
+        return { key: key, wrong: m.wrong, total: m.total, rate: m.total ? m.wrong / m.total : 0 };
+      }).filter(function(x) { return x.total >= minAttempts && x.wrong > 0; });
+      out.sort(function(a, b) { return b.rate - a.rate || b.wrong - a.wrong; });
+      return out;
+    }
+    document.querySelectorAll('#games-difficulty button').forEach(function(dbtn) {
+      dbtn.addEventListener('click', function() {
+        document.querySelectorAll('#games-difficulty button').forEach(function(b){ b.classList.remove('btn-primary'); });
+        dbtn.classList.add('btn-primary');
+        if (!state.settings) state.settings = {};
+        state.settings.quizDifficulty = dbtn.dataset.diff;
+        saveState();
+      });
+    });
+    function _updateDifficultyPanelVisibility() {
+      var panel = document.getElementById('games-difficulty');
+      if (!panel) return;
+      var show = ['letters','names','rules','minimal-pairs'].indexOf(currentGame) >= 0;
+      panel.style.display = show ? '' : 'none';
+    }
+    (function() {
+      var savedDiff = getQuizDifficulty();
+      document.querySelectorAll('#games-difficulty button').forEach(function(b) {
+        b.classList.toggle('btn-primary', b.dataset.diff === savedDiff);
+      });
+      _updateDifficultyPanelVisibility();
+    })();
+
     document.querySelectorAll('#games-tabs button').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('#games-tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentGame = btn.dataset.game;
+        _updateDifficultyPanelVisibility();
         const area = document.getElementById('game-area');
+        const kkG = isKk();
         // Практические модули из теории
         if (currentGame === 'syllables') {
           area.innerHTML = '<div id="learn-syllables"></div>';
-          try { renderSyllables(document.getElementById('learn-syllables')); } catch(e) { area.innerHTML = '<p>Ошибка слогов: '+(e.message||e)+'</p>'; }
+          try { renderSyllables(document.getElementById('learn-syllables')); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Буындар қатесі: ' : 'Ошибка слогов: ') + (e.message||e) + '</p>'; }
           return;
         }
         if (currentGame === 'practice') {
           area.innerHTML = '<div id="learn-practice"></div>';
-          try { renderPractice(document.getElementById('learn-practice')); } catch(e) { area.innerHTML = '<p>Ошибка практики: '+(e.message||e)+'</p>'; }
+          try { renderPractice(document.getElementById('learn-practice')); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Тәжірибе қатесі: ' : 'Ошибка практики: ') + (e.message||e) + '</p>'; }
           return;
         }
         if (currentGame === 'srs') {
           area.innerHTML = '<div id="learn-srs"></div>';
-          try { renderSrs(document.getElementById('learn-srs')); } catch(e) { area.innerHTML = '<p>Ошибка карточек: '+(e.message||e)+'</p>'; }
+          try { renderSrs(document.getElementById('learn-srs')); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Карточкалар қатесі: ' : 'Ошибка карточек: ') + (e.message||e) + '</p>'; }
           return;
         }
         if (currentGame === 'dictation') {
-          try { renderDictation(area); } catch(e) { area.innerHTML = '<p>Ошибка диктовки: '+(e.message||e)+'</p>'; }
+          try { renderDictation(area); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Диктант қатесі: ' : 'Ошибка диктовки: ') + (e.message||e) + '</p>'; }
+          return;
+        }
+        if (currentGame === 'minimal-pairs') {
+          try { renderMinimalPairs(area); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Қате: ' : 'Ошибка: ') + (e.message||e) + '</p>'; }
           return;
         }
         area.innerHTML =
-          '<div class="empty-state"><p>Нажмите «Начать» для теста: <b>'+btn.textContent+'</b></p>' +
-          '<button class="btn btn-primary" id="btn-start-game" style="margin-top:1rem">Начать</button></div>';
+          '<div class="empty-state"><p>' + (kkG ? 'Тест үшін «Бастау» басыңыз: ' : 'Нажмите «Начать» для теста: ') + '<b>'+btn.textContent+'</b></p>' +
+          '<button class="btn btn-primary" id="btn-start-game" style="margin-top:1rem">' + (kkG ? 'Бастау' : 'Начать') + '</button></div>';
         document.getElementById('btn-start-game').addEventListener('click', startGame);
       });
     });
@@ -7512,10 +7936,17 @@ function renderMistakes() {
         gameQueue = shuffle(ARABIC_LETTERS).slice(0, 10);
         nextLetterQuestion();
       } else if (currentGame === 'rules') {
+        const kkG = isKk();
         const pool = ARABIC_RULES.concat(TAJWEED_RULES);
+        const otherN = Math.max(1, quizOptionCount() - 1);
         gameQueue = shuffle(pool).slice(0, 8).map(r => {
-          const others = shuffle(pool.filter(x => x.title !== r.title)).slice(0, 3);
-          const txt = (r.ru || r.body || r.ar || r.title || ''); return { q: String(txt).replace(/<[^>]+>/g,'').slice(0, 80) + '…', answer: r.title, opts: shuffle([r.title].concat(others.map(o => o.title))) };
+          const others = shuffle(pool.filter(x => x.title !== r.title)).slice(0, otherN);
+          const txt = (kkG && r.shortKk) ? r.shortKk : (r.short || r.ru || r.body || r.ar || r.title || '');
+          const ans = (kkG && r.titleKk) ? r.titleKk : r.title;
+          const otherAns = others.map(o => (kkG && o.titleKk) ? o.titleKk : o.title);
+          // id — всегда исходный (русский) title, как стабильный ключ для
+          // личного журнала ошибок, независимо от текущего языка интерфейса.
+          return { q: String(txt).replace(/<[^>]+>/g,'').slice(0, 140), answer: ans, id: r.title, opts: shuffle([ans].concat(otherAns)) };
         });
         nextRulesQuestion();
       } else if (currentGame === 'ayah') {
@@ -7564,7 +7995,7 @@ function renderMistakes() {
           stream.getTracks().forEach(t => t.stop());
           isRecording = false;
           if (!recordedChunks.length) {
-            toast('Пустая запись');
+            toast(isKk() ? 'Жазба бос' : 'Пустая запись');
             if (onStop) onStop(false);
             return;
           }
@@ -7575,13 +8006,13 @@ function renderMistakes() {
             playBtn.disabled = false;
             playBtn.style.opacity = '1';
           }
-          toast('Запись готова — нажмите «Моя запись»');
+          toast(isKk() ? 'Жазба дайын — «Менің жазбам» басыңыз' : 'Запись готова — нажмите «Моя запись»');
           if (onStop) onStop(true);
         };
         mediaRecorder.start();
         isRecording = true;
       } catch (e) {
-        toast('Нет доступа к микрофону');
+        toast(isKk() ? 'Микрофонға қолжетімділік жоқ' : 'Нет доступа к микрофону');
         if (onStop) onStop(false);
       }
     }
@@ -7595,18 +8026,18 @@ function renderMistakes() {
 
     function playMyRecording() {
       if (!recordedBlobUrl) {
-        toast('Сначала запишите себя');
+        toast(isKk() ? 'Алдымен өзіңізді жазыңыз' : 'Сначала запишите себя');
         return;
       }
       const a = new Audio(recordedBlobUrl);
-      a.play().catch(() => toast('Не удалось воспроизвести'));
+      a.play().catch(() => toast(isKk() ? 'Ойнату мүмкін болмады' : 'Не удалось воспроизвести'));
     }
 
     function startSpeakGame(ayahMode) {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         document.getElementById('game-area').innerHTML =
-          '<div class="empty-state"><p>Запись звука не поддерживается в этом браузере.<br>Используйте Chrome / Safari.</p>' +
-          '<button class="btn btn-primary" id="btn-start-game" style="margin-top:1rem">Назад</button></div>';
+          '<div class="empty-state"><p>' + (isKk() ? 'Бұл браузерде дыбыс жазу қолдау таппайды.<br>Chrome / Safari пайдаланыңыз.' : 'Запись звука не поддерживается в этом браузере.<br>Используйте Chrome / Safari.') + '</p>' +
+          '<button class="btn btn-primary" id="btn-start-game" style="margin-top:1rem">' + (isKk() ? 'Артқа' : 'Назад') + '</button></div>';
         document.getElementById('btn-start-game').addEventListener('click', startGame);
         return;
       }
@@ -7626,19 +8057,20 @@ function renderMistakes() {
       gameTotal++;
       clearRecording();
       const letter = gameQueue.shift();
+      const kkQ = isKk();
       const area = document.getElementById('game-area');
       area.innerHTML =
         '<div class="quiz-card">' +
-        '<div class="quiz-q"><span class="arabic-q">'+letter.ch+'</span>Произнесите букву<br>' +
-        '<span style="color:var(--text-muted);font-size:0.9rem;font-weight:500">'+letter.name+' · '+letter.tr+'</span></div>' +
+        '<div class="quiz-q"><span class="arabic-q">'+letter.ch+'</span>' + (kkQ ? 'Әріпті айтыңыз' : 'Произнесите букву') + '<br>' +
+        '<span style="color:var(--text-muted);font-size:0.9rem;font-weight:500">'+(kkQ && letter.nameKk ? letter.nameKk : letter.name)+' · '+letter.tr+'</span></div>' +
         '<div style="text-align:center;margin:1rem 0;display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center">' +
-          '<button class="btn btn-sm" id="btn-hear">🔊 Как надо</button>' +
-          '<button class="btn btn-primary" id="btn-rec">⏺ Записать себя</button>' +
-          '<button class="btn btn-sm" id="btn-play-me" disabled style="opacity:0.5">▶ Моя запись</button>' +
-          '<button class="btn btn-sm" id="btn-next-speak">Далее →</button>' +
+          '<button class="btn btn-sm" id="btn-hear">🔊 ' + (kkQ ? 'Дұрысы' : 'Как надо') + '</button>' +
+          '<button class="btn btn-primary" id="btn-rec">⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя') + '</button>' +
+          '<button class="btn btn-sm" id="btn-play-me" disabled style="opacity:0.5">▶ ' + (kkQ ? 'Менің жазбам' : 'Моя запись') + '</button>' +
+          '<button class="btn btn-sm" id="btn-next-speak">' + (kkQ ? 'Келесі →' : 'Далее →') + '</button>' +
         '</div>' +
-        '<div id="listen-status" style="text-align:center;color:var(--text-muted);font-size:0.85rem">1) Слушайте пример → 2) Запишите себя → 3) Сравните</div>' +
-        '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">Аят/буква '+gameTotal+' · осталось в очереди: '+gameQueue.length+'</div>' +
+        '<div id="listen-status" style="text-align:center;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? '1) Мысалды тыңдаңыз → 2) Өзіңізді жазыңыз → 3) Салыстырыңыз' : '1) Слушайте пример → 2) Запишите себя → 3) Сравните') + '</div>' +
+        '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Аят/әріп ' + gameTotal + ' · кезекте қалды: ' + gameQueue.length : 'Аят/буква '+gameTotal+' · осталось в очереди: '+gameQueue.length) + '</div>' +
         '</div>';
 
       document.getElementById('btn-hear').addEventListener('click', () => speakLetter(letter.ch, letter.name));
@@ -7654,25 +8086,26 @@ function renderMistakes() {
         const st = document.getElementById('listen-status');
         if (isRecording) {
           stopRecording();
-          recBtn.textContent = '⏺ Записать себя';
+          recBtn.textContent = '⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя');
           recBtn.classList.remove('mic-active');
-          st.textContent = 'Обработка записи…';
+          st.textContent = kkQ ? 'Жазба өңделуде…' : 'Обработка записи…';
           return;
         }
         recBtn.classList.add('mic-active');
-        recBtn.textContent = '⏹ Стоп';
-        st.textContent = 'Идёт запись… нажмите «Стоп», когда закончите';
+        recBtn.textContent = '⏹ ' + (kkQ ? 'Тоқтату' : 'Стоп');
+        st.textContent = kkQ ? 'Жазба жүруде… аяқтағанда «Тоқтату» басыңыз' : 'Идёт запись… нажмите «Стоп», когда закончите';
         await startRecording((ok) => {
-          recBtn.textContent = '⏺ Записать себя';
+          recBtn.textContent = '⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя');
           recBtn.classList.remove('mic-active');
-          if (ok) st.textContent = 'Готово. Сравните: «Как надо» и «Моя запись»';
+          if (ok) st.textContent = kkQ ? 'Дайын. Салыстырыңыз: «Дұрысы» және «Менің жазбам»' : 'Готово. Сравните: «Как надо» и «Моя запись»';
         });
       });
     }
 
     async function startSpeakAyahGame() {
       const area = document.getElementById('game-area');
-      area.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка аятов...</div>';
+      const kkA = isKk();
+      area.innerHTML = '<div class="loading"><div class="spinner"></div>' + (kkA ? 'Аяттар жүктелуде...' : 'Загрузка аятов...') + '</div>';
       try {
         const surahs = await fetchSurahsMeta();
         const short = surahs.filter(s => s.numberOfAyahs <= 15 && s.number >= 78);
@@ -7693,7 +8126,7 @@ function renderMistakes() {
         gameTotal = 0;
         nextSpeakAyahQuestion();
       } catch (e) {
-        area.innerHTML = '<div class="empty-state">Нужен интернет для загрузки аятов.</div>';
+        area.innerHTML = '<div class="empty-state">' + (kkA ? 'Аяттарды жүктеу үшін интернет керек.' : 'Нужен интернет для загрузки аятов.') + '</div>';
       }
     }
 
@@ -7702,25 +8135,26 @@ function renderMistakes() {
       gameTotal++;
       clearRecording();
       const ayah = gameQueue.shift();
+      const kkQ = isKk();
       const area = document.getElementById('game-area');
       area.innerHTML =
         '<div class="quiz-card">' +
         '<div class="quiz-q"><span class="arabic-q" style="font-size:calc(1.6rem * var(--ar-scale, 1))">'+ayah.text+'</span>' +
-        'Сура '+ayah.surah+', аят '+ayah.number+'<br>' +
+        (kkQ ? 'Сүре '+ayah.surah+', аят '+ayah.number : 'Сура '+ayah.surah+', аят '+ayah.number)+'<br>' +
         '<span style="color:var(--text-muted);font-size:0.85rem;font-weight:400">'+ayah.translation+'</span></div>' +
         '<div style="text-align:center;margin:1rem 0;display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center">' +
-          '<button class="btn btn-sm" id="btn-hear">🔊 Как надо</button>' +
-          '<button class="btn btn-primary" id="btn-rec">⏺ Записать себя</button>' +
-          '<button class="btn btn-sm" id="btn-play-me" disabled style="opacity:0.5">▶ Моя запись</button>' +
-          '<button class="btn btn-sm" id="btn-next-speak">Далее →</button>' +
+          '<button class="btn btn-sm" id="btn-hear">🔊 ' + (kkQ ? 'Дұрысы' : 'Как надо') + '</button>' +
+          '<button class="btn btn-primary" id="btn-rec">⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя') + '</button>' +
+          '<button class="btn btn-sm" id="btn-play-me" disabled style="opacity:0.5">▶ ' + (kkQ ? 'Менің жазбам' : 'Моя запись') + '</button>' +
+          '<button class="btn btn-sm" id="btn-next-speak">' + (kkQ ? 'Келесі →' : 'Далее →') + '</button>' +
         '</div>' +
-        '<div id="listen-status" style="text-align:center;color:var(--text-muted);font-size:0.85rem">Слушайте чтеца → повторите → сравните свою запись</div>' +
-        '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">Аят '+gameTotal+' · осталось: '+gameQueue.length+'</div>' +
+        '<div id="listen-status" style="text-align:center;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Қарини тыңдаңыз → қайталаңыз → жазбаңызды салыстырыңыз' : 'Слушайте чтеца → повторите → сравните свою запись') + '</div>' +
+        '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Аят ' + gameTotal + ' · қалды: ' + gameQueue.length : 'Аят '+gameTotal+' · осталось: '+gameQueue.length) + '</div>' +
         '</div>';
 
       document.getElementById('btn-hear').addEventListener('click', () => {
-        if (ayah.audio) playAudio(ayah.audio, 'Сура '+ayah.surah+':'+ayah.number, { repeat: 1 });
-        else toast('Аудио аята недоступно');
+        if (ayah.audio) playAudio(ayah.audio, (kkQ ? 'Сүре ' : 'Сура ')+ayah.surah+':'+ayah.number, { repeat: 1 });
+        else toast(kkQ ? 'Аят аудиосы қолжетімсіз' : 'Аудио аята недоступно');
       });
       document.getElementById('btn-play-me').addEventListener('click', playMyRecording);
       document.getElementById('btn-next-speak').addEventListener('click', () => {
@@ -7734,20 +8168,20 @@ function renderMistakes() {
         const st = document.getElementById('listen-status');
         if (isRecording) {
           stopRecording();
-          recBtn.textContent = '⏺ Записать себя';
+          recBtn.textContent = '⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя');
           recBtn.classList.remove('mic-active');
-          st.textContent = 'Обработка…';
+          st.textContent = kkQ ? 'Өңделуде…' : 'Обработка…';
           return;
         }
         // pause example audio if playing
         try { document.getElementById('audio-player').pause(); } catch(e) {}
         recBtn.classList.add('mic-active');
-        recBtn.textContent = '⏹ Стоп';
-        st.textContent = 'Идёт запись… нажмите «Стоп»';
+        recBtn.textContent = '⏹ ' + (kkQ ? 'Тоқтату' : 'Стоп');
+        st.textContent = kkQ ? 'Жазба жүруде… «Тоқтату» басыңыз' : 'Идёт запись… нажмите «Стоп»';
         await startRecording((ok) => {
-          recBtn.textContent = '⏺ Записать себя';
+          recBtn.textContent = '⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя');
           recBtn.classList.remove('mic-active');
-          if (ok) st.textContent = 'Сравните: «Как надо» и «Моя запись»';
+          if (ok) st.textContent = kkQ ? 'Салыстырыңыз: «Дұрысы» және «Менің жазбам»' : 'Сравните: «Как надо» и «Моя запись»';
         });
       });
       applySettings();
@@ -7758,34 +8192,38 @@ function renderMistakes() {
       gameTotal++;
       const letter = gameQueue.shift();
       const isName = currentGame === 'names';
+      const kkQ = isKk();
+      const otherN = Math.max(1, quizOptionCount() - 1);
       let opts;
       if (isName) {
-        opts = shuffle([letter.name].concat(shuffle(ARABIC_LETTERS.filter(l => l.name !== letter.name)).slice(0, 3).map(l => l.name)));
+        opts = shuffle([kkQ && letter.nameKk ? letter.nameKk : letter.name].concat(shuffle(ARABIC_LETTERS.filter(l => l.name !== letter.name)).slice(0, otherN).map(l => kkQ && l.nameKk ? l.nameKk : l.name)));
       } else {
-        opts = shuffle([letter.ch].concat(shuffle(ARABIC_LETTERS.filter(l => l.ch !== letter.ch)).slice(0, 3).map(l => l.ch)));
+        opts = shuffle([letter.ch].concat(shuffle(ARABIC_LETTERS.filter(l => l.ch !== letter.ch)).slice(0, otherN).map(l => l.ch)));
       }
       const area = document.getElementById('game-area');
       area.innerHTML =
         '<div class="quiz-card"><div class="quiz-q">' +
         (isName
-          ? '<span class="arabic-q">'+letter.ch+'</span>Как называется эта буква?'
-          : 'Какая буква соответствует:<br><b>'+letter.name+'</b> ('+letter.tr+')?') +
+          ? '<span class="arabic-q">'+letter.ch+'</span>' + (kkQ ? 'Бұл әріптің аты қандай?' : 'Как называется эта буква?')
+          : (kkQ ? 'Қай әріп сәйкес келеді:<br><b>'+(letter.nameKk||letter.name)+'</b> ('+letter.tr+')?' : 'Какая буква соответствует:<br><b>'+letter.name+'</b> ('+letter.tr+')?')) +
         '</div><div class="quiz-opts" id="quiz-opts"></div>' +
-        '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">Счёт: '+gameScore+' / '+gameTotal+'</div></div>';
+        '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Есеп: ' : 'Счёт: ') + gameScore+' / '+gameTotal+'</div></div>';
       const optsEl = document.getElementById('quiz-opts');
-      const correct = isName ? letter.name : letter.ch;
+      const correct = isName ? (kkQ && letter.nameKk ? letter.nameKk : letter.name) : letter.ch;
       opts.forEach(o => {
         const b = document.createElement('button');
         b.textContent = o;
         if (!isName) b.style.fontFamily = 'Amiri, serif';
-        b.style.fontSize = !isName ? '1.5rem' : '0.95rem';
+        b.style.fontSize = !isName ? 'calc(1.5rem * var(--ar-scale, 1))' : '0.95rem';
         b.addEventListener('click', () => {
           optsEl.querySelectorAll('button').forEach(x => x.disabled = true);
-          if (o === correct) { b.classList.add('correct'); gameScore++; toast('Верно!'); }
+          const isRight = (o === correct);
+          try { recordMistake(isName ? 'names' : 'letters', letter.ch, isRight); } catch(e) {}
+          if (isRight) { b.classList.add('correct'); gameScore++; toast(kkQ ? 'Дұрыс!' : 'Верно!'); }
           else {
             b.classList.add('wrong');
             optsEl.querySelectorAll('button').forEach(x => { if (x.textContent === correct) x.classList.add('correct'); });
-            toast('Правильный ответ: ' + correct);
+            toast((kkQ ? 'Дұрыс жауап: ' : 'Правильный ответ: ') + correct);
           }
           setTimeout(() => nextLetterQuestion(), 900);
         });
@@ -7797,22 +8235,25 @@ function renderMistakes() {
       if (!gameQueue.length) return endGame();
       gameTotal++;
       const item = gameQueue.shift();
+      const kkQ = isKk();
       const area = document.getElementById('game-area');
       area.innerHTML =
         '<div class="quiz-card"><div class="quiz-q" style="font-size:0.95rem;font-weight:500">'+item.q+'</div>' +
         '<div class="quiz-opts" id="quiz-opts"></div>' +
-        '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">Счёт: '+gameScore+' / '+gameTotal+'</div></div>';
+        '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Есеп: ' : 'Счёт: ') + gameScore+' / '+gameTotal+'</div></div>';
       const optsEl = document.getElementById('quiz-opts');
       item.opts.forEach(o => {
         const b = document.createElement('button');
         b.textContent = o;
         b.addEventListener('click', () => {
           optsEl.querySelectorAll('button').forEach(x => x.disabled = true);
-          if (o === item.answer) { b.classList.add('correct'); gameScore++; toast('Верно!'); }
+          const isRight = (o === item.answer);
+          try { recordMistake('rules', item.id || item.answer, isRight); } catch(e) {}
+          if (isRight) { b.classList.add('correct'); gameScore++; toast(kkQ ? 'Дұрыс!' : 'Верно!'); }
           else {
             b.classList.add('wrong');
             optsEl.querySelectorAll('button').forEach(x => { if (x.textContent === item.answer) x.classList.add('correct'); });
-            toast('Ответ: ' + item.answer);
+            toast((kkQ ? 'Жауабы: ' : 'Ответ: ') + item.answer);
           }
           setTimeout(() => nextRulesQuestion(), 1000);
         });
@@ -7822,7 +8263,8 @@ function renderMistakes() {
 
     async function startAyahGame() {
       const area = document.getElementById('game-area');
-      area.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка аята...</div>';
+      const kkA = isKk();
+      area.innerHTML = '<div class="loading"><div class="spinner"></div>' + (kkA ? 'Аят жүктелуде...' : 'Загрузка аята...') + '</div>';
       try {
         const surahs = await fetchSurahsMeta();
         // short surahs for quiz
@@ -7842,7 +8284,7 @@ function renderMistakes() {
         gameTotal = 1;
         area.innerHTML =
           '<div class="quiz-card"><div class="quiz-q"><span class="arabic-q">'+ayah.text+'</span>' +
-          'Сура '+s.number+', аят '+ayah.number+'<br>Выберите правильный перевод:</div>' +
+          (kkA ? 'Сүре '+s.number+', аят '+ayah.number+'<br>Дұрыс аударманы таңдаңыз:' : 'Сура '+s.number+', аят '+ayah.number+'<br>Выберите правильный перевод:') + '</div>' +
           '<div class="quiz-opts" id="quiz-opts"></div></div>';
         const optsEl = document.getElementById('quiz-opts');
         const correct = ayah.translation.slice(0, 120);
@@ -7852,32 +8294,33 @@ function renderMistakes() {
           b.style.textAlign = 'right';
           b.addEventListener('click', () => {
             optsEl.querySelectorAll('button').forEach(x => x.disabled = true);
-            if (o === correct) { b.classList.add('correct'); gameScore = 1; toast('Верно! ✓'); }
+            if (o === correct) { b.classList.add('correct'); gameScore = 1; toast(kkA ? 'Дұрыс! ✓' : 'Верно! ✓'); }
             else {
               b.classList.add('wrong');
               optsEl.querySelectorAll('button').forEach(x => { if (x.textContent.startsWith(correct.slice(0, 40))) x.classList.add('correct'); });
-              toast('Это был другой перевод');
+              toast(kkA ? 'Бұл басқа аударма болды' : 'Это был другой перевод');
             }
             setTimeout(endGame, 1200);
           });
           optsEl.appendChild(b);
         });
       } catch (e) {
-        area.innerHTML = '<div class="empty-state">Нужен интернет для теста по аятам.</div>';
+        area.innerHTML = '<div class="empty-state">' + (kkA ? 'Аят тесті үшін интернет керек.' : 'Нужен интернет для теста по аятам.') + '</div>';
       }
     }
 
     function endGame() {
       const area = document.getElementById('game-area');
+      const kkE = isKk();
       const pct = gameTotal ? Math.round(gameScore / gameTotal * 100) : 0;
       area.innerHTML =
         '<div class="quiz-card" style="text-align:center">' +
         '<div class="quiz-score">'+gameScore+' / '+gameTotal+'</div>' +
-        '<p style="color:var(--text-muted)">Результат: '+pct+'%</p>' +
-        '<button class="btn btn-primary" id="btn-start-game" style="margin-top:1rem">Ещё раз</button>' +
+        '<p style="color:var(--text-muted)">' + (kkE ? 'Нәтиже: ' : 'Результат: ') + pct+'%</p>' +
+        '<button class="btn btn-primary" id="btn-start-game" style="margin-top:1rem">' + (kkE ? 'Қайта' : 'Ещё раз') + '</button>' +
         '</div>';
       document.getElementById('btn-start-game').addEventListener('click', startGame);
-      toast(pct >= 80 ? 'Отлично! 🌟' : pct >= 50 ? 'Хорошо, продолжайте!' : 'Повторите материал');
+      toast(pct >= 80 ? (kkE ? 'Керемет! 🌟' : 'Отлично! 🌟') : pct >= 50 ? (kkE ? 'Жақсы, жалғастырыңыз!' : 'Хорошо, продолжайте!') : (kkE ? 'Материалды қайталаңыз' : 'Повторите материал'));
       try {
         if (!state.stats) state.stats = {};
         state.stats.quizzes = (state.stats.quizzes || 0) + 1;
@@ -8712,9 +9155,61 @@ function renderMistakes() {
       paintList();
     }
 
+// build 5.80: «Различие звуков» — тренажёр на минимальные пары (то, на чём
+// реально спотыкаются новички: ت/ط, س/ص, د/ض и т.п.). Слушаете один звук из
+// пары, выбираете, какой именно услышали. Набор пар зависит от сложности
+// (лёгкий — явно разные буквы для разминки слуха; сложный — самые близкие).
+const MINIMAL_PAIR_SETS = {
+  easy: [['ب','ر'], ['م','ف'], ['ن','ك'], ['ل','و'], ['ي','ط'], ['ج','س']],
+  medium: [['ت','ط'], ['س','ص'], ['د','ض'], ['ه','ح'], ['ك','ق']],
+  hard: [['ذ','ظ'], ['ز','ذ'], ['ح','خ'], ['ع','ء'], ['ض','ظ'], ['س','ث']]
+};
+function renderMinimalPairs(area) {
+  const kkP = isKk();
+  const sets = MINIMAL_PAIR_SETS[getQuizDifficulty()] || MINIMAL_PAIR_SETS.medium;
+  let score = 0, total = 0;
+  const paint = () => {
+    const pair = sets[Math.floor(Math.random() * sets.length)];
+    const answerCh = pair[Math.random() < 0.5 ? 0 : 1];
+    area.innerHTML =
+      '<div class="quiz-card" style="text-align:center">' +
+      '<div class="quiz-q">' + (kkP ? 'Тыңдап, қай әріпті естігеніңізді таңдаңыз' : 'Послушайте и выберите, какую букву вы услышали') + '</div>' +
+      '<button type="button" class="btn btn-primary" id="mp-play" style="margin:0.5rem 0 1rem">🔊 ' + (kkP ? 'Тыңдау' : 'Слушать') + '</button>' +
+      '<div class="quiz-opts" id="mp-opts"></div>' +
+      '<div style="margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkP ? 'Есеп: ' : 'Счёт: ') + score + ' / ' + total + '</div>' +
+      '</div>';
+    const play = () => { try { speakArText(answerCh + '\u064E', 0.6); } catch(e) {} }; // + фатха, чтобы звук был слышен явно
+    document.getElementById('mp-play').addEventListener('click', play);
+    play();
+    const optsEl = document.getElementById('mp-opts');
+    shuffle(pair).forEach(ch => {
+      const b = document.createElement('button');
+      b.textContent = ch;
+      b.style.fontFamily = 'Amiri, serif';
+      b.style.fontSize = 'calc(2rem * var(--ar-scale, 1))';
+      b.addEventListener('click', () => {
+        total++;
+        optsEl.querySelectorAll('button').forEach(x => x.disabled = true);
+        const correct = (ch === answerCh);
+        try { recordMistake('minimal-pairs', pair.slice().sort().join('-'), correct); } catch(e) {}
+        if (correct) { b.classList.add('correct'); score++; toast(kkP ? 'Дұрыс!' : 'Верно!'); }
+        else {
+          b.classList.add('wrong');
+          optsEl.querySelectorAll('button').forEach(x => { if (x.textContent === answerCh) x.classList.add('correct'); });
+          toast((kkP ? 'Дұрысы: ' : 'Было: ') + answerCh);
+        }
+        setTimeout(paint, 1100);
+      });
+      optsEl.appendChild(b);
+    });
+  };
+  paint();
+}
+
 function renderDictation(area) {
       if (!area) area = document.getElementById('game-area');
       if (!area) return;
+      const kkD = isKk();
       const pool = [];
       if (typeof OFFLINE_SURAHS !== 'undefined' && OFFLINE_SURAHS[1]) {
         (OFFLINE_SURAHS[1].ayahs || []).forEach(a => pool.push({ ar: a.text, ref: '1:'+a.number }));
@@ -8726,7 +9221,7 @@ function renderDictation(area) {
         });
       }
       if (!pool.length) {
-        area.innerHTML = '<div class="empty-state"><p>Нет данных для диктовки. Откройте офлайн-суры.</p></div>';
+        area.innerHTML = '<div class="empty-state"><p>' + (kkD ? 'Диктант үшін деректер жоқ. Офлайн сүрелерді ашыңыз.' : 'Нет данных для диктовки. Откройте офлайн-суры.') + '</p></div>';
         return;
       }
       let idx = Math.floor(Math.random() * pool.length);
@@ -8734,13 +9229,13 @@ function renderDictation(area) {
       const paint = () => {
         const item = pool[idx];
         area.innerHTML =
-          '<div class="card"><b>Диктовка</b><div class="ayah-translation">Слушайте, затем введите арабский текст (можно без огласовок).</div>' +
+          '<div class="card"><b>' + (kkD ? 'Диктант' : 'Диктовка') + '</b><div class="ayah-translation">' + (kkD ? 'Тыңдаңыз, содан кейін араб мәтінін теріңіз (харакатсыз болуы мүмкін).' : 'Слушайте, затем введите арабский текст (можно без огласовок).') + '</div>' +
           '<div style="margin:0.5rem 0;display:flex;gap:0.4rem;flex-wrap:wrap">' +
-          '<button type="button" class="btn btn-primary btn-sm" id="dict-play">▶ Слушать</button>' +
-          '<button type="button" class="btn btn-sm" id="dict-skip">Другой аят</button></div>' +
-          '<div class="surah-meta">'+(item.ref||'')+' · счёт: '+score+'/'+total+'</div>' +
-          '<textarea id="dict-input" rows="3" placeholder="Введите услышанное..." style="width:100%;margin:0.5rem 0;padding:0.55rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:1.15rem;direction:rtl"></textarea>' +
-          '<button type="button" class="btn btn-primary" id="dict-check" style="width:100%">Проверить</button>' +
+          '<button type="button" class="btn btn-primary btn-sm" id="dict-play">▶ ' + (kkD ? 'Тыңдау' : 'Слушать') + '</button>' +
+          '<button type="button" class="btn btn-sm" id="dict-skip">' + (kkD ? 'Басқа аят' : 'Другой аят') + '</button></div>' +
+          '<div class="surah-meta">'+(item.ref||'')+' · ' + (kkD ? 'есеп: ' : 'счёт: ') + score+'/'+total+'</div>' +
+          '<textarea id="dict-input" rows="3" placeholder="' + (kkD ? 'Естігеніңізді теріңіз...' : 'Введите услышанное...') + '" style="width:100%;margin:0.5rem 0;padding:0.55rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:1.15rem;direction:rtl"></textarea>' +
+          '<button type="button" class="btn btn-primary" id="dict-check" style="width:100%">' + (kkD ? 'Тексеру' : 'Проверить') + '</button>' +
           '<div id="dict-fb" style="margin-top:0.5rem"></div></div>';
         document.getElementById('dict-play')?.addEventListener('click', () => {
           try {
@@ -8750,7 +9245,7 @@ function renderDictation(area) {
               u.lang = 'ar-SA';
               speechSynthesis.speak(u);
             }
-          } catch(e) { toast('Озвучка недоступна'); }
+          } catch(e) { toast(kkD ? 'Дыбысталу қолжетімсіз' : 'Озвучка недоступна'); }
         });
         document.getElementById('dict-skip')?.addEventListener('click', () => {
           idx = Math.floor(Math.random() * pool.length);
@@ -8765,10 +9260,10 @@ function renderDictation(area) {
           const fb = document.getElementById('dict-fb');
           if (fb) {
             fb.innerHTML = ok
-              ? '<span style="color:var(--success)">✓ Верно</span>'
-              : '<span style="color:var(--danger)">✗ Правильно:</span><div class="arabic" dir="rtl" style="margin-top:0.3rem">'+item.ar+'</div>';
+              ? '<span style="color:var(--success)">✓ ' + (kkD ? 'Дұрыс' : 'Верно') + '</span>'
+              : '<span style="color:var(--danger)">✗ ' + (kkD ? 'Дұрысы:' : 'Правильно:') + '</span><div class="arabic" dir="rtl" style="margin-top:0.3rem">'+item.ar+'</div>';
           }
-          toast(ok ? 'Верно' : 'Сверьте с ответом');
+          toast(ok ? (kkD ? 'Дұрыс' : 'Верно') : (kkD ? 'Жауаппен салыстырыңыз' : 'Сверьте с ответом'));
         });
       };
       paint();
@@ -12784,6 +13279,8 @@ bKk:
             '<div class="ayah-translation" style="margin-top:0.3rem">Раздел «Уведомления и виджет» сверху. Азан — запись муэдзина (нужен интернет). Пока сайт открыт.</div>' +
             '<div class="setting-row" style="margin-top:0.4rem"><span>Напоминания о намазе</span>' +
             '<button type="button" class="btn btn-sm '+(notifOn?'btn-primary':'')+'" id="pt-notif">'+(notifOn?'Вкл':'Выкл')+'</button></div>' +
+            '<button type="button" class="btn btn-sm" id="pt-notif-test" style="width:100%;margin-top:0.3rem">🔔 Тест уведомления</button>' +
+            '<div class="ayah-translation" id="pt-notif-test-status" style="font-size:calc(0.78rem * var(--ru-scale, 1));margin-top:0.25rem;min-height:1.1rem"></div>' +
             '<div class="setting-row"><span>Напомнить за</span>' +
             '<select id="pt-lead" style="padding:0.35rem 0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
             [5,10,15,20].map(function(m){ return '<option value="'+m+'"'+((+(state.settings.prayerNotifLead||10)===m)?' selected':'')+'>'+m+' мин до намаза</option>'; }).join('') +
@@ -12856,9 +13353,15 @@ let body = '';
                   const key = triple[0], label = triple[1], val = triple[2];
                   const icon = (typeof PRAYER_ICONS !== 'undefined' && PRAYER_ICONS[key]) || '';
                   const isSel = state._dhSelectedPrayerKey === key;
-                  const rowStyle = isSel ? 'cursor:pointer;background:var(--accent);border-radius:0.4rem;margin:0.1rem -0.3rem;padding:0.35rem 0.3rem' : 'cursor:pointer;border-radius:0.4rem;margin:0.1rem -0.3rem;padding:0.35rem 0.3rem';
-                  const spanStyle = isSel ? 'color:rgba(255,255,255,0.9)' : '';
-                  const bStyle = isSel ? 'color:#fff' : '';
+                  // build 5.77: прошедшие на сегодня намазы — сероватые/приглушённые,
+                  // чтобы сразу было видно, что время уже позади.
+                  const timeDate = (typeof parseHM === 'function') ? parseHM(val, new Date()) : null;
+                  const isPast = !isSel && timeDate && timeDate.getTime() < Date.now();
+                  const rowStyle = isSel
+                    ? 'cursor:pointer;background:var(--accent);border-radius:0.4rem;margin:0.1rem -0.3rem;padding:0.35rem 0.3rem'
+                    : ('cursor:pointer;border-radius:0.4rem;margin:0.1rem -0.3rem;padding:0.35rem 0.3rem' + (isPast ? ';opacity:0.5' : ''));
+                  const spanStyle = isSel ? 'color:rgba(255,255,255,0.9)' : (isPast ? 'color:var(--text-muted)' : '');
+                  const bStyle = isSel ? 'color:#fff' : (isPast ? 'color:var(--text-muted)' : '');
                   return '<div class="setting-row" data-select-prayer-pt="'+key+'" style="'+rowStyle+'"><span style="'+spanStyle+'">'+icon+' '+tLabel(label)+(isSel?' ✦':'')+'</span><b id="pt-t-'+key+'" style="'+bStyle+'">'+val+'</b></div>';
                 }).join('');
                 const srcLabel = t._src === 'cache-muftyat' ? 'ДУМК / muftyat.kz (кэш)' :
@@ -13209,6 +13712,41 @@ let body = '';
 
           // notif toggle
           const notifBtn = document.getElementById('pt-notif');
+          // build 5.79: кнопка «Тест уведомления» — сразу показывает системное
+          // уведомление и играет азан, не дожидаясь реального времени намаза.
+          // Так проще проверить, что уведомления вообще доходят на этом
+          // устройстве/браузере, вместо того чтобы ждать до следующего намаза.
+          const notifTestBtn = document.getElementById('pt-notif-test');
+          if (notifTestBtn) notifTestBtn.addEventListener('click', function(){
+            const statusEl = document.getElementById('pt-notif-test-status');
+            const kkT = (typeof isKk === 'function') && isKk();
+            if (!('Notification' in window)) {
+              if (statusEl) statusEl.textContent = kkT ? 'Бұл браузерде жүйелік хабарлама қолдау таппайды.' : 'Этот браузер не поддерживает системные уведомления.';
+              try { playAdhan(); } catch(e) {}
+              return;
+            }
+            const fire = function() {
+              sendPrayerNotification(
+                kkT ? 'Сынақ хабарламасы' : 'Тестовое уведомление',
+                kkT ? 'Хабарлама жұмыс істеп тұр' : 'Уведомления работают',
+                'prayer-test'
+              );
+              try { playAdhan(); } catch(e) {}
+              if (statusEl) statusEl.textContent = kkT ? '✓ Хабарлама жіберілді' : '✓ Уведомление отправлено';
+            };
+            if (Notification.permission === 'granted') { fire(); return; }
+            if (Notification.permission === 'denied') {
+              if (statusEl) statusEl.textContent = kkT
+                ? 'Хабарлама браузер баптауында бұғатталған. Сайт баптауынан рұқсат беріңіз.'
+                : 'Уведомления заблокированы в настройках браузера. Разрешите их для этого сайта.';
+              try { playAdhan(); } catch(e) {}
+              return;
+            }
+            Notification.requestPermission().then(function(p){
+              if (p === 'granted') fire();
+              else if (statusEl) statusEl.textContent = kkT ? 'Рұқсат берілмеді.' : 'Разрешение не дано.';
+            }).catch(function(){});
+          });
           if (notifBtn) notifBtn.addEventListener('click', function(){
             const insecure = (location.protocol === 'file:' || location.protocol === 'content:');
             if (!('Notification' in window)) {
@@ -13817,13 +14355,38 @@ let body = '';
       } catch(e) {}
     }
 
+    // build 5.79: уведомления о намазе через Service Worker, когда он
+    // зарегистрирован — showNotification() у SW на некоторых платформах
+    // (особенно на компьютере) надёжнее прямого new Notification() из
+    // вкладки. Если SW недоступен — обычный запасной вариант.
+    async function sendPrayerNotification(title, body, tag) {
+      const opts = { body: body, tag: tag, renotify: true };
+      try {
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg && reg.showNotification) { await reg.showNotification(title, opts); return; }
+        }
+      } catch(e) {}
+      try { new Notification(title, opts); } catch(e) {}
+    }
+
         function schedulePrayerNotifications() {
       if (!state.settings || !state.settings.prayerNotif) return;
       const loc = state.prayerLoc || state.prayerLocSaved;
       if (!loc || loc.lat == null) return;
-      const canNotify = ('Notification' in window) && Notification.permission === 'granted';
       try {
-        // clear previous
+        // build 5.79: раньше расписание строилось на далёких setTimeout
+        // (вплоть до 48 часов вперёд) + резервном 20-секундном интервале,
+        // сверяющем ТОЧНОЕ совпадение минуты. Оба способа ненадёжны в
+        // фоновой/свёрнутой вкладке — особенно на компьютере, где браузер
+        // агрессивно дросселирует таймеры фоновых вкладок (после нескольких
+        // минут — вплоть до одного срабатывания в минуту). Далёкий setTimeout
+        // в таких условиях часто не срабатывает вовремя или вовсе теряется;
+        // а сравнение «ровно эта минута» при таком дросселировании легко
+        // «перескакивает» нужную минуту между двумя редкими тиками.
+        // Теперь — один короткий интервал (1 сек) и окно допуска в 150 сек
+        // вместо точного совпадения: даже если браузер придержит тик до
+        // одного раза в минуту, момент всё равно попадёт в окно допуска.
         if (window._prayerNotifTimer) { clearInterval(window._prayerNotifTimer); window._prayerNotifTimer = null; }
         if (window._prayerTimeouts) {
           window._prayerTimeouts.forEach(function(id){ try { clearTimeout(id); } catch(e){} });
@@ -13832,115 +14395,72 @@ let body = '';
 
         const mk = (state.settings && state.settings.prayerMethod) || 'DUMK';
         const names = {
-          fajr: 'Фаджр', sunrise: 'Восход', duha: 'Духа',
+          fajr: 'Фаджр', duha: 'Духа',
           dhuhr: 'Зухр', asr: 'Аср', maghrib: 'Магриб', isha: 'Иша',
           tahajjud: 'Тахаджуд'
         };
-        const fireKeys = ['fajr','dhuhr','asr','maghrib','isha']; // обязательные + optional below
+        const fireKeys = ['fajr','dhuhr','asr','maghrib','isha']; // с азаном; духа/тахаджуд — только тихое уведомление
+        const ALERT_WINDOW = 150; // сек допуска — больше, чем худшее дросселирование браузера
 
-        function scheduleDay(dayOffset) {
+        let curDayKey = null;
+        function recomputeToday() {
           const day = new Date();
-          day.setDate(day.getDate() + dayOffset);
-          day.setSeconds(0, 0);
           const t = (typeof resolveDayTimes === 'function')
             ? resolveDayTimes(+loc.lat, +loc.lon, day, mk)
             : (typeof calcPrayerTimes === 'function' ? calcPrayerTimes(+loc.lat, +loc.lon, day, mk) : null);
-          if (!t) return;
-          if (dayOffset === 0) state._nextPrayers = t;
-          Object.keys(names).forEach(function(k) {
-            if (!t[k] || t[k] === '--:--') return;
-            if (k === 'duha' && !(state.settings && state.settings.widgetDuha === true)) return;
-            if (k === 'tahajjud' && !(state.settings && state.settings.widgetTahajjud)) return;
-            if (k === 'sunrise') return; // не уведомлять о восходе по умолчанию
-            const parts = String(t[k]).split(':');
-            if (parts.length < 2) return;
-            const when = new Date(day.getFullYear(), day.getMonth(), day.getDate(), +parts[0], +parts[1], 0, 0);
-            const delay = when.getTime() - Date.now();
-            if (delay < -30000) return; // уже прошло
-            if (delay > 48 * 3600 * 1000) return;
-            const dayKey = when.getFullYear()+'-'+(when.getMonth()+1)+'-'+when.getDate();
-            const stamp = 'pn_'+k+'_'+dayKey+'_'+t[k];
-            const leadMin = Math.max(0, Math.min(30, +(state.settings.prayerNotifLead || 10)));
-            // Раннее напоминание за N минут (без азана)
-            if (leadMin > 0 && fireKeys.indexOf(k) >= 0) {
-              const leadDelay = delay - leadMin * 60 * 1000;
-              if (leadDelay > 1000) {
-                const leadStamp = stamp + '_lead';
-                const tidLead = setTimeout(function() {
-                  try {
-                    if (sessionStorage.getItem(leadStamp)) return;
-                    sessionStorage.setItem(leadStamp, '1');
-                    const msg = 'Через ' + leadMin + ' мин · ' + names[k] + ' · ' + t[k];
-                    if (canNotify) {
-                      new Notification(msg, {
-                        body: (loc.city || 'Намаз') + ' — подготовьтесь',
-                        tag: 'prayer-lead-' + k + '-' + dayKey,
-                        renotify: true
-                      });
-                    } else {
-                      try { toast(msg); } catch(e) {}
-                    }
-                  } catch(e) {}
-                }, leadDelay);
-                window._prayerTimeouts.push(tidLead);
-              }
-            }
-            const tid = setTimeout(function() {
-              try {
-                if (sessionStorage.getItem(stamp)) return;
-                sessionStorage.setItem(stamp, '1');
-                if (canNotify) {
-                  new Notification(names[k] + ' · ' + t[k], {
-                    body: (loc.city || 'Намаз') + ' · ' + formatDateRu(when),
-                    tag: 'prayer-' + k + '-' + dayKey,
-                    renotify: true
-                  });
-                } else {
-                  try { toast(names[k] + ' · ' + t[k]); } catch(e) {}
-                }
-                if (fireKeys.indexOf(k) >= 0) {
-                  try { playAdhan(); } catch(e) {}
-                }
-              } catch(e) {}
-            }, Math.max(0, delay));
-            window._prayerTimeouts.push(tid);
-          });
+          state._nextPrayers = t;
+          curDayKey = day.getFullYear()+'-'+(day.getMonth()+1)+'-'+day.getDate();
+          return t;
         }
-        scheduleDay(0);
-        scheduleDay(1);
+        recomputeToday();
 
-        // запасной интервал каждую минуту (если таймаут сбросился)
-        window._prayerNotifTimer = setInterval(function() {
+        function parseWhen(hhmm) {
+          if (!hhmm || hhmm === '--:--') return null;
+          const p = String(hhmm).split(':');
+          if (p.length < 2) return null;
+          const now = new Date();
+          return new Date(now.getFullYear(), now.getMonth(), now.getDate(), +p[0], +p[1], 0, 0);
+        }
+
+        function tick() {
           try {
-            if (!state.settings.prayerNotif) return;
             const now = new Date();
-            const cur = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+            const todayKey = now.getFullYear()+'-'+(now.getMonth()+1)+'-'+now.getDate();
+            if (todayKey !== curDayKey) recomputeToday();
             const t = state._nextPrayers;
             if (!t) return;
+            const leadMin = Math.max(0, Math.min(30, +(state.settings.prayerNotifLead || 10)));
+            const canNotify = ('Notification' in window) && Notification.permission === 'granted';
             Object.keys(names).forEach(function(k) {
-              if (!t[k] || t[k] !== cur) return;
-              if (k === 'sunrise') return;
-              const dayKey = now.getFullYear()+'-'+(now.getMonth()+1)+'-'+now.getDate();
-              const stamp = 'pn_'+k+'_'+dayKey+'_'+t[k];
-              if (sessionStorage.getItem(stamp)) return;
-              sessionStorage.setItem(stamp, '1');
-              if (canNotify) {
-                try {
-                  new Notification(names[k] + ' · ' + t[k], {
-                    body: (loc.city || 'Намаз') + ' · ' + formatDateRu(now),
-                    tag: 'prayer-' + k + '-' + dayKey,
-                    renotify: true
-                  });
-                } catch(e) {}
-              }
-              if (fireKeys.indexOf(k) >= 0) { try { playAdhan(); } catch(e) {} }
+              if (k === 'duha' && !(state.settings && state.settings.widgetDuha === true)) return;
+              if (k === 'tahajjud' && !(state.settings && state.settings.widgetTahajjud)) return;
+              const when = parseWhen(t[k]);
+              if (!when) return;
+              const offsets = (fireKeys.indexOf(k) >= 0 && leadMin > 0) ? [leadMin * 60, 0] : [0];
+              offsets.forEach(function(off) {
+                const target = when.getTime() - off * 1000;
+                const lateSec = (now.getTime() - target) / 1000;
+                if (lateSec < 0 || lateSec >= ALERT_WINDOW) return;
+                const stamp = 'pn_' + k + '_' + todayKey + '_' + off;
+                if (sessionStorage.getItem(stamp)) return;
+                sessionStorage.setItem(stamp, '1');
+                const title = off === 0 ? (names[k] + ' · ' + t[k]) : ('Через ' + leadMin + ' мин · ' + names[k] + ' · ' + t[k]);
+                const body = (loc.city || 'Намаз') + (off === 0 ? (' · ' + formatDateRu(when)) : ' — подготовьтесь');
+                if (canNotify) {
+                  sendPrayerNotification(title, body, 'prayer-' + k + '-' + off + '-' + todayKey);
+                } else {
+                  try { toast(title); } catch(e) {}
+                }
+                if (off === 0 && fireKeys.indexOf(k) >= 0) {
+                  try { playAdhan(); } catch(e) {}
+                }
+              });
             });
-            // после полуночи — пересчитать
-            if (cur === '00:01' || cur === '00:00') {
-              schedulePrayerNotifications();
-            }
           } catch(e) {}
-        }, 20000);
+        }
+
+        tick();
+        window._prayerNotifTimer = setInterval(tick, 1000);
       } catch(e) {}
     }
 
@@ -15940,18 +16460,14 @@ function renderDict() {
               data.ayahs[ctxFrom].number + '–' + data.ayahs[ctxTo].number +
               (ctx.note ? ' · ' + ctx.note : '') + '</div>';
             for (let ci = ctxFrom; ci <= ctxTo; ci++) {
-              if (ci === idx) {
-                // build 5.71: раньше главный (выбранный) аят молча пропускался в
-                // списке контекста — заголовок честно говорит «аяты 1–6», но в
-                // самом списке образовывалась незаметная дыра без пояснения
-                // (например, «1 2 4 5 6»), что пользователь принимал за баг.
-                // Теперь вместо тихого пропуска — заметная строка-пометка на его месте.
-                html += '<div style="margin:0.45rem 0;padding:0.35rem 0.4rem;border-radius:0.4rem;opacity:0.75;font-style:italic;text-align:center">' +
-                  '<div class="surah-meta">' + s + ':' + data.ayahs[ci].number + ' · ' + (isKk() ? '↑ жоғарыда негізгі ретінде көрсетілген' : '↑ показан выше как главный') + '</div></div>';
-                continue;
-              }
+              // build 5.75: раньше главный (выбранный) аят в списке контекста
+              // заменялся строкой-пометкой «показан выше как главный» вместо
+              // текста — по просьбе пользователя здесь всегда выводится сам
+              // аят (просто слегка выделен рамкой, чтобы было видно, какой
+              // из них выбранный).
               const ca = data.ayahs[ci];
-              html += '<div style="margin:0.45rem 0;padding:0.35rem 0.4rem;border-radius:0.4rem;opacity:0.9">' +
+              const isMain = ci === idx;
+              html += '<div style="margin:0.45rem 0;padding:0.35rem 0.4rem;border-radius:0.4rem;' + (isMain ? 'opacity:1;border:1px solid var(--accent)' : 'opacity:0.9') + '">' +
                 '<div class="surah-meta">' + s + ':' + ca.number + '</div>' +
                 '<div class="arabic" style="font-size:calc(1.15rem * var(--ar-scale, 1));line-height:1.85">' + ca.text + '</div>' +
                 '<div class="ayah-translation" style="font-size:calc(0.85rem * var(--ru-scale, 1))">' + (ca.translation || '') + '</div></div>';
@@ -15964,13 +16480,9 @@ function renderDict() {
             html += '<div class="card" style="margin:0.4rem 0"><div class="surah-meta" style="margin-bottom:0.35rem">' + (isKk() ? 'Кеңейтілген мәтінмән · аяттар ' : 'Расширенный контекст · аяты ') +
               data.ayahs[wFrom].number + '–' + data.ayahs[wTo].number + (isKk() ? ' · жасыруға болады' : ' · можно скрыть') + '</div>';
             for (let ci = wFrom; ci <= wTo; ci++) {
-              if (ci === idx) {
-                html += '<div style="margin:0.45rem 0;padding:0.35rem 0.4rem;border-radius:0.4rem;opacity:0.75;font-style:italic;text-align:center">' +
-                  '<div class="surah-meta">' + s + ':' + data.ayahs[ci].number + ' · ' + (isKk() ? '↑ жоғарыда негізгі ретінде көрсетілген' : '↑ показан выше как главный') + '</div></div>';
-                continue;
-              }
               const ca = data.ayahs[ci];
-              html += '<div style="margin:0.45rem 0;padding:0.35rem 0.4rem;border-radius:0.4rem;opacity:0.9">' +
+              const isMain = ci === idx;
+              html += '<div style="margin:0.45rem 0;padding:0.35rem 0.4rem;border-radius:0.4rem;' + (isMain ? 'opacity:1;border:1px solid var(--accent)' : 'opacity:0.9') + '">' +
                 '<div class="surah-meta">' + s + ':' + ca.number + '</div>' +
                 '<div class="arabic" style="font-size:calc(1.15rem * var(--ar-scale, 1));line-height:1.85">' + ca.text + '</div>' +
                 '<div class="ayah-translation" style="font-size:calc(0.85rem * var(--ru-scale, 1))">' + (ca.translation || '') + '</div></div>';
@@ -16255,13 +16767,24 @@ function renderDict() {
           '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap">' +
           '<b>📚 ' + (kkLang ? 'Күн әңгімесі' : 'История дня') + '</b>' +
           '<span><button type="button" class="btn btn-sm" data-daily-next="story" data-daily-dir="prev">←</button> ' +
-          '<button type="button" class="btn btn-sm" data-daily-next="story" data-daily-dir="next">→</button></span></div>' +
+          '<button type="button" class="btn btn-sm" data-daily-next="story" data-daily-dir="next">→</button> ' +
+          '<button type="button" class="btn btn-sm" id="home-story-share" title="' + (kkLang ? 'Бөлісу' : 'Поделиться') + '">📤</button></span></div>' +
           (catLabel ? '<div class="surah-meta">' + catLabel + '</div>' : '') +
           '<div style="margin-top:0.3rem;cursor:pointer" id="home-story-open"><b>' + name + '</b>' +
           '<div class="ayah-translation">' + snippet + '</div></div></div>';
         el.querySelector('#home-story-open')?.addEventListener('click', function() {
           try { sessionStorage.setItem('story_open', JSON.stringify({ cat: item.cat, name: p.name })); } catch(e) {}
           showView('stories');
+        });
+        el.querySelector('#home-story-share')?.addEventListener('click', function(ev) {
+          ev.stopPropagation();
+          if (typeof shareCardAsImage === 'function') {
+            shareCardAsImage({
+              kicker: (kkLang ? 'Күн әңгімесі' : 'История дня') + (catLabel ? ' · ' + catLabel : ''),
+              translation: name + '. ' + snippet,
+              kk: kkLang
+            });
+          }
         });
         el.querySelectorAll('[data-daily-next="story"]').forEach(function(b) {
           b.addEventListener('click', function(ev) {
@@ -23593,7 +24116,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           const mean = (typeof nameMeanLocal === 'function') ? nameMeanLocal(n) : (n.mean||'');
           var nameIdx = ALLAH_NAMES.indexOf(n);
           if (nameIdx < 0) nameIdx = 0;
-          nameCard = '<div class="card" style="cursor:pointer" data-go-name="'+nameIdx+'" title="'+(isKk?'«Аллаһтың 99 есімі» бөлімінде ашу':'Открыть в разделе 99 имён')+'"><div style="display:flex;justify-content:space-between;align-items:center;gap:0.35rem;flex-wrap:wrap"><b>🌟 '+(isKk?'Аллаһтың есімі':'Имя Аллаха')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="next">→</button></span></div><div class="arabic" style="font-size:calc(1.6rem * var(--ar-scale, 1));margin:0.5rem 0">'+n.ar+'</div><div>'+(n.tr||'')+' — '+mean+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — есімді ашу →':'Нажмите — открыть имя →')+'</div></div>';
+          nameCard = '<div class="card" style="cursor:pointer" data-go-name="'+nameIdx+'" title="'+(isKk?'«Аллаһтың 99 есімі» бөлімінде ашу':'Открыть в разделе 99 имён')+'"><div style="display:flex;justify-content:space-between;align-items:center;gap:0.35rem;flex-wrap:wrap"><b>🌟 '+(isKk?'Аллаһтың есімі':'Имя Аллаха')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-name="'+nameIdx+'" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic" style="font-size:calc(1.6rem * var(--ar-scale, 1));margin:0.5rem 0">'+n.ar+'</div><div>'+(n.tr||'')+' — '+mean+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — есімді ашу →':'Нажмите — открыть имя →')+'</div></div>';
         }
       } catch(e) {}
       let       prayerMini = '';
@@ -23652,11 +24175,16 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
                 const key = triple[0];
                 const icon = (typeof PRAYER_ICONS !== 'undefined' && PRAYER_ICONS[key]) || '';
                 const isActive = info && info.key === key && (selKey ? true : !info.isTomorrow);
+                // build 5.77: прошедшие сегодня намазы — сероватые, чтобы сразу
+                // было видно, что время уже позади (тот же принцип, что и в
+                // полном разделе «Время намаза»).
+                const timeDate = (typeof parseHM === 'function') ? parseHM(triple[2], new Date()) : null;
+                const isPast = !isActive && timeDate && timeDate.getTime() < Date.now();
                 const cellStyle = isActive
                   ? 'background:var(--accent);border:1px solid var(--accent);border-radius:0.6rem;padding:0.5rem 0.6rem;font-size:0.82rem;cursor:pointer;transition:transform 0.15s'
-                  : 'background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.5rem 0.6rem;font-size:0.82rem;cursor:pointer;transition:transform 0.15s';
+                  : ('background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.5rem 0.6rem;font-size:0.82rem;cursor:pointer;transition:transform 0.15s' + (isPast ? ';opacity:0.5' : ''));
                 const labelStyle = isActive ? 'color:rgba(255,255,255,0.88)' : 'color:var(--text-muted)';
-                const valStyle = isActive ? 'font-size:1.08rem;color:#fff' : 'font-size:1.08rem';
+                const valStyle = isActive ? 'font-size:1.08rem;color:#fff' : ('font-size:1.08rem' + (isPast ? ';color:var(--text-muted)' : ''));
                 return '<div data-select-prayer="'+key+'" style="'+cellStyle+'"><span style="'+labelStyle+'">'+icon+' '+triple[1]+(isActive?' ✦':'')+'</span><br><b style="'+valStyle+'">'+triple[2]+'</b></div>';
               }).join('') +
               '</div></div>';
@@ -23669,16 +24197,18 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         '«Күнделіктіде» не істеуге болады:<br>' +
         '• 📅 Оқиғалар күнтізбесі — Рамазан, Айт және т.б. дейін қанша күн қалғаны; басыңыз — толық күнтізбе. Оның орнына 🔥 Стрикті қосуға болады (Баптаулар → Мәзір → «Күнделікті» виджеттер ретінде).<br>' +
         '• Намаз карточкасы — қала бойынша уақыт; басыңыз — толық «Намаз уақыты» бөлімі (қала, әдіс, жүктеу, хабарламалар).<br>' +
-        '• Сағат/күн аяты — аятты басыңыз: мәтінмән (алды және арты). ← → көрсеткілері таңдауды ауыстырады.<br>' +
+        '• Сағат/күн аяты — аятты басыңыз: мәтінмән (алды және арты); ← → көрсеткілері таңдауды ауыстырады, ⏱/📅 — сағат сайын немесе тәулігіне бір рет.<br>' +
         '• Дұға, хадис, сүннет, сөз, әңгіме, Аллаһтың есімі — көрсеткілермен парақтаңыз; дұғада 🔊 — дыбыстау.<br>' +
+        '• Әр карточкада 📤 «Бөлісу» — таңдалғанды сурет ретінде сақтауға/жіберуге болады.<br>' +
         '• Виджеттегі Духа тек «Намаз уақыты» → виджетте қосылған болса көрінеді (әдепкі бойынша өшірулі).<br>' +
         '• Карточка тәртібін «Баптаулар → Мәзір» бөлімінде өзгертуге болады.'
         :
         'Что можно сделать на «Ежедневном»:<br>' +
         '• 📅 Календарь событий — сколько дней до Рамадана, Ид и других дат; нажмите — полный календарь. Вместо него можно включить 🔥 Стрик (Настройки → Меню → порядок виджетов «Ежедневного»).<br>' +
         '• Карточка намаза — время по городу; нажмите — полный раздел «Время намаза» (город, метод, скачать, уведомления).<br>' +
-        '• Аят часа/дня — нажмите на аят: контекст (до и после). Стрелки ← → сменяют выбор.<br>' +
+        '• Аят часа/дня — нажмите на аят: контекст (до и после); стрелки ← → сменяют выбор, кнопка режима — раз в час или раз в сутки.<br>' +
         '• Дуа, хадис, сунна, слово, история, имя Аллаха — листайте стрелками; 🔊 у дуа — озвучка.<br>' +
+        '• На каждой карточке есть 📤 «Поделиться» — сохранить или отправить выбранное картинкой.<br>' +
         '• Духа на виджете только если включили в «Время намаза» → виджет (по умолчанию выкл).<br>' +
         '• Порядок карточек ниже настраивается в «Настройки → Меню».') +
         '</div></div>';
@@ -23732,17 +24262,63 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         prayer: prayerMini,
         ayah: '<div id="dailyhub-ayah" class="aotd-card"></div>',
         story: '<div id="dailyhub-story"></div>',
-        dua: '<div class="card" style="cursor:pointer" data-go-dua="1" title="'+(isKk?'Басыңыз — «Азкар және дұға» бөлімінде ашу':'Нажмите — открыть в разделе «Азкары и дуа»')+'"><div style="display:flex;justify-content:space-between"><b>🤲 '+(isKk?'Күн дұғасы':'Дуа дня')+'</b><span><button type="button" class="btn btn-sm" data-speak-dua="1">🔊</button> <button type="button" class="btn btn-sm" data-daily-next="dua" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="dua" data-daily-dir="next">→</button></span></div><div class="arabic" style="font-size:calc(1.3rem * var(--ar-scale, 1));margin:0.5rem 0">'+dua.ar+'</div>'+(dua.tr?'<div style="color:var(--accent);margin:0.25rem 0;font-size:0.95rem">'+dua.tr+'</div>':'')+'<div class="ayah-translation">'+(isKk&&dua.kk?dua.kk:dua.ru)+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Азкар және дұға» бөлімінде ашу →':'Нажмите — открыть в разделе «Азкары и дуа» →')+'</div></div>',
+        dua: '<div class="card" style="cursor:pointer" data-go-dua="1" title="'+(isKk?'Басыңыз — «Азкар және дұға» бөлімінде ашу':'Нажмите — открыть в разделе «Азкары и дуа»')+'"><div style="display:flex;justify-content:space-between"><b>🤲 '+(isKk?'Күн дұғасы':'Дуа дня')+'</b><span><button type="button" class="btn btn-sm" data-speak-dua="1">🔊</button> <button type="button" class="btn btn-sm" data-daily-next="dua" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="dua" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-dua="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic" style="font-size:calc(1.3rem * var(--ar-scale, 1));margin:0.5rem 0">'+dua.ar+'</div>'+(dua.tr?'<div style="color:var(--accent);margin:0.25rem 0;font-size:0.95rem">'+dua.tr+'</div>':'')+'<div class="ayah-translation">'+(isKk&&dua.kk?dua.kk:dua.ru)+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Азкар және дұға» бөлімінде ашу →':'Нажмите — открыть в разделе «Азкары и дуа» →')+'</div></div>',
         name: nameCard,
         hadith: '<div class="card" style="cursor:pointer" data-go-hadith="1" title="'+(isKk?'Басыңыз — «Хадистер» бөлімінде ашу':'Нажмите — открыть в разделе «Хадисы»')+'"><div style="display:flex;justify-content:space-between"><b>📜 '+(isKk?'Күн хадисі':'Хадис дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="hadith" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="hadith" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-hadith="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic" style="margin:0.5rem 0">'+had.ar+'</div><div class="ayah-translation">'+(isKk&&had.kk?had.kk:had.ru)+'</div><div style="color:var(--text-muted);font-size:0.85rem">'+had.src+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Хадистер» бөлімінде ашу →':'Нажмите — открыть в разделе «Хадисы» →')+'</div></div>',
-        sunnah: '<div class="card" style="cursor:pointer" data-go-sunnah="1" title="'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу':'Нажмите — открыть в разделе «Сунны»')+'"><div style="display:flex;justify-content:space-between"><b>🌱 '+(isKk?'Күн сүннеті':'Сунна дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="next">→</button></span></div><b>'+(isKk&&sun.titleKk?sun.titleKk:sun.title)+'</b><div class="ayah-translation">'+(isKk&&sun.kk?sun.kk:sun.ru)+'</div><div style="font-size:0.85rem;color:var(--text-muted)">'+sun.proof+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу →':'Нажмите — открыть в разделе «Сунны» →')+'</div></div>',
-        word: '<div class="card"><div style="display:flex;justify-content:space-between"><b>🔤 '+(isKk?'Күн сөзі':'Слово дня')+'</b><button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="next">→</button></div><div class="arabic">'+word.ar+'</div><div>'+word.tr+' — '+(isKk&&word.kk?word.kk:word.ru)+'</div></div>'
+        sunnah: '<div class="card" style="cursor:pointer" data-go-sunnah="1" title="'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу':'Нажмите — открыть в разделе «Сунны»')+'"><div style="display:flex;justify-content:space-between"><b>🌱 '+(isKk?'Күн сүннеті':'Сунна дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-sunnah="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><b>'+(isKk&&sun.titleKk?sun.titleKk:sun.title)+'</b><div class="ayah-translation">'+(isKk&&sun.kk?sun.kk:sun.ru)+'</div><div style="font-size:0.85rem;color:var(--text-muted)">'+sun.proof+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу →':'Нажмите — открыть в разделе «Сунны» →')+'</div></div>',
+        word: '<div class="card"><div style="display:flex;justify-content:space-between"><b>🔤 '+(isKk?'Күн сөзі':'Слово дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-word="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic">'+word.ar+'</div><div>'+word.tr+' — '+(isKk&&word.kk?word.kk:word.ru)+'</div></div>'
       };
       const widgetOrder = (typeof getDailyWidgetOrder === 'function') ? getDailyWidgetOrder() : ['events','prayer','ayah','story','dua','name','hadith','sunnah','word'];
+      // build 5.77: приветствие по имени + «аватар» (буква имени или 🌙)
+      // сверху «Ежедневного», вместо безликого набора карточек с ходу.
+      // Плюс поздравление в особые дни: пятница (Джума) и Айт (по датам
+      // из HIJRI_EVENTS) — приоритетнее обычного приветствия.
+      let greetingBar = '';
+      try {
+        const now = new Date();
+        const todayLocal = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+        const dow = now.getDay(); // 5 = пятница
+        const name = ((state.settings && state.settings.dhGreetingName) || '').trim();
+        let special = null;
+        try {
+          const yearEvents = (typeof HIJRI_EVENTS !== 'undefined') ? (HIJRI_EVENTS[now.getFullYear()] || []) : [];
+          const eidF = yearEvents.find(function(e){ return e.key === 'eid_fitr' && e.g === todayLocal; });
+          const eidA = yearEvents.find(function(e){ return e.key === 'eid_adha' && e.g === todayLocal; });
+          if (eidF) special = { ru: 'Ораза айт мубарак! 🎉', kk: 'Ораза айт мұбарак болсын! 🎉' };
+          else if (eidA) special = { ru: 'Курбан айт мубарак! 🐑', kk: 'Құрбан айт мұбарак болсын! 🐑' };
+        } catch(e) {}
+        if (!special && dow === 5) special = { ru: 'Джума мубарак! 🕌', kk: 'Жұма мүбарак болсын! 🕌' };
+        const avatarLetter = name ? name.charAt(0).toUpperCase() : '🌙';
+        const greetText = special
+          ? (isKk ? special.kk : special.ru)
+          : (name
+              ? (isKk ? ('Ассалаумағалейкум, ' + name + '!') : ('Ассаламу алейкум, ' + name + '!'))
+              : (isKk ? 'Ассалаумағалейкум!' : 'Ассаламу алейкум!'));
+        let dateLabel = '';
+        try { dateLabel = now.toLocaleDateString(isKk ? 'kk-KZ' : 'ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }); } catch(e) {}
+        greetingBar = '<div class="card" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 75%, #7c3aed) 100%);border:none;box-shadow:var(--shadow-accent)">' +
+          '<div style="width:2.8rem;height:2.8rem;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;color:#fff;flex-shrink:0" data-go-greeting-name="1" title="'+(isKk?'Атыңызды баптауларда орнатыңыз':'Настроить имя в настройках')+'">'+avatarLetter+'</div>' +
+          '<div style="min-width:0"><div style="font-weight:700;color:#fff;font-size:1.05rem">'+greetText+'</div>' +
+          (dateLabel ? '<div style="color:rgba(255,255,255,0.85);font-size:0.8rem;text-transform:capitalize">'+dateLabel+'</div>' : '') +
+          '</div></div>';
+      } catch(e) {}
+      // build 5.78: скрытые долгим нажатием виджеты (не то же самое, что
+      // порядок — «Порядок» ничего не убирает, только переставляет).
+      var hiddenDh = (typeof getHiddenDailyWidgets === 'function') ? getHiddenDailyWidgets() : [];
       el.innerHTML =
+        greetingBar +
         widgets +
         tipCard +
-        widgetOrder.map(function(id){ return widgetHtml[id] || ''; }).join('');
+        widgetOrder.filter(function(id){ return hiddenDh.indexOf(id) < 0; })
+          .map(function(id){ return '<div data-dh-widget="'+id+'">' + (widgetHtml[id] || '') + '</div>'; }).join('');
+      el.querySelector('[data-go-greeting-name]')?.addEventListener('click', function(){
+        try {
+          showView('settings');
+          document.querySelector('#settings-cats [data-set-cat="morecfg"]')?.click();
+          switchSettingsSubtab('morecfg', 'order');
+          setTimeout(function(){ document.getElementById('dh-greeting-name')?.focus(); }, 150);
+        } catch(e) {}
+      });
       // Живой секундный отсчёт до ближайшего (или выбранного кликом) намаза
       // в виджете «Ежедневного» — тот же безопасный паттерн, что и у виджета
       // лимитов «Онлайн» (build 4.100): очищаем предыдущий интервал перед
@@ -23832,6 +24408,63 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
             source: had.src,
             kk: isKk
           });
+        });
+      });
+      // build 5.75: та же кнопка «Поделиться» — теперь у каждой карточки
+      // «Ежедневного» (дуа, имя Аллаха, сунна, слово дня), а не только у
+      // аята и хадиса.
+      el.querySelectorAll('[data-share-dua]').forEach(function(b){
+        b.addEventListener('click', function(e){
+          e.stopPropagation();
+          if (!dua) return;
+          shareCardAsImage({
+            kicker: isKk ? 'Күн дұғасы' : 'Дуа дня',
+            arabic: dua.ar,
+            translation: (isKk && dua.kk) ? dua.kk : dua.ru,
+            source: dua.tr || '',
+            kk: isKk
+          });
+        });
+      });
+      el.querySelectorAll('[data-share-sunnah]').forEach(function(b){
+        b.addEventListener('click', function(e){
+          e.stopPropagation();
+          if (!sun) return;
+          shareCardAsImage({
+            kicker: isKk ? 'Күн сүннеті' : 'Сунна дня',
+            translation: (isKk && sun.titleKk ? sun.titleKk : sun.title) + '. ' + (isKk && sun.kk ? sun.kk : sun.ru),
+            source: sun.proof || '',
+            kk: isKk
+          });
+        });
+      });
+      el.querySelectorAll('[data-share-word]').forEach(function(b){
+        b.addEventListener('click', function(e){
+          e.stopPropagation();
+          if (!word) return;
+          shareCardAsImage({
+            kicker: isKk ? 'Күн сөзі' : 'Слово дня',
+            arabic: word.ar,
+            translation: word.tr + ' — ' + (isKk && word.kk ? word.kk : word.ru),
+            kk: isKk
+          });
+        });
+      });
+      el.querySelectorAll('[data-share-name]').forEach(function(b){
+        b.addEventListener('click', function(e){
+          e.stopPropagation();
+          try {
+            const idx2 = +b.dataset.shareName;
+            const n2 = (typeof ALLAH_NAMES !== 'undefined') ? ALLAH_NAMES[idx2] : null;
+            if (!n2) return;
+            const mean2 = (typeof nameMeanLocal === 'function') ? nameMeanLocal(n2) : (n2.mean || '');
+            shareCardAsImage({
+              kicker: isKk ? 'Аллаһтың есімі' : 'Имя Аллаха',
+              arabic: n2.ar,
+              translation: (n2.tr || '') + ' — ' + mean2,
+              kk: isKk
+            });
+          } catch(e2) {}
         });
       });
       el.querySelectorAll('[data-go]').forEach(function(b){
@@ -24853,6 +25486,13 @@ const HADITH_EXPAND = {
       const kk = state.settings && state.settings.lang === 'kk';
 
       el.innerHTML =
+        '<div class="card" style="border-color:var(--accent)"><b>📴 '+(kk?'Толық офлайн режим':'Полный офлайн-режим')+'</b>' +
+        '<div class="ayah-translation" style="margin:0.35rem 0">'+(kk
+          ? 'Бір батырма — Құранның барлық 114 сүресінің мәтіні + қосымшаның өзінің файлдары (HTML/CSS/JS) алдын ала жүктеледі, сол үшін сайт интернетсіз де «нөлден» ашылады, тек бұрын кем дегенде бір рет желімен ашылған жағдайда емес.'
+          : 'Одной кнопкой заранее скачивается текст всех 114 сур Корана + файлы самого приложения (HTML/CSS/JS), чтобы сайт открывался офлайн «с нуля», а не только если раньше уже открывался хотя бы раз при сети.') + '</div>' +
+        '<button type="button" class="btn btn-primary" id="cache-dl-everything" style="width:100%">⬇️ '+(kk?'Барлығын офлайн үшін жүктеу':'Скачать всё для офлайн')+'</button>' +
+        '<div id="cache-dl-everything-progress" class="ayah-translation" style="margin-top:0.4rem;min-height:1.2rem"></div>' +
+        '</div>' +
         '<div class="card"><b>'+(kk?'Жалпы localStorage':'Общий localStorage')+'</b><div class="ayah-translation" style="margin-top:0.35rem">~'+fmt(lsTotal)+(kk?' (браузер шегі әдетте 5–10 МБ)':' (лимит браузера обычно 5–10 МБ)')+'</div>' +
         (lsRows.length ? '<div style="margin-top:0.4rem;font-size:0.78rem;color:var(--text-muted);max-height:7rem;overflow:auto">' +
           lsRows.slice(0, 20).map(r => '<div style="display:flex;justify-content:space-between;gap:0.5rem"><span style="overflow:hidden;text-overflow:ellipsis">'+r.k+'</span><span>'+fmt(r.sz)+'</span></div>').join('') +
@@ -25018,6 +25658,29 @@ const HADITH_EXPAND = {
         toast((kk?label+' жүктелуде…':'Загрузка ' + label + '…'));
         try { await fn(); toast(kk?(label+' дайын'):(label + ' готово')); renderCacheManager(); } catch(e) { toast(kk?'Қате':'Ошибка'); }
       };
+      document.getElementById('cache-dl-everything')?.addEventListener('click', async () => {
+        if (!navigator.onLine) { toast(kk?'Интернет қажет':'Нужен интернет'); return; }
+        if (!confirm(kk?'Барлық 114 сүре мен қосымша файлдарын жүктеу керек пе? Бұл біраз уақыт пен трафик алады.':'Скачать все 114 сур и файлы приложения? Это займёт некоторое время и трафик.')) return;
+        const btn = document.getElementById('cache-dl-everything');
+        const prog = document.getElementById('cache-dl-everything-progress');
+        if (btn) { btn.disabled = true; }
+        try {
+          const res = await downloadEverythingOffline(function(stage, n, total) {
+            if (!prog) return;
+            if (stage === 'shell') prog.textContent = (kk?'Қосымша файлдары: ':'Файлы приложения: ') + n + '/' + total;
+            else prog.textContent = (kk?'Сүрелер: ':'Суры: ') + n + '/' + total;
+          });
+          if (prog) prog.textContent = '';
+          toast(res.quranOk
+            ? (kk?'Дайын! Барлығы офлайн үшін сақталды.':'Готово! Всё сохранено для офлайн.')
+            : (kk?'Қосымша файлдары сақталды, суралармен қате шықты.':'Файлы приложения сохранены, с сурами вышла ошибка.'));
+          renderCacheManager();
+        } catch(e) {
+          toast(kk?'Қате':'Ошибка');
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      });
       document.getElementById('cache-dl-amma')?.addEventListener('click', () => runDl(() => downloadAmma78114(), '78–114'));
       document.getElementById('cache-dl-full')?.addEventListener('click', () => {
         if (!confirm(kk?'Барлық 114 сүрені жүктеу керек пе?':'Скачать все 114 сур?')) return;
@@ -26252,8 +26915,28 @@ c.addEventListener('click', () => {
       items.sort(function(a, b){ return orderHint.indexOf(a.id) - orderHint.indexOf(b.id); });
 
       var tip = tipCard(kk
-        ? 'Мұнда — сайттың барлық «онлайн» бөлімдері: чаттар, достар, форум және т.б. Санақ (бейджик) — жаңа/оқылмаған нәрсе бар дегенді білдіреді.<br>• Тор/тізім — жоғарыдағы орналасу түймелері.<br>• «Реті» — карточкаларды ↑↓←→ жылжыту.'
-        : 'Здесь — все «онлайновые» разделы сайта: чаты, друзья, форум и т.д. Значок с числом — есть что-то новое/непрочитанное.<br>• Сетка/список — кнопки раскладки сверху.<br>• «Порядок» — двигать карточки ↑↓←→.');
+        ? 'Мұнда — сайттың барлық «онлайн» бөлімдері (тіркелу қажет):<br>' +
+          '• 💭 <b>Жалпы чат</b> — барлық қолданушыларға арналған ортақ чат.<br>' +
+          '• ✉️ <b>Жеке хабарламалар</b> — біреумен жеке хат-хабар (ЛС).<br>' +
+          '• 👥 <b>Топтық чаттар</b> — топ құру/қосылу, ашық топтар тізімі.<br>' +
+          '• 🧑‍🤝‍🧑 <b>Достар</b> — достар тізімі, қосу/жою, іздеу.<br>' +
+          '• 💬 <b>Форум</b> — сұрақ қою, санаттар бойынша талқылау.<br>' +
+          '• ❓ <b>Менің сұрақтарым</b> — өзіңіз білетінге жіберген сұрақтар мен жауаптар.<br>' +
+          '• 🏅 <b>Жетістіктер</b> / 📊 <b>Статистика</b> — прогресс белгілері және пайдалану статистикасы.<br>' +
+          '• 🔔 <b>Хабарламалар</b> — жаңа хабарлар, сұрақ жауаптары және т.б. туралы ескертулер.<br>' +
+          '• Санақ (бейджик) картада — сол бөлімде жаңа/оқылмаған нәрсе бар дегенді білдіреді.<br>' +
+          '• Тор/тізім — жоғарыдағы орналасу түймелері; «Реті» — карточкаларды ↑↓←→ жылжыту.'
+        : 'Здесь — все «онлайновые» разделы сайта (нужна регистрация):<br>' +
+          '• 💭 <b>Общий чат</b> — единый чат для всех пользователей.<br>' +
+          '• ✉️ <b>Личные сообщения</b> — переписка один на один (ЛС).<br>' +
+          '• 👥 <b>Групповые чаты</b> — создать/вступить в группу, список открытых групп.<br>' +
+          '• 🧑‍🤝‍🧑 <b>Друзья</b> — список друзей, добавление/удаление, поиск.<br>' +
+          '• 💬 <b>Форум</b> — задать вопрос, обсуждение по категориям.<br>' +
+          '• ❓ <b>Мои вопросы/ответы</b> — вопросы знающему и полученные ответы.<br>' +
+          '• 🏅 <b>Достижения</b> / 📊 <b>Статистика</b> — значки прогресса и статистика использования.<br>' +
+          '• 🔔 <b>Уведомления</b> — оповещения о новых сообщениях, ответах и т.п.<br>' +
+          '• Значок с числом на карточке — есть что-то новое/непрочитанное в этом разделе.<br>' +
+          '• Сетка/список — кнопки раскладки сверху; «Порядок» — двигать карточки ↑↓←→.');
 
       const layout = getOnlineLayout();
       const cols = layout === 'grid3' ? 3 : (layout === 'grid' ? 2 : 1);
@@ -31298,13 +31981,25 @@ c.addEventListener('click', () => {
       // opts: { kicker, arabic, translation, source, kk }
       if (!window.html2canvas) { toast(opts.kk ? 'Кітапхана жүктелмеді (интернетті тексеріңіз)' : 'Библиотека не загрузилась (проверьте интернет)'); return; }
       const holder = document.createElement('div');
-      holder.style.cssText = 'position:fixed;left:-9999px;top:0;width:1080px;height:1350px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:90px 80px;box-sizing:border-box;background:linear-gradient(150deg,#0f172a 0%,#134e3a 55%,#0f172a 100%);color:#f1f5f9;font-family:system-ui,sans-serif;text-align:center';
+      // build 5.80: раньше подвал («📖 Quran Academy») был прижат к низу через
+      // margin-top:auto внутри того же flex-контейнера, что и justify-
+      // content:center — а margin:auto в кросс-оси flexbox побеждает
+      // justify-content, забирая себе всё свободное место. В итоге весь
+      // остальной текст всегда прилипал к верху, а пустота копилась перед
+      // подвалом внизу, независимо от длины текста. Теперь два уровня: внешний
+      // просто растягивает подвал вниз через flex:1 на внутреннем блоке, а
+      // сам текст центрируется ВНУТРИ этого внутреннего блока — как Ctrl+E в
+      // Ворде: мало текста — он ближе к середине, много — свободное место
+      // сверху и снизу от него всё равно остаётся примерно поровну.
+      holder.style.cssText = 'position:fixed;left:-9999px;top:0;width:1080px;height:1350px;display:flex;flex-direction:column;padding:90px 80px 50px;box-sizing:border-box;background:linear-gradient(150deg,#0f172a 0%,#134e3a 55%,#0f172a 100%);color:#f1f5f9;font-family:system-ui,sans-serif;text-align:center';
       holder.innerHTML =
-        '<div style="font-size:32px;color:#6ee7b7;font-weight:700;letter-spacing:0.04em;margin-bottom:56px">' + (opts.kicker || '').replace(/</g,'&lt;') + '</div>' +
-        (opts.arabic ? '<div style="font-family:\'Amiri\',\'Scheherazade New\',serif;font-size:58px;line-height:1.9;margin-bottom:48px;direction:rtl">' + opts.arabic + '</div>' : '') +
-        '<div style="font-size:34px;line-height:1.55;color:#e2e8f0;margin-bottom:40px;max-width:880px">' + (opts.translation || '').replace(/</g,'&lt;') + '</div>' +
-        (opts.source ? '<div style="font-size:24px;color:#94a3b8;margin-bottom:70px">' + opts.source.replace(/</g,'&lt;') + '</div>' : '') +
-        '<div style="font-size:22px;color:#6ee7b7;opacity:0.85;margin-top:auto">📖 ' + (opts.kk ? 'Құран академиясы' : 'Quran Academy') + '</div>';
+        '<div style="flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;align-items:center">' +
+          '<div style="font-size:32px;color:#6ee7b7;font-weight:700;letter-spacing:0.04em;margin-bottom:40px">' + (opts.kicker || '').replace(/</g,'&lt;') + '</div>' +
+          (opts.arabic ? '<div style="font-family:\'Amiri\',\'Scheherazade New\',serif;font-size:58px;line-height:1.9;margin-bottom:40px;direction:rtl">' + opts.arabic + '</div>' : '') +
+          '<div style="font-size:34px;line-height:1.55;color:#e2e8f0;margin-bottom:32px;max-width:880px">' + (opts.translation || '').replace(/</g,'&lt;') + '</div>' +
+          (opts.source ? '<div style="font-size:24px;color:#94a3b8">' + opts.source.replace(/</g,'&lt;') + '</div>' : '') +
+        '</div>' +
+        '<div style="font-size:22px;color:#6ee7b7;opacity:0.85;flex:0 0 auto">📖 ' + (opts.kk ? 'Құран академиясы' : 'Quran Academy') + '</div>';
       document.body.appendChild(holder);
       try {
         const canvas = await window.html2canvas(holder, { backgroundColor: null, scale: 1 });
@@ -41423,7 +42118,17 @@ function renderFiqh() {
       if (!state.academyProgress) state.academyProgress = {};
       const st = academyStats();
       var kkAc = (typeof isKk === 'function') ? isKk() : (state.settings && state.settings.lang === 'kk');
-      let htmlOut =
+      let htmlOut = tipCard(kkAc ?
+        'Бұл — «Оқу» бөлімі, ол екі қойындыдан тұрады (жоғарыдағы 📖/🎯 ауыстырғыш):<br>' +
+        '• <b>📖 Теория</b> — үйрену: «Жол» (сатылап сабақтар, әр модуль соңында тест), «Әріптер» (28 әріп: жазылу түрлері, дыбысталуы), «Дауыстылар» (харакаттар), «Ережелер» (жазу ережелері), «Тәжуид» (ихфа, идгам, иклаб, изхар және т.б.), «Махаридж» (дыбыстардың шығу орны), «Сүрелер»/«Аяттар» (жаттау карточкалары), «Қателер» (өз қателеріңіз журналы).<br>' +
+        '• <b>🎯 Практика</b> — жаттығу: жоғарыда 3 топ («📝 Тесттер», «🎤 Ауызша», «🎯 Жаттықтырғыштар») — әрқайсысында өз батырмалары, төменде толығырақ жазылған.<br>' +
+        '• Прогресс (пайыз, жолақ) — модульдер бойынша есептеледі; модульдер сатылап ашылады (Баптаулар → Академия құлпы арқылы өшіруге болады).'
+      :
+        'Это раздел «Учёба», в нём две вкладки (переключатель 📖/🎯 сверху):<br>' +
+        '• <b>📖 Теория</b> — изучение: «Путь» (уроки по шагам, тест в конце каждого модуля), «Буквы» (28 букв: формы написания, произношение), «Огласовки» (харакаты), «Правила» (правила письма), «Таджвид» (ихфа, идгам, иклаб, изхар и др.), «Махаридж» (места образования звуков), «Суры»/«Аяты» (карточки для заучивания), «Ошибки» (журнал ваших ошибок).<br>' +
+        '• <b>🎯 Практика</b> — тренировка: сверху 3 группы («📝 Тесты», «🎤 Устно», «🎯 Тренажёры»), у каждой свои кнопки, подробнее написано ниже в самой «Практике».<br>' +
+        '• Прогресс (процент, полоса) считается по модулям; модули открываются по порядку (можно отключить в Настройки → Блокировка уроков академии).'
+      ) +
         '<div class="card" style="border-color:var(--accent);margin-bottom:1rem">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">' +
         '<div><b>'+(kkAc ? 'Жол: нөлден → Құран оқу' : '\n\nПуть: с нуля → чтение Корана')+'</b>' +
@@ -42646,6 +43351,7 @@ function renderLibrary() {
       try {
         if (cat === 'morecfg' && typeof renderMainTabsOrder === 'function') renderMainTabsOrder();
         if (cat === 'morecfg' && typeof renderDailyWidgetsOrder === 'function') renderDailyWidgetsOrder();
+        if (cat === 'morecfg' && typeof bindDhGreetingNameInput === 'function') bindDhGreetingNameInput();
         if (cat === 'morecfg' && typeof renderHeaderBtnsOrder === 'function') renderHeaderBtnsOrder();
       } catch(e) {}
       if (cat === 'morecfg') try { paintMoreConfig(); } catch(e) {}
@@ -42684,7 +43390,7 @@ function renderLibrary() {
       if (!(opts && opts.silent)) {
         try {
           if (group === 'morecfg') {
-            if (sub === 'order') { renderMainTabsOrder(); renderDailyWidgetsOrder(); }
+            if (sub === 'order') { renderMainTabsOrder(); renderDailyWidgetsOrder(); bindDhGreetingNameInput(); }
             if (sub === 'header') renderHeaderBtnsOrder();
             if (sub === 'sections') paintMoreConfig();
           }

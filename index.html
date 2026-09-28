@@ -443,17 +443,36 @@
         <button type="button" class="btn btn-sm btn-primary study-switch-btn" data-study="games" style="flex:1">🎯 Практика</button>
       </div>
       <h2 class="section-title" data-i18n="games_title">Практика и тесты</h2>
+      <div id="games-tip"></div>
+      <!-- build 5.76: раньше все 10 кнопок были в одном ряду сразу — тесно и
+           легко промахнуться. Теперь сверху 3 более крупные кнопки-группы,
+           а сами варианты (data-game) показываются только для активной
+           группы — одновременно видно максимум 4 вместо 10. -->
+      <div class="tabs-row games-group-switch" id="games-group-switch">
+        <button type="button" class="btn btn-primary" data-gamegroup="tests">📝 Тесты</button>
+        <button type="button" class="btn" data-gamegroup="speak">🎤 Устно</button>
+        <button type="button" class="btn" data-gamegroup="drills">🎯 Тренажёры</button>
+      </div>
       <div class="tabs-row" id="games-tabs">
-        <button class="active" data-game="letters">Тест: буквы</button>
-        <button data-game="names">Тест: названия</button>
-        <button data-game="rules">Тест: правила</button>
-        <button data-game="ayah">Тест: аят</button>
-        <button data-game="speak">🎤 Буквы</button>
-        <button data-game="speak-ayah">🎤 Аят</button>
-        <button data-game="syllables">Слоги</button>
-        <button data-game="practice">Слова</button>
-        <button data-game="srs">Карточки</button>
-        <button data-game="dictation">Диктовка</button>
+        <button class="active" data-game="letters" data-group="tests">Тест: буквы</button>
+        <button data-game="names" data-group="tests">Тест: названия</button>
+        <button data-game="rules" data-group="tests">Тест: правила</button>
+        <button data-game="ayah" data-group="tests">Тест: аят</button>
+        <button data-game="speak" data-group="speak" style="display:none">🎤 Буквы</button>
+        <button data-game="speak-ayah" data-group="speak" style="display:none">🎤 Аят</button>
+        <button data-game="syllables" data-group="drills" style="display:none">Слоги</button>
+        <button data-game="practice" data-group="drills" style="display:none">Слова</button>
+        <button data-game="srs" data-group="drills" style="display:none">Карточки</button>
+        <button data-game="dictation" data-group="drills" style="display:none">Диктовка</button>
+        <button data-game="minimal-pairs" data-group="drills" style="display:none">Различие звуков</button>
+      </div>
+      <!-- build 5.80: выбор сложности — только там, где он реально что-то меняет
+           (число вариантов ответа в тестах буквы/названия/правила, и набор пар
+           звуков в «Различие звуков»). Скрыт для остальных режимов. -->
+      <div class="tabs-row" id="games-difficulty" style="display:none">
+        <button type="button" class="btn btn-sm" data-diff="easy">Лёгкий</button>
+        <button type="button" class="btn btn-sm btn-primary" data-diff="medium">Средний</button>
+        <button type="button" class="btn btn-sm" data-diff="hard">Сложный</button>
       </div>
       <div id="game-area">
         <div class="empty-state"><p>Выберите тренировку или тест выше.</p>
@@ -911,6 +930,10 @@
           <b style="display:block">Порядок главных разделов</b>
           <div class="ayah-translation" style="margin:0.35rem 0;font-size:calc(0.82rem * var(--ru-scale, 1))">Кроме «Ещё». Стрелки ↑ ↓ меняют порядок нижнего меню и шапки.</div>
           <div id="main-tabs-order" style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:0.75rem"></div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+          <b style="display:block">Ваше имя для приветствия</b>
+          <div class="ayah-translation" style="margin:0.35rem 0;font-size:calc(0.82rem * var(--ru-scale, 1))">Показывается вверху «Ежедневного»: «Ассаламу алейкум, Имя!». Оставьте пустым — приветствие будет без имени.</div>
+          <input type="text" id="dh-greeting-name" placeholder="Например, Асхат" maxlength="30" style="width:100%;padding:0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text);margin-bottom:0.75rem">
           <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
           <b style="display:block">Порядок виджетов «Ежедневного»</b>
           <div class="ayah-translation" style="margin:0.35rem 0;font-size:calc(0.82rem * var(--ru-scale, 1))">Стрелки ↑ ↓ меняют порядок карточек на главном экране «Ежедневное». Подсказка всегда сверху.</div>
