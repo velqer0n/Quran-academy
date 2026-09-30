@@ -1,4 +1,4 @@
-// data-app-settings.js — данные вынесены из index.html при разбивке на части (build 5.70).
+// data-app-settings.js — данные вынесены из index.html при разбивке на части (build 5.68).
 // Загружается ДО основного логического скрипта через <script src="data-app-settings.js"></script>.
 
     const OFFLINE_SURAHS = {
@@ -145,7 +145,7 @@
     const I18N = {
       ru: {
         settings_title: 'Настройки', lang_label: 'Язык',
-        nav_surahs: 'Суры', nav_study: 'Учёба', nav_daily: 'Ежедневное', nav_learn: 'Теория', nav_games: 'Практика', nav_more: 'Ещё',
+        nav_surahs: 'Суры', nav_study: 'Учёба', nav_daily: 'Ежедневное', nav_learn: 'Теория', nav_games: 'Практика', nav_more: 'Ещё', nav_online: 'Онлайн',
         search_ph: 'Поиск суры…', search_text_ph: 'Поиск по тексту Корана…',
         ayah_of_day: 'АЯТ ДНЯ', bookmarks: 'Входит в «Моё чтение».\n\n• Закладки и папки аятов.\n• См. также вкладки: планы, хатм, прогресс.', progress: 'Прогресс',
         more_title: 'Ещё', topics: 'Раздел «Темы и ситуации».\n\n• Вкладка «Темы аятов» — подборки по смыслу, переход к аяту в чтении.\n• Вкладка «Ситуации в жизни» — бывшие «Коран в моей жизни»: ситуация → аяты, дуа, шаги.\n• Учебные подсказки, не замена тафсиру.',
@@ -184,7 +184,7 @@
       },
       kk: {
         settings_title: 'Баптаулар', lang_label: 'Тіл',
-        nav_surahs: 'Сүрелер', nav_study: 'Оқу', nav_daily: 'Күнделікті', nav_learn: 'Теория', nav_games: 'Тәжірибе', nav_more: 'Тағы',
+        nav_surahs: 'Сүрелер', nav_study: 'Оқу', nav_daily: 'Күнделікті', nav_learn: 'Теория', nav_games: 'Тәжірибе', nav_more: 'Тағы', nav_online: 'Онлайн',
         search_ph: 'Сүре іздеу…', search_text_ph: 'Құран мәтінінен іздеу…',
         ayah_of_day: 'КҮН АЯТЫ', bookmarks: 'Бетбелгілер', progress: 'Үлгерім',
         more_title: 'Тағы', topics: 'Аят тақырыптары',

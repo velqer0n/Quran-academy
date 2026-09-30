@@ -165,7 +165,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" onerror="console.warn('qrcodejs cdn failed, QR button will show a fallback message')"></script>
-  <!-- build 5.74: карта для «Рядом мечети/намазхана» и визуализации киблы —
+  <!-- build 5.72: карта для «Рядом мечети/намазхана» и визуализации киблы —
        Leaflet + бесплатные тайлы OpenStreetMap, без API-ключа. Используется
        только на экранах «Время намаза»/кибла и «Рядом с тобой», если эти
        разделы не открыты — просто ничего не рендерит, лишнего веса на
@@ -381,6 +381,7 @@
       <div class="study-switch" style="display:flex;gap:0.4rem;margin-bottom:0.7rem">
         <button type="button" class="btn btn-sm btn-primary study-switch-btn" data-study="learn" style="flex:1">📖 Теория</button>
         <button type="button" class="btn btn-sm study-switch-btn" data-study="games" style="flex:1">🎯 Практика</button>
+        <button type="button" class="btn btn-sm study-switch-btn" data-study="teacher" style="flex:1">👨‍🏫 Учитель</button>
       </div>
       <h2 class="section-title" data-i18n="learn_title">Теория</h2>
       <div class="learn-nav" id="academy-main-tabs">
@@ -392,6 +393,7 @@
         <button class="btn btn-sm" data-acad-tab="makharij">Махаридж</button>
         <button class="btn btn-sm" data-acad-tab="surahs">Суры</button>
         <button class="btn btn-sm" data-acad-tab="ayahs">Аяты</button>
+        <button class="btn btn-sm" data-acad-tab="twcolor">🎨 Цвета таджвида</button>
         <button class="btn btn-sm" data-acad-tab="mistakes">Ошибки</button>
       </div>
       <div id="acad-path">
@@ -415,6 +417,15 @@
       </div>
       <div id="acad-tajweed" style="display:none">
         <div id="learn-tajweed"></div>
+      </div>
+      <!-- build 5.83: отдельный раздел «Цвета таджвида» — намеренно не внутри
+           «Суры» и не внутри «Озвучки» (по просьбе пользователя), а своей
+           отдельной вкладкой. Показывает текст аята с буквами, окрашенными
+           по правилам таджвида (по проверенным внешним данным), плюс
+           подсветку текущего слова при прослушивании (тем же чтецом Хусари,
+           что и в обычном чтении). -->
+      <div id="acad-twcolor" style="display:none">
+        <div id="learn-twcolor"></div>
       </div>
       <div id="acad-makharij" style="display:none">
         <div id="learn-makharij"></div>
@@ -441,10 +452,11 @@
       <div class="study-switch" style="display:flex;gap:0.4rem;margin-bottom:0.7rem">
         <button type="button" class="btn btn-sm study-switch-btn" data-study="learn" style="flex:1">📖 Теория</button>
         <button type="button" class="btn btn-sm btn-primary study-switch-btn" data-study="games" style="flex:1">🎯 Практика</button>
+        <button type="button" class="btn btn-sm study-switch-btn" data-study="teacher" style="flex:1">👨‍🏫 Учитель</button>
       </div>
       <h2 class="section-title" data-i18n="games_title">Практика и тесты</h2>
       <div id="games-tip"></div>
-      <!-- build 5.76: раньше все 10 кнопок были в одном ряду сразу — тесно и
+      <!-- build 5.74: раньше все 10 кнопок были в одном ряду сразу — тесно и
            легко промахнуться. Теперь сверху 3 более крупные кнопки-группы,
            а сами варианты (data-game) показываются только для активной
            группы — одновременно видно максимум 4 вместо 10. -->
@@ -466,7 +478,7 @@
         <button data-game="dictation" data-group="drills" style="display:none">Диктовка</button>
         <button data-game="minimal-pairs" data-group="drills" style="display:none">Различие звуков</button>
       </div>
-      <!-- build 5.80: выбор сложности — только там, где он реально что-то меняет
+      <!-- build 5.78: выбор сложности — только там, где он реально что-то меняет
            (число вариантов ответа в тестах буквы/названия/правила, и набор пар
            звуков в «Различие звуков»). Скрыт для остальных режимов. -->
       <div class="tabs-row" id="games-difficulty" style="display:none">
@@ -478,6 +490,19 @@
         <div class="empty-state"><p>Выберите тренировку или тест выше.</p>
         <button class="btn btn-primary" id="btn-start-game" style="margin-top:1rem">Начать</button></div>
       </div>
+    </div>
+
+    <!-- build 5.85: «👨‍🏫 Учитель» — третий, отдельный от Теории/Практики
+         режим. Сам решает, что учить дальше (по дереву навыков и уже
+         накопленной статистике ошибок), а не даёт выбирать модуль вручную. -->
+    <div id="view-teacher" class="view">
+      <div class="study-switch" style="display:flex;gap:0.4rem;margin-bottom:0.7rem">
+        <button type="button" class="btn btn-sm study-switch-btn" data-study="learn" style="flex:1">📖 Теория</button>
+        <button type="button" class="btn btn-sm study-switch-btn" data-study="games" style="flex:1">🎯 Практика</button>
+        <button type="button" class="btn btn-sm btn-primary study-switch-btn" data-study="teacher" style="flex:1">👨‍🏫 Учитель</button>
+      </div>
+      <h2 class="section-title">Личный учитель</h2>
+      <div id="teacher-body"></div>
     </div>
 
     <!-- ONLINE (build 4.47): общение/соцсеть — переехало сюда из «Ещё» отдельной вкладкой -->
@@ -1591,7 +1616,7 @@
 
   <script src="quran-offline-data.js" onerror="console.warn('offline data file optional')"></script>
 
-  <!-- build 5.74: данные вынесены в отдельные файлы для более лёгкого редактирования -->
+  <!-- build 5.72: данные вынесены в отдельные файлы для более лёгкого редактирования -->
   <script src="data-changelog.js"></script>
   <script src="data-quran-learning.js"></script>
   <script src="data-reading-library.js"></script>

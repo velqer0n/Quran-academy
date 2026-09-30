@@ -1,7 +1,7 @@
 // logic-app.js — вся логика приложения (функции, обработчики, состояние).
 // Загружается ПОСЛЕДНИМ, после всех data-*.js файлов, от которых зависит.
 
-// build 5.78: доступность — у иконок-кнопок (🔒 🌐 🔍 ⚙️ 🔊 📤 ← → и т.д.)
+// build 5.76: доступность — у иконок-кнопок (🔒 🌐 🔍 ⚙️ 🔊 📤 ← → и т.д.)
 // почти везде уже есть title (всплывающая подсказка), но title не всегда
 // озвучивается скринридерами так же надёжно, как aria-label, а переписывать
 // вручную тысячи мест генерации кнопок по всему файлу нереально. Вместо
@@ -793,7 +793,7 @@ _applyAriaLabelsFromTitles();
       });
 
       // Bottom nav
-      // build 5.76: было ['learn','nav_learn'] и ['games','nav_games'], но
+      // build 5.74: было ['learn','nav_learn'] и ['games','nav_games'], но
       // реальные data-view нижнего меню — «study» (Учёба) и «online»
       // (Онлайн); из-за несовпадения ключей querySelector ничего не находил,
       // и обе кнопки никогда не переводились на казахский.
@@ -847,14 +847,14 @@ _applyAriaLabelsFromTitles();
         'Порядок по риваяту ат-Тирмизи (начиная с «Аллах»). Нажмите имя — описание, аяты, хадисы. 🔊 — произношение (качество выше при интернете).':
           'Тіртімі ат-Тирмизи риуаяты бойынша («Алла»дан бастап). Есімді басыңыз — сипаттама, аяттар, хадистер. 🔊 — айтылуы (интернетпен сапалырақ).',
         'Время намаза и кибла': 'Намаз уақыты және құбыла',
-        // build 5.76: не хватало вовсе — кнопки переключателя «Теория/Практика»
+        // build 5.74: не хватало вовсе — кнопки переключателя «Теория/Практика»
         // и вкладки внутри «Практики» никогда не переводились на казахский.
         '📖 Теория': '📖 Теория', '🎯 Практика': '🎯 Тәжірибе',
         'Тест: буквы': 'Тест: әріптер', 'Тест: названия': 'Тест: атаулар',
         'Тест: правила': 'Тест: ережелер', 'Тест: аят': 'Тест: аят',
         '🎤 Буквы': '🎤 Әріптер', '🎤 Аят': '🎤 Аят',
         'Слова': 'Сөздер', 'Диктовка': 'Диктант', 'Начать': 'Бастау', 'Ещё раз': 'Қайта',
-        '📝 Тесты': '📝 Тесттер', '🎤 Устно': '🎤 Ауызша', '🎯 Тренажёры': '🎯 Жаттықтырғыштар',
+        '📝 Тесты': '📝 Тесттер', '🎤 Устно': '🎤 Ауызша', '🎯 Тренажёры': '🎯 Жаттықтырғыштар', '👨‍🏫 Учитель': '👨‍🏫 Мұғалім',
         'Различие звуков': 'Дыбыстарды ажырату', 'Лёгкий': 'Жеңіл', 'Средний': 'Орташа', 'Сложный': 'Қиын'
       } : {};
 
@@ -1866,7 +1866,7 @@ async function fetchTafsir(surah, ayah) {
     // ========== VIEWS ==========
 
     let viewStack = ['dailyhub'];
-    const MAIN_TABS = new Set(['dailyhub', 'home', 'learn', 'games', 'online', 'more']);
+    const MAIN_TABS = new Set(['dailyhub', 'home', 'learn', 'games', 'teacher', 'online', 'more']);
     function goBack() {
       const MORE_SET = new Set(['myreading','data','fiqh','madhhabs','sins','aqidah','sunnahs','family','hadith','hadiths','ihouse','stories','salah','adhkar','qol','names','qdict','cache','settings','export','duabuilder','qurandua','ramadan','adab','calendar','library','topics','search','changelog','help','prayertimes','appupdate','dict','sadaqa','ask']);
       // build 4.47: разделы, переехавшие из «Ещё» в отдельную вкладку «Онлайн» —
@@ -2230,7 +2230,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       } catch(e) {}
       return def;
     }
-    // build 5.78: отдельный список скрытых карточек «Ежедневного» (скрыть
+    // build 5.76: отдельный список скрытых карточек «Ежедневного» (скрыть
     // можно долгим нажатием на карточку — быстрое меню). Отдельно от
     // порядка, потому что «Порядок» никогда не убирал виджеты насовсем —
     // только переставлял; здесь же — именно скрытие/показ.
@@ -2248,31 +2248,43 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       setHiddenDailyWidgets(getHiddenDailyWidgets().filter(function(x){ return x !== id; }));
     }
 
-    // build 5.78: долгое нажатие на карточку «Ежедневного» → быстрое меню
-    // (поделиться / скрыть) без открытия целиком. Переиспользует уже
-    // существующую кнопку 📤 внутри самой карточки (если есть), чтобы не
-    // дублировать логику шаринга для каждого типа виджета отдельно.
+    // build 5.79: долгое нажатие на карточку «Ежедневного» → быстрое меню
+    // (поделиться / скрыть / открыть) без обычного перехода в раздел по
+    // короткому нажатию. Меню переиспользует уже существующую кнопку 📤
+    // внутри самой карточки (если есть), чтобы не дублировать логику
+    // шаринга для каждого типа виджета отдельно.
     function _dhQuickMenuShareBtn(wrap) {
       return wrap.querySelector('[data-share-dua],[data-share-hadith],[data-share-sunnah],[data-share-word],[data-share-name],#aotd-share,#home-story-share');
+    }
+    // Элемент, по клику на который карточка обычно переходит в свой раздел
+    // (аят/хадис/дуа/сунна/имя/история) — используется пунктом «Открыть».
+    function _dhQuickMenuOpenTarget(wrap) {
+      return wrap.querySelector('[data-go-dua],[data-go-hadith],[data-go-sunnah],[data-go-name],[data-go],#aotd-open,#home-story-open');
     }
     function showDhQuickMenu(wrap, x, y) {
       var old = document.getElementById('dh-quick-menu'); if (old) old.remove();
       var widgetId = wrap.getAttribute('data-dh-widget');
       var kkM = (typeof isKk === 'function') && isKk();
       var shareBtn = _dhQuickMenuShareBtn(wrap);
+      var openTarget = _dhQuickMenuOpenTarget(wrap);
       var menuW = 190;
       var menuX = Math.max(8, Math.min(x, window.innerWidth - menuW - 8));
-      var menuY = Math.max(8, Math.min(y, window.innerHeight - 140));
+      var menuY = Math.max(8, Math.min(y, window.innerHeight - 170));
       var backdrop = document.createElement('div');
       backdrop.id = 'dh-quick-menu';
       backdrop.style.cssText = 'position:fixed;inset:0;z-index:9999';
       backdrop.innerHTML =
         '<div class="card" style="position:absolute;left:'+menuX+'px;top:'+menuY+'px;width:'+menuW+'px;padding:0.4rem;box-shadow:var(--shadow-lg)">' +
+        (openTarget ? '<button type="button" class="btn btn-sm" style="width:100%;text-align:left;margin-bottom:0.3rem" id="dhqm-open">📖 '+(kkM?'Ашу':'Открыть')+'</button>' : '') +
         (shareBtn ? '<button type="button" class="btn btn-sm" style="width:100%;text-align:left;margin-bottom:0.3rem" id="dhqm-share">📤 '+(kkM?'Бөлісу':'Поделиться')+'</button>' : '') +
         (widgetId ? '<button type="button" class="btn btn-sm" style="width:100%;text-align:left;color:var(--danger)" id="dhqm-hide">🙈 '+(kkM?'«Күнделіктіден» жасыру':'Скрыть с «Ежедневного»')+'</button>' : '') +
         '</div>';
       document.body.appendChild(backdrop);
       backdrop.addEventListener('click', function(e) { if (e.target === backdrop) backdrop.remove(); });
+      document.getElementById('dhqm-open')?.addEventListener('click', function() {
+        backdrop.remove();
+        if (openTarget) { suppressNextDhClick = false; openTarget.click(); }
+      });
       document.getElementById('dhqm-share')?.addEventListener('click', function() {
         backdrop.remove();
         if (shareBtn) shareBtn.click();
@@ -2285,11 +2297,13 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
         try { renderDailyHub(); } catch(e) {}
       });
     }
+    var suppressNextDhClick = false;
     (function() {
-      var lpTimer = null, lpStartX = 0, lpStartY = 0, lpWrap = null, suppressNextClick = false;
+      var lpTimer = null, lpStartX = 0, lpStartY = 0, lpWrap = null, menuOpenedThisTouch = false;
       function clearLp() { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } }
       document.addEventListener('touchstart', function(e) {
         clearLp();
+        menuOpenedThisTouch = false;
         var wrap = e.target.closest && e.target.closest('#dailyhub-body [data-dh-widget]');
         if (!wrap) return;
         if (e.target.closest('button,a,select,input')) return; // не мешать стрелкам/🔊/📤
@@ -2298,8 +2312,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
         lpWrap = wrap;
         lpTimer = setTimeout(function() {
           lpTimer = null;
-          suppressNextClick = true;
-          setTimeout(function(){ suppressNextClick = false; }, 400);
+          menuOpenedThisTouch = true;
           try { if (navigator.vibrate) navigator.vibrate(15); } catch(e2) {}
           showDhQuickMenu(lpWrap, lpStartX, lpStartY);
         }, 550);
@@ -2309,16 +2322,33 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
         var dx = e.touches[0].clientX - lpStartX, dy = e.touches[0].clientY - lpStartY;
         if (Math.abs(dx) > 12 || Math.abs(dy) > 12) clearLp();
       }, { passive: true });
-      document.addEventListener('touchend', clearLp, { passive: true });
+      // build 5.79: раньше окно подавления клика запускалось от момента
+      // появления меню (через 550мс) и жило фиксированные 400мс — то есть
+      // истекало через 950мс после начала касания. Если человек держал
+      // карточку дольше (что естественно: увидел меню, не сразу отпустил
+      // палец), это окно успевало закончиться ДО того, как палец реально
+      // поднимался, и последующий синтетический click проходил без помех —
+      // карточка открывалась поверх уже показанного меню. Теперь отсчёт
+      // подавления начинается от самого touchend (отпускания), а не от
+      // момента показа меню — окно гарантированно перекрывает клик
+      // независимо от того, как долго держали палец.
+      document.addEventListener('touchend', function() {
+        clearLp();
+        if (menuOpenedThisTouch) {
+          menuOpenedThisTouch = false;
+          suppressNextDhClick = true;
+          setTimeout(function(){ suppressNextDhClick = false; }, 500);
+        }
+      }, { passive: true });
       document.addEventListener('touchcancel', clearLp, { passive: true });
       // После срабатывания долгого нажатия мобильные браузеры всё равно шлют
       // следующий click по тому же месту — гасим именно его, чтобы карточка
       // не открывалась целиком поверх уже открытого быстрого меню.
       document.addEventListener('click', function(e) {
-        if (!suppressNextClick) return;
+        if (!suppressNextDhClick) return;
         var wrap = e.target.closest && e.target.closest('#dailyhub-body [data-dh-widget]');
         if (!wrap) return;
-        suppressNextClick = false;
+        suppressNextDhClick = false;
         e.stopPropagation();
         e.preventDefault();
       }, true);
@@ -2355,7 +2385,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       } catch(e) {}
       return def.slice();
     }
-    // build 5.77: поле «Ваше имя для приветствия» на «Ежедневном» —
+    // build 5.75: поле «Ваше имя для приветствия» на «Ежедневном» —
     // простой локальный текст, без привязки к онлайн-аккаунту, чтобы
     // работал и без регистрации.
     function bindDhGreetingNameInput() {
@@ -2603,7 +2633,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       const el = document.getElementById('view-' + name);
       if (el) el.classList.add('active');
-      // build 5.68: мягкое появление контента при переходе в раздел — класс
+      // build 5.66: мягкое появление контента при переходе в раздел — класс
       // снимается по окончании короткой анимации (220мс), чтобы не мешать
       // последующим внутренним перерисовкам этого же экрана (тикающие
       // счётчики, чат, обновления виджетов) — те его повторно не навешивают.
@@ -2771,6 +2801,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       } catch(e) {}
       if (name === 'dailyhub') try { renderDailyHub(); } catch(e) {}
       if (name === 'games') try { renderGamesTip(); } catch(e) {}
+      if (name === 'teacher') try { renderPersonalTeacher(); } catch(e) {}
       if (name === 'duabuilder') try { renderDuaBuilder(); } catch(e) {}
       if (name === 'qurandua') try { renderQuranDua(); } catch(e) {}
       if (name === 'qol') try { renderQol(); } catch(e) {}
@@ -3083,7 +3114,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
     }
 
     // Reader
-    // build 5.78: свайп влево/вправо между сурами прямо в режиме чтения —
+    // build 5.76: свайп влево/вправо между сурами прямо в режиме чтения —
     // раньше сменить суру можно было только вернувшись в список. Свайп
     // влево — следующая сура, вправо — предыдущая. Не срабатывает, если
     // палец начал жест на элементе с собственной горизонтальной прокруткой
@@ -3500,6 +3531,81 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
     // Audio — music-style player
     const audioEl = document.getElementById('audio-player');
     const audioBar = document.getElementById('audio-bar');
+
+    // build 5.80: караоке-подсветка слов при прослушивании аята — по
+    // бесплатным тайм-кодам из Quranic Universal Library (qul.tarteel.ai),
+    // начитка Махмуда Халиля аль-Хусари (та же, что рекомендована для
+    // обучения чтению). Данные покрывают все 6236 аятов, файл лежит
+    // отдельно (word-timing-husary.json) и подгружается только при выборе
+    // этого чтеца — не раздувает основной код на 2 МБ для всех остальных.
+    // Работает только когда выбранный чтец — Хусари (state.settings.reciter
+    // === 'ar.husary'), потому что тайм-коды привязаны именно к этой
+    // конкретной записи; для остальных чтецов подсветка просто не включается,
+    // без ошибок и без неверной синхронизации.
+    let _wtCache = null, _wtLoading = null;
+    function loadWordTiming() {
+      if (_wtCache) return Promise.resolve(_wtCache);
+      if (_wtLoading) return _wtLoading;
+      _wtLoading = fetch('word-timing-husary.json').then(function(r) {
+        if (!r.ok) throw new Error('http ' + r.status);
+        return r.json();
+      }).then(function(data) {
+        _wtCache = data;
+        return data;
+      }).catch(function(e) {
+        _wtLoading = null; // разрешить повторную попытку позже (например, вернулась сеть)
+        return null;
+      });
+      return _wtLoading;
+    }
+    function getWordTiming(surah, ayah) {
+      if (!_wtCache) return null;
+      return _wtCache[surah + ':' + ayah] || null;
+    }
+    let _wtContext = null; // { textEl, segments, lastWi }
+    function wtRestore() {
+      if (_wtContext && _wtContext.textEl && _wtContext.textEl.dataset.wtOriginal != null) {
+        _wtContext.textEl.innerHTML = _wtContext.textEl.dataset.wtOriginal;
+        delete _wtContext.textEl.dataset.wtOriginal;
+      }
+      _wtContext = null;
+    }
+    function wtSetupForAyah(surahNum, ayahNum) {
+      wtRestore();
+      if (!(state.settings && state.settings.reciter === 'ar.husary')) return;
+      const entry = getWordTiming(surahNum, ayahNum);
+      if (!entry || !entry.segments || !entry.segments.length) return;
+      const ayahEl = document.querySelector('.ayah[data-ayah="' + ayahNum + '"]');
+      const textEl = ayahEl && ayahEl.querySelector('.ayah-text');
+      if (!textEl) return;
+      const words = textEl.textContent.trim().split(/\s+/).filter(Boolean);
+      // Если число слов не совпадает с числом сегментов — тексты разошлись
+      // (другое издание Uthmani-текста и т.п.). Лучше молча не подсвечивать,
+      // чем подсветить не то слово.
+      if (words.length !== entry.segments.length) return;
+      textEl.dataset.wtOriginal = textEl.innerHTML;
+      textEl.innerHTML = words.map(function(w, i) {
+        return '<span class="wt-word" data-wi="' + (i + 1) + '">' + w + '</span>';
+      }).join(' ');
+      _wtContext = { textEl: textEl, segments: entry.segments, lastWi: null };
+    }
+    audioEl.addEventListener('timeupdate', function() {
+      if (!_wtContext) return;
+      const ms = audioEl.currentTime * 1000;
+      const segs = _wtContext.segments;
+      let activeWi = null;
+      for (let i = 0; i < segs.length; i++) {
+        if (ms >= segs[i][1] && ms < segs[i][2]) { activeWi = segs[i][0]; break; }
+      }
+      if (activeWi === _wtContext.lastWi) return;
+      _wtContext.lastWi = activeWi;
+      _wtContext.textEl.querySelectorAll('.wt-word.wt-active').forEach(function(s) { s.classList.remove('wt-active'); });
+      if (activeWi != null) {
+        const span = _wtContext.textEl.querySelector('.wt-word[data-wi="' + activeWi + '"]');
+        if (span) span.classList.add('wt-active');
+      }
+    });
+
     // Обычно бар плеера скрывается на экранах «Учёба»/«Игры» (там много
     // коротких озвучек отдельных слов/карточек — большой плеер только мешал
     // бы). Но у настоящего сеанса «Слушать всю суру» есть реальные плей/пауза/
@@ -3936,12 +4042,24 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       // мгновенно и без сети. Если нет — как раньше, сразу с сервера, а
       // копия для будущего кэшируется в фоне, не задерживая старт звука.
       var _pqiUrl = item.url, _pqiIdx = idx, _pqiItem = item;
+      // build 5.80: если выбран чтец аль-Хусари и для этого аята уже
+      // загружены тайм-коды слов — подменяем ссылку на аудио на файл из
+      // QUL (там, где тайм-коды и были посчитаны, гарантированно совпадает
+      // с точностью до кадра) и включаем подсветку слов. Если тайм-коды ещё
+      // не подгружены к этому моменту — просто доиграем обычный файл без
+      // подсветки в этот раз, а данные подгрузятся в фоне для следующего раза.
+      if (item.surah && item.ayah && state.settings && state.settings.reciter === 'ar.husary') {
+        loadWordTiming();
+        var _wtEntry = getWordTiming(item.surah, item.ayah);
+        if (_wtEntry && _wtEntry.audio_url) { _pqiUrl = _wtEntry.audio_url; item.url = _wtEntry.audio_url; }
+      }
       function _pqiStart(srcUrl) {
         // если за время асинхронной проверки кэша уже переключились на
         // другой аят/суру — не перебиваем то, что сейчас играет.
         if (audioQueueIdx !== _pqiIdx || audioQueue[_pqiIdx] !== _pqiItem) return;
         audioEl.src = srcUrl;
         applyAudioSpeed();
+        try { if (item.surah && item.ayah) wtSetupForAyah(item.surah, item.ayah); else wtRestore(); } catch(e) {}
         // сброс старых обработчиков
         try { audioEl.onerror = null; } catch(e) {}
         var playP = audioEl.play();
@@ -5706,7 +5824,7 @@ function speakLetter(ch, name) {
         const on = b.dataset.acadTab === tab;
         b.classList.toggle('btn-primary', on);
       });
-      ['path','alphabet','harakat','syllables','rules','tajweed','makharij','practice','surahs','ayahs','srs','mistakes'].forEach(t => {
+      ['path','alphabet','harakat','syllables','rules','tajweed','makharij','practice','surahs','ayahs','twcolor','srs','mistakes'].forEach(t => {
         const el = document.getElementById('acad-' + t);
         if (el) el.style.display = (t === tab) ? '' : 'none';
       });
@@ -5718,6 +5836,7 @@ function speakLetter(ch, name) {
       if (tab === 'tajweed') try { if (typeof renderTajweed === 'function') renderTajweed(); } catch(e) {}
       if (tab === 'makharij') try { if (typeof renderMakharij === 'function') renderMakharij(); } catch(e) {}
       if (tab === 'practice') try { renderPractice(); } catch(e) {}
+      if (tab === 'twcolor') try { renderTajweedColorView(document.getElementById('learn-twcolor')); } catch(e) {}
       if (tab === 'surahs') {
         try { sessionStorage.removeItem('quran_study_surah'); } catch(e) {}
         try {
@@ -6306,7 +6425,7 @@ function speakLetter(ch, name) {
       const r = JUZ_SURAH_RANGE[+juz] || [1, 1];
       return downloadSurahRange(r[0], r[1], onProgress);
     }
-    // build 5.78: «Скачать всё для офлайн» одной кнопкой — раньше нужно
+    // build 5.76: «Скачать всё для офлайн» одной кнопкой — раньше нужно
     // было по отдельности жать «1–114», знать про кэш аудио и т.д. Здесь —
     // весь текст Корана (1–114) + принудительная подгрузка файлов самого
     // приложения (html/css/js), чтобы сайт грузился офлайн «с нуля», а не
@@ -6522,7 +6641,7 @@ function speakLetter(ch, name) {
         '</div>';
       ayahs.forEach(ay => {
         html +=
-          '<div class="card" style="margin-bottom:0.7rem">' +
+          '<div class="card" data-wbw-ayah-card="'+ay.ayah+'" style="margin-bottom:0.7rem">' +
             '<b style="font-size:0.85rem;color:var(--text-muted)">Аят '+ay.ayah+'</b>' +
             '<div class="wbw-all-row" dir="rtl" style="margin-top:0.55rem">' +
             ay.words.map((w, wi) => {
@@ -6554,9 +6673,826 @@ function speakLetter(ch, name) {
           }
         });
       });
+      // build 5.81: переход сразу к конкретному аяту (для случайного выбора
+      // по сложности) — прокручиваем к его карточке и подсвечиваем на пару
+      // секунд, чтобы было видно, какой именно аят открылся.
+      if (opts.jumpAyah) {
+        const target = rootEl.querySelector('[data-wbw-ayah-card="'+opts.jumpAyah+'"]');
+        if (target) {
+          setTimeout(function() {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.style.borderColor = 'var(--accent)';
+            target.style.boxShadow = '0 0 0 2px var(--accent)';
+            setTimeout(function() {
+              target.style.borderColor = '';
+              target.style.boxShadow = '';
+            }, 2500);
+          }, 80);
+        }
+      }
+    }
+
+    // build 5.83: цветная разметка таджвида — по проверенным данным
+    // cpfair/quran-tajweed (CC BY 4.0), сверенным независимым аудитом с
+    // точностью 99.998% по всем 6236 аятам Корана. Не своя догадка «на
+    // глаз» — конкретные буквы окрашены под конкретное правило только там,
+    // где это подтверждено внешним источником. Покрывает наши 26 сур с
+    // полным разбором по словам (Аль-Фатиха + 90–114, 218 из 220 аятов —
+    // 2 аята суры 109 пропущены: офсеты не сошлись с нашим текстом, и
+    // лучше не подсвечивать вовсе, чем подсветить неверно).
+    const TAJWEED_RULE_LABELS = {
+      qalqalah: { ru: 'Калькаля (отскок звука)', kk: 'Қалқаля (дыбыс серпілуі)' },
+      ghunnah: { ru: 'Гунна (носовой призвук)', kk: 'Гунна (мұрын дыбысы)' },
+      idghaam_ghunnah: { ru: 'Идгам с гунной', kk: 'Гуннамен идғам' },
+      idghaam_no_ghunnah: { ru: 'Идгам без гунны', kk: 'Гуннасыз идғам' },
+      idghaam_shafawi: { ru: 'Идгам шафави (губной)', kk: 'Идғам шафауи (ерін)' },
+      idghaam_mutajanisayn: { ru: 'Идгам мутаджанисайн', kk: 'Идғам мутажанисайн' },
+      ikhfa: { ru: 'Ихфа (скрытие)', kk: 'Ихфа (жасыру)' },
+      ikhfa_shafawi: { ru: 'Ихфа шафави (губной)', kk: 'Ихфа шафауи (ерін)' },
+      iqlab: { ru: 'Иклаб (замена на «м»)', kk: 'Иқлаб («м»-ге ауыстыру)' },
+      madd_2: { ru: 'Мадд обычный (2 харакята)', kk: 'Қарапайым мадд (2 харакат)' },
+      madd_246: { ru: 'Мадд ‘арид/лин (2/4/6)', kk: 'Мадд ‘арид/лин (2/4/6)' },
+      madd_muttasil: { ru: 'Мадд муттасыль (4–5)', kk: 'Мадд муттасил (4–5)' },
+      madd_munfasil: { ru: 'Мадд мунфасыль (4–5)', kk: 'Мадд мунфасил (4–5)' },
+      madd_6: { ru: 'Мадд лязим (6 харакятов)', kk: 'Мадд лязим (6 харакат)' },
+      hamzat_wasl: { ru: 'Хамзат уасль (соединительная)', kk: 'Хамзат уасл (жалғастырушы)' },
+      lam_shamsiyyah: { ru: '«Солнечная» лям (не читается)', kk: '«Күн» ләмі (оқылмайды)' },
+      silent: { ru: 'Немая буква', kk: 'Оқылмайтын әріп' }
+    };
+    let _twCache = null, _twLoading = null;
+    function loadTajweedData() {
+      if (_twCache) return Promise.resolve(_twCache);
+      if (_twLoading) return _twLoading;
+      _twLoading = fetch('tajweed-hafs.json').then(function(r) {
+        if (!r.ok) throw new Error('http ' + r.status);
+        return r.json();
+      }).then(function(data) { _twCache = data; return data; })
+        .catch(function() { _twLoading = null; return null; });
+      return _twLoading;
+    }
+    // Строит HTML с цветными <span> по правилам таджвида поверх обычного
+    // текста аята. annotations — [[rule, start, end], ...] в юникод-кодпоинтах.
+    function renderTajweedText(text, annotations) {
+      if (!annotations || !annotations.length) return text;
+      const chars = Array.from(text); // корректно для суррогатных пар, на всякий случай
+      const ruleAt = new Array(chars.length).fill(null);
+      annotations.forEach(function(a) {
+        const rule = a[0], s = a[1], e = a[2];
+        for (let i = s; i < e && i < ruleAt.length; i++) ruleAt[i] = rule;
+      });
+      let html = '', curRule = undefined, buf = '';
+      function flush() {
+        if (!buf) return;
+        html += curRule ? ('<span class="tw-' + curRule + '">' + buf + '</span>') : buf;
+        buf = '';
+      }
+      for (let i = 0; i < chars.length; i++) {
+        if (ruleAt[i] !== curRule) { flush(); curRule = ruleAt[i]; }
+        buf += chars[i];
+      }
+      flush();
+      return html;
+    }
+
+    // build 5.83: сам экран «🎨 Цвета таджвида» — список тех же 26 сур
+    // (Аль-Фатиха + 90–114), при открытии суры — текст с раскрашенными
+    // буквами по правилам + легенда цветов + подсветка текущего слова при
+    // прослушивании (только при выбранном чтеце аль-Хусари — та же
+    // инфраструктура, что и в обычном чтении).
+    // build 5.84: расширено на все 114 сур (раньше — только 26, где есть
+    // готовый разбор по словам). Для расцветки нужен только сам арабский
+    // текст аята, а не пословный перевод — а текст для любой суры уже умеет
+    // подгружать тот же fetchSurah(), что и обычное чтение. Плюс отдельной
+    // карточкой добавлена «Бисмилля» перед первым аятом каждой суры (кроме
+    // самой Фатихи, где это и есть аят 1, и суры 9 «Тауба», где Бисмилля не
+    // читается) — с той же, уже проверенной раскраской, что и в 1:1.
+    const TW_BISMILLAH_SURAHS_WITHOUT = new Set([1, 9]);
+    function renderTajweedColorView(rootEl) {
+      if (!rootEl) return;
+      const kk = isKk();
+      loadTajweedData();
+      const ru = (typeof SURAH_RU !== 'undefined') ? SURAH_RU : {};
+      const nums = [];
+      for (let n = 1; n <= 114; n++) nums.push(n);
+      const showList = () => {
+        rootEl.innerHTML =
+          '<div class="card" style="border-color:var(--accent);margin-bottom:0.6rem"><b>🎨 '+(kk?'Таджвид түстері':'Цвета таджвида')+'</b>' +
+          '<div class="ayah-translation">'+(kk
+            ? 'Аят мәтінінде әр таджвид ережесі өз түсімен көрсетілген — тексерілген сыртқы деректер бойынша (cpfair/quran-tajweed, CC BY 4.0), болжаммен емес. Барлық 114 сүре қолжетімді.'
+            : 'В тексте аята каждое правило таджвида показано своим цветом — по проверенным внешним данным (cpfair/quran-tajweed, CC BY 4.0), а не «на глаз». Доступны все 114 сур.')+'</div></div>' +
+          nums.map(function(n) {
+            const name = ru[n] || ('Сура ' + n);
+            return '<div class="card" style="cursor:pointer" data-twn="'+n+'"><b>'+n+' · '+name+'</b><div class="ayah-translation">'+(kk?'ашу үшін басыңыз':'нажмите, чтобы открыть')+'</div></div>';
+          }).join('');
+        rootEl.querySelectorAll('[data-twn]').forEach(function(card) {
+          card.addEventListener('click', function() { openTajweedSurah(+card.dataset.twn); });
+        });
+      };
+      const paintSurah = (n, name, ayahs) => {
+        const legendOrder = ['qalqalah','ghunnah','idghaam_ghunnah','idghaam_no_ghunnah','ikhfa','iqlab','madd_2','madd_246','madd_muttasil','madd_munfasil','madd_6','hamzat_wasl','lam_shamsiyyah','silent'];
+        const bism = FATIHA_LESSON && FATIHA_LESSON[0];
+        const showBismillah = bism && !TW_BISMILLAH_SURAHS_WITHOUT.has(n);
+        rootEl.innerHTML =
+          '<button type="button" class="btn btn-sm" id="tw-back">← '+(kk?'Тізімге':'К списку')+'</button>' +
+          '<div class="card" style="margin:0.6rem 0;border-color:var(--accent)"><b>'+n+' · '+name+'</b>' +
+          '<div class="ayah-translation" style="margin-top:0.3rem">'+(kk?'Аятты тыңдау үшін ▶ басыңыз':'Нажмите ▶ у аята, чтобы послушать')+'</div>' +
+          '</div>' +
+          '<div class="card" style="margin-bottom:0.7rem"><b style="font-size:0.85rem;color:var(--text-muted)">'+(kk?'Түстердің мағынасы':'Что означают цвета')+'</b>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem;font-size:0.8rem">' +
+          legendOrder.map(function(r) {
+            const lbl = TAJWEED_RULE_LABELS[r];
+            if (!lbl) return '';
+            return '<span class="tw-'+r+'" style="border:1px solid currentColor;border-radius:0.4rem;padding:0.15rem 0.45rem">'+(kk?lbl.kk:lbl.ru)+'</span>';
+          }).join('') +
+          '</div></div>' +
+          (showBismillah ? (
+            '<div class="card" data-tw-ayah-card="0" style="margin-bottom:0.6rem;border-color:var(--border-gold, var(--border))">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">' +
+            '<b style="font-size:0.85rem;color:var(--text-muted)">'+(kk?'Бісмілля (барлық сүрелерде бірдей)':'Бисмилля (одинакова для всех сур)')+'</b>' +
+            '<button type="button" class="btn btn-sm" data-tw-play="0">▶</button>' +
+            '</div>' +
+            '<div class="arabic tw-ayah-text" dir="rtl" style="font-size:calc(1.5rem * var(--ar-scale, 1));line-height:2.1" data-tw-raw="'+encodeURIComponent(bism.full)+'">'+bism.full+'</div>' +
+            (bism.fullTr ? '<div class="ayah-translation" style="margin-top:0.5rem">'+bism.fullTr+'</div>' : '') +
+            '</div>'
+          ) : '') +
+          ayahs.map(function(ay) {
+            return '<div class="card" data-tw-ayah-card="'+ay.ayah+'" style="margin-bottom:0.6rem">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">' +
+              '<b style="font-size:0.85rem;color:var(--text-muted)">'+(kk?'Аят ':'Аят ')+ay.ayah+'</b>' +
+              '<button type="button" class="btn btn-sm" data-tw-play="'+ay.ayah+'">▶</button>' +
+              '</div>' +
+              '<div class="arabic tw-ayah-text" dir="rtl" style="font-size:calc(1.5rem * var(--ar-scale, 1));line-height:2.1" data-tw-raw="'+encodeURIComponent(ay.text)+'">'+ay.text+'</div>' +
+              (ay.translation ? '<div class="ayah-translation" style="margin-top:0.5rem">'+ay.translation+'</div>' : '') +
+              '</div>';
+          }).join('');
+        document.getElementById('tw-back')?.addEventListener('click', showList);
+        const colorize = () => {
+          const data = _twCache;
+          if (!data) return;
+          rootEl.querySelectorAll('[data-tw-ayah-card]').forEach(function(card) {
+            const aN = +card.dataset.twAyahCard;
+            const anns = aN === 0 ? data['1:1'] : data[n + ':' + aN];
+            if (!anns) return;
+            const textEl = card.querySelector('.tw-ayah-text');
+            const raw = decodeURIComponent(textEl.dataset.twRaw);
+            textEl.innerHTML = renderTajweedText(raw, anns);
+          });
+        };
+        if (_twCache) colorize(); else loadTajweedData().then(colorize);
+        rootEl.querySelectorAll('[data-tw-play]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            const aN = +btn.dataset.twPlay;
+            try {
+              const playSurah = aN === 0 ? 1 : n; // Бисмилля — всегда аудио 1:1
+              const playAyah = aN === 0 ? 1 : aN;
+              audioQueue = [{ url: ayahAudioUrl(playSurah, playAyah, state.settings.reciter), surah: playSurah, ayah: playAyah }];
+              audioQueueIdx = 0;
+              playQueueItem(0);
+            } catch(e) {}
+          });
+        });
+      };
+      const openTajweedSurah = (n) => {
+        const name = ru[n] || ('Сура ' + n);
+        const curated = (n === 1 && typeof FATIHA_LESSON !== 'undefined') ? FATIHA_LESSON : (WBW_STUDY_SURAHS && WBW_STUDY_SURAHS[n]);
+        if (curated && curated.length) {
+          const ayahs = curated.map(function(ay) {
+            return { ayah: ay.ayah, text: ay.full || (ay.words||[]).map(function(w){return w.ar;}).join(' '), translation: ay.fullTr };
+          });
+          paintSurah(n, name, ayahs);
+          return;
+        }
+        rootEl.innerHTML = '<div class="loading"><div class="spinner"></div>'+(kk?'Жүктелуде…':'Загрузка…')+'</div>';
+        fetchSurah(n).then(function(data) {
+          const ayahs = (data.ayahs || []).map(function(a, i) {
+            return { ayah: i + 1, text: a.text, translation: a.translation };
+          });
+          paintSurah(n, name, ayahs);
+        }).catch(function() {
+          rootEl.innerHTML = '<div class="empty-state">'+(kk?'Жүктеу мүмкін болмады. Интернетті тексеріңіз.':'Не удалось загрузить. Проверьте интернет.')+'<br><button type="button" class="btn btn-sm" id="tw-back2">← '+(kk?'Тізімге':'К списку')+'</button></div>';
+          document.getElementById('tw-back2')?.addEventListener('click', showList);
+        });
+      };
+      showList();
+    }
+
+    // ========== ЛИЧНЫЙ УЧИТЕЛЬ (build 5.85) ==========
+    // Дерево навыков «с нуля» для чтения Корана — по духу как в приложениях
+    // для изучения языков, но заточено под таджвид. Каждый навык открывается
+    // после того, как освоены его предшественники; движок сам решает, какой
+    // навык учить следующим, вместо того чтобы пользователь листал модули
+    // вручную. Переиспользует всё, что уже есть: тесты букв/правил, слоги,
+    // тренажёр «Различие звуков», диктовку и чтение аятов по сложности —
+    // почти ничего не пришлось изобретать заново, только соединить в путь.
+    const PERSONAL_TEACHER_SKILLS = [
+      { id: 'orientation', title: 'Как устроен арабский язык', group: 'orientation', prereq: [], kind: 'info',
+        theory: 'Арабский пишется и читается справа налево. Заглавных букв нет вообще. Буквы меняют начертание в зависимости от места в слове (в начале, середине, конце или отдельно) — это не другая буква, а другая форма той же самой. Таджвид — не украшение речи, а свод правил, без которых можно случайно исказить смысл слова.' },
+      { id: 'letters_1', title: 'Буквы: ا ب', group: 'letters', prereq: ['orientation'], kind: 'letters', letters: ['ا','ب'], syllableGroup: 0,
+        theory: 'ا (алиф) — не согласная буква, а знак долготы; горло и язык расслаблены. ب (ба) — губной звук, произносится смыканием губ, как русское «б».' },
+      { id: 'letters_2', title: 'Буквы: ت ث', group: 'letters', prereq: ['letters_1'], kind: 'letters', letters: ['ت','ث'], syllableGroup: 0,
+        theory: 'ت (та) — кончик языка у корней верхних зубов. ث (са) — язык слегка высунут между зубами, звук на грани «с» и английского th.' },
+      { id: 'letters_3', title: 'Буквы: ج ح', group: 'letters', prereq: ['letters_2'], kind: 'letters', letters: ['ج','ح'], syllableGroup: 0,
+        theory: 'ج (джим) — середина языка касается нёба. ح (ха) — выдох из середины горла, без хрипоты, мягче, чем خ.' },
+      { id: 'letters_4', title: 'Буквы: خ د', group: 'letters', prereq: ['letters_3'], kind: 'letters', letters: ['خ','د'], syllableGroup: 1,
+        theory: 'خ (хаʼ) — глубже, чем ح, с лёгким хрипящим призвуком у самого корня языка. د (даль) — кончик языка у верхних зубов, звонкий, как русское «д».' },
+      { id: 'letters_5', title: 'Буквы: ذ ر', group: 'letters', prereq: ['letters_4'], kind: 'letters', letters: ['ذ','ر'], syllableGroup: 1,
+        theory: 'ذ (заль) — как ث, но звонкая (язык между зубами, только с голосом). ر (ра) — лёгкая вибрация кончика языка, похоже на русское «р».' },
+      { id: 'letters_6', title: 'Буквы: ز س', group: 'letters', prereq: ['letters_5'], kind: 'letters', letters: ['ز','س'], syllableGroup: 1,
+        theory: 'ز (зай) — свистящий звонкий, как «з». س (син) — свистящий глухой, как «с»; язык не касается зубов, а держится близко к ним.' },
+      { id: 'letters_7', title: 'Буквы: ش ص', group: 'letters', prereq: ['letters_6'], kind: 'letters', letters: ['ش','ص'], syllableGroup: 2,
+        theory: 'ش (шин) — как русское «ш», но мягче. ص (сад) — «тяжёлая», эмфатическая версия س: корень языка приподнимается к нёбу, звук массивнее.' },
+      { id: 'letters_8', title: 'Буквы: ض ط', group: 'letters', prereq: ['letters_7'], kind: 'letters', letters: ['ض','ط'], syllableGroup: 3,
+        theory: 'ض (дад) — «тяжёлая» версия د, боковые края языка касаются коренных зубов; считается одним из самых сложных звуков арабского. ط (та) — «тяжёлая» версия ت.' },
+      { id: 'letters_9', title: 'Буквы: ظ ع', group: 'letters', prereq: ['letters_8'], kind: 'letters', letters: ['ظ','ع'], syllableGroup: 3,
+        theory: 'ظ (за) — «тяжёлая» версия ذ. ع (айн) — сжатие середины горла с голосом; у этого звука нет аналога в русском языке.' },
+      { id: 'letters_10', title: 'Буквы: غ ف', group: 'letters', prereq: ['letters_9'], kind: 'letters', letters: ['غ','ف'], syllableGroup: 4,
+        theory: 'غ (гайн) — как лёгкое французское «р», из глубины горла, звонкое. ف (фа) — верхние зубы касаются нижней губы, как русское «ф».' },
+      { id: 'letters_11', title: 'Буквы: ق ك', group: 'letters', prereq: ['letters_10'], kind: 'letters', letters: ['ق','ك'], syllableGroup: 4,
+        theory: 'ق (къаф) — смычка в самой глубине горла, звук массивнее и глуше обычного «к». ك (кяф) — обычное «к», смычка ближе ко рту.' },
+      { id: 'letters_12', title: 'Буквы: ل م', group: 'letters', prereq: ['letters_11'], kind: 'letters', letters: ['ل','م'], syllableGroup: 5,
+        theory: 'ل (лям) — кончик языка у нёба за верхними зубами, как русское «л». م (мим) — губной носовой звук, как «м».' },
+      { id: 'letters_13', title: 'Буквы: ن ه', group: 'letters', prereq: ['letters_12'], kind: 'letters', letters: ['ن','ه'], syllableGroup: 5,
+        theory: 'ن (нун) — носовой звук, кончик языка у нёба, как «н»; у нун и танвина потом появится целый блок правил (см. дальше). ه (ha) — лёгкий выдох из самого горла, без напряжения.' },
+      { id: 'letters_14', title: 'Буквы: و ي', group: 'letters', prereq: ['letters_13'], kind: 'letters', letters: ['و','ي'], syllableGroup: 6,
+        theory: 'و (уау) — губы округлены и слегка вытянуты, как «у» на выдохе; также используется как знак долготы. ي (я) — средняя часть языка приподнята к нёбу, как «й»; тоже бывает знаком долготы.' },
+      { id: 'letter_forms', title: 'Формы букв (начало/середина/конец)', group: 'letters', prereq: ['letters_14'], kind: 'forms',
+        theory: 'Каждая буква меняет начертание в зависимости от места в слове: отдельно, в начале, в середине или в конце слова. Это не другая буква — тот же самый звук, только другая «одежда». В этом навыке — узнавание одной и той же буквы в разных формах.' },
+      { id: 'harakat_fatha', title: 'Огласовка: фатха (َ)', group: 'basics', prereq: ['letter_forms'], kind: 'syllables',
+        theory: 'Фатха — короткая чёрточка над буквой, даёт короткий звук «а» сразу после согласной.' },
+      { id: 'harakat_kasra', title: 'Огласовка: кясра (ِ)', group: 'basics', prereq: ['harakat_fatha'], kind: 'syllables',
+        theory: 'Кясра — чёрточка под буквой, даёт короткий звук «и» сразу после согласной.' },
+      { id: 'harakat_damma', title: 'Огласовка: дамма (ُ)', group: 'basics', prereq: ['harakat_kasra'], kind: 'syllables',
+        theory: 'Дамма — маленький завиток над буквой, даёт короткий звук «у» сразу после согласной.' },
+      { id: 'syllables_mixed', title: 'Чтение слогов вперемешку', group: 'basics', prereq: ['harakat_damma'], kind: 'syllables',
+        theory: 'Теперь все три огласовки вместе, вразнобой — цель прочитать слог как один звук («ба», «ми», «ту»), а не по буквам отдельно.' },
+      { id: 'standing_vowels', title: 'Стоячие фатха/кясра/дамма', group: 'basics', prereq: ['syllables_mixed'], kind: 'info',
+        theory: 'Иногда долгий звук «а», «и» или «у» пишется не буквой удлинения, а просто наклонной чёрточкой («стоячая» фатха/кясра/дамма) — например, в слове هَٰذَا. Читается как обычный мадд (долгий гласный), просто без буквы و/ي/ا на письме.' },
+      { id: 'sukun', title: 'Сукун (закрытый слог)', group: 'basics', prereq: ['standing_vowels'], kind: 'info',
+        theory: 'Сукун — маленький кружок над буквой, означающий отсутствие гласного звука. Буква с сукуном не тянется отдельным слогом, а «прилипает» к предыдущему: مِنْ читается «мин», одним слогом, а не «ми-ну».' },
+      { id: 'shadda', title: 'Шадда (удвоение)', group: 'basics', prereq: ['sukun'], kind: 'rules', ruleTitles: ['شدة · Шадда'],
+        theory: 'Шадда — знак вида «w» над буквой, означает, что согласный звук удваивается и произносится с небольшой задержкой/напряжением — например, رَبَّنَا звучит с явным двойным «б».' },
+      { id: 'tanween', title: 'Танвин', group: 'basics', prereq: ['shadda'], kind: 'rules', ruleTitles: ['التنوين · Танвин'],
+        theory: 'Танвин — удвоенная огласовка в конце слова (два фатха, два кясра или два дамма), добавляет к слову звук «н» на конце: كِتَابًا звучит как «китабан».' },
+      { id: 'minimal_pairs', title: 'Различие похожих звуков', group: 'basics', prereq: ['tanween'], kind: 'minimal-pairs', difficulty: 'medium',
+        theory: 'Несколько арабских звуков звучат очень похоже для непривычного уха (ت/ط, س/ص, د/ض, ذ/ظ/ز, ح/خ). Этот навык — тренировка именно слуха: услышать разницу, прежде чем пытаться произнести её самому.' },
+      { id: 'sun_moon', title: 'Артикль اَلْ: солнечные/лунные буквы', group: 'special', prereq: ['minimal_pairs'], kind: 'rules', ruleTitles: ['ال · Алиф-лям', 'الحروف الشمسية والقمرية · Солнечные и лунные буквы'],
+        theory: '«аль-» — определённый артикль. Перед «солнечными» буквами (ت ث د ذ ر ز س ش ص ض ط ظ ل ن) лям не произносится, а следующая буква удваивается: الشمس читается «аш-шамс», а не «аль-шамс». Перед «лунными» буквами лям произносится как обычно.' },
+      { id: 'hamza_forms', title: 'Хамза: все формы написания', group: 'special', prereq: ['sun_moon'], kind: 'rules', ruleTitles: ['همزة · Хамза'],
+        theory: 'Хамза (ء) — гортанная смычка, отдельный звук. На письме «сидит» на разных носителях в зависимости от огласовки соседних букв: أ (на алифе), إ (под алифом), ؤ (на уау), ئ (на я без точек), либо пишется отдельно ء. Все эти начертания — один и тот же звук хамзы, просто разный «стул», на котором она сидит.' },
+      { id: 'taa_marbuta', title: 'Та-марбута (ة)', group: 'special', prereq: ['hamza_forms'], kind: 'rules', ruleTitles: ['التاء المربوطة · Та марбута'],
+        theory: 'ة выглядит как форма ه с двумя точками. При остановке на слове читается как «а» (без «т»), а если после неё в потоке речи идёт следующее слово — как «ат». Встречается почти всегда в конце слов женского рода.' },
+      { id: 'alif_maqsura', title: 'Алиф-максура (ى)', group: 'special', prereq: ['taa_marbuta'], kind: 'info',
+        theory: 'ى внешне похожа на букву «я» без точек, но обозначает не согласный звук, а долгое «а» в конце слова — например, مُوسَى (Муса) читается с долгим «а» на конце, а не как «муса-й».' },
+      { id: 'maddo_leen', title: 'Маддо-лин', group: 'special', prereq: ['alif_maqsura'], kind: 'info',
+        theory: 'Особый вид мягкого продления: когда после буквы с фатхой идёт و или ي с сукуном, а дальше — буква с сукуном же (часто на остановке). Звучит как плавный дифтонг («ау», «ай»), а не как обычный долгий гласный — например, окончание слова خَوْف.' },
+      { id: 'muqattaat', title: 'Мукатта‘ат — буквы в начале сур', group: 'special', prereq: ['maddo_leen'], kind: 'info',
+        theory: 'В начале 29 сур стоят отдельные буквы без огласовок (например الم, يس, حم) — так называемые «разрозненные буквы». Читаются не как слово, а по отдельным именам букв, каждая буква с продлением: الم — «алиф лям мим». Точный смысл этих букв относится к тому, что знает только Аллах.' },
+      { id: 'rasm_usmani', title: 'Особенности письма Корана (расм ‘усмани)', group: 'special', prereq: ['muqattaat'], kind: 'info',
+        theory: 'Написание слов в мусхафе иногда отличается от привычных правил современной орфографии — это называется «расм ‘усмани», письмо по образцу свитков времён халифа Усмана. Например, где-то алиф долготы не пишется на письме, хотя произносится (رَحْمَٰن), а где-то, наоборот, пишется лишняя буква, которая не произносится (أُو۟لَٰئِكَ). Это не ошибки и не опечатки — так текст передавался и сохранялся веками, и в напечатанном мусхафе эти места специально помечены дополнительными значками сверху.' },
+      { id: 'qiraat_info', title: 'Что такое кыраат (варианты чтения)', group: 'special', prereq: ['rasm_usmani'], kind: 'info',
+        theory: 'Весь этот курс учит чтению по риваяту Хафс от имама Асыма — это самый распространённый в мире вариант, тот, что напечатан в подавляющем большинстве изданий Корана. Но исторически признано 10 канонических кыраатов (способов чтения), восходящих к самому Пророку через разных передатчиков — отличия между ними в основном в отдельных словах и некоторых огласовках, а не в смысле аятов. Достаточно знать, что Хафс — не единственный вариант, а один из признанных.' },
+      { id: 'sifaat', title: 'Сифат аль-хуруф (характеристики звуков)', group: 'tajweed', prereq: ['qiraat_info'], kind: 'info',
+        theory: 'У каждой арабской буквы, помимо места образования (махрадж), есть набор характеристик: звонкая/глухая, «тяжёлая»/«лёгкая» (муфаххам/мурраккак), с придыханием или без, с гунной или без. Понимание этих характеристик объясняет, ПОЧЕМУ вообще существуют дальнейшие правила таджвида — они почти все вытекают из сифат.' },
+      { id: 'qalqalah', title: 'Калькаля', group: 'tajweed', prereq: ['sifaat'], kind: 'rules', ruleTitles: ['قلقلة · Калькаля'],
+        theory: 'Калькаля — лёгкий отскок/эхо звука на пяти буквах (ق ط ب ج د), когда они стоят с сукуном. Собраны в фразу «قُطْبُ جَدٍ» для запоминания.' },
+      { id: 'madd_tabii', title: 'Мадд табии (обычная долгота)', group: 'tajweed', prereq: ['qalqalah'], kind: 'rules', ruleTitles: ['مد · Мадд'],
+        theory: 'Обычный мадд — долгий гласный на 2 счёта: алиф после фатхи, уау после даммы, я после кясры, без хамзы и сукуна после. Это база — без него не понять более сложные виды мадда дальше.' },
+      { id: 'madd_farI', title: 'Мадд фар‘и (производные виды)', group: 'tajweed', prereq: ['madd_tabii'], kind: 'rules', ruleTitles: ['أنواع المد · Виды мадда'],
+        theory: 'Когда после буквы долготы идёт хамза или сукун — долгота удлиняется сверх обычных 2 счётов: мадд ваджиб муттасыль (хамза в том же слове, 4-5 счётов), мадд джаиз мунфасыль (хамза в следующем слове, 2-5 счётов), мадд лязим (сукун после, 6 счётов, самый длинный).' },
+      { id: 'ghunna', title: 'Гунна', group: 'tajweed', prereq: ['madd_farI'], kind: 'rules', ruleTitles: ['غنة · Гунна'],
+        theory: 'Гунна — носовой призвук примерно на 2 счёта, всегда сопровождает буквы ن и م с шаддой, и появляется в некоторых правилах нун/мим сакин дальше.' },
+      { id: 'izhar', title: 'Изхар (ясное чтение нун сакин)', group: 'tajweed', prereq: ['ghunna'], kind: 'rules', ruleTitles: ['إظهار · Изхар'],
+        theory: 'Если после ن сакин или танвина идёт одна из 6 гортанных букв (ء ه ع ح غ خ) — нун/танвин произносится чётко и ясно, без изменений и без гунны.' },
+      { id: 'idgham', title: 'Идгам (слияние)', group: 'tajweed', prereq: ['izhar'], kind: 'rules', ruleTitles: ['إدغام · Идгам'],
+        theory: 'Если после ن сакин или танвина идёт одна из букв ي ن م و ل ر — нун/танвин «растворяется» в следующей букве. С буквами ي ن م و — растворяется с гунной, с ل ر — без гунны.' },
+      { id: 'iqlab', title: 'Иклаб (замена на «м»)', group: 'tajweed', prereq: ['idgham'], kind: 'rules', ruleTitles: ['إقلاب · Иклаб'],
+        theory: 'Если после ن сакин или танвина идёт буква ب — нун/танвин превращается в звук «м» с лёгкой гунной, перед тем как произнести ب. Всего одна буква-триггер — самое простое из четырёх правил нун сакин.' },
+      { id: 'ikhfa', title: 'Ихфа (скрытие)', group: 'tajweed', prereq: ['iqlab'], kind: 'rules', ruleTitles: ['إخفاء · Ихфа'],
+        theory: 'Если после ن сакин или танвина идёт одна из оставшихся 15 букв — нун/танвин произносится приглушённо, «между» ясным изхаром и полным идгамом, с лёгкой гунной через нос.' },
+      { id: 'meem_sakinah', title: 'Правила мим сакин', group: 'tajweed', prereq: ['ikhfa'], kind: 'rules', ruleTitles: ['أحكام الميم الساكنة · Мим сакин'],
+        theory: 'У буквы م с сукуном — свои три правила, по тому же принципу, что и у нун сакин: идгам шафави (перед другой م — слияние с гунной), ихфа шафави (перед ب — приглушённо через нос), изхар шафави (перед всеми остальными буквами — ясно).' },
+      { id: 'idgham_similar', title: 'Идгам сходных и близких букв', group: 'tajweed', prereq: ['meem_sakinah'], kind: 'rules', ruleTitles: ['إدغام المتماثلين والمتجانسين والمتقاربين · Идгам сходных букв'],
+        theory: 'Отдельно от правил нун/мим сакин — есть случаи, когда две ОДИНАКОВЫЕ, СХОЖИЕ по месту образования или БЛИЗКИЕ буквы стоят рядом (первая с сукуном) — тогда они тоже сливаются в одну.' },
+      { id: 'lafzul_jalalah', title: 'Ляфзуль-Джаляля (имя الله)', group: 'tajweed', prereq: ['idgham_similar'], kind: 'info',
+        theory: 'Буква ل в слове الله произносится по-разному в зависимости от предыдущего звука: твёрдо (с приподнятым корнем языка), если перед ней фатха или дамма, и мягко, если перед ней кясра. Это единственное слово в Коране, где такое правило применяется именно так.' },
+      { id: 'raa_rules', title: 'Правила буквы ر (твёрдая/мягкая)', group: 'tajweed', prereq: ['lafzul_jalalah'], kind: 'info',
+        theory: 'Буква ر тоже может звучать твёрдо (с приподнятым корнем языка) или мягко — зависит от её собственной огласовки и огласовки предыдущей буквы. С фатхой/даммой — твёрдо, с кясрой — мягко, с сукуном — зависит от предыдущей буквы.' },
+      { id: 'waqf', title: 'Знаки остановки (вакф)', group: 'tajweed', prereq: ['raa_rules'], kind: 'rules', ruleTitles: ['الوقف · Вакф (знаки остановки)'],
+        theory: 'В тексте Корана расставлены специальные значки, подсказывающие, где можно, нужно или нельзя останавливаться: م (обязательная остановка), لا (запрещена остановка), ج (остановка допустима) и другие.' },
+      { id: 'common_mistakes', title: 'Разбор частых ошибок новичков', group: 'tajweed', prereq: ['waqf'], kind: 'info',
+        theory: 'Итоговый обзор: смешение похожих букв, «зажимание» горла на алифе, недостаточная долгота мадда, забывание гунны, чтение сукуна отдельным слогом. Полезно вернуться к этому навыку через время, когда уже читаете бегло — старые привычки возвращаются незаметно.' },
+      { id: 'reading_easy', title: 'Чтение: короткие лёгкие аяты', group: 'reading', prereq: ['common_mistakes'], kind: 'reading', readDiff: 'easy',
+        theory: 'Применяем всё выученное на реальных, но коротких и простых аятах — по одному за раз.' },
+      { id: 'dictation', title: 'Диктовка на слух', group: 'reading', prereq: ['reading_easy'], kind: 'dictation',
+        theory: 'Слушаете и записываете арабский текст на слух — проверка того, что вы различаете звуки, а не просто узнаёте буквы глазами.' },
+      { id: 'reading_medium', title: 'Чтение: аяты средней длины', group: 'reading', prereq: ['reading_easy'], kind: 'reading', readDiff: 'medium',
+        theory: 'Аяты подлиннее и с более плотным набором правил подряд.' },
+      { id: 'full_short_surah', title: 'Веха: сура Аль-Ихлас целиком', group: 'reading', prereq: ['reading_medium'], kind: 'reading-surah', wholeSurah: 112,
+        theory: 'Не один аят, а вся сура Аль-Ихлас подряд, без остановок между аятами — переход от «читаю по кусочкам» к «читаю текст». Конкретная, осязаемая цель: «прочитал(а) целую суру», а не абстрактный процент.' },
+      { id: 'reading_hard', title: 'Чтение: длинные и сложные аяты', group: 'reading', prereq: ['full_short_surah'], kind: 'reading', readDiff: 'hard',
+        theory: 'Самые длинные и насыщенные правилами аяты из доступного набора.' },
+      { id: 'reading_no_harakat', title: 'Чтение без огласовок', group: 'reading', prereq: ['reading_hard'], kind: 'reading-no-harakat',
+        theory: 'Продвинутый навык: огласовки убраны, как в некоторых печатных изданиях и надписях — нужно угадывать нужный гласный по контексту и знанию грамматики.' },
+      { id: 'reading_speed', title: 'Скорость чтения', group: 'reading', prereq: ['reading_hard'], kind: 'speed',
+        theory: 'Засекаем время на чтение одного аята вслух и считаем примерную скорость (слов в минуту) — не ради спешки, а чтобы видеть рост беглости со временем.' },
+      { id: 'full_juz_amma_surah', title: 'Веха: сура Аль-Аляк целиком', group: 'reading', prereq: ['reading_no_harakat', 'reading_speed'], kind: 'reading-surah', wholeSurah: 96,
+        theory: 'Финальная веха этого курса: сура Аль-Аляк (19 аятов, одна из самых длинных в изученном наборе), прочитанная от начала до конца.' }
+    ];
+    const PERSONAL_TEACHER_GROUP_LABELS = {
+      orientation: { ru: 'Ориентация', kk: 'Бағдар' },
+      letters: { ru: 'Буквы', kk: 'Әріптер' },
+      basics: { ru: 'Основы', kk: 'Негіздер' },
+      special: { ru: 'Особые случаи письма', kk: 'Жазудың ерекше жағдайлары' },
+      tajweed: { ru: 'Таджвид', kk: 'Тәжуид' },
+      reading: { ru: 'Чтение', kk: 'Оқу' }
+    };
+    function getTeacherMastery() {
+      if (!state.academyProgress) state.academyProgress = {};
+      if (!state.academyProgress._teacherMastery) state.academyProgress._teacherMastery = {};
+      return state.academyProgress._teacherMastery;
+    }
+    function getSkillStatus(skillId) {
+      const m = getTeacherMastery()[skillId];
+      return m ? m.status : 'new';
+    }
+    function isSkillUnlocked(skill) {
+      return (skill.prereq || []).every(function(p) { return getSkillStatus(p) === 'mastered'; });
+    }
+    // build 5.88: интервальное повторение освоенных навыков — раньше
+    // «mastered» означало «больше никогда не проверяется», хотя память так
+    // не работает. Теперь у каждого освоенного навыка есть nextReview —
+    // через 1 день после освоения, потом интервал растёт (×2.2) при каждой
+    // удачной проверке, как в классическом SRS. Провал проверки — навык
+    // понижается обратно до «practiced», а не остаётся «mastered» навсегда.
+    function recordSkillResult(skillId, ratio, isReview) {
+      const data = getTeacherMastery();
+      const m = data[skillId] || { sessions: 0, goodStreak: 0, status: 'learning' };
+      m.sessions = (m.sessions || 0) + 1;
+      m.lastAt = Date.now();
+      if (isReview) {
+        if (ratio >= 0.7) {
+          m.reviewInterval = Math.max(1, Math.round((m.reviewInterval || 1) * 2.2));
+          m.nextReview = Date.now() + m.reviewInterval * 86400000;
+        } else {
+          m.status = 'practiced';
+          m.goodStreak = 0;
+          delete m.nextReview;
+          delete m.reviewInterval;
+        }
+      } else {
+        if (ratio >= 0.7) m.goodStreak = (m.goodStreak || 0) + 1;
+        else m.goodStreak = 0;
+        if (m.goodStreak >= 3) {
+          const wasMastered = m.status === 'mastered';
+          m.status = 'mastered';
+          if (!wasMastered) { m.reviewInterval = 1; m.nextReview = Date.now() + 86400000; }
+        } else if (m.sessions >= 1) m.status = 'practiced';
+      }
+      data[skillId] = m;
+      _recordTeacherDailyActivity();
+      saveState();
+    }
+    // Ежедневная цель именно по «Учителю» — отдельно от общего стрика сайта.
+    function getTeacherDaily() {
+      if (!state.academyProgress) state.academyProgress = {};
+      if (!state.academyProgress._teacherDaily) state.academyProgress._teacherDaily = { date: '', count: 0, streak: 0 };
+      return state.academyProgress._teacherDaily;
+    }
+    function _todayKey() {
+      const d = new Date();
+      return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+    }
+    function _recordTeacherDailyActivity() {
+      const td = getTeacherDaily();
+      const today = _todayKey();
+      if (td.date === today) { td.count = (td.count || 0) + 1; return; }
+      const yesterday = new Date(Date.now() - 86400000);
+      const yKey = yesterday.getFullYear() + '-' + (yesterday.getMonth()+1) + '-' + yesterday.getDate();
+      td.streak = (td.date === yKey) ? (td.streak || 0) + 1 : 1;
+      td.date = today;
+      td.count = 1;
+      state.academyProgress._teacherDaily = td;
+    }
+    // Есть ли освоенный навык, которому пора на повторение?
+    function pickDueReview() {
+      const data = getTeacherMastery();
+      const now = Date.now();
+      let best = null;
+      for (let i = 0; i < PERSONAL_TEACHER_SKILLS.length; i++) {
+        const s = PERSONAL_TEACHER_SKILLS[i];
+        const m = data[s.id];
+        if (m && m.status === 'mastered' && m.nextReview && m.nextReview <= now) {
+          if (!best || m.nextReview < data[best.id].nextReview) best = s;
+        }
+      }
+      return best;
+    }
+    function pickNextSkill() {
+      for (let i = 0; i < PERSONAL_TEACHER_SKILLS.length; i++) {
+        const s = PERSONAL_TEACHER_SKILLS[i];
+        if (getSkillStatus(s.id) !== 'mastered' && isSkillUnlocked(s)) return s;
+      }
+      return null;
+    }
+    let _activeTeacherSkill = null; // id текущего навыка, если практика запущена из «Учителя»
+    let _activeTeacherReview = false; // true, если это повторение уже освоенного навыка
+
+    // Запуск практики для конкретного навыка — переиспользует уже
+    // существующие тесты/тренажёры, просто отфильтрованные под сам навык.
+    // build 5.86: перед практикой — короткое объяснение (skill.theory), а не
+    // сразу тест. Раньше «Учитель» кидал прямо в практику без единого слова
+    // объяснения — теперь у каждого навыка есть свой мини-урок перед началом.
+    function startTeacherSkillPractice(skill, isReview) {
+      _activeTeacherSkill = skill.id;
+      _activeTeacherReview = !!isReview;
+      const kkT = isKk();
+      // Для повторения уже освоенного навыка — сразу в практику, без
+      // повторного показа теории (её уже видели, когда учили навык впервые).
+      if (skill.theory && !isReview) {
+        showView('teacher');
+        const rootEl = document.getElementById('teacher-body');
+        if (rootEl) {
+          rootEl.innerHTML =
+            '<button type="button" class="btn btn-sm" id="teacher-lesson-back">← ' + (kkT ? 'Артқа' : 'Назад') + '</button>' +
+            '<div class="card" style="border-color:var(--accent);margin-top:0.6rem">' +
+            '<b>' + skill.title + '</b>' +
+            '<div class="ayah-translation" style="margin-top:0.5rem;line-height:1.6">' + skill.theory + '</div>' +
+            '<button type="button" class="btn btn-primary" id="teacher-lesson-start" style="width:100%;margin-top:0.9rem">▶ ' + (kkT ? 'Практиканы бастау' : 'Начать практику') + '</button>' +
+            '</div>';
+          document.getElementById('teacher-lesson-back')?.addEventListener('click', function() { _activeTeacherSkill = null; renderPersonalTeacher(); });
+          document.getElementById('teacher-lesson-start')?.addEventListener('click', function() { _launchTeacherSkillActivity(skill); });
+          return;
+        }
+      }
+      _launchTeacherSkillActivity(skill);
+    }
+    function _launchTeacherSkillActivity(skill) {
+      const kkT = isKk();
+      if (skill.kind === 'info') {
+        // Темы без готового теста в данных (сифат, ляфзуль-джаляля, правила
+        // «ра», маддо-лин, мукатта'ат и т.п.) — честно без викторины, только
+        // объяснение + самостоятельное подтверждение «понял(а)».
+        showView('teacher');
+        const rootEl = document.getElementById('teacher-body');
+        if (rootEl) {
+          rootEl.innerHTML =
+            '<div class="card" style="border-color:var(--accent)"><b>' + skill.title + '</b>' +
+            '<div class="ayah-translation" style="margin-top:0.5rem;line-height:1.6">' + (skill.theory || '') + '</div>' +
+            '<button type="button" class="btn btn-primary" id="teacher-info-done" style="width:100%;margin-top:0.9rem">✓ ' + (kkT ? 'Түсінікті' : 'Понятно') + '</button>' +
+            '</div>';
+          document.getElementById('teacher-info-done')?.addEventListener('click', function() {
+            recordSkillResult(skill.id, 1, _activeTeacherReview);
+            _activeTeacherSkill = null;
+            _activeTeacherReview = false;
+            renderPersonalTeacher();
+          });
+        }
+      } else if (skill.kind === 'letters') {
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'tests'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){
+          b.style.display = (b.dataset.group === 'tests') ? '' : 'none';
+          b.classList.toggle('active', b.dataset.game === 'letters');
+        });
+        currentGame = 'letters';
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        gameScore = 0; gameTotal = 0;
+        const chosen = ARABIC_LETTERS.filter(function(l){ return skill.letters.indexOf(l.ch) >= 0; });
+        gameQueue = shuffle(chosen.concat(chosen).concat(chosen)).slice(0, Math.max(8, chosen.length * 2));
+        nextLetterQuestion();
+      } else if (skill.kind === 'rules') {
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'tests'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){
+          b.style.display = (b.dataset.group === 'tests') ? '' : 'none';
+          b.classList.toggle('active', b.dataset.game === 'rules');
+        });
+        currentGame = 'rules';
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        gameScore = 0; gameTotal = 0;
+        const pool = ARABIC_RULES.concat(TAJWEED_RULES);
+        const otherN = Math.max(1, quizOptionCount() - 1);
+        let chosen = pool.filter(function(r){ return skill.ruleTitles.indexOf(r.title) >= 0; });
+        if (!chosen.length) { toast(kkT ? 'Деректер жоқ' : 'Нет данных'); return; }
+        // если правил меньше 3 — повторяем с перемешиванием, чтобы была практика подольше
+        while (chosen.length < 6) chosen = chosen.concat(chosen);
+        gameQueue = shuffle(chosen).slice(0, 8).map(function(r) {
+          const others = shuffle(pool.filter(function(x){ return x.title !== r.title; })).slice(0, otherN);
+          const txt = (kkT && r.shortKk) ? r.shortKk : (r.short || r.ru || r.body || r.ar || r.title || '');
+          const ans = (kkT && r.titleKk) ? r.titleKk : r.title;
+          const otherAns = others.map(function(o){ return (kkT && o.titleKk) ? o.titleKk : o.title; });
+          return { q: String(txt).replace(/<[^>]+>/g,'').slice(0, 140), answer: ans, id: r.title, opts: shuffle([ans].concat(otherAns)) };
+        });
+        nextRulesQuestion();
+      } else if (skill.kind === 'minimal-pairs') {
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){
+          b.style.display = (b.dataset.group === 'drills') ? '' : 'none';
+          b.classList.toggle('active', b.dataset.game === 'minimal-pairs');
+        });
+        currentGame = 'minimal-pairs';
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        renderMinimalPairs(document.getElementById('game-area'));
+        addTeacherFinishButton();
+      } else if (skill.kind === 'dictation') {
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){
+          b.style.display = (b.dataset.group === 'drills') ? '' : 'none';
+          b.classList.toggle('active', b.dataset.game === 'dictation');
+        });
+        currentGame = 'dictation';
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        renderDictation(document.getElementById('game-area'));
+        addTeacherFinishButton();
+      } else if (skill.kind === 'reading') {
+        const item = pickRandomWbwAyah(skill.readDiff);
+        if (!item) { toast(kkT ? 'Деректер жоқ' : 'Нет данных'); return; }
+        showView('home');
+        try { showSurahHomeTab('study'); } catch(e) {}
+        const ru = (typeof SURAH_RU !== 'undefined') ? SURAH_RU : {};
+        renderWbwAllWordsView(document.getElementById('home-wbw-surahs'), item.surah, item.surah + ' · ' + (ru[item.surah] || ('Сура ' + item.surah)) + ' · все слова сразу', {
+          jumpAyah: item.ayah,
+          onBack: function() { try { renderWbwSurahsStudy(document.getElementById('home-wbw-surahs')); } catch(e) {} }
+        });
+        addTeacherFinishButton('home-wbw-surahs');
+      } else if (skill.kind === 'forms') {
+        // Переиспользует уже существующий мини-тренажёр «Формы букв» из
+        // «Практика → Слова», просто сразу открывает его в нужном режиме.
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){
+          b.style.display = (b.dataset.group === 'drills') ? '' : 'none';
+          b.classList.toggle('active', b.dataset.game === 'practice');
+        });
+        currentGame = 'practice';
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        const area = document.getElementById('game-area');
+        area.innerHTML = '<div id="learn-practice"></div>';
+        renderPractice(document.getElementById('learn-practice'));
+        setTimeout(function() { document.querySelector('[data-pm="forms"]')?.click(); }, 60);
+        addTeacherFinishButton();
+      } else if (skill.kind === 'syllables') {
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){
+          b.style.display = (b.dataset.group === 'drills') ? '' : 'none';
+          b.classList.toggle('active', b.dataset.game === 'syllables');
+        });
+        currentGame = 'syllables';
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        const area2 = document.getElementById('game-area');
+        area2.innerHTML = '<div id="learn-syllables"></div>';
+        renderSyllables(document.getElementById('learn-syllables'));
+        addTeacherFinishButton();
+      } else if (skill.kind === 'reading-surah') {
+        const n = skill.wholeSurah;
+        showView('home');
+        try { showSurahHomeTab('study'); } catch(e) {}
+        const ru2 = (typeof SURAH_RU !== 'undefined') ? SURAH_RU : {};
+        renderWbwAllWordsView(document.getElementById('home-wbw-surahs'), n, n + ' · ' + (ru2[n] || ('Сура ' + n)) + ' · все слова сразу', {
+          onBack: function() { try { renderWbwSurahsStudy(document.getElementById('home-wbw-surahs')); } catch(e) {} }
+        });
+        addTeacherFinishButton('home-wbw-surahs');
+      } else if (skill.kind === 'reading-no-harakat') {
+        // build 5.86: убираем огласовки/сукун/шадду/танвин регексом с текста
+        // уже готового аята — с кнопкой «Показать с огласовками» на подстраховку.
+        const item = pickRandomWbwAyah('medium') || pickRandomWbwAyah('hard');
+        if (!item) { toast(kkT ? 'Деректер жоқ' : 'Нет данных'); return; }
+        const ayahs = (item.surah === 1 && typeof FATIHA_LESSON !== 'undefined') ? FATIHA_LESSON : (WBW_STUDY_SURAHS[item.surah] || []);
+        const ayObj = ayahs.find(function(a){ return a.ayah === item.ayah; });
+        const fullText = ayObj ? (ayObj.full || '') : '';
+        const stripped = fullText.replace(/[\u064B-\u0652\u0670]/g, '');
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); });
+        currentGame = null;
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        const area3 = document.getElementById('game-area');
+        area3.innerHTML =
+          '<div class="quiz-card" style="text-align:center">' +
+          '<div class="quiz-q">' + (kkT ? item.surah + ':' + item.ayah + ' — огласовкаларсыз оқыңыз' : item.surah + ':' + item.ayah + ' — прочитайте без огласовок') + '</div>' +
+          '<div class="arabic" dir="rtl" id="tnh-text" style="font-size:calc(2rem * var(--ar-scale, 1));line-height:2.1;margin:1rem 0">' + stripped + '</div>' +
+          '<button type="button" class="btn btn-sm" id="tnh-reveal">' + (kkT ? 'Огласовкамен көрсету' : 'Показать с огласовками') + '</button>' +
+          '</div>';
+        document.getElementById('tnh-reveal')?.addEventListener('click', function() {
+          document.getElementById('tnh-text').textContent = fullText;
+        });
+        addTeacherFinishButton();
+      } else if (skill.kind === 'speed') {
+        const item = pickRandomWbwAyah('medium') || pickRandomWbwAyah('hard');
+        if (!item) { toast(kkT ? 'Деректер жоқ' : 'Нет данных'); return; }
+        const ayahs2 = (item.surah === 1 && typeof FATIHA_LESSON !== 'undefined') ? FATIHA_LESSON : (WBW_STUDY_SURAHS[item.surah] || []);
+        const ayObj2 = ayahs2.find(function(a){ return a.ayah === item.ayah; });
+        const text2 = ayObj2 ? (ayObj2.full || '') : '';
+        const wordCount = text2.trim().split(/\s+/).filter(Boolean).length;
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); });
+        currentGame = null;
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        const area4 = document.getElementById('game-area');
+        area4.innerHTML =
+          '<div class="quiz-card" style="text-align:center">' +
+          '<div class="quiz-q">' + (kkT ? 'Дауыстап оқыңыз, дайын болғанда «Старт» басыңыз' : 'Прочитайте вслух, когда готовы — нажмите «Старт»') + '</div>' +
+          '<div class="arabic" dir="rtl" style="font-size:calc(2rem * var(--ar-scale, 1));line-height:2.1;margin:1rem 0">' + text2 + '</div>' +
+          '<button type="button" class="btn btn-primary" id="speed-start">▶ ' + (kkT ? 'Старт' : 'Старт') + '</button>' +
+          '<button type="button" class="btn" id="speed-stop" style="display:none">⏹ ' + (kkT ? 'Тоқтату' : 'Стоп') + '</button>' +
+          '<div id="speed-result" class="ayah-translation" style="margin-top:0.75rem"></div>' +
+          '</div>';
+        let startTime = 0;
+        document.getElementById('speed-start')?.addEventListener('click', function(ev) {
+          startTime = Date.now();
+          ev.target.style.display = 'none';
+          document.getElementById('speed-stop').style.display = '';
+        });
+        document.getElementById('speed-stop')?.addEventListener('click', function(ev) {
+          const secs = Math.max(1, (Date.now() - startTime) / 1000);
+          const wpm = Math.round(wordCount / (secs / 60));
+          ev.target.style.display = 'none';
+          document.getElementById('speed-result').textContent = (kkT ? 'Уақыт: ' : 'Время: ') + secs.toFixed(1) + ' ' + (kkT ? 'сек · Жылдамдық: ' : 'сек · Скорость: ') + wpm + ' ' + (kkT ? 'сөз/мин' : 'слов/мин');
+        });
+        addTeacherFinishButton();
+      }
+    }
+    // Для тренажёров без автосчёта (слоги, диктовка, различие звуков, чтение)
+    // — кнопка «Готово» сама фиксирует навык как отработанный один раз.
+    function addTeacherFinishButton(containerId) {
+      const kkT = isKk();
+      setTimeout(function() {
+        const container = document.getElementById(containerId || 'game-area');
+        if (!container || document.getElementById('teacher-finish-btn')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'teacher-finish-btn';
+        btn.className = 'btn btn-primary';
+        btn.style.cssText = 'width:100%;margin-top:0.75rem';
+        btn.textContent = '✓ ' + (kkT ? 'Дайын — Мұғалімге оралу' : 'Готово — вернуться к Учителю');
+        btn.addEventListener('click', function() {
+          if (_activeTeacherSkill) { recordSkillResult(_activeTeacherSkill, 0.8, _activeTeacherReview); _activeTeacherSkill = null; _activeTeacherReview = false; }
+          showView('teacher');
+        });
+        container.appendChild(btn);
+      }, 60);
+    }
+
+    // build 5.85: короткий тест-плейсмент — 10 вопросов по буквам + 6 по
+    // правилам таджвида (переиспользует те же тесты). По итогам сразу
+    // отмечает соответствующие начальные навыки освоенными, чтобы тот, кто
+    // уже неплохо читает, не проходил заново «с нуля».
+    function startTeacherPlacementTest() {
+      const kkT = isKk();
+      showView('games');
+      document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'tests'); });
+      document.querySelectorAll('#games-tabs button').forEach(function(b){
+        b.style.display = (b.dataset.group === 'tests') ? '' : 'none';
+        b.classList.toggle('active', b.dataset.game === 'letters');
+      });
+      currentGame = 'letters';
+      gameScore = 0; gameTotal = 0;
+      gameQueue = shuffle(ARABIC_LETTERS.slice()).slice(0, 10);
+      _teacherPlacementStage = 'letters';
+      nextLetterQuestion();
+      toast(kkT ? 'Орналастыру тесті: алдымен әріптер' : 'Тест на уровень: сначала буквы');
+    }
+    let _teacherPlacementStage = null;
+    let _teacherPlacementLettersRatio = 0;
+
+    function renderPersonalTeacher() {
+      const rootEl = document.getElementById('teacher-body');
+      if (!rootEl) return;
+      const kk = isKk();
+      const next = pickNextSkill();
+      const mastery = getTeacherMastery();
+      const masteredCount = PERSONAL_TEACHER_SKILLS.filter(function(s){ return getSkillStatus(s.id) === 'mastered'; }).length;
+      const pct = Math.round(masteredCount / PERSONAL_TEACHER_SKILLS.length * 100);
+      let html = tipCard(kk
+        ? 'Бұл — «Мұғалім»: өзіңіз таңдамайсыз, ол өзі қай әріп/ережені үйрену керектігін шешеді, сіздің қазіргі нәтижеңізге қарап. Әр дағды алдыңғысы меңгерілгеннен кейін ашылады (3 сынақ қатарынан жақсы нәтиже — «меңгерілді»).<br>• Дағды картасындағы «▶ Үйрену» — сол дағдыға арналған нақты жаттығуды іске қосады (бар тесттер мен тренажёрлерден).<br>• Мықты болсаңыз — «🎯 Орналастыру тесті» бірнеше бастапқы дағдыны бірден өткізіп жіберуі мүмкін.'
+        : 'Это «Учитель»: вы не выбираете сами — он решает, какую букву/правило учить следующей, исходя из ваших текущих результатов. Каждый навык открывается после того, как освоен предыдущий (3 хороших результата подряд — «освоено»).<br>• «▶ Учить» на карточке навыка запускает именно ту практику, что нужна для него (из уже существующих тестов и тренажёров).<br>• Если вы уже неплохо читаете — «🎯 Тест на уровень» может сразу засчитать несколько начальных навыков.'
+      );
+      html += '<div class="card" style="border-color:var(--accent);margin-bottom:0.75rem">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<b>' + (kk ? 'Жалпы прогресс' : 'Общий прогресс') + '</b>' +
+        '<span style="color:var(--accent);font-weight:700">' + pct + '%</span>' +
+        '</div>' +
+        '<div style="background:var(--border);border-radius:999px;height:0.5rem;margin-top:0.5rem;overflow:hidden">' +
+        '<div style="background:var(--accent);height:100%;width:' + pct + '%"></div></div>' +
+        '<div class="ayah-translation" style="margin-top:0.4rem">' + masteredCount + ' / ' + PERSONAL_TEACHER_SKILLS.length + ' ' + (kk ? 'дағды меңгерілді' : 'навыков освоено') + '</div>' +
+        '<button type="button" class="btn btn-sm" id="teacher-placement-btn" style="width:100%;margin-top:0.6rem">🎯 ' + (kk ? 'Орналастыру тесті' : 'Тест на уровень') + '</button>' +
+        '</div>';
+      // build 5.88: ежедневная цель именно по «Учителю» — отдельно от общего
+      // стрика сайта. Цель простая: хотя бы 1 урок/повторение в день.
+      const td = getTeacherDaily();
+      const doneToday = td.date === _todayKey();
+      html += '<div class="card" style="margin-bottom:0.75rem">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<span>🔥 ' + (kk ? (td.streak || 0) + ' күн қатарынан' : (td.streak || 0) + ' дней подряд') + '</span>' +
+        '<span style="color:' + (doneToday ? 'var(--success, #4ade80)' : 'var(--text-muted)') + ';font-weight:600">' + (doneToday ? '✓ ' + (kk ? 'бүгін орындалды' : 'сегодня выполнено') : (kk ? 'бүгін әлі жоқ' : 'сегодня ещё нет')) + '</span>' +
+        '</div></div>';
+      // Повторение освоенного навыка — приоритетнее нового урока, если пора.
+      const dueReview = pickDueReview();
+      if (dueReview) {
+        html += '<div class="card" style="border-color:#f59e0b;margin-bottom:0.75rem">' +
+          '<div style="color:#f59e0b;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">🔁 ' + (kk ? 'Қайталау уақыты' : 'Пора повторить') + '</div>' +
+          '<div style="font-weight:700;font-size:1.05rem;margin-top:0.3rem">' + dueReview.title + '</div>' +
+          '<div class="ayah-translation" style="margin-top:0.25rem">' + (kk ? 'Бұрын меңгерілген, бірақ есте сақтау үшін уақыт бойы қайталау керек.' : 'Уже было освоено раньше, но для памяти нужна проверка со временем.') + '</div>' +
+          '<button type="button" class="btn" id="teacher-start-review" style="width:100%;margin-top:0.6rem">▶ ' + (kk ? 'Қайталау' : 'Повторить') + '</button>' +
+          '</div>';
+      }
+      if (next) {
+        html += '<div class="card" style="border-color:var(--accent);background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 75%, #7c3aed) 100%);border:none;margin-bottom:0.75rem">' +
+          '<div style="color:rgba(255,255,255,0.85);font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">' + (kk ? 'Келесі сабақ' : 'Следующий урок') + '</div>' +
+          '<div style="color:#fff;font-weight:700;font-size:1.15rem;margin-top:0.3rem">' + next.title + '</div>' +
+          '<button type="button" class="btn" id="teacher-start-next" style="width:100%;margin-top:0.7rem;background:rgba(255,255,255,0.18);color:#fff;border-color:rgba(255,255,255,0.3)">▶ ' + (kk ? 'Үйрену' : 'Учить') + '</button>' +
+          '</div>';
+      } else {
+        // build 5.87: конкретные, осязаемые цифры вместо абстрактного «100%
+        // освоено» — сколько именно букв/правил пройдено и что за 2 суры
+        // прочитаны целиком, а не просто «молодец».
+        const lettersMastered = PERSONAL_TEACHER_SKILLS.filter(function(s){ return s.kind === 'letters' && getSkillStatus(s.id) === 'mastered'; }).length * 2;
+        const rulesMastered = PERSONAL_TEACHER_SKILLS.filter(function(s){ return s.kind === 'rules' && getSkillStatus(s.id) === 'mastered'; }).length;
+        html += '<div class="card" style="text-align:center"><b>🎉 ' + (kk ? 'Барлық дағдылар меңгерілді!' : 'Все навыки освоены!') + '</b>' +
+          '<div class="ayah-translation" style="margin-top:0.4rem">' + (kk
+            ? lettersMastered + ' әріп, ' + rulesMastered + ' таджуид ережесі меңгерілді, екі сүре толығымен оқылды (Әл-Ихлас, Әл-Аляк). Енді еркін оқу мен ұзақ сүрелерге көшуге болады.'
+            : lettersMastered + ' букв, ' + rulesMastered + ' правил таджвида освоено, две суры прочитаны целиком (Аль-Ихлас, Аль-Аляк). Теперь можно переходить к свободному чтению и длинным сурам.') + '</div></div>';
+      }
+      const groups = ['orientation', 'letters', 'basics', 'special', 'tajweed', 'reading'];
+      groups.forEach(function(g) {
+        const glabel = PERSONAL_TEACHER_GROUP_LABELS[g];
+        const items = PERSONAL_TEACHER_SKILLS.filter(function(s){ return s.group === g; });
+        html += '<div class="section-title">' + (kk ? glabel.kk : glabel.ru) + '</div>';
+        html += items.map(function(s) {
+          const status = getSkillStatus(s.id);
+          const unlocked = isSkillUnlocked(s);
+          const icon = status === 'mastered' ? '✅' : (!unlocked ? '🔒' : (status === 'practiced' ? '🟡' : '⚪'));
+          const isCurrent = next && next.id === s.id;
+          return '<div class="card" style="margin-bottom:0.4rem;' + (isCurrent ? 'border-color:var(--accent)' : '') + (!unlocked ? ';opacity:0.55' : '') + '">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center">' +
+            '<span>' + icon + ' ' + s.title + '</span>' +
+            (unlocked && status !== 'mastered' ? '<button type="button" class="btn btn-sm" data-teacher-skill="' + s.id + '">▶</button>' : '') +
+            '</div></div>';
+        }).join('');
+      });
+      rootEl.innerHTML = html;
+      document.getElementById('teacher-placement-btn')?.addEventListener('click', startTeacherPlacementTest);
+      document.getElementById('teacher-start-next')?.addEventListener('click', function() { startTeacherSkillPractice(next); });
+      document.getElementById('teacher-start-review')?.addEventListener('click', function() { startTeacherSkillPractice(dueReview, true); });
+      rootEl.querySelectorAll('[data-teacher-skill]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          const skill = PERSONAL_TEACHER_SKILLS.find(function(s){ return s.id === btn.dataset.teacherSkill; });
+          if (skill) startTeacherSkillPractice(skill);
+        });
+      });
+    }
+
+    // build 5.82: сложность теперь считается по каждому конкретному аяту
+    // (длина + признаки таджвид-сложности), а не по суре целиком — как и
+    // просил пользователь: аят 103:1 короткий и лёгкий, а есть длинные и
+    // сложные аяты даже внутри в остальном простых сур. Аяты выбираются в
+    // случайном порядке внутри своего уровня. Пул — те же 26 сур с полным
+    // разбором по словам и настоящей озвучкой (Аль-Фатиха + 90–114), чтобы
+    // случайный выбор никогда не попадал на аят без нормальных данных.
+    function ayahDifficultyScore(text) {
+      const words = (text || '').trim().split(/\s+/).filter(Boolean);
+      const hardLetters = (text.match(/[عحقضظذثخصط]/g) || []).length;
+      const shadda = (text.match(/\u0651/g) || []).length;
+      const sukun = (text.match(/\u0652/g) || []).length;
+      const tanween = (text.match(/[\u064B\u064C\u064D]/g) || []).length;
+      const hamza = (text.match(/[ءأإؤئ]/g) || []).length;
+      return words.length * 3 + hardLetters * 2 + shadda * 2 + sukun * 1.2 + tanween * 1.5 + hamza;
+    }
+    let _wbwAyahDifficultyCache = null;
+    function getWbwAyahsWithDifficulty() {
+      if (_wbwAyahDifficultyCache) return _wbwAyahDifficultyCache;
+      const list = [];
+      const nums = [1].concat(Object.keys(WBW_STUDY_SURAHS || {}).map(Number));
+      nums.forEach(function(n) {
+        const ayahs = (n === 1 && typeof FATIHA_LESSON !== 'undefined') ? FATIHA_LESSON : (WBW_STUDY_SURAHS[n] || []);
+        ayahs.forEach(function(ay) {
+          const text = ay.full || (ay.words || []).map(function(w){ return w.ar; }).join(' ');
+          list.push({ surah: n, ayah: ay.ayah, score: ayahDifficultyScore(text) });
+        });
+      });
+      list.sort(function(a, b) { return a.score - b.score; });
+      const third = Math.ceil(list.length / 3);
+      list.forEach(function(item, i) {
+        item.tier = i < third ? 'easy' : (i < third * 2 ? 'medium' : 'hard');
+      });
+      _wbwAyahDifficultyCache = list;
+      return list;
+    }
+    function pickRandomWbwAyah(tier) {
+      const pool = getWbwAyahsWithDifficulty().filter(function(x) { return x.tier === tier; });
+      if (!pool.length) return null;
+      return pool[Math.floor(Math.random() * pool.length)];
     }
 
 
+    // build 5.81: уровни сложности для случайного выбора суры в «Озвучке» —
+    // по количеству аятов (короче ≈ проще для начала). Только суры с полным
+    // разбором по словам (Аль-Фатиха + 90–114), чтобы случайный выбор не
+    // попадал на суру без нормальных данных.
     function renderStudySurahs() {
       const el = document.getElementById('learn-surahs');
       if (!el) return;
@@ -6700,12 +7636,34 @@ function speakLetter(ch, name) {
               '<button type="button" class="btn btn-sm'+(!tapReveal?' btn-primary':'')+'" id="wbws-reveal-all" style="flex:1">'+(kk?'Бірден':'Сразу')+'</button>' +
             '</div>' +
           '</div>' +
+          '<div class="card" style="border-color:var(--accent);margin-bottom:0.6rem"><b>🎲 '+(kk?'Деңгей бойынша кездейсоқ аят':'Случайный аят по сложности')+'</b>' +
+          '<div class="ayah-translation">'+(kk
+            ? 'Сложность — нақ осы аяттың өзі бойынша (ұзындығы + таджвид белгілері), сүре бойынша емес. Әр басу — сол деңгейден кездейсоқ аят.'
+            : 'Сложность — по самому этому аяту (длина + признаки таджвида), а не по суре целиком. Каждое нажатие — случайный аят этого уровня.')+'</div>' +
+          '<div class="tabs-row" style="margin-top:0.5rem">' +
+          '<button type="button" class="btn btn-sm" data-wbw-adiff="easy">'+(kk?'Жеңіл':'Лёгкий')+'</button>' +
+          '<button type="button" class="btn btn-sm" data-wbw-adiff="medium">'+(kk?'Орташа':'Средний')+'</button>' +
+          '<button type="button" class="btn btn-sm" data-wbw-adiff="hard">'+(kk?'Қиын':'Сложный')+'</button>' +
+          '</div></div>' +
           '<p class="ayah-translation" style="margin:0 0 0.6rem">Список всех 114 сур для учёбы. 🎧 — есть настоящая озвучка каждого слова голосом чтеца, можно открыть. Остальные помечены «скоро» — озвучка слов для них появится позже.</p>' +
           rows.map(s =>
             '<div class="card" style="'+(s.hasAudio ? 'cursor:pointer' : 'opacity:0.55')+'"'+(s.hasAudio ? ' data-wbws="'+s.n+'"' : '')+'>' +
             '<b>'+s.n+' · '+s.name+' · '+s.ayahs+' аят'+'</b>' +
             '<div class="ayah-translation">'+(s.hasAudio ? '🎧 полная озвучка слов — нажмите, чтобы изучать' : '⏳ скоро')+'</div></div>'
           ).join('');
+        // build 5.82: случайный АЯТ нужной сложности — открывает суру этого
+        // аята и сразу прокручивает/подсвечивает именно его, а не просто
+        // случайную суру целиком.
+        rootEl.querySelectorAll('[data-wbw-adiff]').forEach(function(dbtn) {
+          dbtn.addEventListener('click', function() {
+            const item = pickRandomWbwAyah(dbtn.dataset.wbwAdiff);
+            if (!item) return;
+            renderWbwAllWordsView(rootEl, item.surah, item.surah + ' · ' + (ru[item.surah] || ('Сура ' + item.surah)) + ' · все слова сразу', {
+              jumpAyah: item.ayah,
+              onBack: function(){ showList(meta); }
+            });
+          });
+        });
         document.getElementById('wbws-reveal-tap')?.addEventListener('click', () => {
           state.settings.wbwRevealMode = 'tap';
           try { saveState(); } catch(e) {}
@@ -7035,7 +7993,7 @@ function renderMistakes() {
       const show = (tab) => {
         el.querySelectorAll('[data-mist]').forEach(b => b.classList.toggle('btn-primary', b.dataset.mist === tab));
         if (tab === 'mine') {
-          // build 5.80: настоящий персональный журнал — на чём конкретно
+          // build 5.78: настоящий персональный журнал — на чём конкретно
           // спотыкается именно этот человек в тестах «буквы/названия/
           // правила», по данным recordMistake(), а не общий текст для всех.
           const pool = ARABIC_RULES.concat(TAJWEED_RULES);
@@ -7230,19 +8188,24 @@ function renderMistakes() {
           // tongue (glow + main stroke + tip highlight)
           '<path d="'+cfg.tongue+'" fill="none" stroke="#38bdf8" stroke-width="9" stroke-linecap="round" opacity="0.2"/>' +
           '<path d="'+cfg.tongue+'" fill="none" stroke="#38bdf8" stroke-width="3.8" stroke-linecap="round"/>' +
-          // articulation point (target marker)
-          '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="13" fill="'+zoneDot+'" opacity="0.18"/>' +
-          '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="7.5" fill="var(--accent)" stroke="#fff" stroke-width="2.2"/>' +
+          // articulation point (target marker) — build 5.88: цвет точки
+          // теперь берётся из той же zoneDot-переменной, что и легенда снизу,
+          // а не всегда акцентный зелёный — раньше точка на рисунке никак не
+          // была связана по цвету ни с одним из 4 цветов в легенде.
+          '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="13" fill="'+zoneDot+'" opacity="0.28"/>' +
+          '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="7.5" fill="'+zoneDot+'" stroke="#fff" stroke-width="2.2"/>' +
         '</g>' +
-        // legend row (chips)
-        '<g transform="translate(0,150)" font-family="system-ui" font-size="9" fill="var(--text)">' +
-          '<circle cx="8" cy="0" r="4.2" fill="#fb7185"/><text x="16" y="3">'+(kkZone?'ерін':'губы')+'</text>' +
-          '<circle cx="42" cy="0" r="4.2" fill="#f8fafc"/><text x="50" y="3">'+(kkZone?'тіс':'зубы')+'</text>' +
-          '<circle cx="76" cy="0" r="4.2" fill="#38bdf8"/><text x="84" y="3">'+(kkZone?'тіл':'язык')+'</text>' +
-          '<circle cx="110" cy="0" r="4.2" fill="#c084fc"/><text x="118" y="3">'+(kkZone?'тамақ':'горло')+'</text>' +
+        // legend row (chips) — build 5.88: раздвинуто пошире и сделано
+        // жирным/обведено то слово, которое относится именно к этой букве,
+        // чтобы точка на рисунке и подпись внизу читались как единое целое.
+        '<g transform="translate(4,150)" font-family="system-ui" font-size="10" fill="var(--text-muted)">' +
+          '<circle cx="7" cy="0" r="4.4" fill="#fb7185" ' + (zoneDot==='#fb7185' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="15" y="3.5" ' + (zoneDot==='#fb7185' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'ерін':'губы')+'</text>' +
+          '<circle cx="43" cy="0" r="4.4" fill="#f8fafc" ' + (zoneDot==='#f8fafc' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="51" y="3.5" ' + (zoneDot==='#f8fafc' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тіс':'зубы')+'</text>' +
+          '<circle cx="78" cy="0" r="4.4" fill="#38bdf8" ' + (zoneDot==='#38bdf8' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="86" y="3.5" ' + (zoneDot==='#38bdf8' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тіл':'язык')+'</text>' +
+          '<circle cx="114" cy="0" r="4.4" fill="#c084fc" ' + (zoneDot==='#c084fc' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="122" y="3.5" ' + (zoneDot==='#c084fc' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тамақ':'горло')+'</text>' +
         '</g>' +
         '</svg>' +
-        '<div class="ayah-translation" style="font-size:calc(0.85rem * var(--ru-scale, 1));margin-top:0.35rem;line-height:1.45;text-align:left;max-width:300px;margin-left:auto;margin-right:auto">'+cfg.desc+'</div></div>';
+        '<div class="ayah-translation" style="font-size:calc(0.85rem * var(--ru-scale, 1));margin-top:0.4rem;line-height:1.45;text-align:center;max-width:300px;margin-left:auto;margin-right:auto">'+cfg.desc+'</div></div>';
     }
 
 
@@ -7784,11 +8747,11 @@ function renderMistakes() {
     let currentGame = 'letters';
     let gameScore = 0, gameTotal = 0, gameQueue = [];
 
-    // build 5.76: группы кнопок «Практики» (Тесты / Устно / Тренажёры) —
+    // build 5.74: группы кнопок «Практики» (Тесты / Устно / Тренажёры) —
     // показываем только кнопки активной группы, чтобы не было сразу 10
     // кнопок в одном ряду. Сама логика запуска тренировки (data-game)
     // ниже не меняется.
-    // build 5.76: подробная подсказка для «Практики» — что за 3 группы
+    // build 5.74: подробная подсказка для «Практики» — что за 3 группы
     // кнопок (Тесты/Устно/Тренажёры) и что делает каждая конкретно.
     function renderGamesTip() {
       const el = document.getElementById('games-tip');
@@ -7822,7 +8785,7 @@ function renderMistakes() {
       });
     });
 
-    // build 5.80: сложность (число вариантов ответа) — единая настройка для
+    // build 5.78: сложность (число вариантов ответа) — единая настройка для
     // тестов «буквы/названия/правила» и режима «Различие звуков».
     function getQuizDifficulty() {
       return (state.settings && state.settings.quizDifficulty) || 'medium';
@@ -7831,7 +8794,7 @@ function renderMistakes() {
       var d = getQuizDifficulty();
       return d === 'easy' ? 2 : (d === 'hard' ? 6 : 4);
     }
-    // build 5.80: личный журнал ошибок — раньше «Ошибки» был статичным общим
+    // build 5.78: личный журнал ошибок — раньше «Ошибки» был статичным общим
     // текстом, одинаковым для всех. Теперь реально считаем, на чём именно
     // ошибается конкретный человек в тестах (буквы/названия/правила), чтобы
     // предложить потренировать именно слабые места.
@@ -7857,6 +8820,45 @@ function renderMistakes() {
       }).filter(function(x) { return x.total >= minAttempts && x.wrong > 0; });
       out.sort(function(a, b) { return b.rate - a.rate || b.wrong - a.wrong; });
       return out;
+    }
+    // build 5.88: «помощник» — не полноценный ИИ-чат (сайт статический, без
+    // сервера), а честный разбор конкретной ошибки по уже накопленной
+    // статистике (recordMistake): какая именно буква/название/правило из
+    // ЭТОГО навыка подводит чаще всего, и что про неё уже известно из теории.
+    function getTeacherAssistantTip(skill) {
+      const kkT = isKk();
+      if (skill.kind === 'letters') {
+        const weakLetters = getWeakItems('letters', 1).concat(getWeakItems('names', 1))
+          .filter(function(w) { return skill.letters.indexOf(w.key) >= 0; })
+          .sort(function(a, b) { return b.rate - a.rate; });
+        if (!weakLetters.length) return null;
+        const w = weakLetters[0];
+        const letterObj = ARABIC_LETTERS.find(function(l) { return l.ch === w.key; });
+        if (!letterObj) return null;
+        const pct = Math.round(w.rate * 100);
+        return (kkT
+          ? 'Көбіне «' + w.key + '» (' + (letterObj.nameKk || letterObj.name) + ') әрпінде қателесесіз (' + pct + '% жауаптарда). '
+          : 'Чаще всего ошибка на букве «' + w.key + '» (' + letterObj.name + ') — ' + pct + '% ответов с ней неверные. ') +
+          (letterObj.note ? String(letterObj.note).replace(/<[^>]+>/g,'').slice(0, 220) : '');
+      }
+      if (skill.kind === 'rules') {
+        const pool = ARABIC_RULES.concat(TAJWEED_RULES);
+        const weakRules = getWeakItems('rules', 1)
+          .filter(function(w) { return skill.ruleTitles.indexOf(w.key) >= 0; })
+          .sort(function(a, b) { return b.rate - a.rate; });
+        if (!weakRules.length) return null;
+        const w = weakRules[0];
+        const ruleObj = pool.find(function(r) { return r.title === w.key; });
+        if (!ruleObj) return null;
+        const pct = Math.round(w.rate * 100);
+        const title = (kkT && ruleObj.titleKk) ? ruleObj.titleKk : ruleObj.title;
+        const detail = (kkT && ruleObj.shortKk) ? ruleObj.shortKk : (ruleObj.short || '');
+        return (kkT
+          ? '«' + title + '» ережесінде жиі қателесесіз (' + pct + '%). '
+          : 'Чаще всего путаница с правилом «' + title + '» (' + pct + '% ответов неверные). ') +
+          String(detail).replace(/<[^>]+>/g,'').slice(0, 220);
+      }
+      return null;
     }
     document.querySelectorAll('#games-difficulty button').forEach(function(dbtn) {
       dbtn.addEventListener('click', function() {
@@ -8327,6 +9329,85 @@ function renderMistakes() {
         saveState();
         checkAchievements();
       } catch(e) {}
+      // build 5.85/5.88: если тест был запущен из «Личного учителя» —
+      // результат идёт в мастерство навыка (или в интервальное повторение,
+      // если это была проверка уже освоенного), плюс подсказка «помощника»
+      // при провале — какая именно буква/правило подвела чаще всего.
+      if (_activeTeacherSkill) {
+        try {
+          const skillId = _activeTeacherSkill;
+          const skillObj = PERSONAL_TEACHER_SKILLS.find(function(s){ return s.id === skillId; });
+          const ratio = gameTotal ? (gameScore / gameTotal) : 0;
+          const wasReview = _activeTeacherReview;
+          recordSkillResult(skillId, ratio, wasReview);
+          if (ratio < 0.7 && skillObj) {
+            try {
+              const tip = getTeacherAssistantTip(skillObj);
+              if (tip) {
+                const tipDiv = document.createElement('div');
+                tipDiv.className = 'card';
+                tipDiv.style.cssText = 'margin-top:0.6rem;text-align:left;border-color:var(--accent)';
+                tipDiv.innerHTML = '<b>🤖 ' + (kkE ? 'Көмекші' : 'Помощник') + '</b><div class="ayah-translation" style="margin-top:0.35rem">' + tip + '</div>';
+                area.querySelector('.quiz-card').appendChild(tipDiv);
+              }
+            } catch(e) {}
+          }
+          const back = document.createElement('button');
+          back.type = 'button';
+          back.className = 'btn btn-sm';
+          back.style.marginTop = '0.5rem';
+          back.style.width = '100%';
+          back.textContent = '👨‍🏫 ' + (kkE ? 'Мұғалімге оралу' : 'Вернуться к Учителю');
+          back.addEventListener('click', function() {
+            _activeTeacherSkill = null;
+            _activeTeacherReview = false;
+            showView('teacher');
+          });
+          area.querySelector('.quiz-card').appendChild(back);
+        } catch(e) {}
+      }
+      // build 5.85: тест на уровень (плейсмент) — две части подряд:
+      // сначала буквы, потом сразу правила таджвида. По итогам обеих сразу
+      // отмечает начальные навыки освоенными, если результат хороший.
+      if (_teacherPlacementStage === 'letters') {
+        _teacherPlacementLettersRatio = gameTotal ? (gameScore / gameTotal) : 0;
+        _teacherPlacementStage = 'rules';
+        setTimeout(function() {
+          currentGame = 'rules';
+          gameScore = 0; gameTotal = 0;
+          const pool = ARABIC_RULES.concat(TAJWEED_RULES);
+          const otherN = Math.max(1, quizOptionCount() - 1);
+          gameQueue = shuffle(pool.slice()).slice(0, 8).map(function(r) {
+            const others = shuffle(pool.filter(function(x){ return x.title !== r.title; })).slice(0, otherN);
+            const txt = (kkE && r.shortKk) ? r.shortKk : (r.short || r.ru || r.body || r.ar || r.title || '');
+            const ans = (kkE && r.titleKk) ? r.titleKk : r.title;
+            const otherAns = others.map(function(o){ return (kkE && o.titleKk) ? o.titleKk : o.title; });
+            return { q: String(txt).replace(/<[^>]+>/g,'').slice(0, 140), answer: ans, id: r.title, opts: shuffle([ans].concat(otherAns)) };
+          });
+          toast(kkE ? 'Енді ережелер' : 'Теперь правила');
+          nextRulesQuestion();
+        }, 1400);
+      } else if (_teacherPlacementStage === 'rules') {
+        const rulesRatio = gameTotal ? (gameScore / gameTotal) : 0;
+        const lettersRatio = _teacherPlacementLettersRatio || 0;
+        _teacherPlacementStage = null;
+        try {
+          if (lettersRatio >= 0.75) {
+            ['orientation','letters_1','letters_2','letters_3','letters_4','letters_5','letters_6','letters_7','letters_8','letters_9','letters_10','letters_11','letters_12','letters_13','letters_14','letter_forms'].forEach(function(id) {
+              recordSkillResult(id, 1); recordSkillResult(id, 1); recordSkillResult(id, 1);
+            });
+          }
+          if (rulesRatio >= 0.6) {
+            ['harakat_fatha','harakat_kasra','harakat_damma','syllables_mixed','standing_vowels','sukun','shadda','tanween','minimal_pairs','sun_moon','hamza_forms','taa_marbuta','qalqalah'].forEach(function(id) {
+              recordSkillResult(id, 1); recordSkillResult(id, 1); recordSkillResult(id, 1);
+            });
+          }
+        } catch(e) {}
+        setTimeout(function() {
+          toast(kkE ? 'Орналастыру тесті аяқталды' : 'Тест на уровень завершён');
+          showView('teacher');
+        }, 1200);
+      }
     }
 
     document.getElementById('btn-start-game')?.addEventListener('click', startGame);
@@ -9155,7 +10236,7 @@ function renderMistakes() {
       paintList();
     }
 
-// build 5.80: «Различие звуков» — тренажёр на минимальные пары (то, на чём
+// build 5.78: «Различие звуков» — тренажёр на минимальные пары (то, на чём
 // реально спотыкаются новички: ت/ط, س/ص, د/ض и т.п.). Слушаете один звук из
 // пары, выбираете, какой именно услышали. Набор пар зависит от сложности
 // (лёгкий — явно разные буквы для разминки слуха; сложный — самые близкие).
@@ -12670,7 +13751,7 @@ bKk:
       let θ = Math.atan2(y, x) * 180 / Math.PI;
       return ((θ % 360) + 360) % 360;
     }
-    // build 5.74: точка на сфере на заданном азимуте и расстоянии от старта —
+    // build 5.72: точка на сфере на заданном азимуте и расстоянии от старта —
     // используется для короткой стрелки-направления на карте киблы (не для
     // линии до самой Мекки: на плоской проекции карты прямая линия через
     // тысячи км была бы геометрически неверной для истинного азимута).
@@ -12684,7 +13765,7 @@ bKk:
       const λ2 = λ1 + Math.atan2(Math.sin(θ) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2));
       return { lat: φ2 * 180 / Math.PI, lon: λ2 * 180 / Math.PI };
     }
-    // build 5.74: расстояние по прямой между двумя точками на сфере (метры) —
+    // build 5.72: расстояние по прямой между двумя точками на сфере (метры) —
     // для сортировки найденных мечетей/намазхана по удалённости от пользователя.
     function haversineDistance(lat1, lon1, lat2, lon2) {
       const R = 6371000;
@@ -12839,7 +13920,7 @@ bKk:
         localStorage.setItem(key, payload);
         return;
       } catch(e) {}
-      // build 5.67: раньше ошибка записи (например, «хранилище переполнено»)
+      // build 5.65: раньше ошибка записи (например, «хранилище переполнено»)
       // молча проглатывалась — из-за этого при заполненном localStorage
       // (активная переписка, кэш аудио/фото/хадисов) времена намаза могли
       // тихо не сохраняться и качаться заново с сервера при каждом заходе,
@@ -13353,7 +14434,7 @@ let body = '';
                   const key = triple[0], label = triple[1], val = triple[2];
                   const icon = (typeof PRAYER_ICONS !== 'undefined' && PRAYER_ICONS[key]) || '';
                   const isSel = state._dhSelectedPrayerKey === key;
-                  // build 5.77: прошедшие на сегодня намазы — сероватые/приглушённые,
+                  // build 5.75: прошедшие на сегодня намазы — сероватые/приглушённые,
                   // чтобы сразу было видно, что время уже позади.
                   const timeDate = (typeof parseHM === 'function') ? parseHM(val, new Date()) : null;
                   const isPast = !isSel && timeDate && timeDate.getTime() < Date.now();
@@ -13367,7 +14448,7 @@ let body = '';
                 const srcLabel = t._src === 'cache-muftyat' ? 'ДУМК / muftyat.kz (кэш)' :
                   (t._src === 'muftyat' ? 'ДУМК / muftyat.kz' :
                   (t._src === 'aladhan' ? 'Aladhan' : 'Локальный расчёт'));
-                // build 5.66: карточка обратного отсчёта — до ближайшего намаза
+                // build 5.64: карточка обратного отсчёта — до ближайшего намаза
                 // по умолчанию, либо до конкретного выбранного кликом по строке
                 // ниже (то же состояние выбора, что и в виджете «Ежедневного»,
                 // чтобы выбор был согласован между обоими местами показа).
@@ -13429,7 +14510,7 @@ let body = '';
                     '<button type="button" class="btn btn-sm" id="pt-qibla-help-toggle">❓ '+(kk?'Қалай қолдану керек':'Как этим пользоваться')+'</button>' +
                     '</div>' +
                     '<div id="qibla-status" class="ayah-translation" style="margin-top:0.35rem;font-size:calc(0.8rem * var(--ru-scale, 1))">'+compassStatusLabel+'</div>' +
-                    // build 5.74: карта-подсказка направления — по требованию пользователя,
+                    // build 5.72: карта-подсказка направления — по требованию пользователя,
                     // чтобы можно было запомнить, куда поворачиваться, глядя на реальные
                     // ориентиры местности (дома, улицы), а не только держа телефон плашмя
                     // для компаса. Стрелка на карте — короткий отрезок в ТОЧНО том же
@@ -13447,7 +14528,7 @@ let body = '';
                       : '<b>Компас:</b> держите телефон плашмя, как поднос. Когда зелёная стрелка с символом 🕋 указывает точно вверх экрана — вы стоите лицом к кибле.<br><br><b>Карта:</b> зелёная линия от вашей точки показывает точное направление на киблу — посмотрите, что расположено в эту сторону на карте (дом, улица), запомните ориентир, и сможете поворачиваться в нужную сторону даже без компаса.') +
                     '</div>' +
                     '</div>';
-                  // build 5.74: «Рядом с тобой» — мечети и намазхана (молельные
+                  // build 5.72: «Рядом с тобой» — мечети и намазхана (молельные
                   // комнаты) поблизости через бесплатный Overpass API (данные
                   // OpenStreetMap, без API-ключа). Честно: намазхана размечены
                   // волонтёрами OSM непоследовательно — покажет то, что реально
@@ -13535,7 +14616,7 @@ let body = '';
               try { card && card.scrollIntoView({ block: 'nearest' }); } catch(err) {}
             });
           })();
-          // build 5.66: клик по строке конкретного намаза в списке «Сегодня» —
+          // build 5.64: клик по строке конкретного намаза в списке «Сегодня» —
           // выбрать её для отсчёта (то же общее состояние, что и в виджете
           // «Ежедневного»); повторный клик по уже выбранной — снять выбор.
           // Живой секундный тик — тот же безопасный паттерн (само гасит себя,
@@ -13554,7 +14635,7 @@ let body = '';
             });
           });
           clearInterval(window._ptPrayerCountdownTimer);
-          // build 5.71: та же проблема, что и в виджете «Ежедневного» — без
+          // build 5.69: та же проблема, что и в виджете «Ежедневного» — без
           // смены даты сетка времён в разделе «Время намаза» тоже оставалась
           // бы «замороженной» на дне последней отрисовки после полуночи.
           window._ptPrayerCountdownDate = new Date().toDateString();
@@ -13581,7 +14662,7 @@ let body = '';
               if (frac2 != null) prog.style.width = Math.round(frac2 * 100) + '%';
             }
           }, 1000);
-          // build 5.72: та же подстраховка, что и в виджете «Ежедневного» —
+          // build 5.70: та же подстраховка, что и в виджете «Ежедневного» —
           // принудительная проверка даты сразу при возврате на вкладку,
           // не дожидаясь замедленного тика фонового интервала.
           document.removeEventListener('visibilitychange', window._ptVisibilityHandler || function(){});
@@ -13712,7 +14793,7 @@ let body = '';
 
           // notif toggle
           const notifBtn = document.getElementById('pt-notif');
-          // build 5.79: кнопка «Тест уведомления» — сразу показывает системное
+          // build 5.77: кнопка «Тест уведомления» — сразу показывает системное
           // уведомление и играет азан, не дожидаясь реального времени намаза.
           // Так проще проверить, что уведомления вообще доходят на этом
           // устройстве/браузере, вместо того чтобы ждать до следующего намаза.
@@ -13880,7 +14961,7 @@ let body = '';
           // compass
           const compassBtn = document.getElementById('pt-compass');
 
-          // build 5.74: карта-подсказка направления и блок обучения — инициализация
+          // build 5.72: карта-подсказка направления и блок обучения — инициализация
           // карты только по требованию (лениво), при первом показе, чтобы не тратить
           // ресурсы, если пользователь ими не воспользовался вообще.
           const qiblaMapToggle = document.getElementById('pt-qibla-map-toggle');
@@ -13923,7 +15004,7 @@ let body = '';
             if (wrap) wrap.style.display = (wrap.style.display !== 'none') ? 'none' : 'block';
           });
 
-          // build 5.74: поиск мечетей/намазхана рядом — бесплатный Overpass API
+          // build 5.72: поиск мечетей/намазхана рядом — бесплатный Overpass API
           // (данные OpenStreetMap). Запрашиваем и place_of_worship (мечети), и
           // отдельно amenity=prayer_room (молельные комнаты в ТРЦ/аэропортах) —
           // это реальный, отдельный тег OSM, не то же самое, что мечеть.
@@ -14355,7 +15436,7 @@ let body = '';
       } catch(e) {}
     }
 
-    // build 5.79: уведомления о намазе через Service Worker, когда он
+    // build 5.77: уведомления о намазе через Service Worker, когда он
     // зарегистрирован — showNotification() у SW на некоторых платформах
     // (особенно на компьютере) надёжнее прямого new Notification() из
     // вкладки. Если SW недоступен — обычный запасной вариант.
@@ -14375,7 +15456,7 @@ let body = '';
       const loc = state.prayerLoc || state.prayerLocSaved;
       if (!loc || loc.lat == null) return;
       try {
-        // build 5.79: раньше расписание строилось на далёких setTimeout
+        // build 5.77: раньше расписание строилось на далёких setTimeout
         // (вплоть до 48 часов вперёд) + резервном 20-секундном интервале,
         // сверяющем ТОЧНОЕ совпадение минуты. Оба способа ненадёжны в
         // фоновой/свёрнутой вкладке — особенно на компьютере, где браузер
@@ -16460,7 +17541,7 @@ function renderDict() {
               data.ayahs[ctxFrom].number + '–' + data.ayahs[ctxTo].number +
               (ctx.note ? ' · ' + ctx.note : '') + '</div>';
             for (let ci = ctxFrom; ci <= ctxTo; ci++) {
-              // build 5.75: раньше главный (выбранный) аят в списке контекста
+              // build 5.73: раньше главный (выбранный) аят в списке контекста
               // заменялся строкой-пометкой «показан выше как главный» вместо
               // текста — по просьбе пользователя здесь всегда выводится сам
               // аят (просто слегка выделен рамкой, чтобы было видно, какой
@@ -23730,7 +24811,7 @@ async function renderRegistrationSection() {
       toast(readerReversed ? 'Порядок: с конца (и в плеере)' : 'Порядок: с начала');
     });
 
-    // build 5.73: «Спокойный режим» чтения — прячет шапку/навигацию/панель
+    // build 5.71: «Спокойный режим» чтения — прячет шапку/навигацию/панель
     // инструментов, оставляя только текст аятов и одну плавающую кнопку
     // выхода. Раньше такого режима не было вообще (только тёмная тема).
     document.getElementById('btn-quiet-read')?.addEventListener('click', () => {
@@ -24143,7 +25224,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
               if (state.settings && state.settings.widgetTahajjud) {
                 cells.push(['tahajjud', tLabel('Тахаджуд'), t.tahajjud || '—']);
               }
-              // build 5.66: можно кликнуть по любой карточке времени (напр. «Аср»)
+              // build 5.64: можно кликнуть по любой карточке времени (напр. «Аср»)
               // и виджет покажет обратный отсчёт именно до неё, а не только до
               // ближайшего намаза; повторный клик по уже выбранной — снимает
               // выбор и возвращает автоматический режим «до ближайшего».
@@ -24175,7 +25256,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
                 const key = triple[0];
                 const icon = (typeof PRAYER_ICONS !== 'undefined' && PRAYER_ICONS[key]) || '';
                 const isActive = info && info.key === key && (selKey ? true : !info.isTomorrow);
-                // build 5.77: прошедшие сегодня намазы — сероватые, чтобы сразу
+                // build 5.75: прошедшие сегодня намазы — сероватые, чтобы сразу
                 // было видно, что время уже позади (тот же принцип, что и в
                 // полном разделе «Время намаза»).
                 const timeDate = (typeof parseHM === 'function') ? parseHM(triple[2], new Date()) : null;
@@ -24269,7 +25350,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         word: '<div class="card"><div style="display:flex;justify-content:space-between"><b>🔤 '+(isKk?'Күн сөзі':'Слово дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-word="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic">'+word.ar+'</div><div>'+word.tr+' — '+(isKk&&word.kk?word.kk:word.ru)+'</div></div>'
       };
       const widgetOrder = (typeof getDailyWidgetOrder === 'function') ? getDailyWidgetOrder() : ['events','prayer','ayah','story','dua','name','hadith','sunnah','word'];
-      // build 5.77: приветствие по имени + «аватар» (буква имени или 🌙)
+      // build 5.75: приветствие по имени + «аватар» (буква имени или 🌙)
       // сверху «Ежедневного», вместо безликого набора карточек с ходу.
       // Плюс поздравление в особые дни: пятница (Джума) и Айт (по датам
       // из HIJRI_EVENTS) — приоритетнее обычного приветствия.
@@ -24302,7 +25383,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           (dateLabel ? '<div style="color:rgba(255,255,255,0.85);font-size:0.8rem;text-transform:capitalize">'+dateLabel+'</div>' : '') +
           '</div></div>';
       } catch(e) {}
-      // build 5.78: скрытые долгим нажатием виджеты (не то же самое, что
+      // build 5.76: скрытые долгим нажатием виджеты (не то же самое, что
       // порядок — «Порядок» ничего не убирает, только переставляет).
       var hiddenDh = (typeof getHiddenDailyWidgets === 'function') ? getHiddenDailyWidgets() : [];
       el.innerHTML =
@@ -24326,7 +25407,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       // сам интервал гасит себя, если элемент пропал с экрана (ушли с
       // «Ежедневного» на другой раздел).
       clearInterval(window._dhPrayerCountdownTimer);
-      // build 5.71: если оставить вкладку открытой на ночь без единого клика,
+      // build 5.69: если оставить вкладку открытой на ночь без единого клика,
       // раньше тикал только сам отсчёт секунд, а сетка времён (Фаджр/Зухр/
       // Аср и т.д.) оставалась «замороженной» на дне, когда виджет был
       // отрисован в последний раз — после полуночи она показывала времена
@@ -24356,7 +25437,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           if (frac != null) prog.style.width = Math.round(frac * 100) + '%';
         }
       }, 1000);
-      // build 5.72: у фоновых (свёрнутых/неактивных) вкладок браузеры ради
+      // build 5.70: у фоновых (свёрнутых/неактивных) вкладок браузеры ради
       // энергосбережения замедляют setInterval — секундный тик может
       // реально срабатывать раз в несколько минут, если вкладку оставить
       // открытой в фоне на всю ночь. Логика смены даты выше в итоге всё
@@ -24376,7 +25457,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         }
       };
       document.addEventListener('visibilitychange', window._dhVisibilityHandler);
-      // build 5.66: клик по карточке конкретного намаза — выбрать его для
+      // build 5.64: клик по карточке конкретного намаза — выбрать его для
       // отсчёта; повторный клик по уже выбранной — снять выбор (вернуться
       // к автоматическому «ближайшему»).
       el.querySelectorAll('[data-select-prayer]').forEach(function(cellEl){
@@ -24386,7 +25467,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           renderDailyHub();
         });
       });
-      // build 5.71: явная кнопка «вернуться к ближайшему» прямо под отсчётом —
+      // build 5.69: явная кнопка «вернуться к ближайшему» прямо под отсчётом —
       // пользователь интуитивно пытался нажать на сам текст подсказки, а не
       // на карточку выбранного намаза; теперь текст сам по себе кликабелен.
       el.querySelectorAll('[data-reset-prayer-dh]').forEach(function(b){
@@ -24395,7 +25476,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           renderDailyHub();
         });
       });
-      // build 5.73: «Поделиться» у хадиса дня — stopPropagation обязателен,
+      // build 5.71: «Поделиться» у хадиса дня — stopPropagation обязателен,
       // иначе клик по кнопке дополнительно сработает и как клик по всей
       // карточке (она сама целиком кликабельна для перехода в «Хадисы»).
       el.querySelectorAll('[data-share-hadith]').forEach(function(b){
@@ -24410,7 +25491,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           });
         });
       });
-      // build 5.75: та же кнопка «Поделиться» — теперь у каждой карточки
+      // build 5.73: та же кнопка «Поделиться» — теперь у каждой карточки
       // «Ежедневного» (дуа, имя Аллаха, сунна, слово дня), а не только у
       // аята и хадиса.
       el.querySelectorAll('[data-share-dua]').forEach(function(b){
@@ -29858,7 +30939,10 @@ c.addEventListener('click', () => {
       var t = ev.target.closest && ev.target.closest('.study-switch-btn');
       if (!t) return;
       var target = t.getAttribute('data-study');
-      if (target === 'learn' || target === 'games') showView(target);
+      // build 5.85: третий, отдельный режим «👨‍🏫 Учитель» рядом с
+      // Теорией/Практикой — сам решает, что учить дальше, вместо того
+      // чтобы пользователь выбирал модуль вручную.
+      if (target === 'learn' || target === 'games' || target === 'teacher') showView(target === 'teacher' ? 'teacher' : target);
     });
 
     // Кнопка 📎 + скрытый <input type=file multiple> + полоска превью со
@@ -31972,7 +33056,7 @@ c.addEventListener('click', () => {
         holder.remove();
       }
     }
-    // build 5.73: «Поделиться карточкой» — рендерит аят/хадис/дуа в красиво
+    // build 5.71: «Поделиться карточкой» — рендерит аят/хадис/дуа в красиво
     // оформленную картинку для соцсетей тем же проверенным приёмом, что и
     // экспорт переписок в PDF (offscreen-div → html2canvas), только вместо
     // PDF получаем PNG. На телефоне — сразу системное меню «Поделиться»
@@ -31981,7 +33065,7 @@ c.addEventListener('click', () => {
       // opts: { kicker, arabic, translation, source, kk }
       if (!window.html2canvas) { toast(opts.kk ? 'Кітапхана жүктелмеді (интернетті тексеріңіз)' : 'Библиотека не загрузилась (проверьте интернет)'); return; }
       const holder = document.createElement('div');
-      // build 5.80: раньше подвал («📖 Quran Academy») был прижат к низу через
+      // build 5.78: раньше подвал («📖 Quran Academy») был прижат к низу через
       // margin-top:auto внутри того же flex-контейнера, что и justify-
       // content:center — а margin:auto в кросс-оси flexbox побеждает
       // justify-content, забирая себе всё свободное место. В итоге весь

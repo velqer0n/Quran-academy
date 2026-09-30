@@ -1,4 +1,4 @@
-// data-islamic-knowledge.js — данные вынесены из index.html при разбивке на части (build 5.70).
+// data-islamic-knowledge.js — данные вынесены из index.html при разбивке на части (build 5.68).
 // Загружается ДО основного логического скрипта через <script src="data-islamic-knowledge.js"></script>.
 
     const HANAFI_SALAH_BOOK = {

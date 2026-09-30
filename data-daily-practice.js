@@ -1,4 +1,4 @@
-// data-daily-practice.js — данные вынесены из index.html при разбивке на части (build 5.70).
+// data-daily-practice.js — данные вынесены из index.html при разбивке на части (build 5.68).
 // Загружается ДО основного логического скрипта через <script src="data-daily-practice.js"></script>.
 
     const ADHKAR = {

@@ -1,4 +1,4 @@
-// data-hajj-and-names.js — данные вынесены из index.html при разбивке на части (build 5.70).
+// data-hajj-and-names.js — данные вынесены из index.html при разбивке на части (build 5.68).
 // Загружается ДО основного логического скрипта через <script src="data-hajj-and-names.js"></script>.
 
     const ALLAH_NAMES = [
