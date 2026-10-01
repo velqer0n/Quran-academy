@@ -6891,13 +6891,19 @@ function speakLetter(ch, name) {
         theory: 'ا (алиф) — не согласная буква, а знак долготы; горло и язык расслаблены. ب (ба) — губной звук, произносится смыканием губ, как русское «б».' },
       { id: 'letters_2', title: 'Буквы: ت ث', group: 'letters', prereq: ['letters_1'], kind: 'letters', letters: ['ت','ث'], syllableGroup: 0,
         theory: 'ت (та) — кончик языка у корней верхних зубов. ث (са) — язык слегка высунут между зубами, звук на грани «с» и английского th.' },
-      { id: 'letters_3', title: 'Буквы: ج ح', group: 'letters', prereq: ['letters_2'], kind: 'letters', letters: ['ج','ح'], syllableGroup: 0,
+      { id: 'blend_1', title: 'Соединяем буквы в слоги: ا ب ت ث', group: 'letters', prereq: ['letters_2'], kind: 'blend', letters: ['ب','ت','ث'],
+        theory: 'Теперь, когда выучены первые буквы, не ждём конца алфавита — сразу читаем их слогами с каждой из трёх огласовок: ба/би/бу, та/ти/ту и так далее. Это и есть первый шаг к настоящему чтению.' },
+      { id: 'construct_1', title: 'Собери слог из букв', group: 'letters', prereq: ['blend_1'], kind: 'construct', letters: ['ب','ت','ث'],
+        theory: 'Теперь вместо выбора из готовых вариантов — соберите слог сами: нажимайте на плитки с буквами в правильном порядке, пока не получится нужная последовательность.' },
+      { id: 'letters_3', title: 'Буквы: ج ح', group: 'letters', prereq: ['construct_1'], kind: 'letters', letters: ['ج','ح'], syllableGroup: 0,
         theory: 'ج (джим) — середина языка касается нёба. ح (ха) — выдох из середины горла, без хрипоты, мягче, чем خ.' },
       { id: 'letters_4', title: 'Буквы: خ د', group: 'letters', prereq: ['letters_3'], kind: 'letters', letters: ['خ','د'], syllableGroup: 1,
         theory: 'خ (хаʼ) — глубже, чем ح, с лёгким хрипящим призвуком у самого корня языка. د (даль) — кончик языка у верхних зубов, звонкий, как русское «д».' },
       { id: 'letters_5', title: 'Буквы: ذ ر', group: 'letters', prereq: ['letters_4'], kind: 'letters', letters: ['ذ','ر'], syllableGroup: 1,
         theory: 'ذ (заль) — как ث, но звонкая (язык между зубами, только с голосом). ر (ра) — лёгкая вибрация кончика языка, похоже на русское «р».' },
-      { id: 'letters_6', title: 'Буквы: ز س', group: 'letters', prereq: ['letters_5'], kind: 'letters', letters: ['ز','س'], syllableGroup: 1,
+      { id: 'blend_2', title: 'Слоги: + ج ح خ د ذ ر', group: 'letters', prereq: ['letters_5'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر'],
+        theory: 'Прибавили ещё букв в копилку — слоги теперь вперемешку из всех пройденных до сих пор букв, не только из последней пары.' },
+      { id: 'letters_6', title: 'Буквы: ز س', group: 'letters', prereq: ['blend_2'], kind: 'letters', letters: ['ز','س'], syllableGroup: 1,
         theory: 'ز (зай) — свистящий звонкий, как «з». س (син) — свистящий глухой, как «с»; язык не касается зубов, а держится близко к ним.' },
       { id: 'letters_7', title: 'Буквы: ش ص', group: 'letters', prereq: ['letters_6'], kind: 'letters', letters: ['ش','ص'], syllableGroup: 2,
         theory: 'ش (шин) — как русское «ш», но мягче. ص (сад) — «тяжёлая», эмфатическая версия س: корень языка приподнимается к нёбу, звук массивнее.' },
@@ -6905,7 +6911,9 @@ function speakLetter(ch, name) {
         theory: 'ض (дад) — «тяжёлая» версия د, боковые края языка касаются коренных зубов; считается одним из самых сложных звуков арабского. ط (та) — «тяжёлая» версия ت.' },
       { id: 'letters_9', title: 'Буквы: ظ ع', group: 'letters', prereq: ['letters_8'], kind: 'letters', letters: ['ظ','ع'], syllableGroup: 3,
         theory: 'ظ (за) — «тяжёлая» версия ذ. ع (айн) — сжатие середины горла с голосом; у этого звука нет аналога в русском языке.' },
-      { id: 'letters_10', title: 'Буквы: غ ف', group: 'letters', prereq: ['letters_9'], kind: 'letters', letters: ['غ','ف'], syllableGroup: 4,
+      { id: 'blend_3', title: 'Слоги: + ز س ش ص ض ط ظ ع', group: 'letters', prereq: ['letters_9'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع'],
+        theory: 'Пул букв для слогов растёт вместе с пройденным алфавитом — уже больше половины согласных.' },
+      { id: 'letters_10', title: 'Буквы: غ ف', group: 'letters', prereq: ['blend_3'], kind: 'letters', letters: ['غ','ف'], syllableGroup: 4,
         theory: 'غ (гайн) — как лёгкое французское «р», из глубины горла, звонкое. ف (фа) — верхние зубы касаются нижней губы, как русское «ф».' },
       { id: 'letters_11', title: 'Буквы: ق ك', group: 'letters', prereq: ['letters_10'], kind: 'letters', letters: ['ق','ك'], syllableGroup: 4,
         theory: 'ق (къаф) — смычка в самой глубине горла, звук массивнее и глуше обычного «к». ك (кяф) — обычное «к», смычка ближе ко рту.' },
@@ -6915,7 +6923,9 @@ function speakLetter(ch, name) {
         theory: 'ن (нун) — носовой звук, кончик языка у нёба, как «н»; у нун и танвина потом появится целый блок правил (см. дальше). ه (ha) — лёгкий выдох из самого горла, без напряжения.' },
       { id: 'letters_14', title: 'Буквы: و ي', group: 'letters', prereq: ['letters_13'], kind: 'letters', letters: ['و','ي'], syllableGroup: 6,
         theory: 'و (уау) — губы округлены и слегка вытянуты, как «у» на выдохе; также используется как знак долготы. ي (я) — средняя часть языка приподнята к нёбу, как «й»; тоже бывает знаком долготы.' },
-      { id: 'letter_forms', title: 'Формы букв (начало/середина/конец)', group: 'letters', prereq: ['letters_14'], kind: 'forms',
+      { id: 'blend_4', title: 'Слоги: все буквы вместе', group: 'letters', prereq: ['letters_14'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'],
+        theory: 'Финальная тренировка слогов — уже из всех 27 согласных букв вперемешку, случайным образом.' },
+      { id: 'letter_forms', title: 'Формы букв (начало/середина/конец)', group: 'letters', prereq: ['blend_4'], kind: 'forms',
         theory: 'Каждая буква меняет начертание в зависимости от места в слове: отдельно, в начале, в середине или в конце слова. Это не другая буква — тот же самый звук, только другая «одежда». В этом навыке — узнавание одной и той же буквы в разных формах.' },
       { id: 'harakat_fatha', title: 'Огласовка: фатха (َ)', group: 'basics', prereq: ['letter_forms'], kind: 'syllables',
         theory: 'Фатха — короткая чёрточка над буквой, даёт короткий звук «а» сразу после согласной.' },
@@ -6923,13 +6933,15 @@ function speakLetter(ch, name) {
         theory: 'Кясра — чёрточка под буквой, даёт короткий звук «и» сразу после согласной.' },
       { id: 'harakat_damma', title: 'Огласовка: дамма (ُ)', group: 'basics', prereq: ['harakat_kasra'], kind: 'syllables',
         theory: 'Дамма — маленький завиток над буквой, даёт короткий звук «у» сразу после согласной.' },
-      { id: 'syllables_mixed', title: 'Чтение слогов вперемешку', group: 'basics', prereq: ['harakat_damma'], kind: 'syllables',
-        theory: 'Теперь все три огласовки вместе, вразнобой — цель прочитать слог как один звук («ба», «ми», «ту»), а не по буквам отдельно.' },
+      { id: 'syllables_mixed', title: 'Вставьте нужную огласовку', group: 'basics', prereq: ['harakat_damma'], kind: 'fillgap',
+        theory: 'Теперь все три огласовки вместе, вразнобой — и не на отдельном слоге, а в настоящем слове: одна огласовка спрятана, нужно угадать, какая из трёх (фатха/кясра/дамма) там должна стоять.' },
       { id: 'standing_vowels', title: 'Стоячие фатха/кясра/дамма', group: 'basics', prereq: ['syllables_mixed'], kind: 'info',
         theory: 'Иногда долгий звук «а», «и» или «у» пишется не буквой удлинения, а просто наклонной чёрточкой («стоячая» фатха/кясра/дамма) — например, в слове هَٰذَا. Читается как обычный мадд (долгий гласный), просто без буквы و/ي/ا на письме.' },
       { id: 'sukun', title: 'Сукун (закрытый слог)', group: 'basics', prereq: ['standing_vowels'], kind: 'info',
         theory: 'Сукун — маленький кружок над буквой, означающий отсутствие гласного звука. Буква с сукуном не тянется отдельным слогом, а «прилипает» к предыдущему: مِنْ читается «мин», одним слогом, а не «ми-ну».' },
-      { id: 'shadda', title: 'Шадда (удвоение)', group: 'basics', prereq: ['sukun'], kind: 'rules', ruleTitles: ['شدة · Шадда'],
+      { id: 'construct_2', title: 'Собери слово: буквы + сукун', group: 'basics', prereq: ['sukun'], kind: 'construct', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'], useSukun: true,
+        theory: 'То же самое конструирование, что и раньше, но теперь среди плиток встречаются и буквы с сукуном — нужно не перепутать, какая буква тянется слогом, а какая «прилипает» без гласного.' },
+      { id: 'shadda', title: 'Шадда (удвоение)', group: 'basics', prereq: ['construct_2'], kind: 'rules', ruleTitles: ['شدة · Шадда'],
         theory: 'Шадда — знак вида «w» над буквой, означает, что согласный звук удваивается и произносится с небольшой задержкой/напряжением — например, رَبَّنَا звучит с явным двойным «б».' },
       { id: 'tanween', title: 'Танвин', group: 'basics', prereq: ['shadda'], kind: 'rules', ruleTitles: ['التنوين · Танвин'],
         theory: 'Танвин — удвоенная огласовка в конце слова (два фатха, два кясра или два дамма), добавляет к слову звук «н» на конце: كِتَابًا звучит как «китабан».' },
@@ -7040,13 +7052,20 @@ function speakLetter(ch, name) {
           delete m.reviewInterval;
         }
       } else {
-        if (ratio >= 0.7) m.goodStreak = (m.goodStreak || 0) + 1;
-        else m.goodStreak = 0;
-        if (m.goodStreak >= 3) {
+        // build 5.89: раньше требовалось 3 хороших результата ПОДРЯД, прежде
+        // чем навык засчитывался освоенным — то есть теорию и практику
+        // приходилось проходить трижды подряд, что бессмысленно: один
+        // хороший результат — и достаточно, а вспомнить это понадобится
+        // позже уже через интервальное повторение (оно уже встроено отдельно).
+        if (ratio >= 0.7) {
+          m.goodStreak = (m.goodStreak || 0) + 1;
           const wasMastered = m.status === 'mastered';
           m.status = 'mastered';
           if (!wasMastered) { m.reviewInterval = 1; m.nextReview = Date.now() + 86400000; }
-        } else if (m.sessions >= 1) m.status = 'practiced';
+        } else {
+          m.goodStreak = 0;
+          m.status = 'practiced';
+        }
       }
       data[skillId] = m;
       _recordTeacherDailyActivity();
@@ -7102,23 +7121,72 @@ function speakLetter(ch, name) {
     // build 5.86: перед практикой — короткое объяснение (skill.theory), а не
     // сразу тест. Раньше «Учитель» кидал прямо в практику без единого слова
     // объяснения — теперь у каждого навыка есть свой мини-урок перед началом.
+    // build 5.89: раньше для навыков «буквы» и «правила» показывался свой
+    // короткий (1-2 предложения) абзац, хотя в приложении уже есть куда
+    // более подробный, годами выверенный материал по тем же буквам/правилам
+    // (ARABIC_LETTERS[].note — место образования, частые ошибки, примеры;
+    // ARABIC_RULES/TAJWEED_RULES[].detail — развёрнутое объяснение с
+    // практикой). Теперь урок показывает именно этот полный материал, а не
+    // пересказ своими словами — ровно то же самое, что уже есть в «Теории»
+    // по буквам, просто подобранное под конкретный навык.
+    function buildTeacherSkillTheoryHtml(skill) {
+      const kkT = isKk();
+      if (skill.kind === 'letters' && typeof ARABIC_LETTERS !== 'undefined') {
+        const formLabels = kkT ? ['Оқшау', 'Басында', 'Ортасында', 'Соңында'] : ['Отдельно', 'В начале', 'В середине', 'В конце'];
+        return skill.letters.map(function(ch) {
+          const l = ARABIC_LETTERS.find(function(x){ return x.ch === ch; });
+          if (!l) return '';
+          const name = (kkT && l.nameKk) ? l.nameKk : l.name;
+          const note = (kkT && l.noteKk) ? l.noteKk : (l.note || '');
+          const formsRow = (l.forms && l.forms.length === 4) ? (
+            '<div style="display:flex;gap:0.5rem;justify-content:center;margin:0.6rem 0;flex-wrap:wrap">' +
+            l.forms.map(function(f, i) {
+              return '<div style="text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.4rem 0.6rem;min-width:4.2rem">' +
+                '<div class="arabic" style="font-size:calc(1.6rem * var(--ar-scale, 1))">' + f + '</div>' +
+                '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.15rem">' + formLabels[i] + '</div></div>';
+            }).join('') + '</div>'
+          ) : '';
+          return '<div class="card" style="margin-bottom:0.6rem">' +
+            '<div style="display:flex;align-items:center;gap:0.75rem">' +
+            '<div class="arabic" style="font-size:calc(2.4rem * var(--ar-scale, 1))">' + ch + '</div>' +
+            '<div><b>' + name + '</b><div style="color:var(--text-muted);font-size:0.85rem">' + (l.tr || '') + '</div></div>' +
+            '</div>' + formsRow +
+            '<div class="ayah-translation" style="margin-top:0.4rem;line-height:1.55">' + String(note).replace(/<[^>]+>/g,'') + '</div>' +
+            '</div>';
+        }).join('');
+      }
+      if (skill.kind === 'rules' && typeof ARABIC_RULES !== 'undefined') {
+        const pool = ARABIC_RULES.concat(typeof TAJWEED_RULES !== 'undefined' ? TAJWEED_RULES : []);
+        return skill.ruleTitles.map(function(t) {
+          const r = pool.find(function(x){ return x.title === t; });
+          if (!r) return '';
+          const title = (kkT && r.titleKk) ? r.titleKk : r.title;
+          const detail = (kkT && r.detailKk) ? r.detailKk : (r.detail || r.short || '');
+          return '<div class="card" style="margin-bottom:0.6rem">' +
+            '<b>' + title + '</b>' +
+            (r.ar ? '<div class="arabic" dir="rtl" style="font-size:calc(1.3rem * var(--ar-scale, 1));margin:0.4rem 0;color:var(--arabic)">' + r.ar + '</div>' : '') +
+            '<div class="ayah-translation" style="margin-top:0.3rem;line-height:1.6;white-space:pre-line">' + String(detail).replace(/<[^>]+>/g,'') + '</div>' +
+            '</div>';
+        }).join('');
+      }
+      return skill.theory ? ('<div class="card"><div class="ayah-translation" style="line-height:1.6">' + skill.theory + '</div></div>') : '';
+    }
     function startTeacherSkillPractice(skill, isReview) {
       _activeTeacherSkill = skill.id;
       _activeTeacherReview = !!isReview;
       const kkT = isKk();
       // Для повторения уже освоенного навыка — сразу в практику, без
       // повторного показа теории (её уже видели, когда учили навык впервые).
-      if (skill.theory && !isReview) {
+      const theoryHtml = buildTeacherSkillTheoryHtml(skill);
+      if (theoryHtml && !isReview) {
         showView('teacher');
         const rootEl = document.getElementById('teacher-body');
         if (rootEl) {
           rootEl.innerHTML =
             '<button type="button" class="btn btn-sm" id="teacher-lesson-back">← ' + (kkT ? 'Артқа' : 'Назад') + '</button>' +
-            '<div class="card" style="border-color:var(--accent);margin-top:0.6rem">' +
-            '<b>' + skill.title + '</b>' +
-            '<div class="ayah-translation" style="margin-top:0.5rem;line-height:1.6">' + skill.theory + '</div>' +
-            '<button type="button" class="btn btn-primary" id="teacher-lesson-start" style="width:100%;margin-top:0.9rem">▶ ' + (kkT ? 'Практиканы бастау' : 'Начать практику') + '</button>' +
-            '</div>';
+            '<div style="margin-top:0.6rem"><b style="font-size:1.1rem">' + skill.title + '</b></div>' +
+            '<div style="margin-top:0.5rem">' + theoryHtml + '</div>' +
+            '<button type="button" class="btn btn-primary" id="teacher-lesson-start" style="width:100%;margin-top:0.3rem">▶ ' + (kkT ? 'Практиканы бастау' : 'Начать практику') + '</button>';
           document.getElementById('teacher-lesson-back')?.addEventListener('click', function() { _activeTeacherSkill = null; renderPersonalTeacher(); });
           document.getElementById('teacher-lesson-start')?.addEventListener('click', function() { _launchTeacherSkillActivity(skill); });
           return;
@@ -7147,6 +7215,24 @@ function speakLetter(ch, name) {
             renderPersonalTeacher();
           });
         }
+      } else if (skill.kind === 'fillgap') {
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); b.style.display = 'none'; });
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        startFillgapDrill();
+      } else if (skill.kind === 'blend') {
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); b.style.display = 'none'; });
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        startBlendDrill(skill.letters);
+      } else if (skill.kind === 'construct') {
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); b.style.display = 'none'; });
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        startConstructDrill(skill.letters, !!skill.useSukun);
       } else if (skill.kind === 'letters') {
         showView('games');
         document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'tests'); });
@@ -9233,6 +9319,197 @@ function renderMistakes() {
       });
     }
 
+    // build 5.90: слоговое чтение (смешение буквы + огласовки) сразу после
+    // первых же пройденных букв — как в Каиде: выучили 2 буквы — сразу читаем
+    // их слогами, не дожидаясь конца всего алфавита. Данные по звучанию
+    // согласных уже были в SYLLABLE_DRILLS — вынесены сюда плоской таблицей,
+    // чтобы собирать слоги из ЛЮБОГО подмножества уже пройденных букв.
+    const BASE_CONSONANT_SOUND = {
+      'ب':'б','ت':'т','ث':'с̱','ج':'дж','ح':'ħ','خ':'х̮','د':'д','ذ':'з̱',
+      'ر':'р','ز':'з','س':'с','ش':'ш','ص':'ṣ','ض':'ḍ','ط':'ṭ','ظ':'ẓ',
+      'ع':'ʻ','غ':'ғ','ف':'ф','ق':'қ','ك':'к','ل':'л','م':'м','ن':'н',
+      'ه':'һ','و':'у','ي':'й'
+    };
+    // build 5.91: «вставьте нужную огласовку» — применение харакатов на
+    // настоящих словах, а не узнавание изолированного слога. Берём готовое
+    // слово из PRACTICE_WORDS, прячем ОДНУ из его огласовок и просим угадать,
+    // какая там должна быть — фатха, кясра или дамма.
+    function nextFillgapQuestion() {
+      if (!gameQueue.length) return endGame();
+      gameTotal++;
+      const item = gameQueue.shift();
+      const kkQ = isKk();
+      const marks = [{h:'\u064E',v:(kkQ?'фатха (а)':'фатха (а)')},{h:'\u0650',v:(kkQ?'кясра (и)':'кясра (и)')},{h:'\u064F',v:(kkQ?'дамма (у)':'дамма (у)')}];
+      const correctLabel = marks.find(function(m){ return m.h === item.mark; }).v;
+      const opts = shuffle(marks.map(function(m){ return m.v; }));
+      const area = document.getElementById('game-area');
+      area.innerHTML =
+        '<div class="quiz-card" style="text-align:center">' +
+        '<div class="quiz-q">' + (kkQ ? 'Қай дауысты дыбыс жетіспейді?' : 'Какой гласной не хватает?') + '</div>' +
+        '<div class="arabic" dir="rtl" style="font-size:calc(2rem * var(--ar-scale, 1));margin:0.75rem 0">' + item.masked + '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.5rem">' + item.tr + ' — ' + item.meaning + '</div>' +
+        '<div class="quiz-opts" id="quiz-opts"></div>' +
+        '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Есеп: ' : 'Счёт: ') + gameScore + ' / ' + gameTotal + '</div></div>';
+      const optsEl = document.getElementById('quiz-opts');
+      opts.forEach(function(o) {
+        const b = document.createElement('button');
+        b.textContent = o;
+        b.addEventListener('click', function() {
+          optsEl.querySelectorAll('button').forEach(function(x){ x.disabled = true; });
+          const isRight = (o === correctLabel);
+          if (isRight) { b.classList.add('correct'); gameScore++; toast(kkQ ? 'Дұрыс!' : 'Верно!'); }
+          else {
+            b.classList.add('wrong');
+            optsEl.querySelectorAll('button').forEach(function(x){ if (x.textContent === correctLabel) x.classList.add('correct'); });
+            toast((kkQ ? 'Дұрысы: ' : 'Правильно: ') + correctLabel);
+          }
+          setTimeout(function(){ nextFillgapQuestion(); }, isRight ? 900 : 1600);
+        });
+        optsEl.appendChild(b);
+      });
+    }
+    function startFillgapDrill() {
+      currentGame = 'fillgap';
+      gameScore = 0; gameTotal = 0;
+      const marks = ['\u064E','\u0650','\u064F'];
+      const pool = (typeof PRACTICE_WORDS !== 'undefined' ? PRACTICE_WORDS : []).map(function(w) {
+        const positions = [];
+        for (let i = 0; i < w.ar.length; i++) { if (marks.indexOf(w.ar[i]) >= 0) positions.push(i); }
+        if (!positions.length) return null;
+        const pos = positions[Math.floor(Math.random()*positions.length)];
+        const mark = w.ar[pos];
+        const masked = w.ar.slice(0, pos) + '◌' + w.ar.slice(pos+1);
+        return { masked: masked, mark: mark, tr: w.tr, meaning: w.meaning };
+      }).filter(Boolean);
+      gameQueue = shuffle(pool).slice(0, Math.min(8, pool.length));
+      nextFillgapQuestion();
+    }
+
+    function nextBlendQuestion() {
+      if (!gameQueue.length) return endGame();
+      gameTotal++;
+      const item = gameQueue.shift();
+      const kkQ = isKk();
+      const otherN = Math.max(1, quizOptionCount() - 1);
+      const allLetters = Object.keys(BASE_CONSONANT_SOUND).filter(function(ch){ return (_activeBlendLetters || []).indexOf(ch) >= 0; });
+      const marks = [{h:'\u064E',v:'а'},{h:'\u0650',v:'и'},{h:'\u064F',v:'у'}];
+      const distractors = [];
+      while (distractors.length < otherN) {
+        const ch2 = allLetters[Math.floor(Math.random()*allLetters.length)];
+        const mk2 = marks[Math.floor(Math.random()*marks.length)];
+        const tr2 = BASE_CONSONANT_SOUND[ch2] + mk2.v;
+        if (tr2 !== item.tr && distractors.indexOf(tr2) < 0) distractors.push(tr2);
+      }
+      const opts = shuffle([item.tr].concat(distractors));
+      const area = document.getElementById('game-area');
+      area.innerHTML =
+        '<div class="quiz-card" style="text-align:center">' +
+        '<div class="quiz-q"><span class="arabic-q">' + item.ar + '</span>' + (kkQ ? 'Бұл қалай оқылады?' : 'Как это читается?') + '</div>' +
+        '<div class="quiz-opts" id="quiz-opts"></div>' +
+        '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Есеп: ' : 'Счёт: ') + gameScore + ' / ' + gameTotal + '</div></div>';
+      const optsEl = document.getElementById('quiz-opts');
+      opts.forEach(function(o) {
+        const b = document.createElement('button');
+        b.textContent = o;
+        b.addEventListener('click', function() {
+          optsEl.querySelectorAll('button').forEach(function(x){ x.disabled = true; });
+          const isRight = (o === item.tr);
+          try { recordMistake('blend', item.ar, isRight); } catch(e) {}
+          if (isRight) { b.classList.add('correct'); gameScore++; toast(kkQ ? 'Дұрыс!' : 'Верно!'); }
+          else {
+            b.classList.add('wrong');
+            optsEl.querySelectorAll('button').forEach(function(x){ if (x.textContent === item.tr) x.classList.add('correct'); });
+            toast((kkQ ? 'Дұрысы: ' : 'Правильно: ') + item.tr);
+          }
+          try { if (typeof speakArText === 'function') speakArText(item.ar, 0.7); } catch(e) {}
+          setTimeout(function(){ nextBlendQuestion(); }, 900);
+        });
+        optsEl.appendChild(b);
+      });
+    }
+    let _activeBlendLetters = null;
+    function startBlendDrill(letters) {
+      _activeBlendLetters = letters;
+      currentGame = 'blend';
+      gameScore = 0; gameTotal = 0;
+      const marks = [{h:'\u064E',v:'а'},{h:'\u0650',v:'и'},{h:'\u064F',v:'у'}];
+      const pool = [];
+      letters.forEach(function(ch) {
+        marks.forEach(function(mk) { pool.push({ ar: ch + mk.h, tr: BASE_CONSONANT_SOUND[ch] + mk.v }); });
+      });
+      gameQueue = shuffle(pool).slice(0, Math.min(10, pool.length));
+      nextBlendQuestion();
+    }
+
+    // build 5.90: «собери буквы» — активное конструирование вместо узнавания
+    // среди вариантов: даётся цель (последовательность слогов/букв) и
+    // вперемешку плитки, из которых нужно собрать её в правильном порядке —
+    // ближе к тому, как реально складывают слова при обучении чтению.
+    function startConstructDrill(letters, useSukun) {
+      currentGame = 'construct';
+      const kkC = isKk();
+      const marks = [{h:'\u064E',v:'а'},{h:'\u0650',v:'и'},{h:'\u064F',v:'у'}];
+      let round = 0;
+      const totalRounds = 6;
+      let score = 0;
+      const paint = () => {
+        if (round >= totalRounds) {
+          gameScore = score; gameTotal = totalRounds;
+          return endGame();
+        }
+        round++;
+        const len = useSukun ? 3 : (2 + (round % 2));
+        const target = [];
+        for (let i = 0; i < len; i++) {
+          const ch = letters[Math.floor(Math.random()*letters.length)];
+          if (useSukun && i === len - 1 && Math.random() < 0.5) target.push({ ar: ch + '\u0652', tr: BASE_CONSONANT_SOUND[ch] });
+          else { const mk = marks[Math.floor(Math.random()*marks.length)]; target.push({ ar: ch + mk.h, tr: BASE_CONSONANT_SOUND[ch] + mk.v }); }
+        }
+        const decoys = [];
+        while (decoys.length < 2) {
+          const ch = letters[Math.floor(Math.random()*letters.length)];
+          const mk = marks[Math.floor(Math.random()*marks.length)];
+          decoys.push({ ar: ch + mk.h, tr: BASE_CONSONANT_SOUND[ch] + mk.v });
+        }
+        const tiles = shuffle(target.concat(decoys).map(function(t, i){ return Object.assign({}, t, { uid: i }); }));
+        const picked = [];
+        const area = document.getElementById('game-area');
+        const renderUi = () => {
+          area.innerHTML =
+            '<div class="quiz-card" style="text-align:center">' +
+            '<div class="quiz-q">' + (kkC ? 'Буынды дұрыс ретпен жинаңыз' : 'Соберите слог/слово в правильном порядке') + '</div>' +
+            '<div class="arabic" dir="rtl" id="construct-target" style="min-height:3rem;font-size:calc(1.8rem * var(--ar-scale, 1));border:1px dashed var(--border);border-radius:0.5rem;padding:0.5rem;margin:0.75rem 0">' +
+            picked.map(function(t){ return t.ar; }).join('') + '</div>' +
+            '<div id="construct-tiles" style="display:flex;flex-wrap:wrap;gap:0.4rem;justify-content:center"></div>' +
+            '<div style="margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkC?'Раунд ':'Раунд ') + round + ' / ' + totalRounds + '</div>' +
+            '</div>';
+          const tilesEl = document.getElementById('construct-tiles');
+          tiles.forEach(function(t) {
+            if (picked.indexOf(t) >= 0) return;
+            const b = document.createElement('button');
+            b.className = 'btn';
+            b.style.fontFamily = 'Amiri, serif';
+            b.style.fontSize = 'calc(1.5rem * var(--ar-scale, 1))';
+            b.textContent = t.ar;
+            b.addEventListener('click', function() {
+              picked.push(t);
+              if (picked.length === target.length) {
+                const correct = picked.every(function(p, i){ return p === target[i]; });
+                if (correct) { score++; toast(kkC ? 'Дұрыс!' : 'Верно!'); }
+                else { toast((kkC ? 'Дұрысы: ' : 'Правильно: ') + target.map(function(x){return x.ar;}).join('')); }
+                setTimeout(paint, 1100);
+              } else {
+                renderUi();
+              }
+            });
+            tilesEl.appendChild(b);
+          });
+        };
+        renderUi();
+      };
+      paint();
+    }
+
     function nextRulesQuestion() {
       if (!gameQueue.length) return endGame();
       gameTotal++;
@@ -9242,6 +9519,7 @@ function renderMistakes() {
       area.innerHTML =
         '<div class="quiz-card"><div class="quiz-q" style="font-size:0.95rem;font-weight:500">'+item.q+'</div>' +
         '<div class="quiz-opts" id="quiz-opts"></div>' +
+        '<div id="rules-explain" style="margin-top:0.6rem"></div>' +
         '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Есеп: ' : 'Счёт: ') + gameScore+' / '+gameTotal+'</div></div>';
       const optsEl = document.getElementById('quiz-opts');
       item.opts.forEach(o => {
@@ -9256,8 +9534,20 @@ function renderMistakes() {
             b.classList.add('wrong');
             optsEl.querySelectorAll('button').forEach(x => { if (x.textContent === item.answer) x.classList.add('correct'); });
             toast((kkQ ? 'Жауабы: ' : 'Ответ: ') + item.answer);
+            // build 5.91: раньше при ошибке был только тост с названием
+            // правильного ответа — теперь сразу тут же, в самой карточке,
+            // короткое объяснение ПОЧЕМУ, а не только КАКОЙ ответ верный.
+            try {
+              const pool = (typeof ARABIC_RULES !== 'undefined' ? ARABIC_RULES : []).concat(typeof TAJWEED_RULES !== 'undefined' ? TAJWEED_RULES : []);
+              const ruleObj = pool.find(function(r){ return r.title === item.id; });
+              const explainEl = document.getElementById('rules-explain');
+              if (ruleObj && explainEl) {
+                const shortTxt = (kkQ && ruleObj.shortKk) ? ruleObj.shortKk : (ruleObj.short || '');
+                explainEl.innerHTML = '<div class="card" style="text-align:left;border-color:var(--accent)"><div class="ayah-translation">💡 ' + String(shortTxt).replace(/<[^>]+>/g,'') + '</div></div>';
+              }
+            } catch(e) {}
           }
-          setTimeout(() => nextRulesQuestion(), 1000);
+          setTimeout(() => nextRulesQuestion(), isRight ? 1000 : 2200);
         });
         optsEl.appendChild(b);
       });
@@ -9393,7 +9683,7 @@ function renderMistakes() {
         _teacherPlacementStage = null;
         try {
           if (lettersRatio >= 0.75) {
-            ['orientation','letters_1','letters_2','letters_3','letters_4','letters_5','letters_6','letters_7','letters_8','letters_9','letters_10','letters_11','letters_12','letters_13','letters_14','letter_forms'].forEach(function(id) {
+            ['orientation','letters_1','letters_2','blend_1','construct_1','letters_3','letters_4','letters_5','blend_2','letters_6','letters_7','letters_8','letters_9','blend_3','letters_10','letters_11','letters_12','letters_13','letters_14','blend_4','letter_forms'].forEach(function(id) {
               recordSkillResult(id, 1); recordSkillResult(id, 1); recordSkillResult(id, 1);
             });
           }
