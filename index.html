@@ -220,9 +220,14 @@
   <main>
     <!-- HOME: Surah list -->
     <div id="view-home" class="view">
+      <!-- build 5.94: «🎨 Таджвид» — третья кнопка прямо здесь, рядом с
+           «Суры» и «Озвучкой», а не спрятана внутри «Учёба» — именно так,
+           как договаривались: отдельно от этих двух, но на том же уровне,
+           а не задвинута в другой раздел, где её не ищут. -->
       <div class="learn-nav" id="surah-sub-tabs" style="margin-bottom:0.75rem">
         <button type="button" class="btn btn-primary btn-sm" id="surah-subtab-surahs">Суры</button>
         <button type="button" class="btn btn-sm" id="surah-subtab-study">🎧 Озвучка</button>
+        <button type="button" class="btn btn-sm" id="surah-subtab-tajweed">🎨 Таджвид</button>
       </div>
       <div id="home-surahs-pane">
       <div id="home-dashboard" style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1rem">
@@ -267,6 +272,9 @@
            «Учёба» (Теория/Практика). Из «Практика» этот пункт убран. -->
       <div id="home-study-pane" style="display:none">
         <div id="home-wbw-surahs"></div>
+      </div>
+      <div id="home-tajweed-pane" style="display:none">
+        <div id="home-tajweed-colors"></div>
       </div>
     </div>
 
@@ -470,6 +478,7 @@
         <button data-game="names" data-group="tests">Тест: названия</button>
         <button data-game="rules" data-group="tests">Тест: правила</button>
         <button data-game="ayah" data-group="tests">Тест: аят</button>
+        <button data-game="findrule" data-group="tests">Найди правило</button>
         <button data-game="speak" data-group="speak" style="display:none">🎤 Буквы</button>
         <button data-game="speak-ayah" data-group="speak" style="display:none">🎤 Аят</button>
         <button data-game="syllables" data-group="drills" style="display:none">Слоги</button>
@@ -477,6 +486,7 @@
         <button data-game="srs" data-group="drills" style="display:none">Карточки</button>
         <button data-game="dictation" data-group="drills" style="display:none">Диктовка</button>
         <button data-game="minimal-pairs" data-group="drills" style="display:none">Различие звуков</button>
+        <button data-game="write" data-group="drills" style="display:none">✍️ Написать букву</button>
       </div>
       <!-- build 5.78: выбор сложности — только там, где он реально что-то меняет
            (число вариантов ответа в тестах буквы/названия/правила, и набор пар

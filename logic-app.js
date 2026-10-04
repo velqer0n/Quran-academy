@@ -855,7 +855,11 @@ _applyAriaLabelsFromTitles();
         '🎤 Буквы': '🎤 Әріптер', '🎤 Аят': '🎤 Аят',
         'Слова': 'Сөздер', 'Диктовка': 'Диктант', 'Начать': 'Бастау', 'Ещё раз': 'Қайта',
         '📝 Тесты': '📝 Тесттер', '🎤 Устно': '🎤 Ауызша', '🎯 Тренажёры': '🎯 Жаттықтырғыштар', '👨‍🏫 Учитель': '👨‍🏫 Мұғалім',
-        'Различие звуков': 'Дыбыстарды ажырату', 'Лёгкий': 'Жеңіл', 'Средний': 'Орташа', 'Сложный': 'Қиын'
+        'Различие звуков': 'Дыбыстарды ажырату', 'Лёгкий': 'Жеңіл', 'Средний': 'Орташа', 'Сложный': 'Қиын',
+        // build 6.00: эти кнопки вообще не попали в словарь раньше — не
+        // «требовали перезагрузки», а были навсегда русскими, на любом языке.
+        '🎨 Таджвид': '🎨 Тәжуид', 'Найди правило': 'Ережені тап', '✍️ Написать букву': '✍️ Әріпті жазу',
+        'Личный учитель': 'Жеке мұғалім'
       } : {};
 
       // Раздел «Настройки» — словарь RU → KK
@@ -959,13 +963,27 @@ _applyAriaLabelsFromTitles();
       // Двусторонний перевод коротких UI-фраз
       const reversePhrase = {};
       Object.keys(phrase).forEach(function(ru) { reversePhrase[phrase[ru]] = ru; });
+      // build 6.01: НАСТОЯЩАЯ причина жалобы «застряло на казахском, хотя
+      // выбран русский, и переключение туда-сюда не помогает»: если этот
+      // проход видит элемент ВПЕРВЫЕ в тот момент, когда уже выбран
+      // казахский (например, кнопку, которую только что динамически
+      // построил какой-то экран — там её текст уже казахский), код раньше
+      // запоминал этот казахский текст как «русский оригинал» (data-ru-base)
+      // просто потому, что раньше этого элемента не видел. С этого момента
+      // элемент испорчен НАВСЕГДА: при переключении на русский показывает
+      // «оригинал», а «оригинал» на самом деле казахский текст. Починка:
+      // запоминать «оригинал» только тогда, когда УЖЕ ТОЧНО по-русски —
+      // иначе лучше подождать следующего прохода, чем закрепить ошибку.
       document.querySelectorAll('h2, h3, .section-title, button, label').forEach(function(el) {
         if (el.closest('script')) return;
         if (el.hasAttribute('data-i18n')) return;
         if (el.children.length > 0 && el.tagName !== 'BUTTON') return;
         var raw = (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) ? el.textContent.trim() : '';
         if (!raw) return;
-        if (!el.getAttribute('data-ru-base')) el.setAttribute('data-ru-base', raw);
+        if (!el.getAttribute('data-ru-base')) {
+          if (isKk) return; // не кэшировать казахский текст как «русский оригинал»
+          el.setAttribute('data-ru-base', raw);
+        }
         var base = el.getAttribute('data-ru-base');
         if (isKk && phrase[base]) el.textContent = phrase[base];
         else if (!isKk && base) el.textContent = base;
@@ -976,7 +994,10 @@ _applyAriaLabelsFromTitles();
         if (el.children.length > 0) return;
         var raw = (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) ? el.textContent.trim() : '';
         if (!raw) return;
-        if (!el.getAttribute('data-ru-base')) el.setAttribute('data-ru-base', raw);
+        if (!el.getAttribute('data-ru-base')) {
+          if (isKk) return;
+          el.setAttribute('data-ru-base', raw);
+        }
         var base = el.getAttribute('data-ru-base');
         if (isKk && phrase[base]) el.textContent = phrase[base];
         else if (!isKk && base) el.textContent = base;
@@ -991,7 +1012,10 @@ _applyAriaLabelsFromTitles();
         var t0 = main.textContent.trim();
         var cleaned = t0.replace(/^[\s\S]*?([А-Яа-яЁёA-Za-zҚқӘәІіҢңҒғҮүҰұӨөҺһ].*)$/u, '$1').trim();
         if (!cleaned) cleaned = t0;
-        if (!main.getAttribute('data-ru-base')) main.setAttribute('data-ru-base', cleaned);
+        if (!main.getAttribute('data-ru-base')) {
+          if (isKk) return; // та же защита — не закреплять казахский текст как «русский оригинал»
+          main.setAttribute('data-ru-base', cleaned);
+        }
         var base = main.getAttribute('data-ru-base');
         var prefix = t0.substring(0, t0.indexOf(base) >= 0 ? t0.indexOf(base) : 0);
         if (isKk && phrase[base]) main.textContent = prefix + phrase[base];
@@ -5950,6 +5974,15 @@ function speakLetter(ch, name) {
         '<div class="card"><b>'+(kkH ? 'Шағын жаттықтырғыш' : 'Мини-тренажёр')+'</b><div class="ayah-translation" style="margin:0.5rem 0">'+(kkH ? 'Дауыстап оқыңыз: ' : 'Прочитайте вслух: ')+'بَ بِ بُ · تَ تِ تُ · مَ مِ مُ · نَ نِ نُ · قَ قِ قُ</div>' +
         '<button type="button" class="btn btn-primary btn-sm" id="btn-harakat-drill">'+(kkH ? 'Кездейсоқ буын' : 'Случайный слог')+'</button>' +
         '<div id="harakat-drill-out" class="arabic" style="font-size:calc(2.2rem * var(--ar-scale, 1));text-align:center;margin-top:0.75rem" dir="rtl"></div></div>';
+      // build 5.99: подсказка сверху давно обещала «нажмите пример, чтобы
+      // услышать», карточки уже были кликабельны (cursor:pointer), но
+      // обработчик клика не был написан вообще — звук никогда не играл.
+      el.querySelectorAll('[data-har]').forEach(function(card) {
+        card.addEventListener('click', function() {
+          const h = HARAKAT[+card.dataset.har];
+          if (h && h.example) { try { speakArText(h.example, 0.7); } catch(e) {} }
+        });
+      });
       const letters = 'بتثجحخدذرزسشصضطظعغفقكلمنهوي';
       document.getElementById('btn-harakat-drill')?.addEventListener('click', () => {
         const L = letters[Math.floor(Math.random()*letters.length)];
@@ -6416,6 +6449,16 @@ function speakLetter(ch, name) {
     }
     async function downloadAmma78114(onProgress) {
       return downloadSurahRange(78, 114, onProgress);
+    }
+    // build 5.99: «Напоминание дня» и реальные примеры в правилах таджвида
+    // используют суры 2, 6, 17, 24, 31, 49 — их нет в офлайн-наборе 78-114,
+    // так что без интернета при первом заходе эти карточки могли не
+    // показаться. Качаем именно эти 6 сур отдельно, не весь Коран целиком.
+    const DAILY_FEATURE_SURAHS = [2, 6, 17, 24, 31, 49];
+    async function downloadDailyFeatureSurahs(onProgress) {
+      for (const n of DAILY_FEATURE_SURAHS) {
+        await downloadSurahRange(n, n, onProgress);
+      }
     }
     async function downloadFullQuranOffline(onProgress) {
       return downloadSurahRange(1, 114, onProgress);
@@ -6891,8 +6934,10 @@ function speakLetter(ch, name) {
         theory: 'ا (алиф) — не согласная буква, а знак долготы; горло и язык расслаблены. ب (ба) — губной звук, произносится смыканием губ, как русское «б».' },
       { id: 'letters_2', title: 'Буквы: ت ث', group: 'letters', prereq: ['letters_1'], kind: 'letters', letters: ['ت','ث'], syllableGroup: 0,
         theory: 'ت (та) — кончик языка у корней верхних зубов. ث (са) — язык слегка высунут между зубами, звук на грани «с» и английского th.' },
-      { id: 'blend_1', title: 'Соединяем буквы в слоги: ا ب ت ث', group: 'letters', prereq: ['letters_2'], kind: 'blend', letters: ['ب','ت','ث'],
-        theory: 'Теперь, когда выучены первые буквы, не ждём конца алфавита — сразу читаем их слогами с каждой из трёх огласовок: ба/би/бу, та/ти/ту и так далее. Это и есть первый шаг к настоящему чтению.' },
+      { id: 'harakat_sukun_intro', title: 'Огласовки и сукун: первое знакомство', group: 'letters', prereq: ['letters_2'], kind: 'harakat-intro',
+        theory: 'Сама по себе буква — это только согласный звук, без гласной. Чтобы прочитать её вслух, над или под буквой ставится значок — огласовка. Три главных значка: фатха (короткая чёрточка сверху) даёт звук «а», кясра (чёрточка снизу) — звук «и», дамма (завиток сверху) — звук «у». Есть и четвёртый значок — сукун (маленький кружок сверху): он означает, что гласной звука НЕТ ВООБЩЕ — буква просто «глухо» произносится и сразу сливается со следующей. Например, буква ا (алиф) сама по себе вообще не читается как отдельный звук — она либо несёт один из этих значков, либо служит знаком долготы после другой буквы. Вот как это работает на примере буквы ب (ба):' },
+      { id: 'blend_1', title: 'Соединяем буквы в слоги: ا ب ت ث', group: 'letters', prereq: ['harakat_sukun_intro'], kind: 'blend', letters: ['ب','ت','ث'],
+        theory: 'Теперь, когда выучены первые буквы и то, что такое огласовки, не ждём конца алфавита — сразу читаем буквы слогами с каждой из трёх огласовок: ба/би/бу, та/ти/ту и так далее. Это и есть первый шаг к настоящему чтению.' },
       { id: 'construct_1', title: 'Собери слог из букв', group: 'letters', prereq: ['blend_1'], kind: 'construct', letters: ['ب','ت','ث'],
         theory: 'Теперь вместо выбора из готовых вариантов — соберите слог сами: нажимайте на плитки с буквами в правильном порядке, пока не получится нужная последовательность.' },
       { id: 'letters_3', title: 'Буквы: ج ح', group: 'letters', prereq: ['construct_1'], kind: 'letters', letters: ['ج','ح'], syllableGroup: 0,
@@ -6927,7 +6972,9 @@ function speakLetter(ch, name) {
         theory: 'Финальная тренировка слогов — уже из всех 27 согласных букв вперемешку, случайным образом.' },
       { id: 'letter_forms', title: 'Формы букв (начало/середина/конец)', group: 'letters', prereq: ['blend_4'], kind: 'forms',
         theory: 'Каждая буква меняет начертание в зависимости от места в слове: отдельно, в начале, в середине или в конце слова. Это не другая буква — тот же самый звук, только другая «одежда». В этом навыке — узнавание одной и той же буквы в разных формах.' },
-      { id: 'harakat_fatha', title: 'Огласовка: фатха (َ)', group: 'basics', prereq: ['letter_forms'], kind: 'syllables',
+      { id: 'qaida_lines_1', title: 'Строки для чтения: первый шаг', group: 'letters', prereq: ['letter_forms'], kind: 'qaida-lines', lettersCount: 'few',
+        theory: 'Как в настоящей Каиде: не отдельные слоги, а целые строки из коротких сочетаний подряд, составленные только из уже пройденных букв. Читайте вслух строка за строкой, в своём темпе — здесь нет проверки, только практика.' },
+      { id: 'harakat_fatha', title: 'Огласовка: фатха (َ)', group: 'basics', prereq: ['qaida_lines_1'], kind: 'syllables',
         theory: 'Фатха — короткая чёрточка над буквой, даёт короткий звук «а» сразу после согласной.' },
       { id: 'harakat_kasra', title: 'Огласовка: кясра (ِ)', group: 'basics', prereq: ['harakat_fatha'], kind: 'syllables',
         theory: 'Кясра — чёрточка под буквой, даёт короткий звук «и» сразу после согласной.' },
@@ -6973,7 +7020,9 @@ function speakLetter(ch, name) {
         theory: 'Когда после буквы долготы идёт хамза или сукун — долгота удлиняется сверх обычных 2 счётов: мадд ваджиб муттасыль (хамза в том же слове, 4-5 счётов), мадд джаиз мунфасыль (хамза в следующем слове, 2-5 счётов), мадд лязим (сукун после, 6 счётов, самый длинный).' },
       { id: 'ghunna', title: 'Гунна', group: 'tajweed', prereq: ['madd_farI'], kind: 'rules', ruleTitles: ['غنة · Гунна'],
         theory: 'Гунна — носовой призвук примерно на 2 счёта, всегда сопровождает буквы ن и م с шаддой, и появляется в некоторых правилах нун/мим сакин дальше.' },
-      { id: 'izhar', title: 'Изхар (ясное чтение нун сакин)', group: 'tajweed', prereq: ['ghunna'], kind: 'rules', ruleTitles: ['إظهار · Изхар'],
+      { id: 'noon_sakinah_overview', title: 'Обзор: 4 правила нун сакин рядом', group: 'tajweed', prereq: ['ghunna'], kind: 'overview-table',
+        theory: 'Дальше идут 4 отдельных правила подряд — проще всего сначала увидеть их все рядом, одной таблицей, чем листать по одному и пытаться удержать разницу в голове.' },
+      { id: 'izhar', title: 'Изхар (ясное чтение нун сакин)', group: 'tajweed', prereq: ['noon_sakinah_overview'], kind: 'rules', ruleTitles: ['إظهار · Изхар'],
         theory: 'Если после ن сакин или танвина идёт одна из 6 гортанных букв (ء ه ع ح غ خ) — нун/танвин произносится чётко и ясно, без изменений и без гунны.' },
       { id: 'idgham', title: 'Идгам (слияние)', group: 'tajweed', prereq: ['izhar'], kind: 'rules', ruleTitles: ['إدغام · Идгам'],
         theory: 'Если после ن сакин или танвина идёт одна из букв ي ن م و ل ر — нун/танвин «растворяется» в следующей букве. С буквами ي ن م و — растворяется с гунной, с ل ر — без гунны.' },
@@ -7061,7 +7110,13 @@ function speakLetter(ch, name) {
           m.goodStreak = (m.goodStreak || 0) + 1;
           const wasMastered = m.status === 'mastered';
           m.status = 'mastered';
-          if (!wasMastered) { m.reviewInterval = 1; m.nextReview = Date.now() + 86400000; }
+          if (!wasMastered) {
+            m.reviewInterval = 1; m.nextReview = Date.now() + 86400000;
+            try {
+              const sk = PERSONAL_TEACHER_SKILLS.find(function(s){ return s.id === skillId; });
+              if (sk && (sk.kind === 'letters' || sk.kind === 'rules')) checkCumulativeReviewTrigger(sk.kind);
+            } catch(e) {}
+          }
         } else {
           m.goodStreak = 0;
           m.status = 'practiced';
@@ -7092,6 +7147,91 @@ function speakLetter(ch, name) {
       td.count = 1;
       state.academyProgress._teacherDaily = td;
     }
+    // ========== НАКОПИТЕЛЬНОЕ ПОВТОРЕНИЕ (build 6.03) ==========
+    // Отдельная от обычного интервального повторения система: проверка не
+    // ОДНОГО навыка, а сразу НЕСКОЛЬКИХ пройденных уроков вместе — каждые
+    // 2/5/10 уроков (последние N), плюс отдельно «половина» и «финал» —
+    // но эти двое берут ВСЁ пройденное с начала, а не только последнее.
+    // При совпадении порогов (например, урок №10 — это и «каждые 2», и
+    // «каждые 5», и «каждые 10» разом) берётся самый крупный, чтобы не
+    // делать несколько почти одинаковых проверок подряд.
+    function getReviewCheckpoint(n, total, isRules) {
+      if (n < 1 || n > total) return null;
+      if (n === total) {
+        return isRules
+          ? { size: 60, label: 'final', blockSize: 20, scope: 'cumulative', scopeCount: total }
+          : { size: 100, label: 'final', blockSize: 20, scope: 'cumulative', scopeCount: total };
+      }
+      const half = Math.floor(total / 2);
+      if (half > 0 && n === half) {
+        return isRules
+          ? { size: 30, label: 'half', blockSize: 30, scope: 'cumulative', scopeCount: half }
+          : { size: 50, label: 'half', blockSize: 25, scope: 'cumulative', scopeCount: half };
+      }
+      if (isRules) {
+        if (n % 4 === 0) return { size: 15, label: 'quarter', blockSize: 15, scope: 'recent', scopeCount: 4 };
+        return null;
+      }
+      if (n % 10 === 0) return { size: 35, label: 'every10', blockSize: 35, scope: 'recent', scopeCount: 10 };
+      if (n % 5 === 0) return { size: 20, label: 'every5', blockSize: 20, scope: 'recent', scopeCount: 5 };
+      if (n % 2 === 0) return { size: 10, label: 'every2', blockSize: 10, scope: 'recent', scopeCount: 2 };
+      return null;
+    }
+    function _cumulativeReviewState() {
+      if (!state.academyProgress) state.academyProgress = {};
+      if (!state.academyProgress._cumulativePending) state.academyProgress._cumulativePending = {};
+      if (!state.academyProgress._cumulativeDone) state.academyProgress._cumulativeDone = { letters: [], rules: [] };
+      return state.academyProgress;
+    }
+    // Вызывается сразу после того, как навык (буква или правило) первый раз
+    // стал «освоен» — проверяет, не пора ли предложить накопительную
+    // проверку, и если да — запоминает её как «ожидающую» (не запускает
+    // сразу сама, просто делает доступной карточкой на главном экране
+    // Учителя, как и due-review/смешанная проверка).
+    function checkCumulativeReviewTrigger(kind) {
+      const total = PERSONAL_TEACHER_SKILLS.filter(function(s){ return s.kind === kind; }).length;
+      const masteredCount = PERSONAL_TEACHER_SKILLS.filter(function(s){ return s.kind === kind && getSkillStatus(s.id) === 'mastered'; }).length;
+      const checkpoint = getReviewCheckpoint(masteredCount, total, kind === 'rules');
+      if (!checkpoint) return;
+      const ap = _cumulativeReviewState();
+      if (ap._cumulativeDone[kind].indexOf(masteredCount) >= 0) return;
+      ap._cumulativePending[kind] = Object.assign({ n: masteredCount, kind: kind }, checkpoint);
+      saveState();
+    }
+    function pickPendingCumulativeReview() {
+      const ap = _cumulativeReviewState();
+      return ap._cumulativePending.letters || ap._cumulativePending.rules || null;
+    }
+    function getLettersInReviewScope(checkpoint) {
+      const skills = PERSONAL_TEACHER_SKILLS.filter(function(s){ return s.kind === 'letters' && getSkillStatus(s.id) === 'mastered'; });
+      const chosen = checkpoint.scope === 'cumulative' ? skills.slice(0, checkpoint.scopeCount) : skills.slice(-checkpoint.scopeCount);
+      const letters = [];
+      chosen.forEach(function(s) { (s.letters || []).forEach(function(ch) { if (letters.indexOf(ch) < 0) letters.push(ch); }); });
+      return letters;
+    }
+    function getRuleTitlesInReviewScope(checkpoint) {
+      const skills = PERSONAL_TEACHER_SKILLS.filter(function(s){ return s.kind === 'rules' && getSkillStatus(s.id) === 'mastered'; });
+      const chosen = checkpoint.scope === 'cumulative' ? skills.slice(0, checkpoint.scopeCount) : skills.slice(-checkpoint.scopeCount);
+      const titles = [];
+      chosen.forEach(function(s) { (s.ruleTitles || []).forEach(function(t) { if (titles.indexOf(t) < 0) titles.push(t); }); });
+      return titles;
+    }
+    // Взвешенный выбор: то, что чаще путают (по уже собранной статистике
+    // recordMistake/getWeakItems), и то, что освоено совсем недавно — чуть
+    // выше шанс попасться, чем то, что знает уверенно и давно.
+    function _weightedPick(pool) {
+      const total = pool.reduce(function(s, p) { return s + p.weight; }, 0);
+      let r = Math.random() * total;
+      for (let i = 0; i < pool.length; i++) { r -= pool[i].weight; if (r <= 0) return pool[i].item; }
+      return pool[pool.length - 1].item;
+    }
+    function _buildWeightedPool(items, weakRateFn) {
+      return items.map(function(it, idx) {
+        const recencyBonus = (items.length > 1) ? (idx / (items.length - 1)) * 0.3 : 0;
+        const weak = weakRateFn(it) || 0;
+        return { item: it, weight: 1 + weak * 3 + recencyBonus };
+      });
+    }
     // Есть ли освоенный навык, которому пора на повторение?
     function pickDueReview() {
       const data = getTeacherMastery();
@@ -7115,6 +7255,7 @@ function speakLetter(ch, name) {
     }
     let _activeTeacherSkill = null; // id текущего навыка, если практика запущена из «Учителя»
     let _activeTeacherReview = false; // true, если это повторение уже освоенного навыка
+    let _teacherSessionWrongs = []; // накопленные ошибки ЭТОЙ сессии практики — для полного разбора в конце
 
     // Запуск практики для конкретного навыка — переиспользует уже
     // существующие тесты/тренажёры, просто отфильтрованные под сам навык.
@@ -7131,6 +7272,53 @@ function speakLetter(ch, name) {
     // по буквам, просто подобранное под конкретный навык.
     function buildTeacherSkillTheoryHtml(skill) {
       const kkT = isKk();
+      if (skill.kind === 'overview-table') {
+        // build 5.95: сравнительная таблица 4 правил нун сакин/танвина рядом
+        // друг с другом + простая схема «если... то...» — вместо того чтобы
+        // видеть каждое правило отдельным экраном и пытаться удержать
+        // разницу между ними в голове.
+        const rows = [
+          { name: kkT?'Изхар':'Изхар', letters: 'ء ه ع ح غ خ', result: kkT?'Таза, өзгеріссіз':'Ясно, без изменений', color: '#60a5fa' },
+          { name: kkT?'Идгам':'Идгам', letters: 'ي ن م و ل ر', result: kkT?'Келесі әріппен қосылады':'Сливается со следующей буквой', color: '#4ade80' },
+          { name: kkT?'Иклаб':'Иклаб', letters: 'ب', result: kkT?'«м»-ге айналады':'Превращается в «м»', color: '#c084fc' },
+          { name: kkT?'Ихфа':'Ихфа', letters: kkT?'қалған 15 әріп':'остальные 15 букв', result: kkT?'Басылыңқы, мұрын арқылы':'Приглушённо, через нос', color: '#2dd4bf' }
+        ];
+        const tableHtml = rows.map(function(r) {
+          return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid var(--border)">' +
+            '<div style="min-width:4.5rem;font-weight:700;color:' + r.color + '">' + r.name + '</div>' +
+            '<div class="arabic" dir="rtl" style="flex:1;font-size:1.1rem">' + r.letters + '</div>' +
+            '<div style="flex:1;font-size:0.82rem;color:var(--text-muted)">' + r.result + '</div>' +
+            '</div>';
+        }).join('');
+        const flow = '<div style="text-align:center;font-size:0.85rem;line-height:2.2;margin-top:0.6rem">' +
+          '<div class="card" style="display:inline-block;padding:0.4rem 0.8rem">' + (kkT?'ن сукунды/танвин':'ن сукун или танвин') + '</div><br>↓<br>' +
+          (kkT ? 'Келесі әріп қандай?' : 'Какая следующая буква?') + '<br>↓<br>' +
+          '<span style="color:#60a5fa">ء ه ع ح غ خ → Изхар</span><br>' +
+          '<span style="color:#4ade80">ي ن م و ل ر → Идгам</span><br>' +
+          '<span style="color:#c084fc">ب → Иклаб</span><br>' +
+          '<span style="color:#2dd4bf">' + (kkT?'қалғаны':'остальные') + ' → Ихфа</span>' +
+          '</div>';
+        return '<div class="card"><div class="ayah-translation" style="line-height:1.6">' + skill.theory + '</div>' +
+          '<div style="margin-top:0.6rem">' + tableHtml + '</div>' + flow + '</div>';
+      }
+      if (skill.kind === 'harakat-intro' && typeof HARAKAT !== 'undefined') {
+        // build 5.92: наглядная таблица «буква + огласовка/сукун = звук» на
+        // примере ب — именно то, чего не хватало перед первым упражнением
+        // на соединение букв (blend_1) по замечанию пользователя.
+        const main = HARAKAT.slice(0, 4); // фатха, кясра, дамма, сукун
+        const rows = main.map(function(h) {
+          const name = (kkT && h.nameKk) ? h.nameKk : h.name;
+          return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
+            '<div class="arabic" style="font-size:calc(1.8rem * var(--ar-scale, 1));min-width:3rem;text-align:center">' + h.example + '</div>' +
+            '<div style="flex:1"><b>' + name + '</b> <span style="color:var(--text-muted)">(' + h.symbol + ')</span><div style="color:var(--text-muted);font-size:0.85rem">' + ((kkT && h.noteKk) ? h.noteKk : h.note) + '</div></div>' +
+            '<div style="font-weight:700;color:var(--accent)">' + h.exampleTr + '</div>' +
+            '</div>';
+        }).join('');
+        return '<div class="card">' +
+          '<div class="ayah-translation" style="line-height:1.6">' + skill.theory + '</div>' +
+          '<div style="margin-top:0.6rem">' + rows + '</div>' +
+          '</div>';
+      }
       if (skill.kind === 'letters' && typeof ARABIC_LETTERS !== 'undefined') {
         const formLabels = kkT ? ['Оқшау', 'Басында', 'Ортасында', 'Соңында'] : ['Отдельно', 'В начале', 'В середине', 'В конце'];
         return skill.letters.map(function(ch) {
@@ -7146,17 +7334,56 @@ function speakLetter(ch, name) {
                 '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.15rem">' + formLabels[i] + '</div></div>';
             }).join('') + '</div>'
           ) : '';
-          return '<div class="card" style="margin-bottom:0.6rem">' +
-            '<div style="display:flex;align-items:center;gap:0.75rem">' +
+          // build 5.92: раньше здесь не было ни схемы артикуляции, ни кнопки
+          // озвучки — хотя в «Теория → Буквы» для той же буквы они есть. По
+          // замечанию пользователя: урок в «Учителе» был беднее настоящей
+          // теории по тем же данным. Теперь показывается то же самое.
+          const mouthSvg = (typeof letterMouthSvg === 'function') ? letterMouthSvg(ch) : '';
+          return '<div class="card" style="margin-bottom:0.6rem;text-align:center">' +
+            '<div style="display:flex;align-items:center;gap:0.75rem;text-align:left">' +
             '<div class="arabic" style="font-size:calc(2.4rem * var(--ar-scale, 1))">' + ch + '</div>' +
             '<div><b>' + name + '</b><div style="color:var(--text-muted);font-size:0.85rem">' + (l.tr || '') + '</div></div>' +
             '</div>' + formsRow +
-            '<div class="ayah-translation" style="margin-top:0.4rem;line-height:1.55">' + String(note).replace(/<[^>]+>/g,'') + '</div>' +
+            mouthSvg +
+            '<div class="ayah-translation" style="margin-top:0.4rem;line-height:1.55;text-align:left">' + String(note).replace(/<[^>]+>/g,'') + '</div>' +
+            '<div style="display:flex;gap:0.4rem;margin-top:0.5rem">' +
+            '<button type="button" class="btn btn-sm" data-teacher-speak-letter="' + ch + '" style="flex:1">🔊 ' + (kkT ? 'Айту' : 'Произнести') + '</button>' +
+            '<button type="button" class="btn btn-sm" data-teacher-write-letter="' + ch + '" style="flex:1">✍️ ' + (kkT ? 'Жазу' : 'Написать') + '</button>' +
+            '</div>' +
+            // build 5.99: «запишите себя» — раньше это было только отдельно
+            // в «Практика → Устно», теперь прямо шагом внутри самого урока
+            // буквы, между прослушиванием и тестом. Переиспользует тот же
+            // низкоуровневый механизм записи (startRecording/stopRecording),
+            // что и в «Устно» — не новый код записи, та же самая функция.
+            '<div style="display:flex;gap:0.4rem;margin-top:0.4rem">' +
+            '<button type="button" class="btn btn-sm" data-teacher-rec-letter="' + ch + '" style="flex:1">🎤 ' + (kkT ? 'Өзімді жазу' : 'Записать себя') + '</button>' +
+            '<button type="button" class="btn btn-sm" data-teacher-playme-letter="' + ch + '" style="flex:1;opacity:0.5" disabled>▶ ' + (kkT ? 'Менің жазбам' : 'Моя запись') + '</button>' +
+            '</div>' +
+            '<div class="write-canvas-slot" data-write-slot="' + ch + '" style="display:none;margin-top:0.5rem"></div>' +
             '</div>';
         }).join('');
       }
       if (skill.kind === 'rules' && typeof ARABIC_RULES !== 'undefined') {
         const pool = ARABIC_RULES.concat(typeof TAJWEED_RULES !== 'undefined' ? TAJWEED_RULES : []);
+        // build 5.95: настоящий пример из Корана под объяснением правила —
+        // не выдуманное словосочетание, а подкрашенный по уже проверенным
+        // данным (tajweed-hafs.json) реальный аят, где это правило
+        // встречается. Если разметка ещё не подгрузилась (первый визит) —
+        // честно показываем только текстовое объяснение, без примера.
+        try { loadTajweedData(); } catch(e) {}
+        const tags = TEACHER_RULE_TAGS[skill.id];
+        let exampleHtml = '';
+        if (tags && _twCache) {
+          const matches = getCuratedAyahsWithRuleTag(tags);
+          if (matches.length) {
+            const ex = matches[Math.floor(Math.random() * matches.length)];
+            const colored = renderTajweedText(ex.text, ex.anns);
+            exampleHtml = '<div class="card" style="margin-bottom:0.6rem;border-color:var(--accent)">' +
+              '<div style="font-size:0.8rem;color:var(--text-muted)">' + (kkT ? 'Құраннан мысал' : 'Пример из Корана') + ' · ' + ex.surah + ':' + ex.ayah + '</div>' +
+              '<div class="arabic" dir="rtl" style="font-size:calc(1.4rem * var(--ar-scale, 1));margin-top:0.4rem;line-height:1.9">' + colored + '</div>' +
+              '</div>';
+          }
+        }
         return skill.ruleTitles.map(function(t) {
           const r = pool.find(function(x){ return x.title === t; });
           if (!r) return '';
@@ -7167,13 +7394,14 @@ function speakLetter(ch, name) {
             (r.ar ? '<div class="arabic" dir="rtl" style="font-size:calc(1.3rem * var(--ar-scale, 1));margin:0.4rem 0;color:var(--arabic)">' + r.ar + '</div>' : '') +
             '<div class="ayah-translation" style="margin-top:0.3rem;line-height:1.6;white-space:pre-line">' + String(detail).replace(/<[^>]+>/g,'') + '</div>' +
             '</div>';
-        }).join('');
+        }).join('') + exampleHtml;
       }
       return skill.theory ? ('<div class="card"><div class="ayah-translation" style="line-height:1.6">' + skill.theory + '</div></div>') : '';
     }
     function startTeacherSkillPractice(skill, isReview) {
       _activeTeacherSkill = skill.id;
       _activeTeacherReview = !!isReview;
+      _teacherSessionWrongs = [];
       const kkT = isKk();
       // Для повторения уже освоенного навыка — сразу в практику, без
       // повторного показа теории (её уже видели, когда учили навык впервые).
@@ -7189,25 +7417,102 @@ function speakLetter(ch, name) {
             '<button type="button" class="btn btn-primary" id="teacher-lesson-start" style="width:100%;margin-top:0.3rem">▶ ' + (kkT ? 'Практиканы бастау' : 'Начать практику') + '</button>';
           document.getElementById('teacher-lesson-back')?.addEventListener('click', function() { _activeTeacherSkill = null; renderPersonalTeacher(); });
           document.getElementById('teacher-lesson-start')?.addEventListener('click', function() { _launchTeacherSkillActivity(skill); });
+          rootEl.querySelectorAll('[data-teacher-speak-letter]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              const ch = btn.getAttribute('data-teacher-speak-letter');
+              const lObj = (typeof ARABIC_LETTERS !== 'undefined') ? ARABIC_LETTERS.find(function(x){ return x.ch === ch; }) : null;
+              try { if (lObj && typeof speakLetter === 'function') speakLetter(lObj); else if (typeof speakArText === 'function') speakArText(ch, 0.7); } catch(e) {}
+            });
+          });
+          rootEl.querySelectorAll('[data-teacher-write-letter]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              const ch = btn.getAttribute('data-teacher-write-letter');
+              const slot = rootEl.querySelector('[data-write-slot="' + ch + '"]');
+              if (!slot) return;
+              const show = slot.style.display === 'none';
+              slot.style.display = show ? '' : 'none';
+              if (show && !slot.dataset.inited) {
+                slot.dataset.inited = '1';
+                try { renderLetterWriteCanvas(slot, ch); } catch(e) {}
+              }
+            });
+          });
+          // build 5.99: «запишите себя» прямо в уроке буквы — переиспользует
+          // тот же низкоуровневый механизм записи (startRecording/
+          // stopRecording/playMyRecording), что уже работает в «Практика →
+          // Устно», просто вызванный отсюда, без копирования логики записи.
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            rootEl.querySelectorAll('[data-teacher-rec-letter],[data-teacher-playme-letter]').forEach(function(btn) { btn.disabled = true; btn.title = kkT ? 'Бұл браузерде қолжетімсіз' : 'Недоступно в этом браузере'; });
+          } else {
+            rootEl.querySelectorAll('[data-teacher-rec-letter]').forEach(function(recBtn) {
+              recBtn.addEventListener('click', async function() {
+                const ch = recBtn.getAttribute('data-teacher-rec-letter');
+                const playBtn = rootEl.querySelector('[data-teacher-playme-letter="' + ch + '"]');
+                if (isRecording) {
+                  stopRecording();
+                  recBtn.textContent = '🎤 ' + (kkT ? 'Өзімді жазу' : 'Записать себя');
+                  recBtn.classList.remove('mic-active');
+                  return;
+                }
+                try { clearRecording(); } catch(e) {}
+                recBtn.classList.add('mic-active');
+                recBtn.textContent = '⏹ ' + (kkT ? 'Тоқтату' : 'Стоп');
+                await startRecording(function(ok) {
+                  recBtn.textContent = '🎤 ' + (kkT ? 'Өзімді жазу' : 'Записать себя');
+                  recBtn.classList.remove('mic-active');
+                  if (ok && playBtn) { playBtn.disabled = false; playBtn.style.opacity = '1'; }
+                });
+              });
+            });
+            rootEl.querySelectorAll('[data-teacher-playme-letter]').forEach(function(btn) {
+              btn.addEventListener('click', function() { try { playMyRecording(); } catch(e) {} });
+            });
+          }
           return;
         }
       }
       _launchTeacherSkillActivity(skill);
     }
+    function _launchTeacherRulesClassic(skill) {
+      const kkT = isKk();
+      showView('games');
+      document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'tests'); });
+      document.querySelectorAll('#games-tabs button').forEach(function(b){
+        b.style.display = (b.dataset.group === 'tests') ? '' : 'none';
+        b.classList.toggle('active', b.dataset.game === 'rules');
+      });
+      currentGame = 'rules';
+      try { _updateDifficultyPanelVisibility(); } catch(e) {}
+      gameScore = 0; gameTotal = 0;
+      const pool = ARABIC_RULES.concat(TAJWEED_RULES);
+      const otherN = Math.max(1, quizOptionCount() - 1);
+      let chosen = pool.filter(function(r){ return skill.ruleTitles.indexOf(r.title) >= 0; });
+      if (!chosen.length) { toast(kkT ? 'Деректер жоқ' : 'Нет данных'); return; }
+      while (chosen.length < 6) chosen = chosen.concat(chosen);
+      gameQueue = shuffle(chosen).slice(0, 8).map(function(r) {
+        const others = shuffle(pool.filter(function(x){ return x.title !== r.title; })).slice(0, otherN);
+        const txt = (kkT && r.shortKk) ? r.shortKk : (r.short || r.ru || r.body || r.ar || r.title || '');
+        const ans = (kkT && r.titleKk) ? r.titleKk : r.title;
+        const otherAns = others.map(function(o){ return (kkT && o.titleKk) ? o.titleKk : o.title; });
+        return { q: String(txt).replace(/<[^>]+>/g,'').slice(0, 140), answer: ans, id: r.title, opts: shuffle([ans].concat(otherAns)) };
+      });
+      nextRulesQuestion();
+    }
     function _launchTeacherSkillActivity(skill) {
       const kkT = isKk();
-      if (skill.kind === 'info') {
+      if (skill.kind === 'info' || skill.kind === 'harakat-intro' || skill.kind === 'overview-table') {
         // Темы без готового теста в данных (сифат, ляфзуль-джаляля, правила
-        // «ра», маддо-лин, мукатта'ат и т.п.) — честно без викторины, только
-        // объяснение + самостоятельное подтверждение «понял(а)».
+        // «ра», маддо-лин, мукатта'ат, вводная про огласовки/сукун и т.п.) —
+        // честно без викторины, только объяснение + самостоятельное
+        // подтверждение «понял(а)». Используем тот же богатый HTML, что и на
+        // экране перед практикой, а не урезанный skill.theory повторно.
         showView('teacher');
         const rootEl = document.getElementById('teacher-body');
         if (rootEl) {
           rootEl.innerHTML =
-            '<div class="card" style="border-color:var(--accent)"><b>' + skill.title + '</b>' +
-            '<div class="ayah-translation" style="margin-top:0.5rem;line-height:1.6">' + (skill.theory || '') + '</div>' +
-            '<button type="button" class="btn btn-primary" id="teacher-info-done" style="width:100%;margin-top:0.9rem">✓ ' + (kkT ? 'Түсінікті' : 'Понятно') + '</button>' +
-            '</div>';
+            '<div style="margin-bottom:0.3rem"><b style="font-size:1.1rem">' + skill.title + '</b></div>' +
+            buildTeacherSkillTheoryHtml(skill) +
+            '<button type="button" class="btn btn-primary" id="teacher-info-done" style="width:100%;margin-top:0.6rem">✓ ' + (kkT ? 'Түсінікті' : 'Понятно') + '</button>';
           document.getElementById('teacher-info-done')?.addEventListener('click', function() {
             recordSkillResult(skill.id, 1, _activeTeacherReview);
             _activeTeacherSkill = null;
@@ -7221,6 +7526,20 @@ function speakLetter(ch, name) {
         document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); b.style.display = 'none'; });
         try { _updateDifficultyPanelVisibility(); } catch(e) {}
         startFillgapDrill();
+      } else if (skill.kind === 'qaida-lines') {
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); b.style.display = 'none'; });
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        const masteredLetters = [];
+        PERSONAL_TEACHER_SKILLS.forEach(function(s) {
+          if (s.kind === 'letters' && getSkillStatus(s.id) === 'mastered') {
+            (s.letters || []).forEach(function(ch) { if (BASE_CONSONANT_SOUND[ch] && masteredLetters.indexOf(ch) < 0) masteredLetters.push(ch); });
+          }
+        });
+        const pool = masteredLetters.length ? masteredLetters : Object.keys(BASE_CONSONANT_SOUND);
+        startQaidaLines(document.getElementById('game-area'), pool);
+        addTeacherFinishButton();
       } else if (skill.kind === 'blend') {
         showView('games');
         document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
@@ -7244,32 +7563,39 @@ function speakLetter(ch, name) {
         try { _updateDifficultyPanelVisibility(); } catch(e) {}
         gameScore = 0; gameTotal = 0;
         const chosen = ARABIC_LETTERS.filter(function(l){ return skill.letters.indexOf(l.ch) >= 0; });
-        gameQueue = shuffle(chosen.concat(chosen).concat(chosen)).slice(0, Math.max(8, chosen.length * 2));
+        // build 5.95: перемешанное повторение — в тест новой пары букв
+        // подмешиваются 1-2 буквы из уже освоенных РАНЕЕ пар, а не только
+        // текущие. Десятки букв назад не должны забываться только потому,
+        // что сейчас проходим новую пару.
+        const earlierMastered = [];
+        PERSONAL_TEACHER_SKILLS.forEach(function(s) {
+          if (s.kind === 'letters' && s.id !== skill.id && getSkillStatus(s.id) === 'mastered') {
+            (s.letters || []).forEach(function(ch) { if (earlierMastered.indexOf(ch) < 0) earlierMastered.push(ch); });
+          }
+        });
+        const reviewPicks = shuffle(earlierMastered).slice(0, Math.min(2, earlierMastered.length))
+          .map(function(ch) { return ARABIC_LETTERS.find(function(l){ return l.ch === ch; }); })
+          .filter(Boolean);
+        const pool = chosen.concat(chosen).concat(chosen).concat(reviewPicks);
+        gameQueue = shuffle(pool).slice(0, Math.max(8, pool.length));
         nextLetterQuestion();
       } else if (skill.kind === 'rules') {
-        showView('games');
-        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'tests'); });
-        document.querySelectorAll('#games-tabs button').forEach(function(b){
-          b.style.display = (b.dataset.group === 'tests') ? '' : 'none';
-          b.classList.toggle('active', b.dataset.game === 'rules');
-        });
-        currentGame = 'rules';
-        try { _updateDifficultyPanelVisibility(); } catch(e) {}
-        gameScore = 0; gameTotal = 0;
-        const pool = ARABIC_RULES.concat(TAJWEED_RULES);
-        const otherN = Math.max(1, quizOptionCount() - 1);
-        let chosen = pool.filter(function(r){ return skill.ruleTitles.indexOf(r.title) >= 0; });
-        if (!chosen.length) { toast(kkT ? 'Деректер жоқ' : 'Нет данных'); return; }
-        // если правил меньше 3 — повторяем с перемешиванием, чтобы была практика подольше
-        while (chosen.length < 6) chosen = chosen.concat(chosen);
-        gameQueue = shuffle(chosen).slice(0, 8).map(function(r) {
-          const others = shuffle(pool.filter(function(x){ return x.title !== r.title; })).slice(0, otherN);
-          const txt = (kkT && r.shortKk) ? r.shortKk : (r.short || r.ru || r.body || r.ar || r.title || '');
-          const ans = (kkT && r.titleKk) ? r.titleKk : r.title;
-          const otherAns = others.map(function(o){ return (kkT && o.titleKk) ? o.titleKk : o.title; });
-          return { q: String(txt).replace(/<[^>]+>/g,'').slice(0, 140), answer: ans, id: r.title, opts: shuffle([ans].concat(otherAns)) };
-        });
-        nextRulesQuestion();
+        // build 5.95: два типа задания по кругу вместо одного и того же
+        // каждый раз — если для навыка есть сопоставление с реальной
+        // разметкой Корана (TEACHER_RULE_TAGS), с вероятностью 50% вместо
+        // обычного теста с вариантами запускается «найдите в настоящем
+        // аяте». Один и тот же навык, но не приедается.
+        if (TEACHER_RULE_TAGS[skill.id] && Math.random() < 0.5) {
+          showView('games');
+          document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'tests'); });
+          document.querySelectorAll('#games-tabs button').forEach(function(b){
+            b.style.display = (b.dataset.group === 'tests') ? '' : 'none';
+            b.classList.toggle('active', b.dataset.game === 'rules');
+          });
+          startFindRuleQuiz(skill);
+        } else {
+          _launchTeacherRulesClassic(skill);
+        }
       } else if (skill.kind === 'minimal-pairs') {
         showView('games');
         document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
@@ -7476,6 +7802,40 @@ function speakLetter(ch, name) {
         '<span>🔥 ' + (kk ? (td.streak || 0) + ' күн қатарынан' : (td.streak || 0) + ' дней подряд') + '</span>' +
         '<span style="color:' + (doneToday ? 'var(--success, #4ade80)' : 'var(--text-muted)') + ';font-weight:600">' + (doneToday ? '✓ ' + (kk ? 'бүгін орындалды' : 'сегодня выполнено') : (kk ? 'бүгін әлі жоқ' : 'сегодня ещё нет')) + '</span>' +
         '</div></div>';
+      // build 6.03: накопительная проверка — каждые 2/5/10 пройденных букв
+      // (последние N), плюс отдельно «половина» и «финал» — эти двое берут
+      // ВСЁ пройденное с начала, а не только последнее. Для правил —
+      // каждые 4, плюс половина и финал. Появляется один раз, сразу после
+      // того, как порог пройден, и остаётся, пока не пройдена.
+      const pendingCum = pickPendingCumulativeReview();
+      if (pendingCum) {
+        const labelMap = { every2: kk?'Соңғы 2 сабақ':'Последние 2 урока', every5: kk?'Соңғы 5 сабақ':'Последние 5 уроков', every10: kk?'Соңғы 10 сабақ':'Последние 10 уроков', quarter: kk?'Соңғы 4 ереже':'Последние 4 правила', half: kk?'Жартысы толығымен':'Половина целиком', final: kk?'Барлығы толығымен':'Всё целиком' };
+        html += '<div class="card" style="border-color:#ef4444;margin-bottom:0.75rem">' +
+          '<div style="color:#ef4444;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">📚 ' + (kk ? 'Жинақтаушы тексеру' : 'Накопительная проверка') + '</div>' +
+          '<div style="font-weight:700;margin-top:0.3rem">' + (labelMap[pendingCum.label] || pendingCum.label) + ' · ' + pendingCum.size + ' ' + (kk ? 'сұрақ' : 'вопросов') + '</div>' +
+          '<div class="ayah-translation" style="margin-top:0.25rem">' + (kk
+            ? 'Табалдырық — 80%. Төмен болса — әлсіз тұстарды қайталау ұсынылады.'
+            : 'Порог прохождения — 80%. Если ниже — предложим повторить слабые места.') + '</div>' +
+          '<button type="button" class="btn btn-primary" id="teacher-start-cum" style="width:100%;margin-top:0.6rem">▶ ' + (kk ? 'Бастау' : 'Начать') + '</button>' +
+          '</div>';
+      }
+      // build 5.99: смешанная проверка — появляется, когда вся группа
+      // навыков (например «Буквы» или «Таджвид») полностью освоена. Буквы и
+      // правила вперемешку в одной сессии — честнее показывает, что реально
+      // держится в памяти, а не каждый навык по отдельности.
+      const mixReadyGroups = ['letters','basics','special','tajweed'].filter(isGroupFullyMastered);
+      if (mixReadyGroups.length) {
+        const gLabels = mixReadyGroups.map(function(g){ return kk ? PERSONAL_TEACHER_GROUP_LABELS[g].kk : PERSONAL_TEACHER_GROUP_LABELS[g].ru; });
+        html += '<div class="card" style="border-color:#a855f7;margin-bottom:0.75rem">' +
+          '<div style="color:#a855f7;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">🎯 ' + (kk ? 'Аралас тексеру' : 'Смешанная проверка') + '</div>' +
+          '<div class="ayah-translation" style="margin-top:0.3rem">' + (kk
+            ? 'Толық меңгерілген топ(тар): ' + gLabels.join(', ') + '. Әріптер мен ережелер аралас — бұрынғы дағдылар нақты есте қалғанын тексеріңіз.'
+            : 'Полностью освоенные группы: ' + gLabels.join(', ') + '. Буквы и правила вперемешку — проверьте, что прошлые навыки реально держатся в памяти.') + '</div>' +
+          mixReadyGroups.map(function(g, i) {
+            return '<button type="button" class="btn btn-sm" data-mix-group="' + g + '" style="width:100%;margin-top:0.5rem">▶ ' + gLabels[i] + '</button>';
+          }).join('') +
+          '</div>';
+      }
       // Повторение освоенного навыка — приоритетнее нового урока, если пора.
       const dueReview = pickDueReview();
       if (dueReview) {
@@ -7524,11 +7884,139 @@ function speakLetter(ch, name) {
       document.getElementById('teacher-placement-btn')?.addEventListener('click', startTeacherPlacementTest);
       document.getElementById('teacher-start-next')?.addEventListener('click', function() { startTeacherSkillPractice(next); });
       document.getElementById('teacher-start-review')?.addEventListener('click', function() { startTeacherSkillPractice(dueReview, true); });
+      document.getElementById('teacher-start-cum')?.addEventListener('click', function() { if (pendingCum) startCumulativeReview(pendingCum, pendingCum.kind); });
+      rootEl.querySelectorAll('[data-mix-group]').forEach(function(btn) {
+        btn.addEventListener('click', function() { startMixedGroupReview(btn.getAttribute('data-mix-group')); });
+      });
       rootEl.querySelectorAll('[data-teacher-skill]').forEach(function(btn) {
         btn.addEventListener('click', function() {
           const skill = PERSONAL_TEACHER_SKILLS.find(function(s){ return s.id === btn.dataset.teacherSkill; });
           if (skill) startTeacherSkillPractice(skill);
         });
+      });
+    }
+
+    // build 5.95: «Найдите правило в настоящем аяте» — вместо абстрактного
+    // «как называется это правило» берём реальный аят (из уже готовой точной
+    // разметки tajweed-hafs.json) и просим найти слово, где оно встречается.
+    // Применение в контексте, а не узнавание в вакууме.
+    const TEACHER_RULE_TAGS = {
+      qalqalah: ['qalqalah'],
+      madd_tabii: ['madd_2'],
+      madd_farI: ['madd_muttasil','madd_munfasil','madd_6'],
+      ghunna: ['ghunnah'],
+      idgham: ['idghaam_ghunnah','idghaam_no_ghunnah'],
+      iqlab: ['iqlab'],
+      ikhfa: ['ikhfa'],
+      meem_sakinah: ['idghaam_shafawi','ikhfa_shafawi'],
+      idgham_similar: ['idghaam_mutajanisayn'],
+      hamza_forms: ['hamzat_wasl'],
+      sun_moon: ['lam_shamsiyyah']
+    };
+    function getCuratedAyahsWithRuleTag(tags) {
+      const data = _twCache;
+      if (!data) return [];
+      const out = [];
+      const nums = [1].concat(Object.keys(WBW_STUDY_SURAHS || {}).map(Number));
+      nums.forEach(function(n) {
+        const ayahs = (n === 1 && typeof FATIHA_LESSON !== 'undefined') ? FATIHA_LESSON : (WBW_STUDY_SURAHS[n] || []);
+        ayahs.forEach(function(ay) {
+          const key = n + ':' + ay.ayah;
+          const anns = data[key];
+          if (!anns) return;
+          const hasTag = anns.some(function(a) { return tags.indexOf(a[0]) >= 0; });
+          if (hasTag) {
+            const text = ay.full || (ay.words || []).map(function(w){ return w.ar; }).join(' ');
+            out.push({ surah: n, ayah: ay.ayah, text: text, anns: anns });
+          }
+        });
+      });
+      return out;
+    }
+    let _currentFindRuleTags = [];
+    function startFindRuleQuiz(skill) {
+      const tags = TEACHER_RULE_TAGS[skill.id];
+      const launchClassic = function() {
+        // запасной путь: нет тегов, или разметка ещё не подгрузилась — обычный тест
+        _launchTeacherRulesClassic(skill);
+      };
+      if (!tags) return launchClassic();
+      loadTajweedData().then(function() {
+        const pool = getCuratedAyahsWithRuleTag(tags);
+        if (!pool.length) return launchClassic();
+        _currentFindRuleTags = tags;
+        currentGame = 'findrule';
+        gameScore = 0; gameTotal = 0;
+        gameQueue = shuffle(pool.slice()).slice(0, Math.min(5, pool.length));
+        nextFindRuleQuestion();
+      });
+    }
+    // build 5.96: отдельная кнопка «Найдите правило» прямо в «Практика →
+    // Тесты», не только внутри «Учителя» — случайно берёт ОДНО из доступных
+    // правил с готовой разметкой на каждый вопрос (не одно и то же правило
+    // всю сессию), чтобы это была самостоятельная, широкая тренировка.
+    function startFindRuleQuizStandalone() {
+      const kkF = isKk();
+      loadTajweedData().then(function() {
+        if (!_twCache) { toast(kkF ? 'Деректер жүктелмеді' : 'Данные не загрузились'); return; }
+        currentGame = 'findrule';
+        gameScore = 0; gameTotal = 0;
+        const allTagSets = Object.values(TEACHER_RULE_TAGS);
+        const combined = [];
+        allTagSets.forEach(function(tags) {
+          getCuratedAyahsWithRuleTag(tags).forEach(function(item) {
+            combined.push(Object.assign({}, item, { _tags: tags }));
+          });
+        });
+        if (!combined.length) { toast(kkF ? 'Деректер жоқ' : 'Нет данных'); return; }
+        gameQueue = shuffle(combined).slice(0, 8);
+        nextFindRuleQuestion(true);
+      });
+    }
+    function nextFindRuleQuestion() {
+      if (!gameQueue.length) return endGame();
+      gameTotal++;
+      const item = gameQueue.shift();
+      const kkF = isKk();
+      const tags = item._tags || TEACHER_RULE_TAGS[_activeTeacherSkill] || _currentFindRuleTags || [];
+      // бьём текст на слова с отслеживанием офсетов, чтобы понять, какое
+      // слово накрывает нужная аннотация
+      const words = [];
+      let pos = 0;
+      item.text.split(' ').forEach(function(w) {
+        words.push({ text: w, start: pos, end: pos + w.length });
+        pos += w.length + 1;
+      });
+      const matchingAnn = item.anns.find(function(a) { return tags.indexOf(a[0]) >= 0; });
+      const targetWord = words.find(function(w) { return matchingAnn && matchingAnn[1] >= w.start && matchingAnn[1] < w.end; });
+      const area = document.getElementById('game-area');
+      area.innerHTML =
+        '<div class="quiz-card" style="text-align:center">' +
+        '<div class="quiz-q">' + (kkF ? 'Аятта осы ережені тауып, сөзге басыңыз' : 'Найдите это правило в аяте — нажмите на нужное слово') + '</div>' +
+        '<div class="arabic" dir="rtl" id="findrule-ayah" style="font-size:calc(1.6rem * var(--ar-scale, 1));line-height:2.3;margin:0.75rem 0"></div>' +
+        '<div style="color:var(--text-muted);font-size:0.8rem">' + item.surah + ':' + item.ayah + '</div>' +
+        '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkF ? 'Есеп: ' : 'Счёт: ') + gameScore + ' / ' + gameTotal + '</div></div>';
+      const ayahEl = document.getElementById('findrule-ayah');
+      words.forEach(function(w, wi) {
+        const span = document.createElement('span');
+        span.textContent = w.text;
+        span.style.cssText = 'cursor:pointer;padding:0.1rem 0.15rem;border-radius:0.3rem;margin:0 0.1rem';
+        span.addEventListener('click', function() {
+          ayahEl.querySelectorAll('span').forEach(function(s){ s.style.pointerEvents = 'none'; });
+          const isRight = (w === targetWord);
+          if (isRight) { span.style.background = 'var(--accent)'; span.style.color = '#04120c'; gameScore++; toast(kkF ? 'Дұрыс!' : 'Верно!'); }
+          else {
+            span.style.background = '#ef4444';
+            if (targetWord) {
+              const idx = words.indexOf(targetWord);
+              ayahEl.children[idx].style.background = 'var(--accent)';
+            }
+            toast(kkF ? 'Дұрыс сөз жасыл түспен белгіленді' : 'Правильное слово подсвечено зелёным');
+          }
+          setTimeout(function(){ nextFindRuleQuestion(); }, isRight ? 1100 : 1900);
+        });
+        ayahEl.appendChild(span);
+        ayahEl.appendChild(document.createTextNode(' '));
       });
     }
 
@@ -7605,7 +8093,9 @@ function speakLetter(ch, name) {
           '<div class="card" style="border-color:var(--accent)"><b>Офлайн 78–114 (джюз ‘Амма)</b>' +
           '<div class="ayah-translation">В кэше: '+ammaCount+' сур. Скачанные остаются здесь после обновления страницы.</div>' +
           '<button type="button" class="btn btn-sm btn-primary" id="dl-amma" style="margin-top:0.4rem">⬇ Скачать/обновить 78–114</button>' +
-          '<div id="dl-amma-st" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem"></div></div>' +
+          '<div id="dl-amma-st" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem"></div>' +
+          '<button type="button" class="btn btn-sm" id="dl-daily-feat" style="margin-top:0.5rem;width:100%">⬇ Скачать для «Напоминания дня» (суры 2, 6, 17, 24, 31, 49)</button>' +
+          '<div id="dl-daily-feat-st" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem"></div></div>' +
           '<p style="color:var(--text-muted);font-size:0.9rem;margin:0.75rem 0">Формат: <b>номер · имя · аятов</b>. ✓ = в кэше. Откройте → «По словам».</p>' +
           list.map(s =>
             '<div class="card" style="cursor:pointer" data-ss="'+s.n+'">' +
@@ -7624,6 +8114,21 @@ function speakLetter(ch, name) {
             showList();
           } catch(e) {
             toast('Не удалось скачать — нужен интернет');
+            if (btn) btn.disabled = false;
+          }
+        });
+        document.getElementById('dl-daily-feat')?.addEventListener('click', async () => {
+          const st = document.getElementById('dl-daily-feat-st');
+          const btn = document.getElementById('dl-daily-feat');
+          if (btn) btn.disabled = true;
+          try {
+            await downloadDailyFeatureSurahs((n, cached, err) => {
+              if (st) st.textContent = err ? ('Ошибка суры '+n) : ('Сура '+n+(cached?' (уже была)':' ✓'));
+            });
+            toast('Суры для «Напоминания дня» в кэше');
+          } catch(e) {
+            toast('Не удалось скачать — нужен интернет');
+          } finally {
             if (btn) btn.disabled = false;
           }
         });
@@ -7870,6 +8375,23 @@ function speakLetter(ch, name) {
             startIdx: 0,
             onPaint: (i) => placeNav(typeof i === 'number' ? i : lastWordIdx)
           });
+          // build 5.96: цветная таджвид-разметка прямо здесь же, рядом с
+          // обычным текстом — там, где для этого конкретного аята уже есть
+          // точная разметка (не выдуманная, та же, что в «Цвета таджвида»).
+          try {
+            loadTajweedData().then(function() {
+              const anns = _twCache && _twCache[ay.s + ':' + ay.a];
+              if (!anns || el.querySelector('#sa-tw-toggle')) return;
+              const box = document.createElement('div');
+              box.innerHTML = '<button type="button" class="btn btn-sm" id="sa-tw-toggle" style="width:100%;margin-top:0.5rem">🎨 ' + (isKk() ? 'Тәжуид түстерімен көрсету' : 'Показать с цветами таджвида') + '</button>' +
+                '<div id="sa-tw-box" style="display:none;margin-top:0.4rem" class="card"><div class="arabic" dir="rtl" style="font-size:calc(1.4rem * var(--ar-scale, 1));line-height:1.9">' + renderTajweedText(fullAr, anns) + '</div></div>';
+              el.appendChild(box);
+              document.getElementById('sa-tw-toggle')?.addEventListener('click', function() {
+                const b = document.getElementById('sa-tw-box');
+                if (b) b.style.display = (b.style.display === 'none') ? '' : 'none';
+              });
+            });
+          } catch(e) {}
         } else {
           renderWordStudy(el, title + ' (слова)', wordUnits, {
             s: ay.s,
@@ -7906,10 +8428,18 @@ function speakLetter(ch, name) {
       if (!state.academyProgress) state.academyProgress = {};
       const srs = state.academyProgress._srs || {};
       const kkR = isKk();
-      // pool: letters + practice words
+      // pool: letters + practice words + правила таджвида (build 5.96 —
+      // раньше повторить пройденные правила через SRS было негде вообще,
+      // только буквы и словарь).
       const pool = [];
-      ARABIC_LETTERS.forEach(l => pool.push({ id:'L-'+l.ch, front:l.ch, back:(kkR && l.nameKk ? l.nameKk : l.name)+' · '+(l.tr||''), note:(kkR && l.noteKk ? l.noteKk : l.note)||'' }));
-      PRACTICE_WORDS.forEach((w,i) => pool.push({ id:'W-'+i, front:w.ar, back:w.tr+' — '+w.meaning, note:'' }));
+      ARABIC_LETTERS.forEach(l => pool.push({ id:'L-'+l.ch, front:l.ch, back:(kkR && l.nameKk ? l.nameKk : l.name)+' · '+(l.tr||''), note:(kkR && l.noteKk ? l.noteKk : l.note)||'', speakable:true }));
+      PRACTICE_WORDS.forEach((w,i) => pool.push({ id:'W-'+i, front:w.ar, back:w.tr+' — '+w.meaning, note:'', speakable:true }));
+      const rulesPool = (typeof ARABIC_RULES !== 'undefined' ? ARABIC_RULES : []).concat(typeof TAJWEED_RULES !== 'undefined' ? TAJWEED_RULES : []);
+      rulesPool.forEach((r, i) => {
+        const title = (kkR && r.titleKk) ? r.titleKk : r.title;
+        const short = (kkR && r.shortKk) ? r.shortKk : (r.short || '');
+        pool.push({ id:'R-'+i, front:(r.ar || title), back:title+(short ? (' — '+short) : ''), note:'', speakable:false, isRuleFront: !!r.ar });
+      });
       const now = Date.now();
       let due = pool.filter(c => {
         const st = srs[c.id];
@@ -7917,7 +8447,27 @@ function speakLetter(ch, name) {
         return (st.next || 0) <= now;
       });
       if (!due.length) due = pool.slice();
-      due = due.sort(() => Math.random() - 0.5);
+      // build 6.02: умная приоритизация — то, что реально даётся хуже (по
+      // уже собранной статистике тестов recordMistake/getWeakItems), должно
+      // попадаться чаще, а не идти строго по кругу вперемешку поровну со
+      // всем остальным. Тот же принцип, что уже работает для навыков
+      // «Учителя», просто применён и к самим карточкам.
+      try {
+        const weakLetterRates = {}, weakRuleRates = {};
+        getWeakItems('letters', 1).concat(getWeakItems('names', 1)).forEach(function(w) { weakLetterRates[w.key] = Math.max(weakLetterRates[w.key] || 0, w.rate); });
+        getWeakItems('rules', 1).forEach(function(w) { weakRuleRates[w.key] = w.rate; });
+        due.forEach(function(c) {
+          let rate = 0;
+          if (c.id.charAt(0) === 'L') rate = weakLetterRates[c.front] || 0;
+          else if (c.id.charAt(0) === 'R') {
+            const found = rulesPool.find(function(r) { return (r.ar || r.title) === c.front || r.title === c.back.split(' — ')[0]; });
+            if (found) rate = weakRuleRates[found.title] || 0;
+          }
+          // вес 1..4: карточки без ошибок — обычный шанс, часто путаемые — в разы чаще
+          c._weight = 1 + rate * 3;
+        });
+      } catch(e) {}
+      due = due.sort(function(a, b) { return (Math.random() / (b._weight || 1)) - (Math.random() / (a._weight || 1)); });
       let idx = 0, flipped = false;
 
       const intervals = [0, 10*60e3, 60*60e3, 6*60*60e3, 24*60*60e3, 3*24*60*60e3, 7*24*60*60e3];
@@ -7943,9 +8493,12 @@ function speakLetter(ch, name) {
           (flipped
             ? '<button type="button" class="btn" id="srs-hard" style="color:var(--warning)">' + (kkR ? 'Қайта' : 'Снова') + '</button>' +
               '<button type="button" class="btn" id="srs-ok">' + (kkR ? 'Қиын' : 'Трудно') + '</button>' +
-              '<button type="button" class="btn btn-primary" id="srs-easy">' + (kkR ? 'Білемін' : 'Знаю') + '</button>'
+              '<button type="button" class="btn btn-primary" id="srs-easy">' + (kkR ? 'Білемін' : 'Знаю') + '</button>' +
+              // build 5.96: кнопку озвучки убирали после переворота — теперь
+              // можно переслушать произношение и уже увидев ответ, не только до.
+              ((c.speakable || c.isRuleFront) ? '<button type="button" class="btn btn-sm" id="srs-speak">🔊</button>' : '')
             : '<button type="button" class="btn btn-primary" id="srs-flip">' + (kkR ? 'Көрсету' : 'Показать') + '</button>' +
-              '<button type="button" class="btn btn-sm" id="srs-speak">🔊</button>') +
+              ((c.speakable || c.isRuleFront) ? '<button type="button" class="btn btn-sm" id="srs-speak">🔊</button>' : '')) +
           '</div>';
         document.getElementById('srs-card')?.addEventListener('click', () => { flipped = !flipped; paint(); });
         document.getElementById('srs-flip')?.addEventListener('click', () => { flipped = true; paint(); });
@@ -8526,6 +9079,42 @@ function renderMistakes() {
       }, true);
     }
 
+    // build 5.96: сопоставление названия правила (как оно записано в
+    // ARABIC_RULES/TAJWEED_RULES) с тегами реальной разметки Корана
+    // (tajweed-hafs.json) — чтобы показывать настоящий пример под КАЖДЫМ
+    // правилом в обычной «Теории», не только внутри «Учителя». Не у всех
+    // правил есть прямой тег (огласовки/шадда/вакф размечены иначе) —
+    // для них примера просто не будет, без выдумывания.
+    const RULE_TITLE_TO_TAGS = {
+      'ال · Алиф-лям': ['lam_shamsiyyah'],
+      'همزة · Хамза': ['hamzat_wasl'],
+      'إخفاء · Ихфа': ['ikhfa'],
+      'إدغام · Идгам': ['idghaam_ghunnah','idghaam_no_ghunnah'],
+      'إقلاب · Иклаб': ['iqlab'],
+      'قلقلة · Калькаля': ['qalqalah'],
+      'مد · Мадд': ['madd_2'],
+      'غنة · Гунна': ['ghunnah'],
+      'أحكام الميم الساكنة · Мим сакин': ['idghaam_shafawi','ikhfa_shafawi'],
+      'إدغام المتماثلين والمتجانسين والمتقاربين · Идгам сходных букв': ['idghaam_mutajanisayn'],
+      'أنواع المد · Виды мадда': ['madd_muttasil','madd_munfasil','madd_6'],
+      'الحروف الشمسية والقمرية · Солнечные и лунные буквы': ['lam_shamsiyyah']
+    };
+    function getTajweedExampleForRuleTitle(title) {
+      const tags = RULE_TITLE_TO_TAGS[title];
+      if (!tags || !_twCache) return null;
+      const matches = getCuratedAyahsWithRuleTag(tags);
+      if (!matches.length) return null;
+      return matches[Math.floor(Math.random() * matches.length)];
+    }
+    function tajweedExampleHtml(ex) {
+      if (!ex) return '';
+      const kkE = isKk();
+      const colored = renderTajweedText(ex.text, ex.anns);
+      return '<div class="card" style="margin-top:0.5rem;border-color:var(--accent)">' +
+        '<div style="font-size:0.78rem;color:var(--text-muted)">' + (kkE ? 'Құраннан мысал' : 'Пример из Корана') + ' · ' + ex.surah + ':' + ex.ayah + '</div>' +
+        '<div class="arabic" dir="rtl" style="font-size:calc(1.3rem * var(--ar-scale, 1));margin-top:0.3rem;line-height:1.8">' + colored + '</div>' +
+        '</div>';
+    }
     function renderRules() {
       let el = document.getElementById('learn-rules');
       const parent = document.getElementById('acad-rules');
@@ -8542,17 +9131,24 @@ function renderMistakes() {
         el.innerHTML = '<div class="empty-state">'+(kkR ? 'Ережелер жоқ' : 'Нет правил')+'</div>';
         return;
       }
+      try { loadTajweedData().then(function(d) { if (d && !el.dataset.twLoaded) { el.dataset.twLoaded = '1'; renderRules(); } }); } catch(e) {}
       el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">'+(kkR ? 'Жазудың негізгі ережелері. Қысқаша → «Толығырақ».' : 'Базовые правила письма. Кратко → «Подробнее».')+'</p>' +
         rules.map(function(r, ri) {
           var title = kkR ? (r.titleKk || r.title) : r.title;
           var short = kkR ? (r.shortKk || r.short) : (r.short || (r.ru || r.body || '').slice(0, 100));
           var body = kkR ? (r.detailKk || r.detail) : (r.detail || r.ru || r.body || '');
+          // build 5.96: настоящий пример из Корана (подкрашенный по уже
+          // проверенным данным) под объяснением — там, где для правила есть
+          // прямое сопоставление с тегом разметки.
+          var example = '';
+          try { example = tajweedExampleHtml(getTajweedExampleForRuleTitle(r.title)); } catch(e) {}
           return '<div class="rule-card" style="margin-bottom:0.65rem" data-rule-i="'+ri+'">' +
             '<h3 dir="ltr">'+title+'</h3>' +
             (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.15rem;margin:0.35rem 0">'+r.ar+'</div>' : '') +
             '<div class="les-short ayah-translation" dir="ltr">'+short+'</div>' +
             '<button type="button" class="btn btn-sm les-more-btn" data-les-toggle="1" style="margin:0.35rem 0;direction:ltr">'+(kkR ? '📖 Толығырақ' : '📖 Подробнее')+'</button>' +
-            '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55">'+String(body).replace(/</g,'&lt;')+'</div></div>';
+            '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55">'+String(body).replace(/</g,'&lt;')+'</div>' +
+            example + '</div>';
         }).join('');
       try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
     }
@@ -8579,14 +9175,18 @@ function renderMistakes() {
           var full = kkT2 ? (r.detailKk || r.detail) : (r.detail || r.ru || '');
           if (r.example) full += (kkT2 ? '\n\nМысал: ' : '\n\nПример: ') + r.example;
           if (r.letters) full += (kkT2 ? '\n\nӘріптер: ' : '\n\nБуквы: ') + r.letters;
+          var example2 = '';
+          try { example2 = tajweedExampleHtml(getTajweedExampleForRuleTitle(r.title)); } catch(e) {}
           return '<div class="rule-card" style="margin-bottom:0.65rem" data-rule-i="'+ri+'">' +
             '<h3 dir="ltr">'+title+'</h3>' +
             (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.1rem;margin:0.35rem 0">'+r.ar+'</div>' : '') +
             (r.exampleHtml ? '<div dir="rtl" lang="ar" style="font-size:1.25rem;margin:0.35rem 0;font-family:Amiri,serif">'+r.exampleHtml+'</div>' : '') +
             '<div class="les-short ayah-translation" dir="ltr">'+short+'</div>' +
             '<button type="button" class="btn btn-sm les-more-btn" data-les-toggle="1" style="margin:0.35rem 0;direction:ltr">'+(kkT2 ? '📖 Толығырақ' : '📖 Подробнее')+'</button>' +
-            '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55">'+String(full).replace(/</g,'&lt;')+'</div></div>';
+            '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55">'+String(full).replace(/</g,'&lt;')+'</div>' +
+            example2 + '</div>';
         }).join('');
+      try { loadTajweedData().then(function(d) { if (d && !el.dataset.twLoaded) { el.dataset.twLoaded = '1'; renderTajweed(); } }); } catch(e) {}
       try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
     }
 
@@ -8801,22 +9401,31 @@ function renderMistakes() {
     // build 5.26: вкладки «Суры» / «Учёба» внутри раздела «Суры» — «Учёба»
     // теперь сразу открывает «🎧 Суры (озвучка)» (пословный разбор с реальной
     // озвучкой слов), а не общий раздел «Учёба» (Теория/Практика).
+    // build 5.94: третья вкладка «🎨 Таджвид» прямо здесь же, рядом с
+    // «Суры»/«Озвучка» — раньше цветная разметка была доступна только через
+    // «Учёба», где её, по отзыву, не нашли и не ожидали искать.
     function showSurahHomeTab(tab) {
       var surahsBtn = document.getElementById('surah-subtab-surahs');
       var studyBtn = document.getElementById('surah-subtab-study');
+      var tajweedBtn = document.getElementById('surah-subtab-tajweed');
       var surahsPane = document.getElementById('home-surahs-pane');
       var studyPane = document.getElementById('home-study-pane');
+      var tajweedPane = document.getElementById('home-tajweed-pane');
       if (!surahsPane || !studyPane) return;
+      [surahsBtn, studyBtn, tajweedBtn].forEach(function(b) { if (b) b.classList.remove('btn-primary'); });
+      surahsPane.style.display = 'none';
+      studyPane.style.display = 'none';
+      if (tajweedPane) tajweedPane.style.display = 'none';
       if (tab === 'study') {
-        if (surahsBtn) surahsBtn.classList.remove('btn-primary');
         if (studyBtn) studyBtn.classList.add('btn-primary');
-        surahsPane.style.display = 'none';
         studyPane.style.display = '';
         try { renderWbwSurahsStudy(document.getElementById('home-wbw-surahs')); } catch(e) {}
+      } else if (tab === 'tajweed') {
+        if (tajweedBtn) tajweedBtn.classList.add('btn-primary');
+        if (tajweedPane) tajweedPane.style.display = '';
+        try { renderTajweedColorView(document.getElementById('home-tajweed-colors')); } catch(e) {}
       } else {
-        if (studyBtn) studyBtn.classList.remove('btn-primary');
         if (surahsBtn) surahsBtn.classList.add('btn-primary');
-        studyPane.style.display = 'none';
         surahsPane.style.display = '';
       }
     }
@@ -8827,6 +9436,10 @@ function renderMistakes() {
     document.getElementById('surah-subtab-study')?.addEventListener('click', function () {
       showView('home');
       showSurahHomeTab('study');
+    });
+    document.getElementById('surah-subtab-tajweed')?.addEventListener('click', function () {
+      showView('home');
+      showSurahHomeTab('tajweed');
     });
 
     // ========== GAMES ==========
@@ -8958,7 +9571,7 @@ function renderMistakes() {
     function _updateDifficultyPanelVisibility() {
       var panel = document.getElementById('games-difficulty');
       if (!panel) return;
-      var show = ['letters','names','rules','minimal-pairs'].indexOf(currentGame) >= 0;
+      var show = ['letters','names','rules','minimal-pairs','ayah'].indexOf(currentGame) >= 0;
       panel.style.display = show ? '' : 'none';
     }
     (function() {
@@ -9001,6 +9614,10 @@ function renderMistakes() {
           try { renderMinimalPairs(area); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Қате: ' : 'Ошибка: ') + (e.message||e) + '</p>'; }
           return;
         }
+        if (currentGame === 'write') {
+          try { renderWriteLetterDrill(area); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Қате: ' : 'Ошибка: ') + (e.message||e) + '</p>'; }
+          return;
+        }
         area.innerHTML =
           '<div class="empty-state"><p>' + (kkG ? 'Тест үшін «Бастау» басыңыз: ' : 'Нажмите «Начать» для теста: ') + '<b>'+btn.textContent+'</b></p>' +
           '<button class="btn btn-primary" id="btn-start-game" style="margin-top:1rem">' + (kkG ? 'Бастау' : 'Начать') + '</button></div>';
@@ -9039,6 +9656,8 @@ function renderMistakes() {
         nextRulesQuestion();
       } else if (currentGame === 'ayah') {
         startAyahGame();
+      } else if (currentGame === 'findrule') {
+        startFindRuleQuizStandalone();
       } else if (currentGame === 'speak' || currentGame === 'speak-ayah') {
         startSpeakGame(currentGame === 'speak-ayah');
       }
@@ -9155,8 +9774,10 @@ function renderMistakes() {
           '<button class="btn btn-sm" id="btn-hear">🔊 ' + (kkQ ? 'Дұрысы' : 'Как надо') + '</button>' +
           '<button class="btn btn-primary" id="btn-rec">⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя') + '</button>' +
           '<button class="btn btn-sm" id="btn-play-me" disabled style="opacity:0.5">▶ ' + (kkQ ? 'Менің жазбам' : 'Моя запись') + '</button>' +
+          '<button class="btn btn-sm" id="btn-asr">🎙 ' + (kkQ ? 'Тексеру' : 'Проверить') + '</button>' +
           '<button class="btn btn-sm" id="btn-next-speak">' + (kkQ ? 'Келесі →' : 'Далее →') + '</button>' +
         '</div>' +
+        '<div id="asr-result" style="text-align:center;margin-bottom:0.5rem"></div>' +
         '<div id="listen-status" style="text-align:center;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? '1) Мысалды тыңдаңыз → 2) Өзіңізді жазыңыз → 3) Салыстырыңыз' : '1) Слушайте пример → 2) Запишите себя → 3) Сравните') + '</div>' +
         '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Аят/әріп ' + gameTotal + ' · кезекте қалды: ' + gameQueue.length : 'Аят/буква '+gameTotal+' · осталось в очереди: '+gameQueue.length) + '</div>' +
         '</div>';
@@ -9188,6 +9809,46 @@ function renderMistakes() {
           if (ok) st.textContent = kkQ ? 'Дайын. Салыстырыңыз: «Дұрысы» және «Менің жазбам»' : 'Готово. Сравните: «Как надо» и «Моя запись»';
         });
       });
+      // build 6.02: грубая проверка произношения через распознавание речи
+      // браузера (Web Speech API) — честно: это НЕ точная фонетическая
+      // оценка (распознавание речи вообще плохо натренировано на отдельные
+      // арабские буквы вне слова), а самый приблизительный ориентир —
+      // уловил ли микрофон вообще что-то похожее на звук, или тишину/шум.
+      // Работает только в браузерах с поддержкой (в основном Chrome).
+      const asrBtn = document.getElementById('btn-asr');
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        asrBtn.disabled = true;
+        asrBtn.title = kkQ ? 'Бұл браузерде қолжетімсіз' : 'Недоступно в этом браузере';
+      } else {
+        asrBtn.addEventListener('click', function() {
+          const resEl = document.getElementById('asr-result');
+          resEl.innerHTML = '<span style="color:var(--text-muted)">🎙 ' + (kkQ ? 'Тыңдап тұрмын…' : 'Слушаю…') + '</span>';
+          try {
+            const rec = new SR();
+            rec.lang = 'ar-SA';
+            rec.maxAlternatives = 3;
+            rec.onresult = function(ev) {
+              const heard = ev.results && ev.results[0] ? Array.from(ev.results[0]).map(function(r){ return r.transcript; }) : [];
+              // Очень приблизительное сравнение: распознавание речи вообще
+              // не предназначено для отдельных букв — здесь только честный
+              // факт «что-то распозналось» или «тишина/не разобрать», без
+              // претензии на точную фонетическую оценку.
+              if (heard.length) {
+                resEl.innerHTML = '<span style="color:var(--accent)">🎙 ' + (kkQ ? 'Естілді: ' : 'Распознано: ') + '«' + heard[0] + '»</span><div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem">' + (kkQ ? '(болжамды — дәл дыбыс бағасы емес, тек бірдеңе естілді ме соны тексереді)' : '(приблизительно — это не точная фонетическая оценка, а просто проверка, что микрофон вообще что-то уловил)') + '</div>';
+              } else {
+                resEl.innerHTML = '<span style="color:var(--warning,#f59e0b)">🎙 ' + (kkQ ? 'Ештеңе танылмады — қайта көріңіз' : 'Ничего не распознано — попробуйте ещё раз') + '</span>';
+              }
+            };
+            rec.onerror = function() {
+              resEl.innerHTML = '<span style="color:var(--text-muted)">' + (kkQ ? 'Қате — микрофонға рұқсат керек' : 'Ошибка — нужен доступ к микрофону') + '</span>';
+            };
+            rec.start();
+          } catch(e) {
+            resEl.innerHTML = '<span style="color:var(--text-muted)">' + (kkQ ? 'Қолжетімсіз' : 'Недоступно') + '</span>';
+          }
+        });
+      }
     }
 
     async function startSpeakAyahGame() {
@@ -9312,6 +9973,11 @@ function renderMistakes() {
             b.classList.add('wrong');
             optsEl.querySelectorAll('button').forEach(x => { if (x.textContent === correct) x.classList.add('correct'); });
             toast((kkQ ? 'Дұрыс жауап: ' : 'Правильный ответ: ') + correct);
+            // build 5.99: раньше в конце сессии был только ОДИН совет по
+            // самой слабой букве в целом; теперь копим каждую ошибку именно
+            // этой сессии, чтобы показать полный список «что перепутали —
+            // какой был правильный ответ», а не общую сводку.
+            try { _teacherSessionWrongs.push({ q: (isName ? letter.ch : ((kkQ && letter.nameKk ? letter.nameKk : letter.name))), your: o, correct: correct }); } catch(e) {}
           }
           setTimeout(() => nextLetterQuestion(), 900);
         });
@@ -9428,6 +10094,42 @@ function renderMistakes() {
       });
     }
     let _activeBlendLetters = null;
+    // build 5.95: градуированные строки для чтения — как в настоящей Каиде:
+    // не отдельные слоги, а целые СТРОКИ коротких сочетаний подряд, из
+    // постепенно растущего набора уже известных букв, без проверки —
+    // самостоятельное чтение вслух в своём темпе, страница за страницей.
+    function startQaidaLines(container, lettersPool) {
+      const kkQ = isKk();
+      const marks = [{h:'\u064E',v:'а'},{h:'\u0650',v:'и'},{h:'\u064F',v:'у'}];
+      const lineCount = 6;
+      const lines = [];
+      for (let li = 0; li < lineCount; li++) {
+        const wordsPerLine = 3 + Math.floor(li / 2);
+        const words = [];
+        for (let w = 0; w < wordsPerLine; w++) {
+          const sylCount = 1 + (li % 2);
+          let word = '';
+          for (let s = 0; s < sylCount; s++) {
+            const ch = lettersPool[Math.floor(Math.random() * lettersPool.length)];
+            const mk = marks[Math.floor(Math.random() * marks.length)];
+            word += ch + mk.h;
+          }
+          words.push(word);
+        }
+        lines.push(words.join(' '));
+      }
+      container.innerHTML =
+        '<div class="card"><b>' + (kkQ ? 'Оқу жолдары' : 'Строки для чтения') + '</b>' +
+        '<div class="ayah-translation" style="margin-top:0.3rem">' + (kkQ ? 'Дауыстап оқыңыз, өз қарқыныңызда' : 'Читайте вслух, в своём темпе') + '</div>' +
+        '<div style="margin-top:0.75rem">' +
+        lines.map(function(line, i) {
+          return '<div class="arabic" dir="rtl" style="font-size:calc(1.7rem * var(--ar-scale, 1));line-height:2.4;padding:0.3rem 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:0.7rem;margin-left:0.4rem">' + (i+1) + '</span>' + line + '</div>';
+        }).join('') +
+        '</div>' +
+        '<button type="button" class="btn btn-sm" id="qaida-lines-new" style="width:100%;margin-top:0.6rem">🔄 ' + (kkQ ? 'Жаңа жолдар' : 'Новые строки') + '</button>' +
+        '</div>';
+      document.getElementById('qaida-lines-new')?.addEventListener('click', function() { startQaidaLines(container, lettersPool); });
+    }
     function startBlendDrill(letters) {
       _activeBlendLetters = letters;
       currentGame = 'blend';
@@ -9510,6 +10212,327 @@ function renderMistakes() {
       paint();
     }
 
+    // build 5.99: смешанная проверка после целой группы навыков — буквы и
+    // правила вперемешку в одной сессии, а не по отдельности. Именно такая
+    // смесь честно показывает, что реально держится в памяти, а не только
+    // казалось выученным сразу после прохождения навыка.
+    function getGroupQuizSkills(group) {
+      return PERSONAL_TEACHER_SKILLS.filter(function(s) { return s.group === group && (s.kind === 'letters' || s.kind === 'rules'); });
+    }
+    function isGroupFullyMastered(group) {
+      const skills = getGroupQuizSkills(group);
+      return skills.length > 0 && skills.every(function(s) { return getSkillStatus(s.id) === 'mastered'; });
+    }
+    function startMixedGroupReview(group) {
+      const skills = getGroupQuizSkills(group);
+      const kkM = isKk();
+      const pool = ARABIC_RULES.concat(TAJWEED_RULES);
+      const otherN = Math.max(1, quizOptionCount() - 1);
+      const mixed = [];
+      skills.forEach(function(s) {
+        if (s.kind === 'letters') {
+          (s.letters || []).forEach(function(ch) {
+            const l = ARABIC_LETTERS.find(function(x){ return x.ch === ch; });
+            if (l) mixed.push({ type: 'letter', data: l });
+          });
+        } else if (s.kind === 'rules') {
+          (s.ruleTitles || []).forEach(function(t) {
+            const r = pool.find(function(x){ return x.title === t; });
+            if (r) mixed.push({ type: 'rule', data: r });
+          });
+        }
+      });
+      if (!mixed.length) { toast(kkM ? 'Деректер жоқ' : 'Нет данных'); return; }
+      showView('games');
+      document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'tests'); });
+      document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); b.style.display = 'none'; });
+      currentGame = 'mixed-review';
+      _activeTeacherSkill = null; // смешанная проверка не привязана к мастерству одного навыка — только разбор ошибок внизу
+      _teacherSessionWrongs = [];
+      gameScore = 0; gameTotal = 0;
+      gameQueue = shuffle(mixed).slice(0, Math.min(12, mixed.length));
+      nextMixedQuestion();
+    }
+    // ========== НАКОПИТЕЛЬНОЕ ПОВТОРЕНИЕ — сам запуск и движок (build 6.03) ==========
+    let _cumQueue = [], _cumBlocks = [], _cumBlockIdx = 0, _cumCheckpoint = null, _cumKind = null;
+    let _cumFirstTotal = 0, _cumFirstCorrect = 0, _cumWrongSet = {};
+    function startCumulativeReview(checkpoint, kind) {
+      _cumCheckpoint = checkpoint; _cumKind = kind;
+      _cumFirstTotal = 0; _cumFirstCorrect = 0; _cumWrongSet = {};
+      let queue = [];
+      if (kind === 'letters') {
+        const letters = getLettersInReviewScope(checkpoint);
+        if (!letters.length) return;
+        const weakRates = {};
+        getWeakItems('letters', 1).concat(getWeakItems('names', 1)).forEach(function(w) { weakRates[w.key] = Math.max(weakRates[w.key] || 0, w.rate); });
+        const wpool = _buildWeightedPool(letters, function(ch) { return weakRates[ch]; });
+        // build 6.03: от лёгкого к сложному — сначала узнавание буквы (60%
+        // заданий), потом чтение слогом с огласовкой (40%, сложнее).
+        const easyCount = Math.ceil(checkpoint.size * 0.6);
+        for (let i = 0; i < checkpoint.size; i++) {
+          queue.push({ type: i < easyCount ? 'cumletter' : 'cumblend', ch: _weightedPick(wpool), retry: false });
+        }
+      } else {
+        const titles = getRuleTitlesInReviewScope(checkpoint);
+        if (!titles.length) return;
+        const weakRates = {};
+        getWeakItems('rules', 1).forEach(function(w) { weakRates[w.key] = w.rate; });
+        const wpool = _buildWeightedPool(titles, function(t) { return weakRates[t]; });
+        for (let i = 0; i < checkpoint.size; i++) queue.push({ type: 'cumrule', title: _weightedPick(wpool), retry: false });
+      }
+      _cumBlocks = [];
+      for (let i = 0; i < queue.length; i += checkpoint.blockSize) _cumBlocks.push(queue.slice(i, i + checkpoint.blockSize));
+      _cumBlockIdx = 0;
+      gameScore = 0; gameTotal = 0;
+      showView('games');
+      document.querySelectorAll('#games-tabs button').forEach(function(b) { b.classList.remove('active'); b.style.display = 'none'; });
+      document.querySelectorAll('#games-group-switch button').forEach(function(b) { b.classList.toggle('btn-primary', b.dataset.gamegroup === 'tests'); });
+      currentGame = 'cumulative-review';
+      try { _updateDifficultyPanelVisibility(); } catch(e) {}
+      _startCumulativeBlock();
+    }
+    function _startCumulativeBlock() {
+      _cumQueue = _cumBlocks[_cumBlockIdx].slice();
+      nextCumulativeQuestion();
+    }
+    function nextCumulativeQuestion() {
+      if (!_cumQueue.length) return _finishCumulativeBlock();
+      const item = _cumQueue.shift();
+      const kkQ = isKk();
+      const otherN = Math.max(1, quizOptionCount() - 1);
+      const area = document.getElementById('game-area');
+      const progressLine = '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' +
+        (kkQ ? 'Блок ' : 'Блок ') + (_cumBlockIdx + 1) + '/' + _cumBlocks.length + ' · ' + gameScore + '/' + gameTotal + '</div>';
+      const onAnswered = function(isRight, qSummary, correctAns, yourAns) {
+        gameTotal++;
+        if (!item.retry) {
+          _cumFirstTotal++;
+          if (isRight) _cumFirstCorrect++;
+        }
+        if (isRight) { gameScore++; toast(kkQ ? 'Дұрыс!' : 'Верно!'); }
+        else {
+          toast((kkQ ? 'Дұрысы: ' : 'Правильно: ') + correctAns);
+          const key = item.ch || item.title;
+          _cumWrongSet[key] = (_cumWrongSet[key] || 0) + 1;
+          try { _teacherSessionWrongs.push({ q: qSummary, your: yourAns, correct: correctAns }); } catch(e) {}
+          // build 6.03: неверный ответ — обратно в конец очереди ЭТОГО
+          // блока, встречается ещё раз в этой же практике, а не просто
+          // пропадает после одной ошибки.
+          const retryItem = Object.assign({}, item, { retry: true });
+          _cumQueue.push(retryItem);
+        }
+        setTimeout(nextCumulativeQuestion, isRight ? 900 : 1500);
+      };
+      if (item.type === 'cumletter') {
+        const letter = ARABIC_LETTERS.find(function(l) { return l.ch === item.ch; });
+        if (!letter) return nextCumulativeQuestion();
+        const opts = shuffle([letter.ch].concat(shuffle(ARABIC_LETTERS.filter(function(l){ return l.ch !== letter.ch; })).slice(0, otherN).map(function(l){ return l.ch; })));
+        area.innerHTML = '<div class="quiz-card"><div class="quiz-q">' + (kkQ ? 'Қай әріп сәйкес келеді:<br><b>'+(letter.nameKk||letter.name)+'</b> ('+letter.tr+')?' : 'Какая буква соответствует:<br><b>'+letter.name+'</b> ('+letter.tr+')?') +
+          '</div><div class="quiz-opts" id="quiz-opts"></div>' + progressLine + '</div>';
+        const optsEl = document.getElementById('quiz-opts');
+        opts.forEach(function(o) {
+          const b = document.createElement('button');
+          b.textContent = o; b.style.fontFamily = 'Amiri, serif'; b.style.fontSize = 'calc(1.5rem * var(--ar-scale, 1))';
+          b.addEventListener('click', function() {
+            optsEl.querySelectorAll('button').forEach(function(x){ x.disabled = true; });
+            const isRight = (o === letter.ch);
+            try { recordMistake('letters', letter.ch, isRight); } catch(e) {}
+            if (isRight) b.classList.add('correct'); else { b.classList.add('wrong'); optsEl.querySelectorAll('button').forEach(function(x){ if (x.textContent === letter.ch) x.classList.add('correct'); }); }
+            onAnswered(isRight, letter.name, letter.ch, o);
+          });
+          optsEl.appendChild(b);
+        });
+      } else if (item.type === 'cumblend') {
+        const marks = [{h:'\u064E',v:'а'},{h:'\u0650',v:'и'},{h:'\u064F',v:'у'}];
+        const mk = marks[Math.floor(Math.random() * marks.length)];
+        const ar = item.ch + mk.h, tr = (BASE_CONSONANT_SOUND[item.ch] || '?') + mk.v;
+        const allLetters = Object.keys(BASE_CONSONANT_SOUND);
+        const distractors = [];
+        while (distractors.length < otherN) {
+          const ch2 = allLetters[Math.floor(Math.random()*allLetters.length)];
+          const mk2 = marks[Math.floor(Math.random()*marks.length)];
+          const tr2 = (BASE_CONSONANT_SOUND[ch2]||'?') + mk2.v;
+          if (tr2 !== tr && distractors.indexOf(tr2) < 0) distractors.push(tr2);
+        }
+        const opts = shuffle([tr].concat(distractors));
+        area.innerHTML = '<div class="quiz-card" style="text-align:center"><div class="quiz-q"><span class="arabic-q">'+ar+'</span>' + (kkQ ? 'Бұл қалай оқылады?' : 'Как это читается?') +
+          '</div><div class="quiz-opts" id="quiz-opts"></div>' + progressLine + '</div>';
+        const optsEl = document.getElementById('quiz-opts');
+        opts.forEach(function(o) {
+          const b = document.createElement('button');
+          b.textContent = o;
+          b.addEventListener('click', function() {
+            optsEl.querySelectorAll('button').forEach(function(x){ x.disabled = true; });
+            const isRight = (o === tr);
+            try { recordMistake('blend', ar, isRight); } catch(e) {}
+            if (isRight) b.classList.add('correct'); else { b.classList.add('wrong'); optsEl.querySelectorAll('button').forEach(function(x){ if (x.textContent === tr) x.classList.add('correct'); }); }
+            try { if (typeof speakArText === 'function') speakArText(ar, 0.7); } catch(e) {}
+            onAnswered(isRight, ar, tr, o);
+          });
+          optsEl.appendChild(b);
+        });
+      } else if (item.type === 'cumrule') {
+        const pool = ARABIC_RULES.concat(TAJWEED_RULES);
+        const r = pool.find(function(x) { return x.title === item.title; });
+        if (!r) return nextCumulativeQuestion();
+        const others = shuffle(pool.filter(function(x){ return x.title !== r.title; })).slice(0, otherN);
+        const txt = (kkQ && r.shortKk) ? r.shortKk : (r.short || r.ru || r.body || r.ar || r.title || '');
+        const ans = (kkQ && r.titleKk) ? r.titleKk : r.title;
+        const otherAns = others.map(function(o){ return (kkQ && o.titleKk) ? o.titleKk : o.title; });
+        const opts = shuffle([ans].concat(otherAns));
+        area.innerHTML = '<div class="quiz-card"><div class="quiz-q" style="font-size:0.95rem;font-weight:500">' + String(txt).replace(/<[^>]+>/g,'').slice(0,140) + '</div>' +
+          '<div class="quiz-opts" id="quiz-opts"></div>' + progressLine + '</div>';
+        const optsEl = document.getElementById('quiz-opts');
+        opts.forEach(function(o) {
+          const b = document.createElement('button');
+          b.textContent = o;
+          b.addEventListener('click', function() {
+            optsEl.querySelectorAll('button').forEach(function(x){ x.disabled = true; });
+            const isRight = (o === ans);
+            try { recordMistake('rules', r.title, isRight); } catch(e) {}
+            if (isRight) b.classList.add('correct'); else { b.classList.add('wrong'); optsEl.querySelectorAll('button').forEach(function(x){ if (x.textContent === ans) x.classList.add('correct'); }); }
+            onAnswered(isRight, String(txt).slice(0,60), ans, o);
+          });
+          optsEl.appendChild(b);
+        });
+      } else {
+        nextCumulativeQuestion();
+      }
+    }
+    function _finishCumulativeBlock() {
+      const kkQ = isKk();
+      const isLastBlock = (_cumBlockIdx >= _cumBlocks.length - 1);
+      const area = document.getElementById('game-area');
+      if (!isLastBlock) {
+        area.innerHTML = '<div class="quiz-card" style="text-align:center">' +
+          '<div style="font-size:1.1rem;font-weight:700">✓ ' + (kkQ ? 'Блок ' : 'Блок ') + (_cumBlockIdx + 1) + '/' + _cumBlocks.length + ' ' + (kkQ ? 'аяқталды' : 'завершён') + '</div>' +
+          '<div class="ayah-translation" style="margin-top:0.4rem">' + (kkQ ? 'Қазіргі нәтиже: ' : 'Текущий результат: ') + gameScore + '/' + gameTotal + '</div>' +
+          '<button type="button" class="btn btn-primary" id="cum-continue" style="width:100%;margin-top:0.75rem">▶ ' + (kkQ ? 'Келесі блок' : 'Следующий блок') + '</button>' +
+          '<button type="button" class="btn btn-sm" id="cum-later" style="width:100%;margin-top:0.4rem">' + (kkQ ? 'Кейінірек жалғастыру' : 'Продолжить позже') + '</button>' +
+          '</div>';
+        document.getElementById('cum-continue')?.addEventListener('click', function() { _cumBlockIdx++; _startCumulativeBlock(); });
+        document.getElementById('cum-later')?.addEventListener('click', function() {
+          // build 6.03: прогресс по блокам внутри сессии не сохраняется
+          // между заходами — честно отмечаем это самому пользователю, а не
+          // делаем вид, что прогресс сохранится незаметно.
+          toast(kkQ ? 'Үзілдіңіз — кейін осы тексеруді қайта бастауға болады' : 'Прервано — эту проверку можно будет начать заново позже');
+          showView('teacher');
+        });
+        return;
+      }
+      _finishCumulativeReview();
+    }
+    function _finishCumulativeReview() {
+      const kkQ = isKk();
+      const ratio = _cumFirstTotal ? (_cumFirstCorrect / _cumFirstTotal) : 0;
+      const pct = Math.round(ratio * 100);
+      const passed = ratio >= 0.8;
+      const ap = _cumulativeReviewState();
+      ap._cumulativeDone[_cumKind].push(_cumCheckpoint ? ap._cumulativePending[_cumKind].n : 0);
+      delete ap._cumulativePending[_cumKind];
+      saveState();
+      const area = document.getElementById('game-area');
+      const weakKeys = Object.keys(_cumWrongSet).sort(function(a,b){ return _cumWrongSet[b]-_cumWrongSet[a]; }).slice(0, 8);
+      let weakHtml = '';
+      if (weakKeys.length) {
+        if (_cumKind === 'letters') {
+          weakHtml = '<div class="card" style="margin-top:0.6rem;text-align:left"><b>' + (kkQ ? 'Жиі қателескен әріптер' : 'Чаще всего путали') + '</b><div style="margin-top:0.4rem">' +
+            weakKeys.map(function(ch) { const l = ARABIC_LETTERS.find(function(x){return x.ch===ch;}); return '<span class="page-badge" style="font-family:Amiri,serif;margin:0.15rem">'+ch+(l?' '+l.name:'')+'</span>'; }).join('') + '</div></div>';
+        } else {
+          const pool = ARABIC_RULES.concat(TAJWEED_RULES);
+          weakHtml = '<div class="card" style="margin-top:0.6rem;text-align:left"><b>' + (kkQ ? 'Жиі қателескен ережелер' : 'Чаще всего путали') + '</b><div style="margin-top:0.4rem">' +
+            weakKeys.map(function(t) { const r = pool.find(function(x){return x.title===t;}); return '<span class="page-badge" style="margin:0.15rem">'+(r?((kkQ&&r.titleKk)?r.titleKk:r.title):t)+'</span>'; }).join('') + '</div></div>';
+        }
+      }
+      area.innerHTML = '<div class="quiz-card" style="text-align:center">' +
+        '<div style="font-size:1.5rem">' + (passed ? '🎉' : '💪') + '</div>' +
+        '<div style="font-size:1.2rem;font-weight:700;margin-top:0.3rem">' + (kkQ ? 'Накопительная тексеру аяқталды' : 'Накопительная проверка завершена') + '</div>' +
+        '<div style="font-size:1.4rem;font-weight:700;color:' + (passed ? 'var(--accent)' : '#f59e0b') + ';margin-top:0.4rem">' + pct + '%</div>' +
+        '<div class="ayah-translation" style="margin-top:0.3rem">' + (passed
+          ? (kkQ ? 'Жарайсыз! 80% табалдырығынан өттіңіз.' : 'Отлично! Порог 80% пройден.')
+          : (kkQ ? '80% табалдырығынан төмен — осы тұстарды қайталап көрейік.' : 'Ниже порога 80% — стоит повторить слабые места.')) + '</div>' +
+        weakHtml +
+        (!passed && weakKeys.length && _cumKind === 'letters' ? '<button type="button" class="btn btn-primary" id="cum-minireview" style="width:100%;margin-top:0.6rem">🔁 ' + (kkQ ? 'Осыларды қайталау' : 'Повторить эти буквы') + '</button>' : '') +
+        '<button type="button" class="btn btn-sm" id="cum-back" style="width:100%;margin-top:0.5rem">👨‍🏫 ' + (kkQ ? 'Мұғалімге оралу' : 'Вернуться к Учителю') + '</button>' +
+        '</div>';
+      document.getElementById('cum-minireview')?.addEventListener('click', function() {
+        currentGame = 'letters';
+        gameScore = 0; gameTotal = 0;
+        const chosen = weakKeys.map(function(ch){ return ARABIC_LETTERS.find(function(l){ return l.ch === ch; }); }).filter(Boolean);
+        gameQueue = shuffle(chosen.concat(chosen)).slice(0, Math.max(6, chosen.length));
+        nextLetterQuestion();
+      });
+      document.getElementById('cum-back')?.addEventListener('click', function() { showView('teacher'); });
+    }
+
+    function nextMixedQuestion() {
+      if (!gameQueue.length) return endGame();
+      gameTotal++;
+      const item = gameQueue.shift();
+      const kkQ = isKk();
+      const otherN = Math.max(1, quizOptionCount() - 1);
+      const area = document.getElementById('game-area');
+      if (item.type === 'letter') {
+        const letter = item.data;
+        const opts = shuffle([letter.ch].concat(shuffle(ARABIC_LETTERS.filter(function(l){ return l.ch !== letter.ch; })).slice(0, otherN).map(function(l){ return l.ch; })));
+        area.innerHTML = '<div class="quiz-card"><div class="quiz-q">' + (kkQ ? 'Қай әріп сәйкес келеді:<br><b>'+(letter.nameKk||letter.name)+'</b> ('+letter.tr+')?' : 'Какая буква соответствует:<br><b>'+letter.name+'</b> ('+letter.tr+')?') +
+          '</div><div class="quiz-opts" id="quiz-opts"></div>' +
+          '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Есеп: ' : 'Счёт: ') + gameScore + ' / ' + gameTotal + '</div></div>';
+        const optsEl = document.getElementById('quiz-opts');
+        opts.forEach(function(o) {
+          const b = document.createElement('button');
+          b.textContent = o;
+          b.style.fontFamily = 'Amiri, serif';
+          b.style.fontSize = 'calc(1.5rem * var(--ar-scale, 1))';
+          b.addEventListener('click', function() {
+            optsEl.querySelectorAll('button').forEach(function(x){ x.disabled = true; });
+            const isRight = (o === letter.ch);
+            if (isRight) { b.classList.add('correct'); gameScore++; toast(kkQ ? 'Дұрыс!' : 'Верно!'); }
+            else {
+              b.classList.add('wrong');
+              optsEl.querySelectorAll('button').forEach(function(x){ if (x.textContent === letter.ch) x.classList.add('correct'); });
+              toast((kkQ ? 'Дұрысы: ' : 'Правильно: ') + letter.ch);
+              try { _teacherSessionWrongs.push({ q: (letter.nameKk||letter.name), your: o, correct: letter.ch }); } catch(e) {}
+            }
+            setTimeout(nextMixedQuestion, isRight ? 900 : 1500);
+          });
+          optsEl.appendChild(b);
+        });
+      } else {
+        const r = item.data;
+        const others = shuffle(pool_safe(r)).slice(0, otherN);
+        const txt = (kkQ && r.shortKk) ? r.shortKk : (r.short || r.ru || r.body || r.ar || r.title || '');
+        const ans = (kkQ && r.titleKk) ? r.titleKk : r.title;
+        const otherAns = others.map(function(o){ return (kkQ && o.titleKk) ? o.titleKk : o.title; });
+        const opts = shuffle([ans].concat(otherAns));
+        area.innerHTML = '<div class="quiz-card"><div class="quiz-q" style="font-size:0.95rem;font-weight:500">' + String(txt).replace(/<[^>]+>/g,'').slice(0,140) + '</div>' +
+          '<div class="quiz-opts" id="quiz-opts"></div>' +
+          '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Есеп: ' : 'Счёт: ') + gameScore + ' / ' + gameTotal + '</div></div>';
+        const optsEl = document.getElementById('quiz-opts');
+        opts.forEach(function(o) {
+          const b = document.createElement('button');
+          b.textContent = o;
+          b.addEventListener('click', function() {
+            optsEl.querySelectorAll('button').forEach(function(x){ x.disabled = true; });
+            const isRight = (o === ans);
+            if (isRight) { b.classList.add('correct'); gameScore++; toast(kkQ ? 'Дұрыс!' : 'Верно!'); }
+            else {
+              b.classList.add('wrong');
+              optsEl.querySelectorAll('button').forEach(function(x){ if (x.textContent === ans) x.classList.add('correct'); });
+              toast((kkQ ? 'Дұрысы: ' : 'Правильно: ') + ans);
+              try { _teacherSessionWrongs.push({ q: String(txt).slice(0,60), your: o, correct: ans }); } catch(e) {}
+            }
+            setTimeout(nextMixedQuestion, isRight ? 900 : 1500);
+          });
+          optsEl.appendChild(b);
+        });
+      }
+      function pool_safe(r) {
+        const pool = ARABIC_RULES.concat(TAJWEED_RULES);
+        return pool.filter(function(x){ return x.title !== r.title; });
+      }
+    }
+
     function nextRulesQuestion() {
       if (!gameQueue.length) return endGame();
       gameTotal++;
@@ -9534,6 +10557,7 @@ function renderMistakes() {
             b.classList.add('wrong');
             optsEl.querySelectorAll('button').forEach(x => { if (x.textContent === item.answer) x.classList.add('correct'); });
             toast((kkQ ? 'Жауабы: ' : 'Ответ: ') + item.answer);
+            try { _teacherSessionWrongs.push({ q: item.q.slice(0, 60), your: o, correct: item.answer }); } catch(e) {}
             // build 5.91: раньше при ошибке был только тост с названием
             // правильного ответа — теперь сразу тут же, в самой карточке,
             // короткое объяснение ПОЧЕМУ, а не только КАКОЙ ответ верный.
@@ -9553,37 +10577,66 @@ function renderMistakes() {
       });
     }
 
+    // build 5.96: раньше каждый раз качало случайную суру/аят по сети (долго,
+    // зависит от интернета, без выбора сложности). Теперь использует уже
+    // готовую систему сложности аятов (по длине + признакам таджвида) —
+    // быстро, офлайн-дружелюбно, и наконец подчиняется панели сложности
+    // (Лёгкий/Средний/Сложный), как остальные тесты. Также можно в любую
+    // сторону: по-арабски → перевод, или по переводу → найти аят.
     async function startAyahGame() {
       const area = document.getElementById('game-area');
       const kkA = isKk();
-      area.innerHTML = '<div class="loading"><div class="spinner"></div>' + (kkA ? 'Аят жүктелуде...' : 'Загрузка аята...') + '</div>';
+      const diff = getQuizDifficulty();
+      const item = pickRandomWbwAyah(diff) || pickRandomWbwAyah('medium');
+      if (!item) { area.innerHTML = '<div class="empty-state">' + (kkA ? 'Деректер жоқ' : 'Нет данных') + '</div>'; return; }
+      const ayahs = (item.surah === 1 && typeof FATIHA_LESSON !== 'undefined') ? FATIHA_LESSON : (WBW_STUDY_SURAHS[item.surah] || []);
+      const ayObj = ayahs.find(function(a){ return a.ayah === item.ayah; });
+      if (!ayObj) { area.innerHTML = '<div class="empty-state">' + (kkA ? 'Деректер жоқ' : 'Нет данных') + '</div>'; return; }
+      const text = ayObj.full || (ayObj.words || []).map(function(w){ return w.ar; }).join(' ');
+      const translation = ayObj.fullTr || '';
+      const pool = getWbwAyahsWithDifficulty().filter(function(x){ return x.surah !== item.surah || x.ayah !== item.ayah; });
+      const wrong = [];
+      while (wrong.length < 3 && pool.length) {
+        const o = pool[Math.floor(Math.random() * pool.length)];
+        const oAyahs = (o.surah === 1 && typeof FATIHA_LESSON !== 'undefined') ? FATIHA_LESSON : (WBW_STUDY_SURAHS[o.surah] || []);
+        const oObj = oAyahs.find(function(a){ return a.ayah === o.ayah; });
+        if (oObj && oObj.fullTr && oObj.fullTr !== translation && wrong.indexOf(oObj.fullTr) < 0) wrong.push(oObj.fullTr.slice(0, 100));
+      }
+      const reverse = Math.random() < 0.5; // по-арабски→перевод, либо наоборот
+      gameTotal = 1;
       try {
-        const surahs = await fetchSurahsMeta();
-        // short surahs for quiz
-        const short = surahs.filter(s => s.numberOfAyahs <= 10 && s.number >= 78);
-        const s = short[Math.floor(Math.random() * short.length)] || surahs[113];
-        const data = await fetchSurah(s.number);
-        const ayah = data.ayahs[Math.floor(Math.random() * data.ayahs.length)];
-        // hide one word from translation or show Arabic and ask meaning options
-        const wrong = [];
-        while (wrong.length < 3) {
-          const os = short[Math.floor(Math.random() * short.length)] || surahs[Math.floor(Math.random()*30)+1];
-          const od = await fetchSurah(os.number);
-          const oa = od.ayahs[Math.floor(Math.random() * od.ayahs.length)];
-          if (oa.translation !== ayah.translation) wrong.push(oa.translation.slice(0, 100));
+        if (!reverse) {
+          const opts = shuffle([translation.slice(0, 120)].concat(wrong.map(w => w.slice(0, 120))));
+          area.innerHTML =
+            '<div class="quiz-card"><div class="quiz-q"><span class="arabic-q">'+text+'</span>' +
+            (kkA ? 'Сүре '+item.surah+', аят '+item.ayah+'<br>Дұрыс аударманы таңдаңыз:' : 'Сура '+item.surah+', аят '+item.ayah+'<br>Выберите правильный перевод:') + '</div>' +
+            '<div class="quiz-opts" id="quiz-opts"></div></div>';
+          bindAyahOpts(opts, translation.slice(0, 120));
+        } else {
+          // показан перевод — нужно узнать аят среди 4 арабских вариантов
+          const wrongAr = [];
+          while (wrongAr.length < 3 && pool.length) {
+            const o = pool[Math.floor(Math.random() * pool.length)];
+            const oAyahs = (o.surah === 1 && typeof FATIHA_LESSON !== 'undefined') ? FATIHA_LESSON : (WBW_STUDY_SURAHS[o.surah] || []);
+            const oObj = oAyahs.find(function(a){ return a.ayah === o.ayah; });
+            const oText = oObj ? (oObj.full || '') : '';
+            if (oText && oText !== text && wrongAr.indexOf(oText) < 0) wrongAr.push(oText);
+          }
+          const optsAr = shuffle([text].concat(wrongAr));
+          area.innerHTML =
+            '<div class="quiz-card"><div class="quiz-q">' + (kkA ? 'Осы аудармаға сәйкес аятты табыңыз:' : 'Найдите аят, соответствующий этому переводу:') +
+            '<div style="margin-top:0.4rem;font-style:italic">' + translation + '</div></div>' +
+            '<div class="quiz-opts" id="quiz-opts"></div></div>';
+          bindAyahOpts(optsAr, text, true);
         }
-        const opts = shuffle([ayah.translation.slice(0, 120)].concat(wrong.map(w => w.slice(0, 120))));
-        gameTotal = 1;
-        area.innerHTML =
-          '<div class="quiz-card"><div class="quiz-q"><span class="arabic-q">'+ayah.text+'</span>' +
-          (kkA ? 'Сүре '+s.number+', аят '+ayah.number+'<br>Дұрыс аударманы таңдаңыз:' : 'Сура '+s.number+', аят '+ayah.number+'<br>Выберите правильный перевод:') + '</div>' +
-          '<div class="quiz-opts" id="quiz-opts"></div></div>';
+      } catch(e) {}
+      function bindAyahOpts(opts, correct, isArabic) {
         const optsEl = document.getElementById('quiz-opts');
-        const correct = ayah.translation.slice(0, 120);
         opts.forEach(o => {
           const b = document.createElement('button');
           b.textContent = o + (o.length >= 120 ? '…' : '');
-          b.style.textAlign = 'right';
+          b.style.textAlign = isArabic ? 'center' : 'right';
+          if (isArabic) { b.style.fontFamily = 'Amiri, serif'; b.style.direction = 'rtl'; }
           b.addEventListener('click', () => {
             optsEl.querySelectorAll('button').forEach(x => x.disabled = true);
             if (o === correct) { b.classList.add('correct'); gameScore = 1; toast(kkA ? 'Дұрыс! ✓' : 'Верно! ✓'); }
@@ -9596,8 +10649,6 @@ function renderMistakes() {
           });
           optsEl.appendChild(b);
         });
-      } catch (e) {
-        area.innerHTML = '<div class="empty-state">' + (kkA ? 'Аят тесті үшін интернет керек.' : 'Нужен интернет для теста по аятам.') + '</div>';
       }
     }
 
@@ -9640,6 +10691,25 @@ function renderMistakes() {
                 tipDiv.innerHTML = '<b>🤖 ' + (kkE ? 'Көмекші' : 'Помощник') + '</b><div class="ayah-translation" style="margin-top:0.35rem">' + tip + '</div>';
                 area.querySelector('.quiz-card').appendChild(tipDiv);
               }
+            } catch(e) {}
+          }
+          // build 5.99: раньше показывался только один общий совет по самой
+          // слабой букве/правилу. Теперь — честный список именно ТЕХ
+          // вопросов, где ошиблись в этой сессии, с правильным ответом рядом
+          // с каждым — не сводка, а разбор по пунктам.
+          if (_teacherSessionWrongs.length) {
+            try {
+              const wrongDiv = document.createElement('div');
+              wrongDiv.className = 'card';
+              wrongDiv.style.cssText = 'margin-top:0.6rem;text-align:left';
+              wrongDiv.innerHTML = '<b>' + (kkE ? 'Осы сессиядағы қателер' : 'Ошибки этой сессии') + ' (' + _teacherSessionWrongs.length + ')</b>' +
+                _teacherSessionWrongs.map(function(w) {
+                  return '<div style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid var(--border);font-size:0.85rem">' +
+                    '<div style="color:var(--text-muted)">' + w.q + '</div>' +
+                    '<div><span style="color:#ef4444">✗ ' + w.your + '</span> → <span style="color:var(--accent)">✓ ' + w.correct + '</span></div>' +
+                    '</div>';
+                }).join('');
+              area.querySelector('.quiz-card').appendChild(wrongDiv);
             } catch(e) {}
           }
           const back = document.createElement('button');
@@ -10533,7 +11603,9 @@ function renderMistakes() {
 const MINIMAL_PAIR_SETS = {
   easy: [['ب','ر'], ['م','ف'], ['ن','ك'], ['ل','و'], ['ي','ط'], ['ج','س']],
   medium: [['ت','ط'], ['س','ص'], ['د','ض'], ['ه','ح'], ['ك','ق']],
-  hard: [['ذ','ظ'], ['ز','ذ'], ['ح','خ'], ['ع','ء'], ['ض','ظ'], ['س','ث']]
+  // build 5.97: в «Сложный» добавлены тройки похожих букв (не только пары) —
+  // code уже был готов к этому (shuffle(pair) работает с любой длиной массива).
+  hard: [['ذ','ظ'], ['ز','ذ'], ['ح','خ'], ['ع','ء'], ['ض','ظ'], ['س','ث'], ['ذ','ظ','ز'], ['ح','خ','ه'], ['ت','ط','د'], ['س','ص','ث']]
 };
 function renderMinimalPairs(area) {
   const kkP = isKk();
@@ -10577,6 +11649,157 @@ function renderMinimalPairs(area) {
   paint();
 }
 
+// build 5.93: виртуальная арабская клавиатура прямо на сайте — чтобы не
+// зависеть от того, установлена ли арабская раскладка на телефоне, и заодно
+// чтобы расположение букв само по себе запоминалось через частое
+// использование. Вставляет символ в позицию курсора целевого поля, а не
+// просто в конец строки.
+const VKB_LETTERS_ROW1 = ['ض','ص','ث','ق','ف','غ','ع','ه','خ','ح','ج','د'];
+const VKB_LETTERS_ROW2 = ['ش','س','ي','ب','ل','ا','ت','ن','م','ك','ط'];
+const VKB_LETTERS_ROW3 = ['ئ','ء','ؤ','ر','لا','ى','ة','و','ز','ظ','ذ'];
+const VKB_MARKS_ROW = ['\u064E','\u0650','\u064F','\u0652','\u0651','\u064B','\u064D','\u064C'];
+const VKB_MARKS_LABELS = { '\u064E':'فَ','\u0650':'فِ','\u064F':'فُ','\u0652':'فْ','\u0651':'فّ','\u064B':'فً','\u064D':'فٍ','\u064C':'فٌ' };
+function renderArabicKeyboard(container, targetInputId) {
+  if (!container) return;
+  const insertChar = function(ch) {
+    const el = document.getElementById(targetInputId);
+    if (!el) return;
+    const start = el.selectionStart != null ? el.selectionStart : el.value.length;
+    const end = el.selectionEnd != null ? el.selectionEnd : el.value.length;
+    el.value = el.value.slice(0, start) + ch + el.value.slice(end);
+    el.focus();
+    el.selectionStart = el.selectionEnd = start + ch.length;
+  };
+  const letterBtn = function(ch) {
+    return '<button type="button" class="btn btn-sm vkb-key" data-vkb="' + ch + '" style="font-family:Amiri,serif;font-size:1.1rem;min-width:2.1rem;padding:0.3rem 0.2rem">' + ch + '</button>';
+  };
+  container.innerHTML =
+    '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:center;direction:rtl">' + VKB_LETTERS_ROW1.map(letterBtn).join('') + '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:center;direction:rtl;margin-top:0.25rem">' + VKB_LETTERS_ROW2.map(letterBtn).join('') + '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:center;direction:rtl;margin-top:0.25rem">' + VKB_LETTERS_ROW3.map(letterBtn).join('') + '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:center;margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid var(--border)">' +
+    VKB_MARKS_ROW.map(function(m) {
+      return '<button type="button" class="btn btn-sm vkb-key" data-vkb="' + m + '" style="font-family:Amiri,serif;font-size:1.05rem;min-width:2.3rem;padding:0.3rem 0.2rem">' + VKB_MARKS_LABELS[m] + '</button>';
+    }).join('') +
+    '</div>' +
+    '<div style="display:flex;gap:0.3rem;margin-top:0.4rem">' +
+    '<button type="button" class="btn btn-sm" id="vkb-space" style="flex:2">' + (isKk() ? 'Бос орын' : 'Пробел') + '</button>' +
+    '<button type="button" class="btn btn-sm" id="vkb-back" style="flex:1">⌫</button>' +
+    '<button type="button" class="btn btn-sm" id="vkb-clear" style="flex:1">' + (isKk() ? 'Тазарту' : 'Очистить') + '</button>' +
+    '</div>';
+  container.querySelectorAll('[data-vkb]').forEach(function(btn) {
+    btn.addEventListener('click', function() { insertChar(btn.getAttribute('data-vkb')); });
+  });
+  document.getElementById('vkb-space')?.addEventListener('click', function() { insertChar(' '); });
+  document.getElementById('vkb-back')?.addEventListener('click', function() {
+    const el = document.getElementById(targetInputId);
+    if (!el) return;
+    const start = el.selectionStart != null ? el.selectionStart : el.value.length;
+    const end = el.selectionEnd != null ? el.selectionEnd : el.value.length;
+    if (start === end && start > 0) {
+      el.value = el.value.slice(0, start - 1) + el.value.slice(end);
+      el.focus(); el.selectionStart = el.selectionEnd = start - 1;
+    } else {
+      el.value = el.value.slice(0, start) + el.value.slice(end);
+      el.focus(); el.selectionStart = el.selectionEnd = start;
+    }
+  });
+  document.getElementById('vkb-clear')?.addEventListener('click', function() {
+    const el = document.getElementById(targetInputId);
+    if (!el) return;
+    el.value = '';
+    el.focus();
+  });
+}
+
+// build 5.93: «напишите букву» — рисование от руки по канве поверх
+// полупрозрачного образца буквы (не проверяет правильность штрихов
+// автоматически — это требовало бы отдельного распознавания почерка,
+// честно ограничиваемся практикой «рука помнит форму», с кнопками
+// «Очистить» и «Показать ещё раз образец»).
+// build 5.97: отдельный тренажёр «✍️ Написать букву» в «Практика →
+// Тренажёры» — раньше холст для письма был доступен только внутри уроков
+// «Личного учителя». Выбор буквы + тот же холст, без привязки к Учителю.
+function renderWriteLetterDrill(area) {
+  const kkW = isKk();
+  area.innerHTML =
+    '<div class="card"><b>' + (kkW ? 'Әріпті таңдаңыз' : 'Выберите букву') + '</b>' +
+    '<div id="write-letter-grid" style="display:flex;flex-wrap:wrap;gap:0.4rem;justify-content:center;margin-top:0.5rem"></div></div>' +
+    '<div id="write-letter-area" style="margin-top:0.75rem"></div>';
+  const grid = document.getElementById('write-letter-grid');
+  ARABIC_LETTERS.forEach(function(l) {
+    const b = document.createElement('button');
+    b.className = 'btn btn-sm';
+    b.style.fontFamily = 'Amiri, serif';
+    b.style.fontSize = '1.2rem';
+    b.textContent = l.ch;
+    b.addEventListener('click', function() {
+      grid.querySelectorAll('button').forEach(function(x){ x.classList.remove('btn-primary'); });
+      b.classList.add('btn-primary');
+      renderLetterWriteCanvas(document.getElementById('write-letter-area'), l.ch);
+    });
+    grid.appendChild(b);
+  });
+  // сразу открыть первую букву, чтобы не было пусто
+  grid.querySelector('button')?.click();
+}
+function renderLetterWriteCanvas(container, ch) {
+  if (!container) return;
+  const kkW = isKk();
+  container.innerHTML =
+    '<div style="position:relative;width:100%;max-width:320px;margin:0 auto;aspect-ratio:1;border:1px solid var(--border);border-radius:0.6rem;overflow:hidden;background:var(--bg)">' +
+    '<div id="write-ghost" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Amiri,serif;font-size:min(60vw,220px);color:var(--text-muted);opacity:0.25;pointer-events:none" dir="rtl">' + ch + '</div>' +
+    '<canvas id="write-canvas" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas>' +
+    '</div>' +
+    '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;max-width:320px;margin-left:auto;margin-right:auto">' +
+    '<button type="button" class="btn btn-sm" id="write-ghost-toggle" style="flex:1">👻 ' + (kkW ? 'Үлгі' : 'Образец') + '</button>' +
+    '<button type="button" class="btn btn-sm" id="write-clear" style="flex:1">🗑 ' + (kkW ? 'Тазарту' : 'Очистить') + '</button>' +
+    '</div>';
+  const canvas = document.getElementById('write-canvas');
+  const ghost = document.getElementById('write-ghost');
+  const ctx = canvas.getContext('2d');
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * (window.devicePixelRatio || 1);
+    canvas.height = rect.height * (window.devicePixelRatio || 1);
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#10b981';
+  }
+  resize();
+  let drawing = false, lastX = 0, lastY = 0;
+  function pos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+  canvas.addEventListener('pointerdown', function(e) {
+    drawing = true;
+    const p = pos(e);
+    lastX = p.x; lastY = p.y;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', function(e) {
+    if (!drawing) return;
+    const p = pos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    lastX = p.x; lastY = p.y;
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(function(ev) {
+    canvas.addEventListener(ev, function() { drawing = false; });
+  });
+  document.getElementById('write-clear')?.addEventListener('click', function() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  });
+  document.getElementById('write-ghost-toggle')?.addEventListener('click', function() {
+    ghost.style.display = (ghost.style.display === 'none') ? 'flex' : 'none';
+  });
+}
+
 function renderDictation(area) {
       if (!area) area = document.getElementById('game-area');
       if (!area) return;
@@ -10606,8 +11829,13 @@ function renderDictation(area) {
           '<button type="button" class="btn btn-sm" id="dict-skip">' + (kkD ? 'Басқа аят' : 'Другой аят') + '</button></div>' +
           '<div class="surah-meta">'+(item.ref||'')+' · ' + (kkD ? 'есеп: ' : 'счёт: ') + score+'/'+total+'</div>' +
           '<textarea id="dict-input" rows="3" placeholder="' + (kkD ? 'Естігеніңізді теріңіз...' : 'Введите услышанное...') + '" style="width:100%;margin:0.5rem 0;padding:0.55rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:1.15rem;direction:rtl"></textarea>' +
+          '<div id="dict-vkb" style="margin-bottom:0.5rem"></div>' +
           '<button type="button" class="btn btn-primary" id="dict-check" style="width:100%">' + (kkD ? 'Тексеру' : 'Проверить') + '</button>' +
           '<div id="dict-fb" style="margin-top:0.5rem"></div></div>';
+        // build 5.93: виртуальная арабская клавиатура — печатать ответ можно
+        // прямо на сайте, не завися от того, настроена ли арабская
+        // раскладка на телефоне.
+        try { renderArabicKeyboard(document.getElementById('dict-vkb'), 'dict-input'); } catch(e) {}
         document.getElementById('dict-play')?.addEventListener('click', () => {
           try {
             if (typeof speakArText === 'function') speakArText(item.ar);
@@ -17628,6 +18856,73 @@ function renderDict() {
     let aotdMode = 'hour'; // 'hour' = меняется каждый час, 'day' = раз в сутки
     let aotdExpanded = false;
     let aotdCurrent = null; // {s, a}
+    // build 6.02: маленький виджет-мостик «Ежедневное» → «Личный учитель» —
+    // раньше это были два совсем не связанных раздела, и если человек не
+    // планировал специально заходить в «Учёбу», он мог просто не вспомнить
+    // об уроке. Показывает ОДИН конкретный следующий шаг (новый урок, если
+    // есть, иначе — повторение, если оно подошло по сроку) и кнопку начать
+    // прямо отсюда, без перехода в «Учёба» вручную.
+    function renderTeacherNextWidget() {
+      const el = document.getElementById('dailyhub-teacher');
+      if (!el || typeof PERSONAL_TEACHER_SKILLS === 'undefined') { if (el) el.innerHTML = ''; return; }
+      const kkT = isKk();
+      let target = null, isReviewTarget = false;
+      try { target = (typeof pickDueReview === 'function') ? pickDueReview() : null; if (target) isReviewTarget = true; } catch(e) {}
+      if (!target) { try { target = (typeof pickNextSkill === 'function') ? pickNextSkill() : null; } catch(e) {} }
+      if (!target) { el.innerHTML = ''; return; } // курс пройден целиком — нечего предлагать
+      el.innerHTML = '<div class="card" style="cursor:pointer;border-color:' + (isReviewTarget ? '#f59e0b' : 'var(--accent)') + '" data-go-teacher-next="1">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<span style="font-size:0.75rem;font-weight:700;color:' + (isReviewTarget ? '#f59e0b' : 'var(--accent)') + ';letter-spacing:0.04em">' +
+        (isReviewTarget ? '🔁 ' + (kkT ? 'ҚАЙТАЛАУ УАҚЫТЫ' : 'ПОРА ПОВТОРИТЬ') : '👨‍🏫 ' + (kkT ? 'КЕЛЕСІ САБАҚ' : 'СЛЕДУЮЩИЙ УРОК')) + '</span>' +
+        '<span style="color:var(--text-muted);font-size:0.8rem">~3 ' + (kkT ? 'мин' : 'мин') + '</span></div>' +
+        '<div style="font-weight:700;margin-top:0.3rem">' + target.title + '</div>' +
+        '<button type="button" class="btn btn-sm btn-primary" style="width:100%;margin-top:0.5rem" data-go-teacher-next-btn="1">▶ ' + (kkT ? 'Бастау' : 'Начать') + '</button>' +
+        '</div>';
+      const startLesson = function() {
+        try {
+          showView('teacher');
+          setTimeout(function() { if (typeof startTeacherSkillPractice === 'function') startTeacherSkillPractice(target, isReviewTarget); }, 60);
+        } catch(e) {}
+      };
+      el.querySelector('[data-go-teacher-next]')?.addEventListener('click', startLesson);
+      el.querySelector('[data-go-teacher-next-btn]')?.addEventListener('click', function(ev) { ev.stopPropagation(); startLesson(); });
+    }
+
+    // build 5.98: «Напоминание дня» — отдельная карточка от «Аят дня».
+    // Показывает аят с чётким повелением/запретом + короткое пояснение
+    // простыми словами (DAILY_COMMAND_AYAHS). Ротация по дню года, тот же
+    // принцип, что и у «Аят дня», но свой собственный источник данных —
+    // карточки совершенно не связаны между собой.
+    async function renderDailyCommandCard() {
+      const el = document.getElementById('dailyhub-command');
+      if (!el || typeof DAILY_COMMAND_AYAHS === 'undefined' || !DAILY_COMMAND_AYAHS.length) return;
+      const kkC = isKk();
+      const now = new Date();
+      const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+      const item = DAILY_COMMAND_AYAHS[dayOfYear % DAILY_COMMAND_AYAHS.length];
+      el.innerHTML = '<div class="card"><div class="loading" style="padding:0.5rem 0"><div class="spinner"></div></div></div>';
+      try {
+        const data = await fetchSurah(item.s);
+        const ayahsSlice = data.ayahs.filter(function(a) { return a.number >= item.aFrom && a.number <= item.aTo; });
+        if (!ayahsSlice.length) { el.innerHTML = ''; return; }
+        const arText = ayahsSlice.map(function(a) { return a.text; }).join(' ');
+        const trText = ayahsSlice.map(function(a) { return a.translation; }).join(' ');
+        const sName = (typeof surahNameLocal === 'function') ? surahNameLocal(item.s, data.meta && data.meta.englishName) : ('Сура ' + item.s);
+        const refLabel = item.aFrom === item.aTo ? (item.s + ':' + item.aFrom) : (item.s + ':' + item.aFrom + '-' + item.aTo);
+        el.innerHTML = '<div class="card" style="cursor:pointer;border-color:#f59e0b" data-go-command="1" title="' + (kkC ? 'Басыңыз — толық аятты ашу' : 'Нажмите — открыть полный аят') + '">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.35rem">' +
+          '<span style="font-size:0.75rem;font-weight:700;color:#f59e0b;letter-spacing:0.04em">📌 ' + (kkC ? 'КҮННІҢ ЕСКЕРТУІ' : 'НАПОМИНАНИЕ ДНЯ') + '</span>' +
+          '<span class="page-badge">' + sName + ' · ' + refLabel + '</span></div>' +
+          '<div class="arabic" dir="rtl" style="font-size:calc(1.25rem * var(--ar-scale, 1));line-height:1.9;margin-bottom:0.5rem">' + arText + '</div>' +
+          '<div class="ayah-translation" style="margin-bottom:0.5rem">' + trText + '</div>' +
+          '<div style="background:rgba(245,158,11,0.12);border-radius:0.5rem;padding:0.5rem 0.65rem;font-weight:600">💡 ' + (kkC ? item.kk : item.ru) + '</div>' +
+          '</div>';
+        el.querySelector('[data-go-command]')?.addEventListener('click', function() {
+          try { openSurah(item.s, item.aFrom); showView('reader'); } catch(e) {}
+        });
+      } catch(e) { el.innerHTML = ''; }
+    }
+
     async function renderAyahOfDay(forcePick) {
       const el = document.getElementById('dailyhub-ayah');
       if (!el) return;
@@ -25632,6 +26927,8 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         streak: streakCard,
         prayer: prayerMini,
         ayah: '<div id="dailyhub-ayah" class="aotd-card"></div>',
+        command: '<div id="dailyhub-command"></div>',
+        teachernext: '<div id="dailyhub-teacher"></div>',
         story: '<div id="dailyhub-story"></div>',
         dua: '<div class="card" style="cursor:pointer" data-go-dua="1" title="'+(isKk?'Басыңыз — «Азкар және дұға» бөлімінде ашу':'Нажмите — открыть в разделе «Азкары и дуа»')+'"><div style="display:flex;justify-content:space-between"><b>🤲 '+(isKk?'Күн дұғасы':'Дуа дня')+'</b><span><button type="button" class="btn btn-sm" data-speak-dua="1">🔊</button> <button type="button" class="btn btn-sm" data-daily-next="dua" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="dua" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-dua="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic" style="font-size:calc(1.3rem * var(--ar-scale, 1));margin:0.5rem 0">'+dua.ar+'</div>'+(dua.tr?'<div style="color:var(--accent);margin:0.25rem 0;font-size:0.95rem">'+dua.tr+'</div>':'')+'<div class="ayah-translation">'+(isKk&&dua.kk?dua.kk:dua.ru)+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Азкар және дұға» бөлімінде ашу →':'Нажмите — открыть в разделе «Азкары и дуа» →')+'</div></div>',
         name: nameCard,
@@ -25639,7 +26936,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         sunnah: '<div class="card" style="cursor:pointer" data-go-sunnah="1" title="'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу':'Нажмите — открыть в разделе «Сунны»')+'"><div style="display:flex;justify-content:space-between"><b>🌱 '+(isKk?'Күн сүннеті':'Сунна дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-sunnah="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><b>'+(isKk&&sun.titleKk?sun.titleKk:sun.title)+'</b><div class="ayah-translation">'+(isKk&&sun.kk?sun.kk:sun.ru)+'</div><div style="font-size:0.85rem;color:var(--text-muted)">'+sun.proof+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу →':'Нажмите — открыть в разделе «Сунны» →')+'</div></div>',
         word: '<div class="card"><div style="display:flex;justify-content:space-between"><b>🔤 '+(isKk?'Күн сөзі':'Слово дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-word="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic">'+word.ar+'</div><div>'+word.tr+' — '+(isKk&&word.kk?word.kk:word.ru)+'</div></div>'
       };
-      const widgetOrder = (typeof getDailyWidgetOrder === 'function') ? getDailyWidgetOrder() : ['events','prayer','ayah','story','dua','name','hadith','sunnah','word'];
+      const widgetOrder = (typeof getDailyWidgetOrder === 'function') ? getDailyWidgetOrder() : ['events','prayer','teachernext','ayah','command','story','dua','name','hadith','sunnah','word'];
       // build 5.75: приветствие по имени + «аватар» (буква имени или 🌙)
       // сверху «Ежедневного», вместо безликого набора карточек с ходу.
       // Плюс поздравление в особые дни: пятница (Джума) и Айт (по датам
@@ -25660,17 +26957,35 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         } catch(e) {}
         if (!special && dow === 5) special = { ru: 'Джума мубарак! 🕌', kk: 'Жұма мүбарак болсын! 🕌' };
         const avatarLetter = name ? name.charAt(0).toUpperCase() : '🌙';
-        const greetText = special
-          ? (isKk ? special.kk : special.ru)
-          : (name
-              ? (isKk ? ('Ассалаумағалейкум, ' + name + '!') : ('Ассаламу алейкум, ' + name + '!'))
-              : (isKk ? 'Ассалаумағалейкум!' : 'Ассаламу алейкум!'));
+        // build 5.98: полное приветствие «Ассаляму алейкум уа рахматуллаһи уа
+        // баракатух» — одно и то же на обоих языках интерфейса (это
+        // устоявшаяся арабская формула приветствия, не переводится по
+        // частям), плюс арабский текст и короткое пожелание-дуа по кругу (по
+        // дню года, чтобы не повторялось каждый день). Для праздников —
+        // отдельное полное приветствие + именно праздничное пожелание, а не
+        // довесок к обычной фразе.
+        const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+        const duas = (typeof DAILY_GREETING_DUAS !== 'undefined' && DAILY_GREETING_DUAS.length) ? DAILY_GREETING_DUAS : [];
+        const dua = duas.length ? duas[dayOfYear % duas.length] : null;
+        const FULL_GREETING_AR = 'السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ';
+        const FULL_GREETING_TXT = 'Ассаляму алейкум уа рахматуллаһи уа баракатух' + (name ? (isKk ? ', ' + name : ', ' + name) : '');
+        const greetText = special ? (isKk ? special.kk : special.ru) : FULL_GREETING_TXT;
+        const greetAr = special ? '' : FULL_GREETING_AR;
+        const wishText = special
+          ? '' // у праздника уже своё полное пожелание в greetText — дублировать не нужно
+          : (dua ? (isKk ? dua.kk : dua.ru) : '');
+        const wishAr = special ? '' : (dua ? dua.ar : '');
         let dateLabel = '';
         try { dateLabel = now.toLocaleDateString(isKk ? 'kk-KZ' : 'ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }); } catch(e) {}
         greetingBar = '<div class="card" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 75%, #7c3aed) 100%);border:none;box-shadow:var(--shadow-accent)">' +
           '<div style="width:2.8rem;height:2.8rem;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;color:#fff;flex-shrink:0" data-go-greeting-name="1" title="'+(isKk?'Атыңызды баптауларда орнатыңыз':'Настроить имя в настройках')+'">'+avatarLetter+'</div>' +
-          '<div style="min-width:0"><div style="font-weight:700;color:#fff;font-size:1.05rem">'+greetText+'</div>' +
-          (dateLabel ? '<div style="color:rgba(255,255,255,0.85);font-size:0.8rem;text-transform:capitalize">'+dateLabel+'</div>' : '') +
+          '<div style="min-width:0">' +
+          (greetAr ? '<div class="arabic" dir="rtl" style="font-size:calc(1.1rem * var(--ar-scale, 1));color:#fff;opacity:0.95">'+greetAr+'</div>' : '') +
+          '<div style="font-weight:700;color:#fff;font-size:1.05rem">'+greetText+'</div>' +
+          (wishText ? ('<div style="margin-top:0.3rem;padding-top:0.3rem;border-top:1px solid rgba(255,255,255,0.25)">' +
+            (wishAr ? '<div class="arabic" dir="rtl" style="font-size:calc(0.95rem * var(--ar-scale, 1));color:rgba(255,255,255,0.9)">'+wishAr+'</div>' : '') +
+            '<div style="color:rgba(255,255,255,0.9);font-size:0.82rem;font-style:italic">'+wishText+'</div></div>') : '') +
+          (dateLabel ? '<div style="color:rgba(255,255,255,0.85);font-size:0.8rem;text-transform:capitalize;margin-top:0.25rem">'+dateLabel+'</div>' : '') +
           '</div></div>';
       } catch(e) {}
       // build 5.76: скрытые долгим нажатием виджеты (не то же самое, что
@@ -25860,6 +27175,8 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         else if (typeof playArabicAudio === 'function') playArabicAudio(dua.ar, dua.ru, { adhkar: true, dua: true });
       });
       try { renderAyahOfDay(); } catch(e) {}
+      try { renderDailyCommandCard(); } catch(e) {}
+      try { renderTeacherNextWidget(); } catch(e) {}
       try { renderStoryOfDay(); } catch(e) {}
     
       el.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => showView(b.dataset.go)));
