@@ -913,28 +913,11 @@
         <input type="search" id="settings-search" placeholder="🔍 Поиск по настройкам..." style="width:100%;padding:0.6rem 0.85rem;border-radius:0.65rem;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:0.95rem">
         <div id="settings-search-results" style="display:none;margin-top:0.5rem"></div>
       </div>
-      
-      <div class="card" style="margin-bottom:0.75rem" data-settings-group="lists">
-        <b>📄 Списки и страницы</b>
-        <div class="ayah-translation" style="margin:0.35rem 0 0.5rem;font-size:calc(0.88rem * var(--ru-scale, 1))">Сколько записей на одной странице в «Обновлениях» и «Упомянутых хадисах». «Без страниц» — показывать всё сразу.</div>
-        <label style="display:block;margin-bottom:0.35rem;font-size:0.9rem">Записей на странице</label>
-        <select id="setting-list-page-size" class="input" style="width:100%;padding:0.5rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">
-          <option value="25">25</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-          <option value="200">200</option>
-          <option value="0">Без страниц (все)</option>
-        </select>
-      </div>
-<div class="card" style="margin-bottom:0.75rem;border-color:var(--accent);cursor:pointer" data-tip-toggle="1">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
-          <b>⚡ Быстрые пресеты</b>
-          <span style="font-size:0.78rem;color:var(--text-muted)">Что это? ▾</span>
-        </div>
-        <div class="tip-body ayah-translation" style="display:none;margin:0.35rem 0 0.6rem;font-size:calc(0.82rem * var(--ru-scale, 1))">Применяют сразу несколько настроек одной кнопкой, вместо ручной настройки по отдельности. Нажмите на карточку пресета ниже — что именно изменится (с текущего значения на новое); кнопка «Применить» внутри неё применяет сразу, без разворачивания. Можно сохранить и свой набор настроек как пресет — кнопка снизу. После применения любой пункт можно донастроить вручную ниже.</div>
-        <div id="presets-list" style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.6rem"></div>
-        <button type="button" class="btn btn-sm" id="btn-save-preset" style="margin-top:0.6rem;width:100%">💾 Сохранить текущие настройки как пресет</button>
-      </div>
+      <!-- build 6.05: «Списки и страницы» и «Быстрые пресеты» раньше стояли
+           здесь — всегда наверху, вне системы категорий, независимо от
+           выбранной вкладки. Перенесены внутрь категорий ниже (пресеты —
+           своей вкладкой, списки/страницы — в «Другое»), чтобы сразу после
+           поиска начинались категории, а не эти две карточки. -->
       <div class="tabs-row" style="margin-bottom:0.75rem;flex-wrap:wrap" id="settings-cats">
         <button type="button" class="btn btn-sm btn-primary" data-set-cat="lang">Язык</button>
         <button type="button" class="btn btn-sm" data-set-cat="audio">Аудио</button>
@@ -942,6 +925,7 @@
         <button type="button" class="btn btn-sm" data-set-cat="fonts">Шрифты</button>
         <button type="button" class="btn btn-sm" data-set-cat="read">Чтение</button>
         <button type="button" class="btn btn-sm" data-set-cat="study" style="position:relative">Учёба<span id="study-tab-new-badge" style="position:absolute;top:-0.5rem;right:-0.4rem;background:var(--accent);color:#fff;font-size:0.62rem;line-height:1;padding:0.18rem 0.32rem;border-radius:0.6rem;font-weight:600;display:none">новое</span></button>
+        <button type="button" class="btn btn-sm" data-set-cat="presets">Пресеты</button>
         <button type="button" class="btn btn-sm" data-set-cat="notif">Уведомления</button>
         <button type="button" class="btn btn-sm" data-set-cat="offline">Офлайн</button>
         <button type="button" class="btn btn-sm" data-set-cat="security">Пароли</button>
@@ -1037,6 +1021,9 @@
         </div>
         <div class="setting-row" style="margin-top:0.35rem">
           <span style="font-size:0.78rem;opacity:0.75">✅ Айман Сувейд, Хусари (муаллим), Абдуль-Басит (мураттал) и Мухаммад Джибрил — сверены с официальным списком everyayah.com (build 5.25), папки верные.</span>
+        </div>
+        <div class="setting-row" style="margin-top:0.35rem">
+          <span style="font-size:0.78rem;color:var(--accent)">🎙 Подсветка текущего слова при прослушивании (в обычном чтении и в «Цвета таджвида») работает только с чтецом «Хусари (мураттал)» — только для него есть точные тайм-коды слов. С другими чтецами аят всё равно звучит нормально, просто без подсветки.</span>
         </div>
         <div class="setting-row" style="margin-top:0.35rem">
           <span style="font-size:0.8rem;opacity:0.75">Сравнить чтецов на одном аяте — кнопка «🆚» под любым аятом в чтении.</span>
@@ -1316,6 +1303,22 @@
             <option value="0">Выкл (по умолчанию)</option>
           </select>
         </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+        <!-- build 6.05: вкладка «Учёба» раньше вообще не упоминала
+             «Личного учителя», хотя это теперь, пожалуй, самый крупный
+             раздел сайта — нашёл этот пробел в ходе проверки настроек. -->
+        <b style="display:block;margin-bottom:0.35rem">👨‍🏫 Личный учитель</b>
+        <div class="setting-row">
+          <span>Ежедневная цель и напоминание<br><small style="color:var(--text-muted);font-weight:400">Счётчик «дней подряд» по Учителю на главном экране «Ежедневное»</small></span>
+          <select id="setting-teacher-daily-goal">
+            <option value="1">Вкл (по умолчанию)</option>
+            <option value="0">Выкл</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>Прогресс Учителя<br><small style="color:var(--text-muted);font-weight:400">Сбрасывает только освоенные навыки, дерево уроков и статистику Учителя — остальной прогресс по сайту не затрагивается</small></span>
+          <button type="button" class="btn btn-sm" id="btn-reset-teacher-progress" style="border-color:#ef4444;color:#ef4444">↺ Сбросить</button>
+        </div>
       </div>
       <div class="card set-cat" data-set-panel="notif" style="margin-bottom:0.75rem;display:none">
         <b>🔔 Уведомления и азан</b>
@@ -1406,6 +1409,16 @@
             <option value="0">Выкл</option>
           </select>
         </div>
+        <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem" data-settings-group="lists">
+          <span>📄 Записей на странице<br><small style="color:var(--text-muted);font-weight:400">В «Обновлениях» и «Упомянутых хадисах». «Без страниц» — показывать всё сразу.</small></span>
+          <select id="setting-list-page-size" class="input">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="200">200</option>
+            <option value="0">Без страниц (все)</option>
+          </select>
+        </div>
         </div>
 
         <div class="subtab-panel" data-subtab-panel="ach" data-subtabs-group="other" style="display:none">
@@ -1464,6 +1477,14 @@
           <button type="button" class="btn btn-sm btn-install-pwa">Установить приложение</button>
         </div>
         </div>
+      </div>
+      <!-- build 6.05: «Пресеты» — теперь своя категория, а не карточка,
+           всегда висящая над всеми вкладками. -->
+      <div class="card set-cat" data-set-panel="presets" style="margin-bottom:0.75rem;display:none">
+        <b>⚡ Быстрые пресеты</b>
+        <div class="ayah-translation" style="margin:0.35rem 0 0.6rem;font-size:calc(0.85rem * var(--ru-scale, 1))">Применяют сразу несколько настроек одной кнопкой, вместо ручной настройки по отдельности. Нажмите на карточку пресета ниже — что именно изменится (с текущего значения на новое); кнопка «Применить» внутри неё применяет сразу, без разворачивания. Можно сохранить и свой набор настроек как пресет — кнопка снизу. После применения любой пункт можно донастроить вручную в других вкладках.</div>
+        <div id="presets-list" style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.6rem"></div>
+        <button type="button" class="btn btn-sm" id="btn-save-preset" style="margin-top:0.6rem;width:100%">💾 Сохранить текущие настройки как пресет</button>
       </div>
       <div style="margin-top:1rem;text-align:center">
         <button type="button" class="btn btn-sm" id="btn-reset-settings" style="border-color:#ef4444;color:#ef4444">↺ Сбросить настройки по умолчанию</button>

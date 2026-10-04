@@ -936,14 +936,18 @@
     };
 
     const MORE_MENU_DEFAULT = [
-      { id:'fiqh', icon:'📕', label:'Фикх', group:'knowledge' },
+      // build 6.05: «Фикх» и «Намаз» спрятаны по просьбе пользователя — пока
+      // не того вида, что он себе представлял. Не удалено, просто
+      // закомментировано — и из списка «Ещё», и из переключателей в
+      // настройках (оба читают этот же массив), легко вернуть обратно.
+      // { id:'fiqh', icon:'📕', label:'Фикх', group:'knowledge' },
       { id:'aqidah', icon:'☪️', label:'Акыйда', group:'knowledge' },
       { id:'hadiths', icon:'📗', label:'Хадисы', group:'knowledge' },
       { id:'stories', icon:'📜', label:'История ислама', group:'knowledge' },
       { id:'sins', icon:'😔', label:'Грехи и тауба', group:'knowledge' },
       { id:'adab', icon:'🗣️', label:'Адаб общения', group:'knowledge' },
       { id:'prayertimes', icon:'🕐', label:'Время намаза и кибла', group:'worship' },
-      { id:'salah', icon:'🙇', label:'Намаз', group:'worship' },
+      // { id:'salah', icon:'🙇', label:'Намаз', group:'worship' },
       { id:'adhkar', icon:'🤲', label:'Азкары и дуа', group:'worship' },
       { id:'dhikr', icon:'🔢', label:'Зикр', group:'worship' },
       { id:'sunnahs', icon:'💚', label:'Сунны', group:'worship' },

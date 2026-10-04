@@ -1101,6 +1101,8 @@ function applySettings() {
       if (hideTrSel) hideTrSel.value = state.settings.hideTr ? '1' : '0';
       const acadSeq = document.getElementById('setting-acad-seq');
       if (acadSeq) acadSeq.value = state.settings.academySequential === false ? '0' : '1';
+      const teacherGoalSel = document.getElementById('setting-teacher-daily-goal');
+      if (teacherGoalSel) teacherGoalSel.value = state.settings.teacherDailyGoal === false ? '0' : '1';
       const appLockSel = document.getElementById('setting-app-lock');
       if (appLockSel) {
         let lockOn = state.settings.appLock !== false;
@@ -2271,6 +2273,24 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
     function unhideDailyWidget(id) {
       setHiddenDailyWidgets(getHiddenDailyWidgets().filter(function(x){ return x !== id; }));
     }
+    // build 6.05: сворачивание карточек «Ежедневного» — не то же самое, что
+    // «скрыть» (карточка остаётся в списке, просто компактной), состояние
+    // запоминается между заходами, пока сам не развернёшь обратно.
+    function getCollapsedDailyWidgets() {
+      try { return JSON.parse(localStorage.getItem('quran_dailyhub_widgets_collapsed') || '[]'); } catch(e) { return []; }
+    }
+    function setCollapsedDailyWidgets(arr) {
+      try { localStorage.setItem('quran_dailyhub_widgets_collapsed', JSON.stringify(arr)); } catch(e) {}
+    }
+    function isDailyWidgetCollapsed(id) {
+      return getCollapsedDailyWidgets().indexOf(id) >= 0;
+    }
+    function toggleDailyWidgetCollapsed(id) {
+      var arr = getCollapsedDailyWidgets();
+      var i = arr.indexOf(id);
+      if (i >= 0) arr.splice(i, 1); else arr.push(id);
+      setCollapsedDailyWidgets(arr);
+    }
 
     // build 5.79: долгое нажатие на карточку «Ежедневного» → быстрое меню
     // (поделиться / скрыть / открыть) без обычного перехода в раздел по
@@ -2386,10 +2406,14 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       });
     })();
 
-    var DAILY_WIDGET_LABELS = { events:'Календарь событий', streak:'Стрик (дни подряд)', prayer:'Время намаза', ayah:'Аят часа/дня', story:'История дня', dua:'Дуа дня', name:'Имя Аллаха', hadith:'Хадис дня', sunnah:'Сунна дня', word:'Слово дня' };
+    var DAILY_WIDGET_LABELS = { events:'Календарь событий', streak:'Стрик (дни подряд)', prayer:'Время намаза', ayah:'Аят часа/дня', command:'Напоминание дня', teachernext:'Следующий урок (Учитель)', story:'История дня', dua:'Дуа дня', name:'Имя Аллаха', hadith:'Хадис дня', sunnah:'Сунна дня', word:'Слово дня' };
     function getDailyWidgetOrder() {
       // По умолчанию: календарь событий вместо стрика; стрик/хатм/тема дня — скрыты
-      var def = ['events','prayer','ayah','story','dua','name','hadith','sunnah','word'];
+      // build 6.05: нашёл реальную причину, почему «Напоминание дня» и
+      // виджет-мостик к Учителю не показывались ВООБЩЕ НИ У КОГО, даже у
+      // новых пользователей — я добавлял их раньше в другой, мёртвый
+      // резервный массив, а не сюда, в настоящий список по умолчанию.
+      var def = ['events','prayer','teachernext','ayah','command','story','dua','name','hadith','sunnah','word'];
       var allowed = def.concat(['streak']); // стрик можно включить вручную в настройках порядка
       try {
         var o = JSON.parse(localStorage.getItem('quran_dailyhub_widgets_order') || 'null');
@@ -6796,6 +6820,58 @@ function speakLetter(ch, name) {
       flush();
       return html;
     }
+    // build 6.05: та же цветная разметка, что и renderTajweedText, но
+    // дополнительно каждое СЛОВО обёрнуто в <span class="wt-word" data-wi>
+    // — чтобы сверху можно было подсветить слово при прослушивании (как в
+    // обычном чтении), не теряя цвет букв внутри. Раньше это были две
+    // отдельные, несовместимые друг с другом вещи: подсветка слова просто
+    // заменяла весь текст на обычные слова без цвета.
+    function renderTajweedTextWithWords(text, annotations) {
+      const chars = Array.from(text);
+      const ruleAt = new Array(chars.length).fill(null);
+      (annotations || []).forEach(function(a) {
+        const rule = a[0], s = a[1], e = a[2];
+        for (let i = s; i < e && i < ruleAt.length; i++) ruleAt[i] = rule;
+      });
+      let html = '', wordIdx = 0, inWord = false, curRule = undefined, buf = '';
+      function flushRule() {
+        if (!buf) return;
+        html += curRule ? ('<span class="tw-' + curRule + '">' + buf + '</span>') : buf;
+        buf = '';
+      }
+      for (let i = 0; i <= chars.length; i++) {
+        const ch = chars[i];
+        const isEnd = (i === chars.length);
+        const isSpace = !isEnd && ch === ' ';
+        if (isEnd || isSpace) {
+          flushRule();
+          if (inWord) { html += '</span>'; inWord = false; }
+          curRule = undefined;
+          if (isSpace) html += ' ';
+        } else {
+          if (!inWord) { wordIdx++; html += '<span class="wt-word" data-wi="' + wordIdx + '">'; inWord = true; }
+          if (ruleAt[i] !== curRule) { flushRule(); curRule = ruleAt[i]; }
+          buf += ch;
+        }
+      }
+      return { html: html, wordCount: wordIdx };
+    }
+    // Настройка подсветки слова при прослушивании для экрана «Цвета
+    // таджвида» — в отличие от wtSetupForAyah (обычное чтение), здесь текст
+    // уже раскрашен по буквам, а не просто разбит на слова, и элемент ищется
+    // по-другому (своя карточка, не .ayah).
+    function wtSetupForTajweedAyah(cardEl, surahNum, ayahNum) {
+      wtRestore();
+      if (!(state.settings && state.settings.reciter === 'ar.husary')) return;
+      const entry = (typeof getWordTiming === 'function') ? getWordTiming(surahNum, ayahNum) : null;
+      if (!entry || !entry.segments || !entry.segments.length) return;
+      const textEl = cardEl && cardEl.querySelector('.tw-ayah-text');
+      if (!textEl) return;
+      const wordSpans = textEl.querySelectorAll('.wt-word');
+      // Если число слов не совпадает с числом сегментов — молча не подсвечиваем.
+      if (wordSpans.length !== entry.segments.length) return;
+      _wtContext = { textEl: textEl, segments: entry.segments, lastWi: null };
+    }
 
     // build 5.83: сам экран «🎨 Цвета таджвида» — список тех же 26 сур
     // (Аль-Фатиха + 90–114), при открытии суры — текст с раскрашенными
@@ -6878,7 +6954,10 @@ function speakLetter(ch, name) {
             if (!anns) return;
             const textEl = card.querySelector('.tw-ayah-text');
             const raw = decodeURIComponent(textEl.dataset.twRaw);
-            textEl.innerHTML = renderTajweedText(raw, anns);
+            // build 6.05: теперь слова обёрнуты отдельно (renderTajweedTextWithWords),
+            // не просто покрашенный текст — чтобы при прослушивании можно
+            // было подсветить текущее слово, не теряя цвет правил внутри.
+            textEl.innerHTML = renderTajweedTextWithWords(raw, anns).html;
           });
         };
         if (_twCache) colorize(); else loadTajweedData().then(colorize);
@@ -6888,6 +6967,8 @@ function speakLetter(ch, name) {
             try {
               const playSurah = aN === 0 ? 1 : n; // Бисмилля — всегда аудио 1:1
               const playAyah = aN === 0 ? 1 : aN;
+              const cardEl = btn.closest('[data-tw-ayah-card]');
+              try { wtSetupForTajweedAyah(cardEl, playSurah, playAyah); } catch(e) {}
               audioQueue = [{ url: ayahAudioUrl(playSurah, playAyah, state.settings.reciter), surah: playSurah, ayah: playAyah }];
               audioQueueIdx = 0;
               playQueueItem(0);
@@ -8788,9 +8869,13 @@ function renderMistakes() {
         lips: '#fb7185', teeth: '#f8fafc', gum: '#facc15', tip: '#facc15',
         sibilant: '#facc15', palate: '#38bdf8', soft: '#38bdf8', throat: '#c084fc', tongue: '#38bdf8'
       }[zone] || 'var(--accent)';
+      // build 6.05: подпись зоны наверху раньше всегда была акцентным
+      // (зелёным) цветом, независимо от самой зоны — а точка на схеме и
+      // легенда снизу уже были правильного цвета. Теперь верх тоже цвета
+      // конкретной зоны, для согласованности сверху донизу.
       return '<div style="text-align:center">' +
-        '<div style="font-weight:600;color:var(--accent);margin:0.25rem 0">'+(kkZone ? 'Аймақ: ' : 'Зона: ')+cfg.how+'</div>' +
-        '<svg viewBox="0 0 140 162" width="100%" height="230" style="max-width:300px;display:block;margin:0 auto;background:var(--bg);border-radius:0.85rem;border:1px solid var(--border)">' +
+        '<div style="font-weight:600;color:'+zoneDot+';margin:0.25rem 0">'+(kkZone ? 'Аймақ: ' : 'Зона: ')+cfg.how+'</div>' +
+        '<svg viewBox="0 0 140 180" width="100%" height="248" style="max-width:300px;display:block;margin:0 auto;background:var(--bg);border-radius:0.85rem;border:1px solid var(--border)">' +
         // letter badge (top-right)
         '<rect x="102" y="4" width="34" height="27" rx="7" fill="var(--bg-hover)" stroke="var(--accent)" stroke-width="1.2"/>' +
         '<text x="119" y="24" text-anchor="middle" font-family="Amiri, \'Scheherazade New\', serif" font-size="20" fill="var(--accent)">'+ch+'</text>' +
@@ -8834,14 +8919,16 @@ function renderMistakes() {
           '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="13" fill="'+zoneDot+'" opacity="0.28"/>' +
           '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="7.5" fill="'+zoneDot+'" stroke="#fff" stroke-width="2.2"/>' +
         '</g>' +
-        // legend row (chips) — build 5.88: раздвинуто пошире и сделано
-        // жирным/обведено то слово, которое относится именно к этой букве,
-        // чтобы точка на рисунке и подпись внизу читались как единое целое.
-        '<g transform="translate(4,150)" font-family="system-ui" font-size="10" fill="var(--text-muted)">' +
-          '<circle cx="7" cy="0" r="4.4" fill="#fb7185" ' + (zoneDot==='#fb7185' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="15" y="3.5" ' + (zoneDot==='#fb7185' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'ерін':'губы')+'</text>' +
-          '<circle cx="43" cy="0" r="4.4" fill="#f8fafc" ' + (zoneDot==='#f8fafc' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="51" y="3.5" ' + (zoneDot==='#f8fafc' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тіс':'зубы')+'</text>' +
-          '<circle cx="78" cy="0" r="4.4" fill="#38bdf8" ' + (zoneDot==='#38bdf8' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="86" y="3.5" ' + (zoneDot==='#38bdf8' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тіл':'язык')+'</text>' +
-          '<circle cx="114" cy="0" r="4.4" fill="#c084fc" ' + (zoneDot==='#c084fc' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="122" y="3.5" ' + (zoneDot==='#c084fc' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тамақ':'горло')+'</text>' +
+        // build 6.05: легенда теперь в 2 строки по 2 (было всё в одну строку
+        // в 4 столбика — тесно). Между «точка+слово» одной пары и следующей
+        // внутри строки — дефис-разделитель, по просьбе пользователя.
+        '<g transform="translate(10,150)" font-family="system-ui" font-size="10.5" fill="var(--text-muted)">' +
+          '<circle cx="5" cy="0" r="4.4" fill="#fb7185" ' + (zoneDot==='#fb7185' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="13" y="3.5" ' + (zoneDot==='#fb7185' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'ерін':'губы')+'</text>' +
+          '<text x="55" y="3.5">—</text>' +
+          '<circle cx="70" cy="0" r="4.4" fill="#f8fafc" ' + (zoneDot==='#f8fafc' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="78" y="3.5" ' + (zoneDot==='#f8fafc' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тіс':'зубы')+'</text>' +
+          '<circle cx="5" cy="18" r="4.4" fill="#38bdf8" ' + (zoneDot==='#38bdf8' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="13" y="21.5" ' + (zoneDot==='#38bdf8' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тіл':'язык')+'</text>' +
+          '<text x="55" y="21.5">—</text>' +
+          '<circle cx="70" cy="18" r="4.4" fill="#c084fc" ' + (zoneDot==='#c084fc' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="78" y="21.5" ' + (zoneDot==='#c084fc' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тамақ':'горло')+'</text>' +
         '</g>' +
         '</svg>' +
         '<div class="ayah-translation" style="font-size:calc(0.85rem * var(--ru-scale, 1));margin-top:0.4rem;line-height:1.45;text-align:center;max-width:300px;margin-left:auto;margin-right:auto">'+cfg.desc+'</div></div>';
@@ -18365,6 +18452,26 @@ function renderDict() {
       toast(state.settings.academySequential ? 'Блокировка уроков включена' : 'Блокировка уроков выключена');
       try { if (typeof renderAcademy === 'function') renderAcademy(); } catch(err) {}
     });
+    // build 6.05: новые настройки «Учителя», которых раньше не было вообще
+    document.getElementById('setting-teacher-daily-goal')?.addEventListener('change', e => {
+      state.settings.teacherDailyGoal = e.target.value !== '0';
+      saveState();
+      toast(state.settings.teacherDailyGoal ? 'Ежедневная цель включена' : 'Ежедневная цель выключена');
+      try { renderDailyHub(); } catch(err) {}
+    });
+    document.getElementById('btn-reset-teacher-progress')?.addEventListener('click', function() {
+      if (!confirm('Сбросить весь прогресс «Личного учителя»? Освоенные навыки, статистика и накопительные проверки обнулятся. Остальной прогресс по сайту не затронут.')) return;
+      try {
+        if (!state.academyProgress) state.academyProgress = {};
+        delete state.academyProgress._teacherMastery;
+        delete state.academyProgress._teacherDaily;
+        delete state.academyProgress._cumulativePending;
+        delete state.academyProgress._cumulativeDone;
+        saveState();
+        toast('Прогресс Учителя сброшен');
+        try { renderPersonalTeacher(); } catch(err) {}
+      } catch(e) {}
+    });
     document.getElementById('btn-change-lock-pin')?.addEventListener('click', function() {
       var host = document.querySelector('#view-settings .set-cat[data-set-panel="security"]') || document.getElementById('view-settings');
       if (!host) return;
@@ -18865,6 +18972,7 @@ function renderDict() {
     function renderTeacherNextWidget() {
       const el = document.getElementById('dailyhub-teacher');
       if (!el || typeof PERSONAL_TEACHER_SKILLS === 'undefined') { if (el) el.innerHTML = ''; return; }
+      if (state.settings && state.settings.teacherDailyGoal === false) { el.innerHTML = ''; return; }
       const kkT = isKk();
       let target = null, isReviewTarget = false;
       try { target = (typeof pickDueReview === 'function') ? pickDueReview() : null; if (target) isReviewTarget = true; } catch(e) {}
@@ -26956,7 +27064,8 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           else if (eidA) special = { ru: 'Курбан айт мубарак! 🐑', kk: 'Құрбан айт мұбарак болсын! 🐑' };
         } catch(e) {}
         if (!special && dow === 5) special = { ru: 'Джума мубарак! 🕌', kk: 'Жұма мүбарак болсын! 🕌' };
-        const avatarLetter = name ? name.charAt(0).toUpperCase() : '🌙';
+        // build 6.05: убрали кружок-аватар со смайликом слева — карточка
+        // приветствия теперь просто текст, занимает меньше места.
         // build 5.98: полное приветствие «Ассаляму алейкум уа рахматуллаһи уа
         // баракатух» — одно и то же на обоих языках интерфейса (это
         // устоявшаяся арабская формула приветствия, не переводится по
@@ -26977,8 +27086,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         const wishAr = special ? '' : (dua ? dua.ar : '');
         let dateLabel = '';
         try { dateLabel = now.toLocaleDateString(isKk ? 'kk-KZ' : 'ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }); } catch(e) {}
-        greetingBar = '<div class="card" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 75%, #7c3aed) 100%);border:none;box-shadow:var(--shadow-accent)">' +
-          '<div style="width:2.8rem;height:2.8rem;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;color:#fff;flex-shrink:0" data-go-greeting-name="1" title="'+(isKk?'Атыңызды баптауларда орнатыңыз':'Настроить имя в настройках')+'">'+avatarLetter+'</div>' +
+        greetingBar = '<div class="card" style="margin-bottom:0.75rem;background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 75%, #7c3aed) 100%);border:none;box-shadow:var(--shadow-accent)" data-go-greeting-name="1" title="'+(isKk?'Атыңызды баптауларда орнатыңыз':'Настроить имя в настройках')+'">' +
           '<div style="min-width:0">' +
           (greetAr ? '<div class="arabic" dir="rtl" style="font-size:calc(1.1rem * var(--ar-scale, 1));color:#fff;opacity:0.95">'+greetAr+'</div>' : '') +
           '<div style="font-weight:700;color:#fff;font-size:1.05rem">'+greetText+'</div>' +
@@ -26991,12 +27099,27 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       // build 5.76: скрытые долгим нажатием виджеты (не то же самое, что
       // порядок — «Порядок» ничего не убирает, только переставляет).
       var hiddenDh = (typeof getHiddenDailyWidgets === 'function') ? getHiddenDailyWidgets() : [];
+      // build 6.05: кнопка свернуть/развернуть справа у каждой карточки —
+      // карточка не исчезает (это не то же самое, что «скрыть» долгим
+      // нажатием), просто сворачивается в тонкую полоску и запоминает это
+      // состояние, пока сам не развернёшь обратно.
+      var collapsedDh = getCollapsedDailyWidgets();
       el.innerHTML =
         greetingBar +
         widgets +
         tipCard +
         widgetOrder.filter(function(id){ return hiddenDh.indexOf(id) < 0; })
-          .map(function(id){ return '<div data-dh-widget="'+id+'">' + (widgetHtml[id] || '') + '</div>'; }).join('');
+          .map(function(id){
+            var isCollapsed = collapsedDh.indexOf(id) >= 0;
+            var lbl = DAILY_WIDGET_LABELS[id] || id;
+            return '<div data-dh-widget="'+id+'">' +
+              '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.2rem">' +
+              '<span style="flex:1;font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em">'+lbl+'</span>' +
+              '<button type="button" class="btn btn-sm" data-dh-collapse="'+id+'" style="padding:0.1rem 0.45rem;font-size:0.8rem;line-height:1">'+(isCollapsed?'▸':'▾')+'</button>' +
+              '</div>' +
+              (isCollapsed ? '' : ('<div data-dh-inner="'+id+'">' + (widgetHtml[id] || '') + '</div>')) +
+              '</div>';
+          }).join('');
       el.querySelector('[data-go-greeting-name]')?.addEventListener('click', function(){
         try {
           showView('settings');
@@ -27004,6 +27127,13 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           switchSettingsSubtab('morecfg', 'order');
           setTimeout(function(){ document.getElementById('dh-greeting-name')?.focus(); }, 150);
         } catch(e) {}
+      });
+      el.querySelectorAll('[data-dh-collapse]').forEach(function(btn) {
+        btn.addEventListener('click', function(ev) {
+          ev.stopPropagation();
+          toggleDailyWidgetCollapsed(btn.getAttribute('data-dh-collapse'));
+          renderDailyHub();
+        });
       });
       // Живой секундный отсчёт до ближайшего (или выбранного кликом) намаза
       // в виджете «Ежедневного» — тот же безопасный паттерн, что и у виджета
@@ -46029,7 +46159,7 @@ function renderLibrary() {
       document.querySelectorAll('#settings-cats [data-set-cat]').forEach(x => x.classList.toggle('btn-primary', x === b));
       document.querySelectorAll('#view-settings .set-cat').forEach(p => {
         const panel = p.dataset.setPanel || '';
-        const known = ['lang','audio','view','fonts','look','read','study','notif','offline','security','morecfg','other'];
+        const known = ['lang','audio','view','fonts','look','read','study','notif','offline','security','morecfg','other','presets'];
         let show = panel === cat;
         // legacy: look maps to both view and fonts when selecting old value
         if (cat === 'view' && panel === 'look') show = true;
