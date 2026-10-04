@@ -150,6 +150,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="theme-color" content="#0f172a" />
+  <!-- build 6.04: манифест PWA — без него браузер/конвертеры не понимают,
+       что за приложение, какая иконка, имя, цвета. С ним сайт уже можно
+       «Добавить на экран» как настоящее приложение (иконка, без адресной
+       строки), и PWABuilder.com сможет собрать из него Android-пакет. -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <title>Коран — Изучение · 5.41</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
