@@ -301,6 +301,7 @@
           <button class="btn btn-sm" id="btn-compare-tr" title="Сравнить переводы">⇄ Сравнить</button>
           <button class="btn btn-sm" id="btn-reverse-ayahs" title="С конца">↕ С конца</button>
           <button class="btn btn-sm" id="btn-quiet-read" title="Спокойный режим — убрать всё, кроме текста">🌙 Спокойный режим</button>
+           <button class="btn btn-sm" id="btn-print-surah" title="Печать суры (чистая версия для бумаги)">🖨 Печать</button>
         </div>
       </div>
       <div class="audio-controls-bar" id="reader-audio-controls" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:1rem;padding:0.6rem 0.75rem;background:var(--bg-card);border:1px solid var(--border);border-radius:0.75rem">
@@ -493,6 +494,7 @@
         <button data-game="dictation" data-group="drills" style="display:none">Диктовка</button>
         <button data-game="minimal-pairs" data-group="drills" style="display:none">Различие звуков</button>
         <button data-game="write" data-group="drills" style="display:none">✍️ Написать букву</button>
+        <button data-game="listenwrite" data-group="drills" style="display:none">🎧 Послушай и напиши</button>
       </div>
       <!-- build 5.78: выбор сложности — только там, где он реально что-то меняет
            (число вариантов ответа в тестах буквы/названия/правила, и набор пар
@@ -1176,6 +1178,7 @@
             <option value="rose">Роза</option>
             <option value="lavender">Лаванда</option>
             <option value="mint">Мята</option>
+            <option value="sage">Шалфей</option>
             <option value="dark">Тёмная</option>
             <option value="slate">Сланец</option>
             <option value="indigo">Индиго</option>
@@ -1183,11 +1186,13 @@
             <option value="amber">Янтарь</option>
             <option value="ocean">Океан</option>
             <option value="forest">Лес</option>
-            <option value="mono">Моно</option>
+            <option value="graphite">Графит</option>
+            <option value="teal">Бирюза</option>
             <option value="oled">OLED</option>
             <option value="contrast">Контраст</option>
           </select>
           <div class="size-pick-list" id="pick-theme">
+            <div class="theme-group-title section-title">Светлые</div>
             <button type="button" class="size-pick-item" data-v="light" style="background:#f8fafc;color:#0f172a">Светлая</button>
             <button type="button" class="size-pick-item" data-v="soft" style="background:#e8eaed;color:#174ea6">Мягкая</button>
             <button type="button" class="size-pick-item" data-v="paper" style="background:#f7f3ea;color:#b45309">Бумага</button>
@@ -1195,6 +1200,8 @@
             <button type="button" class="size-pick-item" data-v="rose" style="background:#fdf2f4;color:#be123c">Роза</button>
             <button type="button" class="size-pick-item" data-v="lavender" style="background:#f6f3ff;color:#6d28d9">Лаванда</button>
             <button type="button" class="size-pick-item" data-v="mint" style="background:#ecfdf5;color:#047857">Мята</button>
+            <button type="button" class="size-pick-item" data-v="sage" style="background:#faf7f0;color:#587750">Шалфей</button>
+            <div class="theme-group-title section-title">Тёмные спокойные</div>
             <button type="button" class="size-pick-item" data-v="dark" style="background:#0f172a;color:#e2e8f0">Тёмная</button>
             <button type="button" class="size-pick-item" data-v="slate" style="background:#0f172a;color:#a78bfa">Сланец</button>
             <button type="button" class="size-pick-item" data-v="indigo" style="background:#181433;color:#a78bfa">Индиго</button>
@@ -1202,11 +1209,13 @@
             <button type="button" class="size-pick-item" data-v="amber" style="background:#1a1208;color:#f59e0b">Янтарь</button>
             <button type="button" class="size-pick-item" data-v="ocean" style="background:#0b1220;color:#38bdf8">Океан</button>
             <button type="button" class="size-pick-item" data-v="forest" style="background:#0f1a14;color:#4ade80">Лес</button>
-            <button type="button" class="size-pick-item" data-v="mono" style="background:#111111;color:#d0d0d0">Моно</button>
-            <button type="button" class="size-pick-item" data-v="oled" style="background:#000;color:#4ade80">OLED</button>
-            <button type="button" class="size-pick-item" data-v="contrast" style="background:#000;color:#ff0">Контраст</button>
+            <button type="button" class="size-pick-item" data-v="graphite" style="background:#1b1f24;color:#8fb8a8">Графит</button>
+            <button type="button" class="size-pick-item" data-v="teal" style="background:#0d1f22;color:#5fc7bd">Бирюза</button>
+            <div class="theme-group-title section-title">Особые (батарея, слабое зрение)</div>
+            <button type="button" class="size-pick-item" data-v="oled" style="background:#000000;color:#7fc8a0">OLED</button>
+            <button type="button" class="size-pick-item" data-v="contrast" style="background:#000000;color:#ffff00">Контраст</button>
           </div>
-          <div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-top:0.35rem">Светлые сверху (день), тёмные ниже (вечер). Ночное — тёплое. OLED — чёрный. Контраст — максимум читаемости.</div>
+          <div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-top:0.35rem">Светлые — для дня, тёмные спокойные — для вечера. «OLED» — настоящий чёрный фон, экономит батарею на OLED-экранах. «Контраст» — максимальная читаемость для слабого зрения (жёлтое на чёрном — намеренно резко).</div>
         </div>
         <div class="setting-row">
           <span>Авто «Тёмная» (22:00–6:00)</span>
@@ -1533,6 +1542,11 @@
       <button type="button" class="btn-player" id="audio-mode-surah" title="Вся сура по порядку" style="font-size:0.7rem;padding:0.25rem 0.45rem">Сура</button>
       <button type="button" class="btn-player" id="audio-mode-loop" title="Повтор всей суры" style="font-size:0.7rem;padding:0.25rem 0.45rem">🔁 Сура</button>
       <button type="button" class="btn-player" id="audio-mode-random" title="Случайный порядок в суре" style="font-size:0.7rem;padding:0.25rem 0.45rem">🔀</button>
+      <!-- build 6.08: у некоторых чтецов реально нет записи для отдельных
+           аятов — вместо того чтобы ждать, пока это выяснится само (через
+           ошибку проигрывания), можно отметить это самому, один раз, и
+           дальше приложение запомнит и сразу предложит запасного чтеца. -->
+      <button type="button" class="btn-player" id="audio-report-missing" title="Этот аят не играет у этого чтеца" style="font-size:0.7rem;padding:0.25rem 0.45rem">🚩 Не играет</button>
     </div>
     <div id="audio-mode-tip" style="text-align:center;font-size:0.72rem;color:var(--text-muted);opacity:0;transition:opacity 0.3s;min-height:1em;pointer-events:none"></div>
   </div>

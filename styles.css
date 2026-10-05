@@ -2907,14 +2907,14 @@
       --bg: #000000;
       --bg-card: #0a0a0a;
       --bg-elevated: #141414;
-      --text: #e8e8e8;
-      --text-muted: #888888;
+      --text: #d8d3c9;
+      --text-muted: #85827b;
       --border: #222222;
-      --accent: #4ade80;
-      --arabic: #fafafa;
-      --src-ayah: #4ade80;
-      --src-ayah-bg: rgba(74, 222, 128, 0.12);
-      --src-ayah-bd: rgba(74, 222, 128, 0.4);
+      --accent: #7fc8a0;
+      --arabic: #efe9dc;
+      --src-ayah: #7fc8a0;
+      --src-ayah-bg: rgba(127, 200, 160, 0.12);
+      --src-ayah-bd: rgba(127, 200, 160, 0.4);
       --src-hadith: #7dd3fc;
       --src-hadith-bg: rgba(56, 189, 248, 0.12);
       --src-hadith-bd: rgba(125, 211, 252, 0.4);
@@ -3332,3 +3332,105 @@
     }
     #hadith-full-card .hadith-full-actions .btn { flex: 1 1 auto; min-height: 2.5rem; }
     button.src-chip.hadith, .src-chip.hadith[data-hadith-key] { cursor: pointer; }
+
+    /* build 6.11: новые спокойные темы по исследованию (шалфей+кремовый — главная «спокойная» палитра; графит — тёмно-серый вместо чистого чёрного; бирюза — ближе к исламской плитке) */
+    body.theme-sage {
+      --bg: #faf7f0;
+      --bg-card: #ffffff;
+      --bg-elevated: #eef2e8;
+      --text: #2b3328;
+      --text-muted: #66765f;
+      --border: #dfe6d6;
+      --accent: #587750;
+      --accent-hover: #46623e;
+      --arabic: #1f2a1d;
+      --src-ayah: #587750;
+      --src-ayah-bg: rgba(88, 119, 80, 0.12);
+      --src-ayah-bd: rgba(88, 119, 80, 0.38);
+      --src-hadith: #2f5d8a;
+      --src-hadith-bg: rgba(47, 93, 138, 0.12);
+      --src-hadith-bd: rgba(47, 93, 138, 0.38);
+      --src-opinion: #9a6a2a;
+      --src-opinion-bg: rgba(154, 106, 42, 0.12);
+      --src-opinion-bd: rgba(154, 106, 42, 0.38);
+      --src-note: #66765f;
+      --src-note-bg: rgba(102, 118, 95, 0.1);
+      --src-note-bd: #dfe6d6;
+    }
+    body.theme-graphite {
+      --bg: #1b1f24;
+      --bg-card: #232930;
+      --bg-elevated: #2b323a;
+      --text: #e6e9ec;
+      --text-muted: #9aa4ae;
+      --border: #333b44;
+      --accent: #8fb8a8;
+      --accent-hover: #a6cbbc;
+      --arabic: #f4f1ea;
+      --src-ayah: #8fb8a8;
+      --src-ayah-bg: rgba(143, 184, 168, 0.12);
+      --src-ayah-bd: rgba(143, 184, 168, 0.38);
+      --src-hadith: #8fb0d6;
+      --src-hadith-bg: rgba(143, 176, 214, 0.12);
+      --src-hadith-bd: rgba(143, 176, 214, 0.38);
+      --src-opinion: #d8b987;
+      --src-opinion-bg: rgba(216, 185, 135, 0.12);
+      --src-opinion-bd: rgba(216, 185, 135, 0.38);
+      --src-note: #9aa4ae;
+      --src-note-bg: rgba(154, 164, 174, 0.1);
+      --src-note-bd: #333b44;
+    }
+    body.theme-teal {
+      --bg: #0d1f22;
+      --bg-card: #12292d;
+      --bg-elevated: #193338;
+      --text: #e3f1f0;
+      --text-muted: #8fb3b3;
+      --border: #21404a;
+      --accent: #5fc7bd;
+      --accent-hover: #7ad9cf;
+      --arabic: #f3faf8;
+      --src-ayah: #5fc7bd;
+      --src-ayah-bg: rgba(95, 199, 189, 0.12);
+      --src-ayah-bd: rgba(95, 199, 189, 0.38);
+      --src-hadith: #8ab8e0;
+      --src-hadith-bg: rgba(138, 184, 224, 0.12);
+      --src-hadith-bd: rgba(138, 184, 224, 0.38);
+      --src-opinion: #e0c27a;
+      --src-opinion-bg: rgba(224, 194, 122, 0.12);
+      --src-opinion-bd: rgba(224, 194, 122, 0.38);
+      --src-note: #8fb3b3;
+      --src-note-bg: rgba(143, 179, 179, 0.1);
+      --src-note-bd: #21404a;
+    }
+    .theme-group-title { font-size: 0.72rem !important; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); flex-basis: 100%; width: 100%; margin: 0.55rem 0 0.1rem; font-weight: 600; }
+
+    /* build 6.11: печать суры — #print-root скрыт на экране, при печати показывается ТОЛЬКО он */
+    #print-root { display: none; }
+    @media print {
+      body.printing-quran > *:not(#print-root) { display: none !important; }
+      body.printing-quran { background: #fff !important; }
+      body.printing-quran #print-root { display: block !important; background: #fff; color: #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      #print-root .pr-title { text-align: center; font-size: 22pt; font-weight: 700; margin: 0 0 2pt; font-family: Georgia, 'Times New Roman', serif; }
+      #print-root .pr-sub { text-align: center; font-size: 10.5pt; color: #444; margin-bottom: 12pt; }
+      #print-root .pr-bism { text-align: center; font-size: calc(var(--pr-ar-size, 32pt) * 0.85); margin: 6pt 0 16pt; line-height: 2; }
+      #print-root .pr-ayah { page-break-inside: avoid; margin: 0 0 11pt; padding-bottom: 8pt; border-bottom: 0.5pt solid #c8c8c8; }
+      #print-root .pr-ar { direction: rtl; text-align: right; font-family: Amiri, 'Traditional Arabic', 'Scheherazade New', serif; font-size: var(--pr-ar-size, 32pt); line-height: 2.15; color: #000; }
+      #print-root .pr-num { font-size: 0.55em; color: #555; white-space: nowrap; }
+      #print-root .pr-tr { direction: ltr; text-align: left; font-size: 11.5pt; line-height: 1.5; color: #222; margin-top: 3pt; font-family: Georgia, 'Times New Roman', serif; }
+      #print-root .pr-legend { margin-top: 12pt; padding-top: 6pt; border-top: 0.5pt solid #999; font-size: 9.5pt; color: #333; }
+      /* на белой бумаге цвета правил — тёмнее, чем на тёмном экране (иначе светлые не читаются) */
+      #print-root .tw-qalqalah { color: #1d4ed8; }
+      #print-root .tw-ghunnah, #print-root .tw-idghaam_ghunnah { color: #15803d; }
+      #print-root .tw-idghaam_no_ghunnah, #print-root .tw-idghaam_shafawi, #print-root .tw-idghaam_mutajanisayn { color: #c2410c; }
+      #print-root .tw-ikhfa, #print-root .tw-ikhfa_shafawi { color: #0f766e; }
+      #print-root .tw-iqlab { color: #7e22ce; }
+      #print-root .tw-madd_2 { color: #e11d48; }
+      #print-root .tw-madd_246 { color: #be123c; }
+      #print-root .tw-madd_muttasil, #print-root .tw-madd_munfasil { color: #b91c1c; }
+      #print-root .tw-madd_6 { color: #7f1d1d; font-weight: 700; }
+      #print-root .tw-hamzat_wasl { color: #4d7c0f; }
+      #print-root .tw-lam_shamsiyyah { color: #be185d; }
+      #print-root .tw-silent { color: #6b7280; }
+      @page { margin: 14mm; }
+    }
