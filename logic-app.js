@@ -1,3 +1,4 @@
+// @@MODULE app-01-core — Состояние, хранилище, шифрование, облачная синхронизация, помощники, API
 // logic-app.js — вся логика приложения (функции, обработчики, состояние).
 // Загружается ПОСЛЕДНИМ, после всех data-*.js файлов, от которых зависит.
 
@@ -859,7 +860,7 @@ _applyAriaLabelsFromTitles();
         // build 6.00: эти кнопки вообще не попали в словарь раньше — не
         // «требовали перезагрузки», а были навсегда русскими, на любом языке.
         '🎨 Таджвид': '🎨 Тәжуид', 'Найди правило': 'Ережені тап', '✍️ Написать букву': '✍️ Әріпті жазу',
-        'Личный учитель': 'Жеке мұғалім', 'Шалфей': 'Шалфей', 'Графит': 'Графит', 'Бирюза': 'Көгілдір', 'Светлые': 'Ашық', 'Тёмные спокойные': 'Қараңғы, жайлы', 'Особые (батарея, слабое зрение)': 'Ерекше (батарея, көру қиындығы)'
+        'Личный учитель': 'Жеке мұғалім', '🧘 Чистый фокус': '🧘 Таза зейін', 'Шалфей': 'Шалфей', 'Графит': 'Графит', 'Бирюза': 'Көгілдір', 'Светлые': 'Ашық', 'Тёмные спокойные': 'Қараңғы, жайлы', 'Особые (батарея, слабое зрение)': 'Ерекше (батарея, көру қиындығы)'
       } : {};
 
       // Раздел «Настройки» — словарь RU → KK
@@ -1888,6 +1889,7 @@ async function fetchTafsir(surah, ayah) {
       } catch (e) {}
       return payload;
     }
+// @@MODULE app-02-views-audio — Экраны (showView), пословная озвучка, кэш и воспроизведение аудио
 
     // ========== VIEWS ==========
 
@@ -5782,6 +5784,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       renderSurahList(e.target.value);
     });
     document.getElementById('qdict-search')?.addEventListener('input', () => { try { renderQdict(); } catch(e) {} });
+// @@MODULE app-03-learning-teacher — Распознавание речи, алфавит, тексты практики, Личный учитель, накопительное повторение
 
     
 
@@ -6117,7 +6120,7 @@ function speakLetter(ch, name) {
           '<span style="font-size:2rem;font-family:Amiri,serif;min-width:2.5rem;text-align:center" dir="rtl">ب'+h.symbol+'</span>' +
           '<div style="flex:1"><b>'+(kkH ? (h.nameKk || h.name) : h.name)+'</b> <span style="color:var(--text-muted)">'+h.symbol+' · '+h.tr+'</span>' +
           '<div class="ayah-translation">'+(kkH ? (h.noteKk || h.note) : h.note)+'</div>' +
-          '<div class="arabic" style="font-size:calc(1.4rem * var(--ar-scale, 1));margin-top:0.25rem" dir="rtl">'+h.example+' <span style="font-size:0.85rem;color:var(--text-muted);font-family:Inter,sans-serif">'+h.exampleTr+'</span></div>' +
+          '<div class="arabic" style="font-size:calc(1.4rem * var(--ar-scale, 1));margin-top:0.25rem" dir="rtl">'+h.example+' <span style="font-size:0.85rem;color:var(--text-muted);font-family:Inter,sans-serif">'+((kkH && h.exampleTrKk) ? h.exampleTrKk : h.exampleTr)+'</span></div>' +
           '</div></div></div>'
         ).join('') +
         '<div class="card"><b>'+(kkH ? 'Шағын жаттықтырғыш' : 'Мини-тренажёр')+'</b><div class="ayah-translation" style="margin:0.5rem 0">'+(kkH ? 'Дауыстап оқыңыз: ' : 'Прочитайте вслух: ')+'بَ بِ بُ · تَ تِ تُ · مَ مِ مُ · نَ نِ نُ · قَ قِ قُ</div>' +
@@ -6149,7 +6152,7 @@ function speakLetter(ch, name) {
       el.innerHTML =
         '<p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:0.75rem">' + (kkS ? 'Оңнан солға қарай оқыңыз. Алдымен баяу буындап, содан кейін қосып.' : 'Читайте справа налево. Сначала медленно по слогам, потом слитно.') + '</p>' +
         SYLLABLE_DRILLS.map((g,gi) =>
-          '<div class="card"><b>'+g.title+'</b>' +
+          '<div class="card"><b>'+((kkS && g.titleKk) || g.title)+'</b>' +
           '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.6rem;justify-content:flex-end;direction:rtl">' +
           g.items.map((it,ii) =>
             '<button type="button" class="btn btn-sm" data-sy="'+gi+'-'+ii+'" style="font-family:Amiri,serif;font-size:1.25rem;min-width:3.2rem" dir="rtl">'+it.ar+'</button>'
@@ -6161,7 +6164,7 @@ function speakLetter(ch, name) {
           const [gi,ii] = btn.dataset.sy.split('-').map(Number);
           const it = SYLLABLE_DRILLS[gi].items[ii];
           const hint = document.getElementById('sy-hint-'+gi);
-          if (hint) hint.textContent = it.ar + ' → ' + it.tr;
+          if (hint) hint.textContent = it.ar + ' → ' + (isKk() && it.ch ? sylTr(it.ch, it) : it.tr);
           if (typeof speakArText === 'function') speakArText(it.ar, 0.7);
           else try {
             const u = new SpeechSynthesisUtterance(it.ar);
@@ -6210,8 +6213,8 @@ function speakLetter(ch, name) {
             '<div class="arabic" style="font-size:calc(1.6rem * var(--ar-scale, 1));flex:1;text-align:right" dir="rtl">'+w.ar+'</div>' +
             '<button type="button" class="btn btn-sm btn-icon" data-spk="'+i+'" title="' + (kkP?'Тыңдау':'Слушать') + '">🔊</button></div>' +
             '<div class="pr-reveal" style="display:'+(hideTr?'none':'none')+';margin-top:0.4rem">' +
-            '<div style="color:var(--accent)">'+w.tr+'</div>' +
-            '<div class="ayah-translation">'+w.meaning+'</div></div>' +
+            '<div style="color:var(--accent)">'+pwTr(w)+'</div>' +
+            '<div class="ayah-translation">'+pwMean(w)+'</div></div>' +
             '<button type="button" class="btn btn-sm" style="margin-top:0.4rem" data-reveal="'+i+'">' + (kkP ? 'Мағынасын көрсету' : 'Показать смысл') + '</button></div>'
           ).join('');
         el.querySelectorAll('[data-pm]').forEach(b => b.addEventListener('click', () => { mode = b.dataset.pm; paint(); }));
@@ -7282,11 +7285,11 @@ function speakLetter(ch, name) {
  },
  "harakat_sukun_intro": {
   "title": "Харакаттар мен сукун: алғашқы танысу",
-  "theory": "Әріптің өзі — тек дауыссыз дыбыс, дауыстысыз. Оны дауыстап оқу үшін әріптің үстіне немесе астына белгі — харакат қойылады. Үш негізгі белгі: фатха (үстіндегі қысқа сызық) «а» дыбысын, кясра (астындағы сызық) — «и» дыбысын, дамма (үстіндегі ілмек) — «у» дыбысын береді. Төртінші белгі де бар — сукун (үстіндегі кішкентай шеңбер): ол дауысты дыбыс МҮЛДЕ ЖОҚ екенін білдіреді — әріп жай «саңырау» айтылып, бірден келесімен қосылады. Мысалы, ا (әліп) өзі жеке дыбыс ретінде мүлде оқылмайды — ол не осы белгілердің бірін алып жүреді, не басқа әріптен кейін ұзақтық белгісі болады. Бұл ب (ба) әрпінің мысалында қалай жұмыс істейтіні:"
+  "theory": "Әріптің өзі — тек дауыссыз дыбыс, дауыстысыз. Оны дауыстап оқу үшін әріптің үстіне немесе астына белгі — харакат қойылады. Үш негізгі белгі: фатха (үстіндегі қысқа сызық) «ә» дыбысын, кясра (астындағы сызық) — «и» дыбысын, дамма (үстіндегі ілмек) — «ү» дыбысын береді. Төртінші белгі де бар — сукун (үстіндегі кішкентай шеңбер): ол дауысты дыбыс МҮЛДЕ ЖОҚ екенін білдіреді — әріп жай «саңырау» айтылып, бірден келесімен қосылады. Мысалы, ا (әліп) өзі жеке дыбыс ретінде мүлде оқылмайды — ол не осы белгілердің бірін алып жүреді, не басқа әріптен кейін ұзақтық белгісі болады. Бұл ب (бә) әрпінің мысалында қалай жұмыс істейтіні:"
  },
  "blend_1": {
   "title": "Әріптерді буынға біріктіреміз: ا ب ت ث",
-  "theory": "Алғашқы әріптерді және харакаттың не екенін үйрендік, енді алфавиттің аяқталуын күтпейміз — әріптерді бірден үш харакатпен буындап оқимыз: ба/би/бу, та/ти/ту және т.б. Бұл — нағыз оқуға алғашқы қадам."
+  "theory": "Алғашқы әріптерді және харакаттың не екенін үйрендік, енді алфавиттің аяқталуын күтпейміз — әріптерді бірден үш харакатпен буындап оқимыз: бә/би/бү, тә/ти/тү және т.б. Бұл — нағыз оқуға алғашқы қадам."
  },
  "construct_1": {
   "title": "Әріптерден буын құра",
@@ -7350,15 +7353,15 @@ function speakLetter(ch, name) {
  },
  "harakat_fatha": {
   "title": "Харакат: фатха (َ)",
-  "theory": "Фатха — әріптің үстіндегі қысқа сызық, дауыссыздан кейін бірден қысқа «а» дыбысын береді."
+  "theory": "Фатха — әріптің үстіндегі қысқа сызық, дауыссыздан кейін бірден қысқа «ә» (қатты әріптерде «о») дыбысын береді."
  },
  "harakat_kasra": {
   "title": "Харакат: кясра (ِ)",
-  "theory": "Кясра — әріптің астындағы сызық, дауыссыздан кейін бірден қысқа «и» дыбысын береді."
+  "theory": "Кясра — әріптің астындағы сызық, дауыссыздан кейін бірден қысқа «и» (қатты әріптерде «ы») дыбысын береді."
  },
  "harakat_damma": {
   "title": "Харакат: дамма (ُ)",
-  "theory": "Дамма — әріптің үстіндегі кішкентай ілмек, дауыссыздан кейін бірден қысқа «у» дыбысын береді."
+  "theory": "Дамма — әріптің үстіндегі кішкентай ілмек, дауыссыздан кейін бірден қысқа «ү» (қатты әріптерде «у») дыбысын береді."
  },
  "syllables_mixed": {
   "title": "Керекті харакатты қой",
@@ -7366,11 +7369,11 @@ function speakLetter(ch, name) {
  },
  "standing_vowels": {
   "title": "Тік фатха/кясра/дамма",
-  "theory": "Кейде «а», «и» немесе «у» ұзақ дыбысы ұзарту әрпімен емес, жай қиғаш сызықпен («тік» фатха/кясра/дамма) жазылады — мысалы, هَٰذَا сөзінде. Қарапайым мадд (ұзақ дауысты) сияқты оқылады, тек жазуда و/ي/ا әрпі жоқ."
+  "theory": "Кейде «ә/о», «и/ы» немесе «ү/у» ұзақ дыбысы ұзарту әрпімен емес, жай қиғаш сызықпен («тік» фатха/кясра/дамма) жазылады — мысалы, هَٰذَا сөзінде. Қарапайым мадд (ұзақ дауысты) сияқты оқылады, тек жазуда و/ي/ا әрпі жоқ."
  },
  "sukun": {
   "title": "Сукун (жабық буын)",
-  "theory": "Сукун — әріптің үстіндегі кішкентай шеңбер, дауысты дыбыс жоқ екенін білдіреді. Сукунды әріп бөлек буын болып созылмайды, алдыңғыға «жабысады»: مِنْ «мин» деп, бір буынмен оқылады, «ми-ну» емес."
+  "theory": "Сукун — әріптің үстіндегі кішкентай шеңбер, дауысты дыбыс жоқ екенін білдіреді. Сукунды әріп бөлек буын болып созылмайды, алдыңғыға «жабысады»: مِنْ «мин» деп, бір буынмен оқылады, «ми-нү» емес."
  },
  "construct_2": {
   "title": "Сөз құра: әріптер + сукун",
@@ -7721,6 +7724,41 @@ function speakLetter(ch, name) {
     // практикой). Теперь урок показывает именно этот полный материал, а не
     // пересказ своими словами — ровно то же самое, что уже есть в «Теории»
     // по буквам, просто подобранное под конкретный навык.
+    // build 6.16 (перенесено на верхний уровень — раньше было внутри функции и тап по термину падал с ReferenceError): словарик терминов для подробного текста — тап/клик по
+    // подчёркнутому слову показывает короткое определение, не нужно искать
+    // отдельно, что значит «джахр» или «калькаля».
+    const TAJWEED_GLOSSARY = {
+      'джахр': 'звонкий — произносится с голосом, связки работают',
+      'хамс': 'глухой — произносится без голоса, только выдохом',
+      'шидда': 'смычный — воздух на миг полностью перекрывается',
+      'ракава': 'щелевой — воздух идёт непрерывно, без полной задержки',
+      'истифаль': 'лёгкий — язык внизу, звук некатегоричный',
+      'истиля': 'тяжёлый — язык приподнят к нёбу, звук массивнее',
+      'тафхим': 'отяжеление — то же самое, что истиля',
+      'калькаля': 'лёгкий отскок звука на сукуне у 5 определённых букв (قطبجد)',
+      'шафатайн': 'обе губы — место образования губных звуков',
+      'аль-джауф': 'пустота рта и горла — место образования долгих гласных',
+      'иститала': 'протяжённость — особое свойство буквы ض, уникальное среди всех букв',
+      'гунна': 'носовой призвук, сопровождает буквы ن и م',
+      'сафир': 'свист/шипение — особое качество буквы при произношении',
+      'тафашши': 'рассеивание — воздух расходится по всей полости рта',
+      'текрар': 'повторяемость — лёгкая вибрация/дрожание звука'
+    };
+    function wrapGlossaryTerms(text) {
+      let out = String(text);
+      Object.keys(TAJWEED_GLOSSARY).forEach(function(term) {
+        const re = new RegExp('(' + term + ')(?![а-яё])', 'gi');
+        out = out.replace(re, '<span class="tw-term" data-term="' + term + '" style="border-bottom:1px dotted var(--accent);cursor:pointer">$1</span>');
+      });
+      return out;
+    }
+    // Арабский текст внутри объяснения — кликабелен, произносит именно этот
+    // фрагмент (а не всю букву целиком), чтобы услышать пример слова.
+    function wrapArabicSpeakable(text) {
+      return String(text).replace(/([\u0600-\u06FF][\u0600-\u06FF\u0640\s]*[\u0600-\u06FF])/g, function(m) {
+        return '<span class="tw-ar-speak" dir="rtl" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px" data-ar="' + m.replace(/"/g,'&quot;') + '">' + m + '</span>';
+      });
+    }
     function buildTeacherSkillTheoryHtml(skill) {
       const kkT = isKk();
       if (skill.kind === 'overview-table') {
@@ -7762,7 +7800,7 @@ function speakLetter(ch, name) {
           return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
             '<div class="arabic" style="font-size:calc(1.8rem * var(--ar-scale, 1));min-width:3rem;text-align:center">' + h.example + '</div>' +
             '<div style="flex:1"><b>' + name + '</b> <span style="color:var(--text-muted)">(' + h.symbol + ')</span><div style="color:var(--text-muted);font-size:0.85rem">' + ((kkT && h.noteKk) ? h.noteKk : h.note) + '</div></div>' +
-            '<div style="font-weight:700;color:var(--accent)">' + h.exampleTr + '</div>' +
+            '<div style="font-weight:700;color:var(--accent)">' + ((kkT && h.exampleTrKk) ? h.exampleTrKk : h.exampleTr) + '</div>' +
             '</div>';
         }).join('');
         return '<div class="card">' +
@@ -7793,42 +7831,7 @@ function speakLetter(ch, name) {
                 '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.15rem">' + formLabels[i] + '</div></div>';
             }).join('') + '</div>'
           ) : '';
-          // build 6.08: словарик терминов для подробного текста — тап/клик по
-    // подчёркнутому слову показывает короткое определение, не нужно искать
-    // отдельно, что значит «джахр» или «калькаля».
-    const TAJWEED_GLOSSARY = {
-      'джахр': 'звонкий — произносится с голосом, связки работают',
-      'хамс': 'глухой — произносится без голоса, только выдохом',
-      'шидда': 'смычный — воздух на миг полностью перекрывается',
-      'ракава': 'щелевой — воздух идёт непрерывно, без полной задержки',
-      'истифаль': 'лёгкий — язык внизу, звук некатегоричный',
-      'истиля': 'тяжёлый — язык приподнят к нёбу, звук массивнее',
-      'тафхим': 'отяжеление — то же самое, что истиля',
-      'калькаля': 'лёгкий отскок звука на сукуне у 5 определённых букв (قطبجد)',
-      'шафатайн': 'обе губы — место образования губных звуков',
-      'аль-джауф': 'пустота рта и горла — место образования долгих гласных',
-      'иститала': 'протяжённость — особое свойство буквы ض, уникальное среди всех букв',
-      'гунна': 'носовой призвук, сопровождает буквы ن и م',
-      'сафир': 'свист/шипение — особое качество буквы при произношении',
-      'тафашши': 'рассеивание — воздух расходится по всей полости рта',
-      'текрар': 'повторяемость — лёгкая вибрация/дрожание звука'
-    };
-    function wrapGlossaryTerms(text) {
-      let out = String(text);
-      Object.keys(TAJWEED_GLOSSARY).forEach(function(term) {
-        const re = new RegExp('(' + term + ')(?![а-яё])', 'gi');
-        out = out.replace(re, '<span class="tw-term" data-term="' + term + '" style="border-bottom:1px dotted var(--accent);cursor:pointer">$1</span>');
-      });
-      return out;
-    }
-    // Арабский текст внутри объяснения — кликабелен, произносит именно этот
-    // фрагмент (а не всю букву целиком), чтобы услышать пример слова.
-    function wrapArabicSpeakable(text) {
-      return String(text).replace(/([\u0600-\u06FF][\u0600-\u06FF\u0640\s]*[\u0600-\u06FF])/g, function(m) {
-        return '<span class="tw-ar-speak" dir="rtl" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px" data-ar="' + m.replace(/"/g,'&quot;') + '">' + m + '</span>';
-      });
-    }
-    // build 5.92: раньше здесь не было ни схемы артикуляции, ни кнопки
+          // build 5.92: раньше здесь не было ни схемы артикуляции, ни кнопки
           // озвучки — хотя в «Теория → Буквы» для той же буквы они есть. По
           // замечанию пользователя: урок в «Учителе» был беднее настоящей
           // теории по тем же данным. Теперь показывается то же самое.
@@ -7836,7 +7839,7 @@ function speakLetter(ch, name) {
           return '<div class="card" style="margin-bottom:0.6rem;text-align:center">' +
             '<div style="display:flex;align-items:center;gap:0.75rem;text-align:left">' +
             '<div class="arabic" style="font-size:calc(2.4rem * var(--ar-scale, 1))">' + ch + '</div>' +
-            '<div><b>' + name + '</b><div style="color:var(--text-muted);font-size:0.85rem">' + (l.tr || '') + '</div></div>' +
+            '<div><b>' + name + '</b><div style="color:var(--text-muted);font-size:0.85rem">' + (letterTr(l) || '') + '</div></div>' +
             '</div>' + formsRow +
             mouthSvg +
             '<div class="ayah-translation" style="margin-top:0.4rem;line-height:1.55;text-align:left">' + wrapArabicSpeakable(String(note).replace(/<[^>]+>/g,'')) + '</div>' +
@@ -9008,8 +9011,8 @@ function speakLetter(ch, name) {
       // раньше повторить пройденные правила через SRS было негде вообще,
       // только буквы и словарь).
       const pool = [];
-      ARABIC_LETTERS.forEach(l => pool.push({ id:'L-'+l.ch, front:l.ch, back:(kkR && l.nameKk ? l.nameKk : l.name)+' · '+(l.tr||''), note:(kkR && l.noteKk ? l.noteKk : l.note)||'', speakable:true }));
-      PRACTICE_WORDS.forEach((w,i) => pool.push({ id:'W-'+i, front:w.ar, back:w.tr+' — '+w.meaning, note:'', speakable:true }));
+      ARABIC_LETTERS.forEach(l => pool.push({ id:'L-'+l.ch, front:l.ch, back:(kkR && l.nameKk ? l.nameKk : l.name)+' · '+(letterTr(l)||''), note:(kkR && l.noteKk ? l.noteKk : l.note)||'', speakable:true }));
+      PRACTICE_WORDS.forEach((w,i) => pool.push({ id:'W-'+i, front:w.ar, back:pwTr(w)+' — '+pwMean(w), note:'', speakable:true }));
       const rulesPool = (typeof ARABIC_RULES !== 'undefined' ? ARABIC_RULES : []).concat(typeof TAJWEED_RULES !== 'undefined' ? TAJWEED_RULES : []);
       rulesPool.forEach((r, i) => {
         const title = (kkR && r.titleKk) ? r.titleKk : r.title;
@@ -9325,114 +9328,356 @@ function renderMistakes() {
         nextLetterQuestion();
       }
     }
+// @@MODULE app-04-mouth-games — Анимированная схема речевого аппарата, игры/тренажёры, запись, движок накопительных проверок
 
 
     
-    function letterMouthSvg(ch) {
-      var zone = 'tongue';
-      if ('بموف'.indexOf(ch) >= 0) zone = 'lips';
-      else if ('ثذظ'.indexOf(ch) >= 0) zone = 'teeth';
-      else if ('تدنطلض'.indexOf(ch) >= 0) zone = 'gum';
-      else if ('جشصي'.indexOf(ch) >= 0) zone = 'palate';
-      else if ('كق'.indexOf(ch) >= 0) zone = 'soft';
-      else if ('حخعغءه'.indexOf(ch) >= 0 || ch === 'ا') zone = 'throat';
-      else if ('رل'.indexOf(ch) >= 0) zone = 'tip';
-      else if ('سزص'.indexOf(ch) >= 0) zone = 'sibilant';
-      var kkZone = (typeof isKk === 'function') ? isKk() : (state.settings && state.settings.lang === 'kk');
-      var cfg = (kkZone ? {
-        lips:     { tx: 30, ty: 56, desc: '1) Ерінді жұмыңыз  2) Дауыспен кенет ашыңыз (б/м/у/ф)', tongue: 'M26,58 Q48,54 68,58 Q88,62 100,56', how: 'Ерін' },
-        teeth:    { tx: 40, ty: 50, desc: '1) Тіл ұшы тістер арасында  2) Ауа ысылмен шығады (ث/ذ/ظ)', tongue: 'M28,62 Q44,46 54,48 Q80,58 100,56', how: 'Тісаралық' },
-        gum:      { tx: 48, ty: 44, desc: '1) Тіл ұшы жоғарғы қызылиекке тиеді  2) Қысқа соққы (ت/د/ط…)', tongue: 'M28,64 Q48,42 58,43 Q80,54 100,56', how: 'Тіс түбі' },
-        tip:      { tx: 46, ty: 46, desc: '1) Тіл ұшы альвеол доңесінде  2) (ر/ل)', tongue: 'M28,64 Q50,44 60,46 Q80,55 100,56', how: 'Альвеола' },
-        sibilant: { tx: 50, ty: 46, desc: '1) Тістер жанындағы саңылау  2) Ысқырықты дыбыс (س/ص/ز)', tongue: 'M28,64 Q50,45 62,46 Q80,55 100,56', how: 'Ысқырық' },
-        palate:   { tx: 64, ty: 38, desc: '1) Тілдің ортасы таңдайға көтеріледі  2) (ج/ش/ي…)', tongue: 'M28,64 Q50,58 66,36 Q82,40 100,54', how: 'Таңдай' },
-        soft:     { tx: 80, ty: 34, desc: '1) Тілдің түбі жұмсақ таңдайға тиеді  2) (ك/ق)', tongue: 'M28,64 Q55,60 78,32 Q90,36 100,52', how: 'Артқы таңдай' },
-        throat:   { tx: 98, ty: 50, desc: '1) Дыбыс тамақтан шығады  2) Тамақты қыспаңыз (ع/ح/خ/غ/ء/ه)', tongue: 'M28,64 Q55,60 78,54 Q92,48 100,52', how: 'Тамақ' },
-        tongue:   { tx: 55, ty: 50, desc: 'Артикуляция мәтінін төменнен қараңыз', tongue: 'M28,64 Q55,50 70,52 Q90,58 100,56', how: 'Тіл' }
-      } : {
-        lips:     { tx: 30, ty: 56, desc: '1) Сомкните губы  2) Резко откройте с голосом (б/м/у/ф)', tongue: 'M26,58 Q48,54 68,58 Q88,62 100,56', how: 'Губы' },
-        teeth:    { tx: 40, ty: 50, desc: '1) Кончик языка между зубами  2) Воздух с шипением (ث/ذ/ظ)', tongue: 'M28,62 Q44,46 54,48 Q80,58 100,56', how: 'Межзубный' },
-        gum:      { tx: 48, ty: 44, desc: '1) Кончик к верхним дёснам  2) Короткий удар (ت/د/ط…)', tongue: 'M28,64 Q48,42 58,43 Q80,54 100,56', how: 'У зубов' },
-        tip:      { tx: 46, ty: 46, desc: '1) Кончик у бугорков за зубами  2) (ر/ل)', tongue: 'M28,64 Q50,44 60,46 Q80,55 100,56', how: 'Альвеолы' },
-        sibilant: { tx: 50, ty: 46, desc: '1) Щель у зубов  2) Свист без голоса/с голосом (س/ص/ز)', tongue: 'M28,64 Q50,45 62,46 Q80,55 100,56', how: 'Свист' },
-        palate:   { tx: 64, ty: 38, desc: '1) Середина языка вверх к нёбу  2) (ج/ش/ي…)', tongue: 'M28,64 Q50,58 66,36 Q82,40 100,54', how: 'Нёбо' },
-        soft:     { tx: 80, ty: 34, desc: '1) Зад языка к мягкому нёбу  2) (ك/ق)', tongue: 'M28,64 Q55,60 78,32 Q90,36 100,52', how: 'Заднее нёбо' },
-        throat:   { tx: 98, ty: 50, desc: '1) Звук в горле  2) Не зажимайте шею (ع/ح/خ/غ/ء/ه)', tongue: 'M28,64 Q55,60 78,54 Q92,48 100,52', how: 'Горло' },
-        tongue:   { tx: 55, ty: 50, desc: 'Смотрите текст артикуляции ниже', tongue: 'M28,64 Q55,50 70,52 Q90,58 100,56', how: 'Язык' }
-      })[zone];
-      var zoneDot = {
-        lips: '#fb7185', teeth: '#f8fafc', gum: '#facc15', tip: '#facc15',
-        sibilant: '#facc15', palate: '#38bdf8', soft: '#38bdf8', throat: '#c084fc', tongue: '#38bdf8'
-      }[zone] || 'var(--accent)';
-      // build 6.05: подпись зоны наверху раньше всегда была акцентным
-      // (зелёным) цветом, независимо от самой зоны — а точка на схеме и
-      // легенда снизу уже были правильного цвета. Теперь верх тоже цвета
-      // конкретной зоны, для согласованности сверху донизу.
-      return '<div style="text-align:center">' +
-        '<div style="font-weight:600;color:'+zoneDot+';margin:0.25rem 0">'+(kkZone ? 'Аймақ: ' : 'Зона: ')+cfg.how+'</div>' +
-        // build 6.07: настоящая причина «беды» в Теории — не сам SVG, а то,
-        // что он показывается внутри .letter-detail, а в CSS нашлось три
-        // РАЗНЫХ блока «.letter-detail» подряд с противоречащим direction
-        // (rtl/ltr/rtl) — последний побеждает, и текст внутри SVG (который
-        // явно direction не задавал) наследовал rtl от родителя и съезжал
-        // поверх кружков. В «Учителе» такой обёртки нет, поэтому там было
-        // нормально. Явно задаём ltr прямо на самом SVG — не зависит от
-        // того, в какой обёртке он окажется.
-        '<svg viewBox="0 0 140 180" width="100%" height="248" direction="ltr" style="max-width:300px;display:block;margin:0 auto;background:var(--bg);border-radius:0.85rem;border:1px solid var(--border);direction:ltr">' +
-        // letter badge (top-right)
-        '<rect x="102" y="4" width="34" height="27" rx="7" fill="var(--bg-hover)" stroke="var(--accent)" stroke-width="1.2"/>' +
-        '<text x="119" y="24" text-anchor="middle" font-family="Amiri, \'Scheherazade New\', serif" font-size="20" fill="var(--accent)">'+ch+'</text>' +
-        '<g transform="translate(0,28)">' +
-          // soft depth/cheek shading
-          '<ellipse cx="58" cy="46" rx="48" ry="44" fill="#334155" opacity="0.32"/>' +
-          // face profile (filled, rounded)
-          '<path d="M16,28 Q26,10 60,8 Q102,8 124,30 L122,80 Q100,98 60,100 Q26,98 14,76 Z" fill="#1e293b" stroke="var(--text-muted)" stroke-width="1.4"/>' +
-          // ear
-          '<ellipse cx="120" cy="46" rx="6" ry="9" fill="#1e293b" stroke="var(--text-muted)" stroke-width="1.1"/>' +
-          // nose
-          '<path d="M28,30 Q20,40 27,50 Q31,46 30,38 Z" fill="#16213a" stroke="var(--text-muted)" stroke-width="1"/>' +
-          // mouth cavity (open dark space behind teeth)
-          '<path d="M17,48 Q28,40 40,41 Q50,41 58,43 L58,62 Q50,68 40,68 Q28,68 17,60 Z" fill="#0b1220"/>' +
-          // upper teeth (gentle arch)
-          '<rect x="34" y="38" width="6" height="10" rx="1.6" fill="#f8fafc"/>' +
-          '<rect x="41" y="36" width="6" height="11" rx="1.6" fill="#f8fafc"/>' +
-          '<rect x="48" y="36" width="6" height="11" rx="1.6" fill="#f8fafc"/>' +
-          '<rect x="55" y="38" width="6" height="10" rx="1.6" fill="#f8fafc"/>' +
-          // lower teeth (gentle arch)
-          '<rect x="34" y="62" width="6" height="9" rx="1.6" fill="#cbd5e1"/>' +
-          '<rect x="41" y="64" width="6" height="10" rx="1.6" fill="#cbd5e1"/>' +
-          '<rect x="48" y="64" width="6" height="10" rx="1.6" fill="#cbd5e1"/>' +
-          '<rect x="55" y="62" width="6" height="9" rx="1.6" fill="#cbd5e1"/>' +
-          // lips
-          '<path d="M16,46 Q26,36 34,39 Q46,41 60,40" fill="none" stroke="#fb7185" stroke-width="3.6" stroke-linecap="round"/>' +
-          '<path d="M16,60 Q26,70 34,67 Q46,65 60,64" fill="none" stroke="#fb7185" stroke-width="3.6" stroke-linecap="round"/>' +
-          // soft palate (dashed) + uvula
-          '<path d="M50,38 Q72,28 98,32 Q114,38 120,50" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-dasharray="3,2"/>' +
-          '<ellipse cx="118" cy="52" rx="3" ry="5" fill="#94a3b8" opacity="0.85"/>' +
-          // throat (soft glow + line)
-          '<path d="M112,50 Q122,58 114,78" fill="none" stroke="#c084fc" stroke-width="7" stroke-linecap="round" opacity="0.2"/>' +
-          '<path d="M112,50 Q122,58 114,78" fill="none" stroke="#c084fc" stroke-width="2.6" stroke-linecap="round"/>' +
-          // tongue (glow + main stroke + tip highlight)
-          '<path d="'+cfg.tongue+'" fill="none" stroke="#38bdf8" stroke-width="9" stroke-linecap="round" opacity="0.2"/>' +
-          '<path d="'+cfg.tongue+'" fill="none" stroke="#38bdf8" stroke-width="3.8" stroke-linecap="round"/>' +
-          // articulation point (target marker) — build 5.88: цвет точки
-          // теперь берётся из той же zoneDot-переменной, что и легенда снизу,
-          // а не всегда акцентный зелёный — раньше точка на рисунке никак не
-          // была связана по цвету ни с одним из 4 цветов в легенде.
-          '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="13" fill="'+zoneDot+'" opacity="0.28"/>' +
-          '<circle cx="'+cfg.tx+'" cy="'+cfg.ty+'" r="7.5" fill="'+zoneDot+'" stroke="#fff" stroke-width="2.2"/>' +
-        '</g>' +
-        // build 6.07: убран дефис-разделитель между парами (по отзыву —
-        // расположение в 2 строки по 2 само по себе устраивало, дефис лишний).
-        '<g transform="translate(10,150)" font-family="system-ui" font-size="10.5" fill="var(--text-muted)">' +
-          '<circle cx="5" cy="0" r="4.4" fill="#fb7185" ' + (zoneDot==='#fb7185' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="13" y="3.5" ' + (zoneDot==='#fb7185' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'ерін':'губы')+'</text>' +
-          '<circle cx="70" cy="0" r="4.4" fill="#f8fafc" ' + (zoneDot==='#f8fafc' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="78" y="3.5" ' + (zoneDot==='#f8fafc' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тіс':'зубы')+'</text>' +
-          '<circle cx="5" cy="18" r="4.4" fill="#38bdf8" ' + (zoneDot==='#38bdf8' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="13" y="21.5" ' + (zoneDot==='#38bdf8' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тіл':'язык')+'</text>' +
-          '<circle cx="70" cy="18" r="4.4" fill="#c084fc" ' + (zoneDot==='#c084fc' ? 'stroke="#fff" stroke-width="1.3"' : '') + '/><text x="78" y="21.5" ' + (zoneDot==='#c084fc' ? 'font-weight="700" fill="var(--text)"' : '') + '>'+(kkZone?'тамақ':'горло')+'</text>' +
-        '</g>' +
-        '</svg>' +
-        '<div class="ayah-translation" style="font-size:calc(0.85rem * var(--ru-scale, 1));margin-top:0.4rem;line-height:1.45;text-align:center;max-width:300px;margin-left:auto;margin-right:auto">'+cfg.desc+'</div></div>';
+    // ===== build 6.12: АНИМИРОВАННАЯ СХЕМА РЕЧЕВОГО АППАРАТА =====
+    // ===== Анимированная схема речевого аппарата (build 6.12) =====
+    // Основа — классическая система из 17 махаридж (Ибн аль-Джазари) для МЕСТА
+    // образования и таджвидные сифаты для звонкости/смычности/«тяжести»; для
+    // положения языка у эмфатических и глоточных — данные фонетических работ
+    // (корень языка оттянут назад, Ghazeli/Heselwood/Al-Tamimi; уvулярные — спинка
+    // языка вверх-назад к язычку).
+    const MOUTH_CAT_COLOR = { lips: '#fb7185', teeth: '#f8fafc', tongue: '#38bdf8', throat: '#c084fc' };
+    const MOUTH_REST = { T: [34, 66], H: [62, 58], R: [98, 68], F: [98, 88] };
+    const MOUTH_DUR = 3.6;
+    const MOUTH_LIPS = {
+      open:   { u: 'M14,44 Q20,39 29,41', l: 'M14,58 Q20,64 29,62' },
+      closed: { u: 'M14,50 Q20,47 29,49', l: 'M14,54 Q20,56 29,53' },
+      round:  { u: 'M9,47 Q16,42 28,43',  l: 'M9,55 Q16,61 28,60' },
+      lab:    { u: 'M14,44 Q20,39 29,41', l: 'M16,52 Q22,54 30,51' },
+      wide:   { u: 'M14,43 Q20,38 29,40', l: 'M14,62 Q20,70 29,67' }
+    };
+    const MOUTH_GROUPS = {
+      jawf:   { cat: 'throat', tongue: { T: [34,72], H: [64,68], R: [98,76], F: [98,92] }, lips: 'wide', contact: null,
+        ru: { how: 'Аль-джауф (пустота рта и горла)', steps: '1) Откройте рот шире, язык лежит спокойно и низко  2) Тяните «аа» — без сужения, без нажима на горло' },
+        kk: { how: 'Әл-жауф (ауыз бен тамақ қуысы)', steps: '1) Аузыңызды кеңірек ашыңыз, тіл тыныш әрі төмен жатады  2) «аа» деп созыңыз — тарылтпай, тамақты қыспай' } },
+      glottal:{ cat: 'throat', tongue: { T: [34,70], H: [62,64], R: [98,74], F: [98,90] }, lips: 'open', contact: [110,101],
+        ru: { how: 'Самая глубина горла (гортань)', steps: '1) Горло расслаблено, связки раскрыты  2) Просто выдохните тёплый воздух — «х» без трения' },
+        kk: { how: 'Тамақтың ең тереңі (көмей)', steps: '1) Тамақ босаңсыған, дауыс шымылдығы ашық  2) Жылы ауаны жай шығарыңыз — үйкеліссіз «һ»' } },
+      pharyng:{ cat: 'throat', tongue: { T: [34,70], H: [58,66], R: [108,70], F: [106,90] }, lips: 'open', contact: [116,76],
+        ru: { how: 'Середина горла (глотка)', steps: '1) Корень языка отходит назад, глотка сужается  2) ح — выдох без голоса; ع — то же, но с голосом' },
+        kk: { how: 'Тамақтың ортасы (жұтқыншақ)', steps: '1) Тіл түбі артқа тартылып, жұтқыншақ тарылады  2) ح — дауыссыз дем; ع — сол, бірақ дауыспен' } },
+      uvular: { cat: 'throat', tongue: { T: [34,70], H: [84,48], R: [104,62], F: [100,90] }, lips: 'open', contact: [102,43],
+        ru: { how: 'Верх горла (у язычка)', steps: '1) Задняя часть языка поднимается к язычку  2) خ — без голоса, как немецкое ch; غ — с голосом' },
+        kk: { how: 'Тамақтың жоғарғы жағы (тілшік маңы)', steps: '1) Тілдің арт жағы тілшікке көтеріледі  2) خ — дауыссыз; غ — дауыспен' } },
+      qaf:    { cat: 'tongue', tongue: { T: [34,72], H: [92,34], R: [106,56], F: [100,90] }, lips: 'open', contact: [93,31.5],
+        ru: { how: 'Самая задняя часть языка + мягкое нёбо', steps: '1) Задняя часть языка плотно прижимается к мягкому нёбу, у язычка  2) Резко отпустите — звук глубокий и «тяжёлый»' },
+        kk: { how: 'Тілдің ең артқы жағы + жұмсақ таңдай', steps: '1) Тілдің арт жағы жұмсақ таңдайға, тілшік тұсына тығыз тиеді  2) Кенет босатыңыз — дыбыс терең әрі «ауыр»' } },
+      kaf:    { cat: 'tongue', tongue: { T: [34,70], H: [76,31.5], R: [96,64], F: [98,90] }, lips: 'open', contact: [77,29.5],
+        ru: { how: 'Задняя часть языка (чуть впереди ق)', steps: '1) Спинка языка касается мягкого нёба чуть ближе ко рту, чем у ق  2) Резко отпустите — лёгкое «к»' },
+        kk: { how: 'Тілдің арт жағы (ق-дан сәл алдында)', steps: '1) Тіл арты жұмсақ таңдайға ق-дан сәл алдыңғы жерде тиеді  2) Кенет босатыңыз — жеңіл «к»' } },
+      palatal:{ cat: 'tongue', tongue: { T: [35,63], H: [57,32.5], R: [96,70], F: [98,90] }, lips: 'open', contact: [57,30],
+        ru: { how: 'Середина языка + твёрдое нёбо', steps: '1) Середина языка поднимается к твёрдому нёбу  2) ج — смычка с резким отпусканием («дж»); ش — шипение; ي — плавный «й»' },
+        kk: { how: 'Тілдің ортасы + қатты таңдай', steps: '1) Тілдің ортасы қатты таңдайға көтеріледі  2) ج — тұйықталып, кенет ашылады («дж»); ش — ысқырық; ي — жұмсақ «й»' } },
+      dad:    { cat: 'tongue', tongue: { T: [36,52], H: [68,34], R: [104,64], F: [100,90] }, lips: 'open', contact: [68,30.5],
+        ru: { how: 'Боковой край языка + верхние коренные зубы', steps: '1) Бок языка прижимается к верхним коренным зубам, корень языка отведён назад  2) Воздух идёт вдоль боковых краёв — «тяжёлый» д/з' },
+        kk: { how: 'Тілдің бүйір жиегі + жоғарғы азу тістер', steps: '1) Тілдің бүйірі жоғарғы азу тістерге тиеді, тіл түбі артқа тартылған  2) Ауа тілдің бүйір жиегі бойымен өтеді — «ауыр» д/з' } },
+      lam:    { cat: 'tongue', tongue: { T: [37,42], H: [60,58], R: [98,68], F: [98,88] }, lips: 'open', contact: [38,39.5],
+        ru: { how: 'Кончик языка + дёсны (края языка опущены)', steps: '1) Кончик языка упирается в дёсны за верхними зубами  2) Воздух идёт по бокам языка — ясное «л»' },
+        kk: { how: 'Тіл ұшы + қызылиек (тіл жиектері төмен)', steps: '1) Тіл ұшы жоғарғы тістердің артындағы қызылиекке тиеді  2) Ауа тілдің бүйірлерімен өтеді — анық «л»' } },
+      nun:    { cat: 'tongue', tongue: { T: [36,44], H: [62,56], R: [98,68], F: [98,88] }, lips: 'open', contact: [37,41.5],
+        ru: { how: 'Кончик языка + дёсны (чуть ниже ل)', steps: '1) Кончик языка у дёсен верхних резцов, мягкое нёбо опущено  2) Звук идёт через нос — «н»' },
+        kk: { how: 'Тіл ұшы + қызылиек (ل-ден сәл төмен)', steps: '1) Тіл ұшы жоғарғы тістердің қызылиегіне тиеді, жұмсақ таңдай төмен  2) Дыбыс мұрын арқылы шығады — «н»' } },
+      ra:     { cat: 'tongue', tongue: { T: [39,43], H: [62,56], R: [98,68], F: [98,88] }, lips: 'open', contact: [40,40.5],
+        ru: { how: 'Кончик языка (чуть глубже ن), вибрация', steps: '1) Кончик языка у дёсен, чуть глубже, чем для ن  2) Лёгкая вибрация кончика — «р»' },
+        kk: { how: 'Тіл ұшы (ن-нан сәл тереңірек), діріл', steps: '1) Тіл ұшы қызылиекке, ن-нан сәл артта тұрады  2) Тіл ұшы жеңіл дірілдейді — «р»' } },
+      tdt:    { cat: 'teeth', tongue: { T: [35,47], H: [62,56], R: [98,68], F: [98,88] }, lips: 'open', contact: [35,45],
+        ru: { how: 'Кончик языка + основание верхних резцов', steps: '1) Кончик языка упирается в основание верхних резцов  2) Резко отпустите: ت — лёгкий, د — с голосом, ط — «тяжёлый»' },
+        kk: { how: 'Тіл ұшы + жоғарғы тістердің түбі', steps: '1) Тіл ұшы жоғарғы тістердің түбіне тіреледі  2) Кенет босатыңыз: ت — жеңіл, د — дауыспен, ط — «ауыр»' } },
+      sibil:  { cat: 'teeth', tongue: { T: [35,66], H: [52,44], R: [98,68], F: [98,88] }, lips: 'open', contact: [46,39],
+        ru: { how: 'Кончик языка у нижних резцов (свист)', steps: '1) Кончик языка у нижних зубов, передняя часть спинки образует узкую щель с дёснами  2) Воздух со свистом: س — глухой, ز — звонкий, ص — «тяжёлый»' },
+        kk: { how: 'Тіл ұшы төменгі тістердің жанында (ысқырық)', steps: '1) Тіл ұшы төменгі тістерге жақын, тілдің алдыңғы бөлігі қызылиекпен тар саңылау түзеді  2) Ауа ысқырықпен өтеді: س — дауыссыз, ز — дауыспен, ص — «ауыр»' } },
+      interd: { cat: 'teeth', tongue: { T: [30,56], H: [56,57], R: [98,68], F: [98,88] }, lips: 'open', contact: [31,50.5],
+        ru: { how: 'Кончик языка + края верхних резцов', steps: '1) Кончик языка слегка выходит между зубами  2) Воздух проходит в щель: ث — без голоса, ذ — с голосом, ظ — «тяжёлый»' },
+        kk: { how: 'Тіл ұшы + жоғарғы тістердің ұштары', steps: '1) Тіл ұшы тістердің арасынан сәл шығады  2) Ауа саңылаудан өтеді: ث — дауыссыз, ذ — дауыспен, ظ — «ауыр»' } },
+      labden: { cat: 'lips', tongue: MOUTH_REST, lips: 'lab', contact: [30,50.5],
+        ru: { how: 'Нижняя губа + верхние резцы', steps: '1) Края верхних резцов касаются внутренней стороны нижней губы  2) Выдох без голоса — «ф»' },
+        kk: { how: 'Төменгі ерін + жоғарғы тістер', steps: '1) Жоғарғы тістердің ұштары төменгі еріннің ішіне тиеді  2) Дауыссыз дем — «ф»' } },
+      bilab:  { cat: 'lips', tongue: MOUTH_REST, lips: 'closed', contact: [20,51.5],
+        ru: { how: 'Обе губы', steps: '1) Сомкните губы  2) ب — резко разомкните с голосом; م — звук идёт через нос' },
+        kk: { how: 'Екі ерін', steps: '1) Ерініңізді жабыңыз  2) ب — дауыспен кенет ашыңыз; م — дыбыс мұрыннан шығады' } },
+      waw:    { cat: 'lips', tongue: { T: [34,68], H: [86,44], R: [102,62], F: [100,90] }, lips: 'round', contact: [11,51],
+        ru: { how: 'Губы округлены и вытянуты', steps: '1) Округлите губы и слегка вытяните вперёд, спинка языка поднимается назад  2) Плавный звук без смычки — «у/в»' },
+        kk: { how: 'Ерін дөңгеленіп алға созылады', steps: '1) Ерінді дөңгелетіп, алға созыңыз, тіл арты көтеріледі  2) Тұйықталусыз жұмсақ дыбыс — «у»' } }
+    };
+    const MOUTH_LETTERS = {
+      'ا': ['jawf','aː'], 'ب': ['bilab','b'], 'ت': ['tdt','t'], 'ث': ['interd','θ'], 'ج': ['palatal','d͡ʒ'], 'ح': ['pharyng','ħ'],
+      'خ': ['uvular','χ'], 'د': ['tdt','d'], 'ذ': ['interd','ð'], 'ر': ['ra','r'], 'ز': ['sibil','z'], 'س': ['sibil','s'],
+      'ش': ['palatal','ʃ'], 'ص': ['sibil','sˤ'], 'ض': ['dad','dˤ'], 'ط': ['tdt','tˤ'], 'ظ': ['interd','ðˤ'], 'ع': ['pharyng','ʕ'],
+      'غ': ['uvular','ʁ'], 'ف': ['labden','f'], 'ق': ['qaf','q'], 'ك': ['kaf','k'], 'ل': ['lam','l'], 'م': ['bilab','m'],
+      'ن': ['nun','n'], 'ه': ['glottal','h'], 'و': ['waw','w'], 'ي': ['palatal','j']
+    };
+    // Классификация по таджвиду (как в остальных текстах приложения): хамс — «فحثه شخص سكت»;
+    // истиля — «خص ضغط قظ»; шидда — «أجد قط بكت»; таваcсут — «لن عمر»; калькаля — «قطب جد»
+    const MOUTH_HAMS = 'فحثهشخصسكت', MOUTH_HEAVY = 'خصضغطقظ', MOUTH_SHIDDA = 'جدقطبكت', MOUTH_TAWASSUT = 'لنعمر', MOUTH_QALQ = 'قطبجد', MOUTH_NASAL = 'من';
+    function mouthLetterInfo(ch) {
+      const lt = MOUTH_LETTERS[ch];
+      const gid = lt ? lt[0] : null;
+      const g = gid ? MOUTH_GROUPS[gid] : null;
+      let flow = 'fric';
+      if (MOUTH_NASAL.indexOf(ch) >= 0) flow = 'nasal';
+      else if (MOUTH_SHIDDA.indexOf(ch) >= 0) flow = 'stop';
+      else if ('لرعاوي'.indexOf(ch) >= 0) flow = 'flow';
+      const heavy = MOUTH_HEAVY.indexOf(ch) >= 0;
+      return { gid: gid, g: g, ipa: lt ? lt[1] : '', voiced: ch !== 'ا' ? MOUTH_HAMS.indexOf(ch) < 0 : true,
+        flow: flow, heavy: heavy, emphatic: 'صضطظ'.indexOf(ch) >= 0, nasal: MOUTH_NASAL.indexOf(ch) >= 0,
+        qalq: MOUTH_QALQ.indexOf(ch) >= 0, trill: ch === 'ر', manner: MOUTH_SHIDDA.indexOf(ch) >= 0 ? 'shidda' : (MOUTH_TAWASSUT.indexOf(ch) >= 0 ? 'tawassut' : 'rakhawa') };
     }
+    function _mf(n) { return Math.round(n * 10) / 10; }
+    function mouthTonguePath(p) {
+      const T = p.T, H = p.H, R = p.R, F = p.F;
+      return 'M' + T[0] + ',' + T[1] +
+        ' C' + _mf(T[0] + 0.42 * (H[0] - T[0])) + ',' + T[1] + ' ' + _mf(H[0] - 0.42 * (H[0] - T[0])) + ',' + H[1] + ' ' + H[0] + ',' + H[1] +
+        ' C' + _mf(H[0] + 14) + ',' + H[1] + ' ' + _mf(R[0] - 8) + ',' + _mf(R[1] - 8) + ' ' + R[0] + ',' + R[1] +
+        ' C' + _mf(R[0] + 3) + ',' + _mf(R[1] + 7) + ' ' + _mf(F[0] + 3) + ',' + _mf(F[1] - 7) + ' ' + F[0] + ',' + F[1] +
+        ' C' + _mf(F[0] - 26) + ',' + _mf(F[1] - 4) + ' ' + _mf(T[0] + 8) + ',' + _mf(Math.min(T[1] + 26, 86)) + ' ' + T[0] + ',' + T[1] + ' Z';
+    }
+    // «тяжёлые» (эмфатические ص ض ط ظ): корень языка оттянут назад к стенке глотки + спинка выше
+    function mouthPoseFor(info) {
+      const base = info.g.tongue;
+      let p = { T: base.T.slice(), H: base.H.slice(), R: base.R.slice(), F: base.F.slice() };
+      if (info.emphatic && info.gid !== 'dad') { p.R[0] += 6; p.R[1] += 1; p.F[0] += 4; p.H[1] = Math.min(p.H[1], 56) - 4; }
+      return p;
+    }
+    // плавная кривая через точки (Catmull-Rom → кубические Безье) для траектории воздуха
+    function mouthSmoothPath(pts) {
+      let d = 'M' + pts[0][0] + ',' + pts[0][1];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+        d += ' C' + _mf(p1[0] + (p2[0] - p0[0]) / 6) + ',' + _mf(p1[1] + (p2[1] - p0[1]) / 6) + ' ' +
+             _mf(p2[0] - (p3[0] - p1[0]) / 6) + ',' + _mf(p2[1] - (p3[1] - p1[1]) / 6) + ' ' + p2[0] + ',' + p2[1];
+      }
+      return d;
+    }
+    function mouthAirPts(info, pose) {
+      const G = [110, 98];
+      if (info.flow === 'nasal') return [G, [114, 80], [115, 58], [112, 40], [98, 28], [66, 23], [38, 26], [23, 35]];
+      const route = [G, [114, 82], [110, 66], [Math.min(pose.R[0] - 2, 108), pose.R[1] - 13], [pose.H[0], pose.H[1] - 7], [pose.T[0] + 2, pose.T[1] - 9], [24, 52], [8, 52]];
+      return route;
+    }
+    function mouthFracAt(pts, target) {
+      // доля пути до ближайшей к target точки ломаной
+      let total = 0, best = 0, bestD = 1e9, acc = 0;
+      for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      for (let i = 0; i < pts.length; i++) {
+        if (i > 0) acc += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+        const d = Math.hypot(pts[i][0] - target[0], pts[i][1] - target[1]);
+        if (d < bestD) { bestD = d; best = acc / total; }
+      }
+      return _mf(best);
+    }
+    function mouthFigureSvg(ch, opts) {
+      opts = opts || {};
+      const info = mouthLetterInfo(ch);
+      const g = info.g || { cat: 'tongue', tongue: MOUTH_REST, lips: 'open', contact: null };
+      const pose = info.g ? mouthPoseFor(info) : MOUTH_REST;
+      const animate = opts.animate !== false;
+      const frame = opts.frame || 'pose'; // 'pose' | 'rest' (для предпросмотра)
+      const cat = g.cat, col = MOUTH_CAT_COLOR[cat];
+      const showPose = frame !== 'rest';
+      const curTongue = showPose ? pose : MOUTH_REST;
+      const lipsNow = MOUTH_LIPS[showPose ? g.lips : 'open'];
+      const velumDown = info.nasal;
+      const VEL_UP = 'M88,30 Q101,32 114,40', VEL_DN = 'M88,30 Q99,40 107,57';
+      const velumD = (velumDown && showPose) ? VEL_DN : VEL_UP;
+      const D = MOUTH_DUR;
+      const A = function (attr, vals, kt, o) { // <animate> с отложенным стартом (запускает JS по кнопке/звуку)
+        if (!animate) return '';
+        o = o || {};
+        return '<animate attributeName="' + attr + '" begin="indefinite" dur="' + (o.dur || D) + 's" values="' + vals.join(';') + '" keyTimes="' + kt.join(';') + '"' +
+          (o.linear ? ' calcMode="linear"' : ' calcMode="spline" keySplines="' + new Array(vals.length - 1).fill('.4 0 .2 1').join(';') + '"') +
+          (o.repeat ? ' repeatCount="' + o.repeat + '"' : '') + ' data-d="' + (o.delay || 0) + '"/>';
+      };
+      // --- анимация языка ---
+      const poseD = mouthTonguePath(pose), restD = mouthTonguePath(MOUTH_REST);
+      let tVals = [restD, poseD, poseD], tKt = [0, 0.22, 1];
+      if (info.flow === 'stop') {
+        const rel = { T: [pose.T[0], pose.T[1] + 4], H: [pose.H[0], pose.H[1] + 3], R: pose.R, F: pose.F };
+        tVals = [restD, poseD, poseD, mouthTonguePath(rel), poseD]; tKt = [0, 0.22, 0.66, 0.74, 1];
+      } else if (info.trill) {
+        tVals = [restD, poseD]; tKt = [0, 0.22];
+        const a = mouthTonguePath({ T: [pose.T[0] + 1, pose.T[1] + 3], H: pose.H, R: pose.R, F: pose.F });
+        const b = mouthTonguePath({ T: [pose.T[0], pose.T[1] - 1.5], H: pose.H, R: pose.R, F: pose.F });
+        const kts = [0.30, 0.36, 0.42, 0.48, 0.54, 0.60, 0.66, 0.72];
+        kts.forEach(function (k, i) { tVals.push(i % 2 === 0 ? a : b); tKt.push(k); });
+        tVals.push(poseD); tKt.push(0.78); tVals.push(poseD); tKt.push(1);
+      }
+      const lipsRestU = MOUTH_LIPS.open.u, lipsRestL = MOUTH_LIPS.open.l;
+      const airPts = mouthAirPts(info, pose);
+      const airD = mouthSmoothPath(airPts);
+      let s = '';
+      s += '<svg class="mouth-anim" viewBox="0 0 140 180" width="100%" height="248" direction="ltr" role="img" aria-label="' + ch + '" style="max-width:300px;display:block;margin:0 auto;background:var(--bg);border-radius:0.85rem;border:1px solid var(--border);direction:ltr">';
+      // значок буквы
+      s += '<rect x="102" y="4" width="34" height="27" rx="7" fill="var(--bg-hover)" stroke="var(--accent)" stroke-width="1.2"/>' +
+           '<text x="119" y="24" text-anchor="middle" font-family="Amiri, \'Scheherazade New\', serif" font-size="20" fill="var(--accent)">' + ch + '</text>';
+      s += '<g transform="translate(0,28)">';
+      // голова, носовая полость, воздушный канал
+      s += '<path d="M21,28 Q24,8 62,6 Q106,6 128,34 L126,92 Q118,108 108,114 L58,114 Q28,108 21,90 Q13,76 12,66 L11,56 L11,44 Q11,36 16,33 Z" fill="#1e293b" stroke="var(--text-muted)" stroke-width="1.3"/>';
+      s += '<path d="M24,34 Q30,16 66,13 Q104,12 117,30 L116,38 Q104,28 88,28 L46,30 Q32,34 30,40 Z" fill="#0f172a" opacity="0.85"/>';
+      s += '<ellipse cx="22" cy="36" rx="2.4" ry="3.4" fill="#0b1220"/>';
+      s += '<path d="M16,46 L30,46 L35,40 Q38,36 46,33 Q70,27 88,31 Q104,33 114,41 L117,60 L116,92 L100,92 Q70,88 40,80 L22,68 Z" fill="#0b1220"/>';
+      // твёрдое нёбо + альвеолярный бугор
+      s += '<path d="M33,45 Q35,35 46,32 Q70,26 88,30" fill="none" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round"/>';
+      // мягкое нёбо + язычок
+      const uvUp = [113, 42], uvDn = [107, 59], uvNow = (velumDown && showPose) ? uvDn : uvUp;
+      s += '<path d="' + velumD + '" fill="none" stroke="#94a3b8" stroke-width="3.6" stroke-linecap="round">' +
+           (velumDown ? A('d', [VEL_UP, VEL_DN, VEL_DN], [0, 0.22, 1]) : '') + '</path>';
+      s += '<circle cx="' + uvNow[0] + '" cy="' + uvNow[1] + '" r="2.6" fill="#94a3b8">' +
+           (velumDown ? A('cx', [uvUp[0], uvDn[0], uvDn[0]], [0, 0.22, 1]) + A('cy', [uvUp[1], uvDn[1], uvDn[1]], [0, 0.22, 1]) : '') + '</circle>';
+      // стенка глотки («горло» — фиолетовая подсветка, как в легенде) + надгортанник + гортань
+      s += '<path d="M116,38 Q122,62 119,86 Q117,100 112,112" fill="none" stroke="#c084fc" stroke-width="7" stroke-linecap="round" opacity="0.2"/>';
+      s += '<path d="M116,38 Q122,62 119,86 Q117,100 112,112" fill="none" stroke="#c084fc" stroke-width="2.4" stroke-linecap="round"/>';
+      s += '<path d="M101,100 Q97,86 102,78 Q108,82 108,98 Z" fill="#94a3b8" opacity="0.9"/>';
+      s += '<path d="M101,99 Q100,111 110,113 Q120,111 119,99" stroke="#64748b" stroke-width="1.4" fill="none"/>';
+      // пол рта
+      s += '<path d="M16,70 Q24,86 44,90 Q74,98 100,100" fill="none" stroke="#64748b" stroke-width="1.4"/>';
+      // язык (заливка в цвет «язык» из легенды)
+      s += '<path d="' + mouthTonguePath(curTongue) + '" fill="#38bdf8" fill-opacity="0.82" stroke="#7dd3fc" stroke-width="1.4" stroke-linejoin="round">' +
+           A('d', tVals, tKt) + '</path>';
+      // голосовые связки: звонкие — сближены + розовое свечение; глухие — раздвинуты
+      const fx = info.voiced ? [108.2, 111.8] : [105, 115];
+      s += (info.voiced ? '<ellipse cx="110" cy="105" rx="9" ry="3.4" fill="#fb7185" opacity="0.25"/>' : '') +
+           '<ellipse cx="' + fx[0] + '" cy="105" rx="3" ry="1.5" fill="#fda4af">' + (info.voiced ? A('cx', [108.2, 105.6, 108.2], [0, 0.5, 1], { dur: 0.12, linear: true, repeat: 12, delay: 0.85 }) : '') + '</ellipse>' +
+           '<ellipse cx="' + fx[1] + '" cy="105" rx="3" ry="1.5" fill="#fda4af">' + (info.voiced ? A('cx', [111.8, 114.4, 111.8], [0, 0.5, 1], { dur: 0.12, linear: true, repeat: 12, delay: 0.85 }) : '') + '</ellipse>';
+      // нижняя челюсть/зубы (для «аа» челюсть опускается), губы
+      const jaw = (g.lips === 'wide' && showPose) ? 5 : 0;
+      s += '<g' + (jaw ? ' transform="translate(0,' + jaw + ')"' : '') + '>' +
+           (g.lips === 'wide' && animate ? '<animateTransform attributeName="transform" type="translate" begin="indefinite" dur="' + D + 's" values="0 0;0 5;0 5" keyTimes="0;0.22;1" data-d="0"/>' : '') +
+           '<rect x="27" y="61" width="6" height="11" rx="2" fill="#cbd5e1"/><rect x="34" y="64" width="6" height="9" rx="2" fill="#cbd5e1"/></g>';
+      s += '<rect x="27" y="35" width="6" height="14" rx="2" fill="#f8fafc"/><rect x="34" y="37" width="6" height="11" rx="2" fill="#f8fafc"/>';
+      s += '<path d="' + lipsNow.u + '" fill="none" stroke="#fb7185" stroke-width="4" stroke-linecap="round">' +
+           (g.lips !== 'open' ? A('d', [lipsRestU, MOUTH_LIPS[g.lips].u, MOUTH_LIPS[g.lips].u], [0, 0.22, 1]) : '') + '</path>';
+      s += '<path d="' + lipsNow.l + '" fill="none" stroke="#fb7185" stroke-width="4" stroke-linecap="round">' +
+           (g.lips !== 'open' ? A('d', [lipsRestL, MOUTH_LIPS[g.lips].l, MOUTH_LIPS[g.lips].l], [0, 0.22, 1]) : '') + '</path>';
+      // точка артикуляции (цвет = категория из легенды) с пульсацией при показе
+      if (g.contact && showPose) {
+        s += '<circle cx="' + g.contact[0] + '" cy="' + g.contact[1] + '" r="9" fill="' + col + '" opacity="0.28">' +
+             (animate ? '<animate attributeName="r" begin="indefinite" dur="0.6s" values="7;12;7" repeatCount="4" data-d="0.8"/>' : '') + '</circle>';
+        s += '<circle cx="' + g.contact[0] + '" cy="' + g.contact[1] + '" r="4.6" fill="' + col + '" stroke="#fff" stroke-width="1.8"/>';
+      }
+      if (animate) {
+        // калькаля — «эхо» в момент отпускания
+        if (info.qalq && g.contact) {
+          s += '<circle cx="' + g.contact[0] + '" cy="' + g.contact[1] + '" r="2" fill="none" stroke="' + col + '" stroke-width="1.6" opacity="0">' +
+               '<animate attributeName="r" begin="indefinite" dur="0.7s" values="2;14" data-d="' + _mf(D * 0.7) + '"/>' +
+               '<animate attributeName="opacity" begin="indefinite" dur="0.7s" values="0.95;0" data-d="' + _mf(D * 0.7) + '"/></circle>';
+        }
+        // частицы воздуха
+        const N = info.flow === 'fric' ? 9 : 6, dur = info.flow === 'fric' ? 0.95 : 1.4, step = info.flow === 'fric' ? 0.1 : 0.2;
+        let kp = '';
+        if (info.flow === 'stop' && g.contact) { const fr = mouthFracAt(airPts, g.contact); kp = ' calcMode="linear" keyPoints="0;' + fr + ';' + fr + ';1" keyTimes="0;0.45;0.62;1"'; }
+        for (let i = 0; i < N; i++) {
+          const dl = _mf(0.8 + i * step);
+          s += '<circle r="1.7" cx="0" cy="0" fill="#e0f2fe" opacity="0">' +
+               '<animateMotion begin="indefinite" dur="' + (info.flow === 'stop' ? 2.0 : dur) + 's" path="' + airD + '"' + kp + ' fill="remove" data-d="' + dl + '"/>' +
+               '<animate attributeName="opacity" begin="indefinite" dur="' + (info.flow === 'stop' ? 2.0 : dur) + 's" values="0;0.95;0.95;0" keyTimes="0;0.1;0.85;1" data-d="' + dl + '"/></circle>';
+        }
+        // волны голоса у звонких
+        if (info.voiced) {
+          for (let i = 0; i < 3; i++) {
+            const dl = _mf(0.85 + i * 0.35);
+            s += '<path d="M103,98 Q110,92 117,98" fill="none" stroke="#fda4af" stroke-width="1.4" opacity="0">' +
+                 '<animateTransform attributeName="transform" type="translate" begin="indefinite" dur="1.1s" values="0 0;0 -24" data-d="' + dl + '"/>' +
+                 '<animate attributeName="opacity" begin="indefinite" dur="1.1s" values="0.9;0" data-d="' + dl + '"/></path>';
+          }
+        }
+      }
+      s += '</g>';
+      // легенда (как утверждено: 2 строки по 2, без дефиса)
+      s += mouthLegendSvg(col);
+      s += '</svg>';
+      return s;
+    }
+    function mouthLegendSvg(zoneDot, kkZone) {
+      kkZone = (typeof isKk === 'function') ? isKk() : false;
+      function it(cx, cy, fill, label, tx) {
+        const on = (zoneDot === fill);
+        return '<circle cx="' + cx + '" cy="' + cy + '" r="4.4" fill="' + fill + '" ' + (on ? 'stroke="#fff" stroke-width="1.3"' : '') + '/>' +
+               '<text x="' + tx + '" y="' + (cy + 3.5) + '" ' + (on ? 'font-weight="700" fill="var(--text)"' : '') + '>' + label + '</text>';
+      }
+      return '<g transform="translate(10,150)" font-family="system-ui" font-size="10.5" fill="var(--text-muted)">' +
+        it(5, 0, '#fb7185', kkZone ? 'ерін' : 'губы', 13) + it(70, 0, '#f8fafc', kkZone ? 'тіс' : 'зубы', 78) +
+        it(5, 18, '#38bdf8', kkZone ? 'тіл' : 'язык', 13) + it(70, 18, '#c084fc', kkZone ? 'тамақ' : 'горло', 78) + '</g>';
+    }
+
+
+    function letterMouthSvg(ch) {
+      const kk = (typeof isKk === 'function') && isKk();
+      const info = mouthLetterInfo(ch);
+      const g = info.g;
+      const reduce = !!((state.settings && state.settings.reduceMotion) ||
+        (document.body && document.body.classList.contains('reduce-motion')) ||
+        (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches));
+      const svg = mouthFigureSvg(ch, { animate: !reduce });
+      const col = g ? MOUTH_CAT_COLOR[g.cat] : 'var(--accent)';
+      const t = g ? (kk ? g.kk : g.ru) : { how: kk ? 'Тіл' : 'Язык', steps: '' };
+      const chip = function (txt, bd) {
+        return '<span style="display:inline-block;margin:0.15rem;padding:0.12rem 0.55rem;border-radius:999px;border:1px solid ' + (bd || 'var(--border)') + ';font-size:0.75rem;color:var(--text)">' + txt + '</span>';
+      };
+      let chips = '';
+      if (g) {
+        chips += info.voiced ? chip(kk ? '🔊 үнді (жаһр)' : '🔊 звонкая (джахр)', '#fb7185') : chip(kk ? '🤫 үнсіз (хамс)' : '🤫 глухая (хамс)');
+        if (ch !== 'ا') {
+          chips += chip(info.manner === 'shidda' ? (kk ? 'тұйық (шидда)' : 'смычная (шидда)')
+                      : info.manner === 'tawassut' ? (kk ? 'ортаңғы (тауассут)' : 'средняя (тавассут)')
+                      : (kk ? 'саңылаулы (рахауа)' : 'щелевая (рахава)'));
+        }
+        if (info.heavy) chips += chip(kk ? '⛰ ауыр (истилә)' : '⛰ тяжёлая (истиля)', '#38bdf8');
+        if (info.nasal) chips += chip(kk ? '👃 мұрындық (гунна)' : '👃 носовая (гунна)', '#c084fc');
+        if (info.qalq) chips += chip(kk ? '↯ қалқаля' : '↯ калькаля', '#facc15');
+        if (info.ipa) chips += chip((kk ? 'ХФА [' : 'МФА [') + info.ipa + ']');
+      }
+      const seeMap = { 'ا': 'a', 'ج': 'ʒ / d', 'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'ð' };
+      const seeSym = seeMap[ch] || info.ipa;
+      const emph = info.emphatic
+        ? (kk ? ' (эмфатикалық нұсқасы жеке болмауы мүмкін — әдеттегі дыбыспен салыстырыңыз)' : ' (у эмфатических отдельного видео может не быть — сравните с обычным звуком)')
+        : '';
+      const see = g
+        ? '<div style="margin-top:0.35rem;font-size:0.76rem;line-height:1.4;color:var(--text-muted)">🔬 ' +
+          '<a href="https://www.seeingspeech.ac.uk/ipa-charts/" target="_blank" rel="noopener" style="color:var(--accent)">Seeing Speech</a> ' +
+          (kk ? '(Глазго университеті) — шын МРТ-бейне, дыбысты табыңыз: [' : '(Университет Глазго) — реальные МРТ-видео, найдите звук: [') + seeSym + ']' + emph + '</div>' +
+          '<div style="margin-top:0.2rem;font-size:0.7rem;color:var(--text-muted);opacity:0.8">' +
+          (kk ? 'Орын — 17 махәриж (Ибн әл-Жәзәри); тілдің қалпы — фонетикалық зерттеулер бойынша.' : 'Место — 17 махаридж (Ибн аль-Джазари); положение языка — по фонетическим исследованиям.') + '</div>'
+        : '';
+      const playBtn = reduce ? '' :
+        '<div style="margin-top:0.5rem"><button type="button" class="btn btn-sm" data-mouth-play="' + ch + '">▶ ' + (kk ? 'Дыбысты көрсету' : 'Показать звук') + '</button></div>';
+      return '<div class="mouth-wrap" style="text-align:center;direction:ltr;unicode-bidi:isolate">' +
+        // build 6.05: подпись зоны того же цвета, что и точка/легенда
+        '<div style="font-weight:600;color:' + col + ';margin:0.25rem 0">' + (kk ? 'Аймақ: ' : 'Зона: ') + t.how + '</div>' +
+        svg + playBtn +
+        '<div style="margin-top:0.4rem;line-height:1.5">' + chips + '</div>' +
+        '<div class="ayah-translation" style="font-size:calc(0.85rem * var(--ru-scale, 1));margin-top:0.35rem;line-height:1.45;text-align:center;max-width:300px;margin-left:auto;margin-right:auto">' + t.steps + '</div>' +
+        see + '</div>';
+    }
+    // Запуск анимации: по кнопке «Показать звук» (вместе со звуком буквы) и при нажатии на обычные
+    // кнопки «Произнести» в «Теории» и «Учителе» (звук там играют их собственные обработчики).
+    function mouthPlay(svgEl) {
+      if (!svgEl) return;
+      svgEl.querySelectorAll('animate,animateMotion,animateTransform').forEach(function (a) {
+        try { a.beginElementAt(parseFloat(a.getAttribute('data-d')) || 0); } catch (e) {}
+      });
+    }
+    document.addEventListener('click', function (e) {
+      const t = e.target;
+      if (!t || !t.closest) return;
+      const pb = t.closest('[data-mouth-play]');
+      if (pb) {
+        const wrap = pb.closest('.mouth-wrap');
+        mouthPlay(wrap && wrap.querySelector('svg.mouth-anim'));
+        const chx = pb.getAttribute('data-mouth-play');
+        setTimeout(function () {
+          try { const lo = ARABIC_LETTERS.find(function (x) { return x.ch === chx; }); if (lo && typeof speakLetter === 'function') speakLetter(lo); } catch (e2) {}
+        }, 750);
+        return;
+      }
+      const sp = t.closest('#btn-speak-letter, [data-teacher-speak-letter]');
+      if (sp) {
+        const scope = sp.closest('#letter-detail') || sp.closest('.card') || document;
+        mouthPlay(scope.querySelector('svg.mouth-anim'));
+      }
+    }, true);
 
 
     function renderAlphabet() {
@@ -9488,7 +9733,7 @@ function renderMistakes() {
         };
       }
       grid.innerHTML = ARABIC_LETTERS.map((l, i) =>
-        '<div class="letter-card" data-i="'+i+'"><div class="char" dir="rtl">'+l.ch+'</div><div class="name">'+(kkA ? (l.nameKk||l.name) : l.name)+'</div><div style="font-size:0.75rem;color:var(--text-muted)">'+(l.tr||'')+'</div></div>'
+        '<div class="letter-card" data-i="'+i+'"><div class="char" dir="rtl">'+l.ch+'</div><div class="name">'+(kkA ? (l.nameKk||l.name) : l.name)+'</div><div style="font-size:0.75rem;color:var(--text-muted)">'+(letterTr(l)||'')+'</div></div>'
       ).join('');
       grid.querySelectorAll('.letter-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -9509,7 +9754,7 @@ function renderMistakes() {
           det.innerHTML =
             '<div class="detail-ar" style="text-align:center;font-size:calc(3rem * var(--ar-scale, 1));font-family:Amiri,serif" dir="rtl" lang="ar">'+l.ch+'</div>' +
             '<div style="text-align:center;margin:0.5rem 0" dir="ltr"><b>'+(kkD ? (l.nameKk||l.name) : l.name)+'</b></div>' +
-            (l.tr ? '<div style="text-align:center;color:var(--accent);font-size:1.15rem;margin-bottom:0.35rem" dir="ltr">'+l.tr+'</div>' : '') +
+            (letterTr(l) ? '<div style="text-align:center;color:var(--accent);font-size:1.15rem;margin-bottom:0.35rem" dir="ltr">'+letterTr(l)+'</div>' : '') +
             '<div style="text-align:center">'+(typeof letterMouthSvg==='function'?letterMouthSvg(l.ch):'')+'</div>' +
             '<div class="ayah-translation" dir="ltr" style="text-align:center;unicode-bidi:isolate">'+((kkD ? (l.noteKk||l.note) : l.note)||'')+'</div>' +
             ((typeof ARTICULATION !== 'undefined' && ARTICULATION[l.ch]) ? '<div style="margin-top:0.4rem;font-size:0.85rem;color:var(--accent);text-align:center" dir="ltr" style="unicode-bidi:isolate">🗣️ '+ARTICULATION[l.ch]+'</div>' : '') +
@@ -10360,7 +10605,7 @@ function renderMistakes() {
       area.innerHTML =
         '<div class="quiz-card">' +
         '<div class="quiz-q"><span class="arabic-q">'+letter.ch+'</span>' + (kkQ ? 'Әріпті айтыңыз' : 'Произнесите букву') + '<br>' +
-        '<span style="color:var(--text-muted);font-size:0.9rem;font-weight:500">'+(kkQ && letter.nameKk ? letter.nameKk : letter.name)+' · '+letter.tr+'</span></div>' +
+        '<span style="color:var(--text-muted);font-size:0.9rem;font-weight:500">'+(kkQ && letter.nameKk ? letter.nameKk : letter.name)+' · '+letterTr(letter)+'</span></div>' +
         '<div style="text-align:center;margin:1rem 0;display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center">' +
           '<button class="btn btn-sm" id="btn-hear">🔊 ' + (kkQ ? 'Дұрысы' : 'Как надо') + '</button>' +
           '<button class="btn btn-primary" id="btn-rec">⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя') + '</button>' +
@@ -10545,7 +10790,7 @@ function renderMistakes() {
         '<div class="quiz-card"><div class="quiz-q">' +
         (isName
           ? '<span class="arabic-q">'+letter.ch+'</span>' + (kkQ ? 'Бұл әріптің аты қандай?' : 'Как называется эта буква?')
-          : (kkQ ? 'Қай әріп сәйкес келеді:<br><b>'+(letter.nameKk||letter.name)+'</b> ('+letter.tr+')?' : 'Какая буква соответствует:<br><b>'+letter.name+'</b> ('+letter.tr+')?')) +
+          : (kkQ ? 'Қай әріп сәйкес келеді:<br><b>'+(letter.nameKk||letter.name)+'</b> ('+letterTr(letter)+')?' : 'Какая буква соответствует:<br><b>'+letter.name+'</b> ('+letterTr(letter)+')?')) +
         '</div><div class="quiz-opts" id="quiz-opts"></div>' +
         '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Есеп: ' : 'Счёт: ') + gameScore+' / '+gameTotal+'</div></div>';
       const optsEl = document.getElementById('quiz-opts');
@@ -10587,6 +10832,30 @@ function renderMistakes() {
       'ع':'ʻ','غ':'ғ','ف':'ф','ق':'қ','ك':'к','ل':'л','م':'м','ن':'н',
       'ه':'һ','و':'у','ي':'й'
     };
+    // build 6.13/6.14: казахские буквы вместо русской транскрипции. Правила — по казахским пособиям
+    // (методичка Туркестанского университета им. Ясави; курс Ауданбая Ахметжанулы): гласные огласовок
+    // зависят от «жуан/жіңішке» буквы. Фатха: жіңішке «ә» (бә, шә), жуан «о» (қо, ро, со, то). Кясра: жіңішке «и»
+    // (ти, ми), жуан «ы» (хы, сы). Дамма: жіңішке «ү», жуан «у». Жуан — семь «тяжёлых» خ غ ق ص ض ط ظ;
+    // ر при фатхе и дамме жуан, при кясре жіңішке. Русский вариант не меняется.
+    const KK_HARD_LETTERS = 'خغقصضطظ';
+    // В казахском варианте «тяжёлые» и глоточные согласные пишутся обычными казахскими буквами (са, ты, ху —
+    // как в казахских пособиях): мягкость/тяжесть теперь видна по гласной (сә — са, ти — ты), а знаки ṣ ḍ ṭ ẓ ħ
+    // нужны только русскому варианту. ث и ذ оставлены с чертой, чтобы не совпасть с س и ز.
+    const KK_CONSONANT_OVERRIDE = { 'ج': 'ж', 'ص': 'с', 'ض': 'д', 'ط': 'т', 'ظ': 'з', 'خ': 'х', 'ح': 'х' };
+    function consSound(ch) {
+      if (typeof isKk === 'function' && isKk() && KK_CONSONANT_OVERRIDE[ch]) return KK_CONSONANT_OVERRIDE[ch];
+      return BASE_CONSONANT_SOUND[ch];
+    }
+    function sylTr(ch, mk) {
+      const cs = consSound(ch);
+      if (!(typeof isKk === 'function' && isKk())) return cs + mk.v;
+      const hard = KK_HARD_LETTERS.indexOf(ch) >= 0 || (ch === 'ر' && mk.k !== 'i');
+      const v = { a: hard ? 'о' : 'ә', i: hard ? 'ы' : 'и', u: hard ? 'у' : 'ү' }[mk.k] || mk.v;
+      return cs + v;
+    }
+    function letterTr(l) { return (l && typeof isKk === 'function' && isKk() && l.trKk) ? l.trKk : (l ? l.tr : ''); }
+    function pwTr(w) { return (typeof isKk === 'function' && isKk() && w.trKk) ? w.trKk : w.tr; }
+    function pwMean(w) { return (typeof isKk === 'function' && isKk() && w.meaningKk) ? w.meaningKk : w.meaning; }
     // build 5.91: «вставьте нужную огласовку» — применение харакатов на
     // настоящих словах, а не узнавание изолированного слога. Берём готовое
     // слово из PRACTICE_WORDS, прячем ОДНУ из его огласовок и просим угадать,
@@ -10596,7 +10865,7 @@ function renderMistakes() {
       gameTotal++;
       const item = gameQueue.shift();
       const kkQ = isKk();
-      const marks = [{h:'\u064E',v:(kkQ?'фатха (а)':'фатха (а)')},{h:'\u0650',v:(kkQ?'кясра (и)':'кясра (и)')},{h:'\u064F',v:(kkQ?'дамма (у)':'дамма (у)')}];
+      const marks = [{h:'\u064E',v:(kkQ?'фатха (ә/о)':'фатха (а)')},{h:'\u0650',v:(kkQ?'кясра (и/ы)':'кясра (и)')},{h:'\u064F',v:(kkQ?'дамма (ү/у)':'дамма (у)')}];
       const correctLabel = marks.find(function(m){ return m.h === item.mark; }).v;
       const opts = shuffle(marks.map(function(m){ return m.v; }));
       const area = document.getElementById('game-area');
@@ -10636,7 +10905,7 @@ function renderMistakes() {
         const pos = positions[Math.floor(Math.random()*positions.length)];
         const mark = w.ar[pos];
         const masked = w.ar.slice(0, pos) + '◌' + w.ar.slice(pos+1);
-        return { masked: masked, mark: mark, tr: w.tr, meaning: w.meaning };
+        return { masked: masked, mark: mark, tr: pwTr(w), meaning: pwMean(w) };
       }).filter(Boolean);
       gameQueue = shuffle(pool).slice(0, Math.min(8, pool.length));
       nextFillgapQuestion();
@@ -10649,12 +10918,12 @@ function renderMistakes() {
       const kkQ = isKk();
       const otherN = Math.max(1, quizOptionCount() - 1);
       const allLetters = Object.keys(BASE_CONSONANT_SOUND).filter(function(ch){ return (_activeBlendLetters || []).indexOf(ch) >= 0; });
-      const marks = [{h:'\u064E',v:'а'},{h:'\u0650',v:'и'},{h:'\u064F',v:'у'}];
+      const marks = [{h:'\u064E',v:'а',k:'a'},{h:'\u0650',v:'и',k:'i'},{h:'\u064F',v:'у',k:'u'}];
       const distractors = [];
       while (distractors.length < otherN) {
         const ch2 = allLetters[Math.floor(Math.random()*allLetters.length)];
         const mk2 = marks[Math.floor(Math.random()*marks.length)];
-        const tr2 = BASE_CONSONANT_SOUND[ch2] + mk2.v;
+        const tr2 = sylTr(ch2, mk2);
         if (tr2 !== item.tr && distractors.indexOf(tr2) < 0) distractors.push(tr2);
       }
       const opts = shuffle([item.tr].concat(distractors));
@@ -10691,7 +10960,7 @@ function renderMistakes() {
     // самостоятельное чтение вслух в своём темпе, страница за страницей.
     function startQaidaLines(container, lettersPool) {
       const kkQ = isKk();
-      const marks = [{h:'\u064E',v:'а'},{h:'\u0650',v:'и'},{h:'\u064F',v:'у'}];
+      const marks = [{h:'\u064E',v:'а',k:'a'},{h:'\u0650',v:'и',k:'i'},{h:'\u064F',v:'у',k:'u'}];
       const lineCount = 6;
       const lines = [];
       for (let li = 0; li < lineCount; li++) {
@@ -10725,10 +10994,10 @@ function renderMistakes() {
       _activeBlendLetters = letters;
       currentGame = 'blend';
       gameScore = 0; gameTotal = 0;
-      const marks = [{h:'\u064E',v:'а'},{h:'\u0650',v:'и'},{h:'\u064F',v:'у'}];
+      const marks = [{h:'\u064E',v:'а',k:'a'},{h:'\u0650',v:'и',k:'i'},{h:'\u064F',v:'у',k:'u'}];
       const pool = [];
       letters.forEach(function(ch) {
-        marks.forEach(function(mk) { pool.push({ ar: ch + mk.h, tr: BASE_CONSONANT_SOUND[ch] + mk.v }); });
+        marks.forEach(function(mk) { pool.push({ ar: ch + mk.h, tr: sylTr(ch, mk) }); });
       });
       gameQueue = shuffle(pool).slice(0, Math.min(10, pool.length));
       nextBlendQuestion();
@@ -10741,7 +11010,7 @@ function renderMistakes() {
     function startConstructDrill(letters, useSukun) {
       currentGame = 'construct';
       const kkC = isKk();
-      const marks = [{h:'\u064E',v:'а'},{h:'\u0650',v:'и'},{h:'\u064F',v:'у'}];
+      const marks = [{h:'\u064E',v:'а',k:'a'},{h:'\u0650',v:'и',k:'i'},{h:'\u064F',v:'у',k:'u'}];
       let round = 0;
       const totalRounds = 6;
       let score = 0;
@@ -10755,14 +11024,14 @@ function renderMistakes() {
         const target = [];
         for (let i = 0; i < len; i++) {
           const ch = letters[Math.floor(Math.random()*letters.length)];
-          if (useSukun && i === len - 1 && Math.random() < 0.5) target.push({ ar: ch + '\u0652', tr: BASE_CONSONANT_SOUND[ch] });
-          else { const mk = marks[Math.floor(Math.random()*marks.length)]; target.push({ ar: ch + mk.h, tr: BASE_CONSONANT_SOUND[ch] + mk.v }); }
+          if (useSukun && i === len - 1 && Math.random() < 0.5) target.push({ ar: ch + '\u0652', tr: consSound(ch) });
+          else { const mk = marks[Math.floor(Math.random()*marks.length)]; target.push({ ar: ch + mk.h, tr: sylTr(ch, mk) }); }
         }
         const decoys = [];
         while (decoys.length < 2) {
           const ch = letters[Math.floor(Math.random()*letters.length)];
           const mk = marks[Math.floor(Math.random()*marks.length)];
-          decoys.push({ ar: ch + mk.h, tr: BASE_CONSONANT_SOUND[ch] + mk.v });
+          decoys.push({ ar: ch + mk.h, tr: sylTr(ch, mk) });
         }
         const tiles = shuffle(target.concat(decoys).map(function(t, i){ return Object.assign({}, t, { uid: i }); }));
         const picked = [];
@@ -10918,7 +11187,7 @@ function renderMistakes() {
         const letter = ARABIC_LETTERS.find(function(l) { return l.ch === item.ch; });
         if (!letter) return nextCumulativeQuestion();
         const opts = shuffle([letter.ch].concat(shuffle(ARABIC_LETTERS.filter(function(l){ return l.ch !== letter.ch; })).slice(0, otherN).map(function(l){ return l.ch; })));
-        area.innerHTML = '<div class="quiz-card"><div class="quiz-q">' + (kkQ ? 'Қай әріп сәйкес келеді:<br><b>'+(letter.nameKk||letter.name)+'</b> ('+letter.tr+')?' : 'Какая буква соответствует:<br><b>'+letter.name+'</b> ('+letter.tr+')?') +
+        area.innerHTML = '<div class="quiz-card"><div class="quiz-q">' + (kkQ ? 'Қай әріп сәйкес келеді:<br><b>'+(letter.nameKk||letter.name)+'</b> ('+letterTr(letter)+')?' : 'Какая буква соответствует:<br><b>'+letter.name+'</b> ('+letterTr(letter)+')?') +
           '</div><div class="quiz-opts" id="quiz-opts"></div>' + progressLine + '</div>';
         const optsEl = document.getElementById('quiz-opts');
         opts.forEach(function(o) {
@@ -10934,15 +11203,15 @@ function renderMistakes() {
           optsEl.appendChild(b);
         });
       } else if (item.type === 'cumblend') {
-        const marks = [{h:'\u064E',v:'а'},{h:'\u0650',v:'и'},{h:'\u064F',v:'у'}];
+        const marks = [{h:'\u064E',v:'а',k:'a'},{h:'\u0650',v:'и',k:'i'},{h:'\u064F',v:'у',k:'u'}];
         const mk = marks[Math.floor(Math.random() * marks.length)];
-        const ar = item.ch + mk.h, tr = (BASE_CONSONANT_SOUND[item.ch] || '?') + mk.v;
+        const ar = item.ch + mk.h, tr = sylTr(item.ch, mk);
         const allLetters = Object.keys(BASE_CONSONANT_SOUND);
         const distractors = [];
         while (distractors.length < otherN) {
           const ch2 = allLetters[Math.floor(Math.random()*allLetters.length)];
           const mk2 = marks[Math.floor(Math.random()*marks.length)];
-          const tr2 = (BASE_CONSONANT_SOUND[ch2]||'?') + mk2.v;
+          const tr2 = sylTr(ch2, mk2);
           if (tr2 !== tr && distractors.indexOf(tr2) < 0) distractors.push(tr2);
         }
         const opts = shuffle([tr].concat(distractors));
@@ -11066,7 +11335,7 @@ function renderMistakes() {
       if (item.type === 'letter') {
         const letter = item.data;
         const opts = shuffle([letter.ch].concat(shuffle(ARABIC_LETTERS.filter(function(l){ return l.ch !== letter.ch; })).slice(0, otherN).map(function(l){ return l.ch; })));
-        area.innerHTML = '<div class="quiz-card"><div class="quiz-q">' + (kkQ ? 'Қай әріп сәйкес келеді:<br><b>'+(letter.nameKk||letter.name)+'</b> ('+letter.tr+')?' : 'Какая буква соответствует:<br><b>'+letter.name+'</b> ('+letter.tr+')?') +
+        area.innerHTML = '<div class="quiz-card"><div class="quiz-q">' + (kkQ ? 'Қай әріп сәйкес келеді:<br><b>'+(letter.nameKk||letter.name)+'</b> ('+letterTr(letter)+')?' : 'Какая буква соответствует:<br><b>'+letter.name+'</b> ('+letterTr(letter)+')?') +
           '</div><div class="quiz-opts" id="quiz-opts"></div>' +
           '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Есеп: ' : 'Счёт: ') + gameScore + ' / ' + gameTotal + '</div></div>';
         const optsEl = document.getElementById('quiz-opts');
@@ -11367,6 +11636,7 @@ function renderMistakes() {
     document.querySelectorAll('[data-goto]').forEach(el => {
       el.addEventListener('click', () => showView(el.dataset.goto));
     });
+// @@MODULE app-05-plans-dictionary-search — Планы, азкары, словарь, печать суры, умный поиск, голосовой ввод
 
     
     // ========== PLANS ==========
@@ -11649,7 +11919,6 @@ function renderMistakes() {
     
     
     
-      try { if (typeof bindTipToggles === 'function') bindTipToggles(list); } catch(e) {}
 
     function applyNightSchedule() {
       if (!state.settings || !state.settings.nightAuto) return;
@@ -11711,7 +11980,7 @@ function renderMistakes() {
       } else {
         const cur = d.list.find(x => x.ar === d.phrase) || d.list[0];
         dispAr = cur && cur.ar ? cur.ar : d.phrase;
-        dispTr = cur && cur.tr ? cur.tr : '';
+        dispTr = cur && letterTr(cur) ? letterTr(cur) : '';
         dispMean = cur ? (kk && cur.meanKk ? cur.meanKk : cur.mean) : '';
         dispCount = d.count; dispTarget = d.target;
         var dispFadl = cur ? (kk && cur.fadlKk ? cur.fadlKk : cur.fadl) : '';
@@ -14259,7 +14528,7 @@ bKk:
     }
 
 
-      try { bindTipToggles(el); } catch(e) {}
+// @@MODULE app-06-auth-online-settings — Вход (Supabase), бан, статус в сети, приглашения, настройки онлайна, настройки
 
 
     
@@ -16551,7 +16820,7 @@ bKk:
       return lines.map(function(l) {
         return '<div style="margin:0.55rem 0;padding-bottom:0.5rem;border-bottom:1px solid var(--border)">' +
           '<div class="arabic" style="font-size:calc(1.2rem * var(--ar-scale, 1));line-height:1.9">' + l.ar + '</div>' +
-          '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.15rem;font-style:italic">' + l.tr + '</div>' +
+          '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.15rem;font-style:italic">' + letterTr(l) + '</div>' +
           '<div class="ayah-translation" style="margin-top:0.2rem">' + (kk ? l.kk : l.ru) + '</div>' +
           '</div>';
       }).join('');
@@ -17835,6 +18104,7 @@ let body = '';
         window._prayerNotifTimer = setInterval(tick, 1000);
       } catch(e) {}
     }
+// @@MODULE app-07-tafsir-theme-home — Личный тафсир, SM-2, темы, экспорт, напоминания, PWA, аят дня, главная, темы аятов
 
 
     // ========== Личный тафсир: журнал заметок к аятам ==========
@@ -20433,6 +20703,7 @@ function renderDict() {
         document.getElementById('topics-suggest-today').addEventListener('click', function(){ openTopic(todayIdx); });
       }
     }
+// @@MODULE app-08-names-sources — 99 имён Аллаха, единый шаблон источников
 
     // ========== 99 NAMES ==========
 
@@ -21438,6 +21709,7 @@ function playArabicAudio(text, fallbackRu, opts) {
     function srcDisclaimerHtml() {
       return '<div class="src-disclaimer">'+srcNotFatwa()+'</div>';
     }
+// @@MODULE app-09-adab — Адаб общения: полные тексты
 
 
     var CITED_HADITHS = [
@@ -25384,6 +25656,7 @@ function playArabicAudio(text, fallbackRu, opts) {
       });
       applySettings();
     }
+// @@MODULE app-10-stats-reader — Статистика, стрик, достижения, жалобы, инструменты читалки, короткие уроки
 
 
     // ========== STATS ==========
@@ -27225,15 +27498,120 @@ async function renderRegistrationSection() {
       toast(readerReversed ? 'Порядок: с конца (и в плеере)' : 'Порядок: с начала');
     });
 
-    // build 5.71: «Спокойный режим» чтения — прячет шапку/навигацию/панель
-    // инструментов, оставляя только текст аятов и одну плавающую кнопку
-    // выхода. Раньше такого режима не было вообще (только тёмная тема).
-    document.getElementById('btn-quiet-read')?.addEventListener('click', () => {
+    // build 5.71: «Спокойный режим» чтения — прячет шапку/навигацию/панель инструментов.
+    // build 6.12: превращён в «Чистый фокус»: прячет ещё и плашку «Тел», плеер и значок «ОФФ»; умеет
+    // показывать ПО ОДНОМУ АЯТУ (свайп влево/вправо, кнопки ‹ ›, стрелки на клавиатуре), включать/выключать
+    // перевод, слушать текущий аят; пытается включить полный экран и не давать экрану гаснуть; панель сама
+    // бледнеет через пару секунд бездействия; при выходе возвращает к тому месту, где читали.
+    var _zen = { idx: 0, wake: null, fs: false, idle: null };
+    function zenKk() { return (typeof isKk === 'function') && isKk(); }
+    function zenAyahs() { return Array.prototype.slice.call(document.querySelectorAll('#ayah-list .ayah')); }
+    function zenPref(k, d) { try { var v = localStorage.getItem('quran_zen_' + k); return v === null ? d : v; } catch (e) { return d; } }
+    function zenSetPref(k, v) { try { localStorage.setItem('quran_zen_' + k, v); } catch (e) {} }
+    function zenActive() { return document.body.classList.contains('quiet-reading'); }
+    function zenPoke() {
+      document.body.classList.remove('zen-idle');
+      clearTimeout(_zen.idle);
+      _zen.idle = setTimeout(function () { if (zenActive()) document.body.classList.add('zen-idle'); }, 3500);
+    }
+    function zenShow(i) {
+      var list = zenAyahs(); if (!list.length) return;
+      i = Math.max(0, Math.min(list.length - 1, i)); _zen.idx = i;
+      list.forEach(function (el, k) { el.classList.toggle('zen-current', k === i); });
+      var cnt = document.getElementById('zen-count'); if (cnt) cnt.textContent = (i + 1) + ' / ' + list.length;
+      if (document.body.classList.contains('zen-one')) { try { window.scrollTo(0, 0); } catch (e) {} }
+    }
+    function zenSyncButtons() {
+      var kk = zenKk();
+      var one = document.body.classList.contains('zen-one'), hide = document.body.classList.contains('zen-hide-tr');
+      var m = document.getElementById('zen-mode'), t = document.getElementById('zen-tr'), p = document.getElementById('zen-play');
+      if (m) { m.classList.toggle('on', one); m.title = one ? (kk ? 'Бүкіл сүре' : 'Показать всю суру') : (kk ? 'Бір-бір аяттан' : 'Показывать по одному аяту'); }
+      if (t) { t.classList.toggle('on', !hide); t.title = hide ? (kk ? 'Аударманы көрсету' : 'Показать перевод') : (kk ? 'Аударманы жасыру' : 'Скрыть перевод'); }
+      if (p) p.title = kk ? 'Тыңдау' : 'Слушать';
+      var pv = document.getElementById('zen-prev'), nx = document.getElementById('zen-next');
+      if (pv) pv.title = kk ? 'Алдыңғы аят' : 'Предыдущий аят';
+      if (nx) nx.title = kk ? 'Келесі аят' : 'Следующий аят';
+      var ex = document.getElementById('quiet-read-exit'); if (ex) ex.title = kk ? 'Шығу' : 'Выйти из режима';
+    }
+    function zenWake() {
+      try {
+        if (navigator.wakeLock && !_zen.wake && zenActive()) {
+          navigator.wakeLock.request('screen').then(function (s) {
+            _zen.wake = s; s.addEventListener('release', function () { _zen.wake = null; });
+          }).catch(function () {});
+        }
+      } catch (e) {}
+    }
+    function zenEnter() {
+      var list = zenAyahs(), start = 0;
+      for (var k = 0; k < list.length; k++) { if (list[k].getBoundingClientRect().bottom > 70) { start = k; break; } }
       document.body.classList.add('quiet-reading');
+      document.body.classList.toggle('zen-one', zenPref('one', '1') === '1');
+      document.body.classList.toggle('zen-hide-tr', zenPref('tr', '1') === '0');
+      zenShow(start); zenSyncButtons(); zenPoke(); zenWake();
+      try {
+        var de = document.documentElement;
+        if (de.requestFullscreen && !document.fullscreenElement) de.requestFullscreen({ navigationUI: 'hide' }).then(function () { _zen.fs = true; }).catch(function () {});
+      } catch (e) {}
+    }
+    function zenExit() {
+      var cur = zenAyahs()[_zen.idx];
+      document.body.classList.remove('quiet-reading', 'zen-one', 'zen-idle', 'zen-hide-tr');
+      zenAyahs().forEach(function (el) { el.classList.remove('zen-current'); });
+      clearTimeout(_zen.idle);
+      try { if (_zen.wake) { _zen.wake.release(); _zen.wake = null; } } catch (e) {}
+      try { if (_zen.fs && document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
+      _zen.fs = false;
+      try { if (cur) cur.scrollIntoView({ block: 'center' }); } catch (e) {}
+    }
+    document.getElementById('btn-quiet-read')?.addEventListener('click', zenEnter);
+    document.getElementById('quiet-read-exit')?.addEventListener('click', zenExit);
+    document.getElementById('zen-prev')?.addEventListener('click', function () { zenShow(_zen.idx - 1); zenPoke(); });
+    document.getElementById('zen-next')?.addEventListener('click', function () { zenShow(_zen.idx + 1); zenPoke(); });
+    document.getElementById('zen-mode')?.addEventListener('click', function () {
+      var one = !document.body.classList.contains('zen-one');
+      document.body.classList.toggle('zen-one', one); zenSetPref('one', one ? '1' : '0');
+      zenShow(_zen.idx); zenSyncButtons(); zenPoke();
+      if (!one) { try { zenAyahs()[_zen.idx].scrollIntoView({ block: 'center' }); } catch (e) {} }
     });
-    document.getElementById('quiet-read-exit')?.addEventListener('click', () => {
-      document.body.classList.remove('quiet-reading');
+    document.getElementById('zen-tr')?.addEventListener('click', function () {
+      var hide = !document.body.classList.contains('zen-hide-tr');
+      document.body.classList.toggle('zen-hide-tr', hide); zenSetPref('tr', hide ? '0' : '1'); zenSyncButtons(); zenPoke();
     });
+    document.getElementById('zen-play')?.addEventListener('click', function () {
+      zenPoke();
+      try {
+        if (typeof audioEl !== 'undefined' && audioEl && !audioEl.paused) { audioEl.pause(); return; }
+        var cur = zenAyahs()[_zen.idx], b = cur && cur.querySelector('.btn-play-ayah');
+        if (b) b.click();
+      } catch (e) {}
+    });
+    (function () {
+      var v = document.getElementById('view-reader'), x0 = null, y0 = 0, t0 = 0;
+      if (!v) return;
+      v.addEventListener('touchstart', function (e) {
+        if (!zenActive() || !e.touches || !e.touches[0]) return;
+        x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); zenPoke();
+      }, { passive: true });
+      v.addEventListener('touchend', function (e) {
+        if (x0 === null) return;
+        var t = e.changedTouches && e.changedTouches[0], sx = x0; x0 = null;
+        if (!t || !zenActive() || !document.body.classList.contains('zen-one')) return;
+        var dx = t.clientX - sx, dy = t.clientY - y0;
+        if (Date.now() - t0 > 700 || Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+        zenShow(_zen.idx + (dx < 0 ? 1 : -1));
+      }, { passive: true });
+      v.addEventListener('mousemove', function () { if (zenActive()) zenPoke(); });
+    })();
+    document.addEventListener('keydown', function (e) {
+      if (!zenActive()) return;
+      if (e.key === 'Escape') { zenExit(); return; }
+      if (!document.body.classList.contains('zen-one')) return;
+      if (e.key === 'ArrowLeft') { zenShow(_zen.idx + 1); zenPoke(); }
+      else if (e.key === 'ArrowRight') { zenShow(_zen.idx - 1); zenPoke(); }
+    });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && zenActive()) zenWake(); });
+    document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement) _zen.fs = false; });
 
     document.getElementById('btn-loop-range')?.addEventListener('click', async () => {
       if (!state.currentSurah) return;
@@ -27312,6 +27690,7 @@ async function renderRegistrationSection() {
         l.body.map(p => '<div class="card" style="margin-bottom:0.5rem;line-height:1.55">'+p+'</div>').join('');
       document.getElementById('btn-lessons-back')?.addEventListener('click', renderLessons);
     }
+// @@MODULE app-11-content-embedded — Контентные модули и встроенные данные
 
 
 
@@ -30391,6 +30770,7 @@ c.addEventListener('click', () => {
         return L;
       } catch(e) { return 'grid3'; }
     }
+// @@MODULE app-12-online-forum-caches — Вкладка Онлайн, вопросы, форум, общий чат, кэши аудио/слов/картинок/сообщений, лимиты
 
     // ========== ВКЛАДКА «ОНЛАЙН» (build 4.47) ==========
     // Раньше все эти разделы (чат, ЛС, группы, друзья, форум, уведомления и
@@ -33406,6 +33786,7 @@ c.addEventListener('click', () => {
       // чтобы пользователь выбирал модуль вручную.
       if (target === 'learn' || target === 'games' || target === 'teacher') showView(target === 'teacher' ? 'teacher' : target);
     });
+// @@MODULE app-13-chat-stickers-features — Поиск по переписке, смайлики, стикеры, правка/реакции/пересылка/закладки/отложенная отправка/экспорт
 
     // Кнопка 📎 + скрытый <input type=file multiple> + полоска превью со
     // списком выбранных файлов (у каждого своя кнопка ✕) — общая логика
@@ -36580,6 +36961,7 @@ c.addEventListener('click', () => {
         window.addEventListener('beforeunload', function(){ try { unsubscribePublicChat(); } catch(e) {} });
       }
     }
+// @@MODULE app-14-chat-profiles-dm — Мини-профиль, блокировки, жалобы, темы и аватарки чатов, личные сообщения
 
     // ========== МИНИ-ПРОФИЛЬ ПО НИКУ (клик по нику в чате) ==========
     // Показывает ник и две кнопки: «Добавить в друзья» и «Написать сообщение».
@@ -38616,6 +38998,7 @@ c.addEventListener('click', () => {
         })();
       });
     }
+// @@MODULE app-15-friends-groups — Друзья, поиск, группы, опросы
 
     // ========== ДРУЗЬЯ (список + входящие/исходящие заявки) ==========
     // Работает поверх той же таблицы friends, что и мини-профиль
@@ -42360,6 +42743,7 @@ c.addEventListener('click', () => {
         toast('Список добавлен');
       });
     }
+// @@MODULE app-16-notifications-admin — Уведомления, закрепы, папки, черновики, роли, хранилище, идеи и баги, лимиты
 
     // ===== Мини-уведомления (красные бейджи с числом) для «Друзья», «Групповые чаты»,
     // «Личные сообщения» и «Мои вопросы/ответы» в меню «Ещё». Считаем количество
@@ -44041,6 +44425,7 @@ c.addEventListener('click', () => {
         moveItem(i, i + 1);
       }));
     }
+// @@MODULE app-17-hajj-tour — Хадж и Умра, удержание/выделение, тур по сайту, финальная инициализация
 
 
     // ===== Хадж и Умра: расширенные данные =====
@@ -47025,7 +47410,6 @@ function startApp() {
 
         try { applyDeviceMode(); } catch(e) {}
         try { if (state.settings && state.settings.prayerNotif) schedulePrayerNotifications(); } catch(e) {}
-        try { applyI18nDom(); } catch(e) {}
         try {
           const db = document.getElementById('device-mode-btn');
           if (db && !db._bound) { db._bound = true; db.addEventListener('click', toggleDeviceMode); }
@@ -47669,6 +48053,7 @@ function startApp() {
         if (!window._swipeTabsEnabled) return false;
         if (document.body.classList.contains('tour-active')) return false;
         if (document.body.classList.contains('app-locked')) return false;
+        if (document.body.classList.contains('quiet-reading')) return false; // «Чистый фокус» сам обрабатывает свайпы
         if (typeof _tourActive !== 'undefined' && _tourActive) return false;
         if (target && target.closest && target.closest('#lock-screen, #site-tour-overlay, #term-pop, #sel-add-bar, input, textarea, select, .audio-bar, .chat-bottombar')) return false;
         if (target && hScrollAncestor(target)) return false;

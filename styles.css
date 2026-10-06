@@ -3434,3 +3434,24 @@
       #print-root .tw-silent { color: #6b7280; }
       @page { margin: 14mm; }
     }
+
+    /* build 6.12: «Чистый фокус» — развитие «Спокойного режима»: прячет ВСЁ лишнее (включая плавающую
+       плашку «Тел», плеер и значок «ОФФ»), умеет показывать по одному аяту, перелистывание, перевод по кнопке */
+    body.quiet-reading #device-mode-btn,
+    body.quiet-reading #audio-bar,
+    body.quiet-reading #offline-badge { display: none !important; }
+    #zen-bar { display: none; position: fixed; left: 1rem; right: 5rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); z-index: 300;
+      align-items: center; justify-content: center; gap: 0.2rem; margin: 0 auto; width: fit-content; max-width: calc(100% - 6rem);
+      padding: 0.25rem 0.5rem; border-radius: 999px; background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+      border: 1px solid var(--border); box-shadow: var(--shadow-lg); transition: opacity 0.5s; }
+    body.quiet-reading #zen-bar { display: flex; }
+    #zen-bar button { min-width: 2.4rem; height: 2.4rem; border-radius: 999px; border: none; background: transparent; color: var(--text); font-size: 1.15rem; cursor: pointer; padding: 0 0.3rem; }
+    #zen-bar button.on { background: var(--accent); color: #fff; }
+    #zen-bar #zen-count { font-size: 0.8rem; color: var(--text-muted); min-width: 3.4rem; text-align: center; }
+    body.quiet-reading.zen-idle #zen-bar, body.quiet-reading.zen-idle #quiet-read-exit { opacity: 0.12; }
+    body.quiet-reading #ayah-list .ayah-num { opacity: 0.55; }
+    body.quiet-reading.zen-hide-tr #ayah-list .ayah-translation { display: none !important; }
+    body.quiet-reading.zen-one #ayah-list .ayah:not(.zen-current) { display: none !important; }
+    body.quiet-reading.zen-one #ayah-list .ayah.zen-current { display: flex !important; flex-direction: column; justify-content: center; align-items: center; text-align: center; min-height: 62vh; }
+    body.quiet-reading.zen-one #ayah-list .ayah.zen-current .ayah-text { font-size: calc(2.1rem * var(--ar-scale, 1)); line-height: 2.3; }
+    body.quiet-reading.zen-one #ayah-list .ayah.zen-current .ayah-translation { max-width: 34rem; margin-top: 1rem; }
