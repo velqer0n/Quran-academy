@@ -13272,7 +13272,7 @@ function renderDictation(area) {
     // o: смещение [вперёд, вверх, наружу]}, pole — куда смотрит локоть
     // [вперёд, вверх, наружу], hd — направление кисти [θ, φ].
     const _SP_LEG = { th: [0, -2], sh: [0, -1], ft: [62, 0], to: [90, 0] };
-    const _SP_ARM_DOWN = { w: { at: 'sh', o: [-1, -54, 3] }, pole: [-0.3, 0, 1], hd: [2, 0] };
+    const _SP_ARM_DOWN = { w: { at: 'sh', o: [-1, -54, 3] }, pole: [-0.3, 0, 1], hd: [2, 0], tb: [1, 0, -0.3] };
     function _sPose(base, over) {
       const o = JSON.parse(JSON.stringify(base));
       Object.keys(over || {}).forEach(function(k) {
@@ -13285,40 +13285,40 @@ function renderDictation(area) {
       P.stand = { torso: 180, head: 170, yaw: 0, finger: 0,
         R: Object.assign({}, _SP_ARM_DOWN, _SP_LEG), L: Object.assign({}, _SP_ARM_DOWN, _SP_LEG) };
       // такбир: ладони к кибле, большие пальцы у мочек ушей
-      const tak = { w: { at: 'sh', o: [11, 9, -3] }, pole: [0.7, -1, 0.45], hd: [172, -8] };
+      const tak = { w: { at: 'sh', o: [11, 9, -3] }, pole: [0.7, -1, 0.45], hd: [172, -8], tb: [-0.6, -0.3, -0.75] };
       P.takbir = _sPose(P.stand, { head: 176, R: tak, L: tak });
       // руки ниже пупка: правая ладонь на тыльной стороне левой, мизинец и
       // большой палец обхватывают левое запястье
       P.fold = _sPose(P.stand, { head: 168,
-        R: { w: { at: 'pelvis', o: [16, 8, 4] }, pole: [-0.6, -0.7, 0.45], hd: [94, -80] },
-        L: { w: { at: 'pelvis', o: [14.5, 6, 6] }, pole: [-0.6, -0.7, 0.45], hd: [92, -78] } });
+        R: { w: { at: 'pelvis', o: [16, 16, 4] }, pole: [-0.6, -0.7, 0.45], hd: [94, -80], tb: [0, 1, 0.2] },
+        L: { w: { at: 'pelvis', o: [14.5, 14, 6] }, pole: [-0.6, -0.7, 0.45], hd: [92, -78], tb: [0, 1, 0] } });
       // руку‘: спина прямая, голова на одной линии со спиной, взгляд на
       // стопы, ладони обхватывают колени, пальцы раздвинуты, руки не касаются тела
-      const rk = { w: { at: 'knee', o: [5, 8, 3] }, pole: [-0.2, 0.2, 1], hd: [6, 2] };
+      const rk = { w: { at: 'knee', o: [5, 8, 3] }, pole: [-0.2, 0.2, 1], hd: [6, 2], tb: [0.3, 0, -1] };
       P.ruku = _sPose(P.stand, { torso: 90, head: 88,
         R: Object.assign({}, rk, { th: [-8, -2], sh: [6, -1], ft: [62, 0] }),
         L: Object.assign({}, rk, { th: [-8, -2], sh: [6, -1], ft: [62, 0] }) });
       // спуск в суджуд: колени → ладони → нос → лоб
-      const kneeLeg = { th: [24, -2], sh: [-76, -1], ft: [8, 0], to: [92, 0] };
+      const kneeLeg = { th: [24, -2], sh: [-106, -1], ft: [8, 0], to: [92, 0] };
       P.kneel = _sPose(P.stand, { torso: 166, head: 168,
-        R: Object.assign({ w: { at: 'thigh', o: [6, 4, 4] }, pole: [-0.3, 0, 1], hd: [70, 0] }, kneeLeg),
-        L: Object.assign({ w: { at: 'thigh', o: [6, 4, 4] }, pole: [-0.3, 0, 1], hd: [70, 0] }, kneeLeg) });
+        R: Object.assign({ w: { at: 'thigh', o: [6, 4, 4] }, pole: [-0.3, 0, 1], hd: [70, 0], tb: [0, 0.3, -1] }, kneeLeg),
+        L: Object.assign({ w: { at: 'thigh', o: [6, 4, 4] }, pole: [-0.3, 0, 1], hd: [70, 0], tb: [0, 0.3, -1] }, kneeLeg) });
       P.hands = _sPose(P.stand, { torso: 124, head: 128,
-        R: Object.assign({ w: { at: 'knee', o: [30, -3, 4] }, pole: [0, 0.3, 1], hd: [90, 0] }, kneeLeg, { th: [16, -2] }),
-        L: Object.assign({ w: { at: 'knee', o: [30, -3, 4] }, pole: [0, 0.3, 1], hd: [90, 0] }, kneeLeg, { th: [16, -2] }) });
+        R: Object.assign({ w: { at: 'knee', o: [30, -3, 4] }, pole: [0, 0.3, 1], hd: [90, 0], tb: [-0.2, 0, -1] }, kneeLeg, { th: [16, -2] }),
+        L: Object.assign({ w: { at: 'knee', o: [30, -3, 4] }, pole: [0, 0.3, 1], hd: [90, 0], tb: [-0.2, 0, -1] }, kneeLeg, { th: [16, -2] }) });
       // суджуд: лицо между ладонями (большие пальцы на уровне ушей), пальцы
       // к кибле, локти не касаются пола и боков, живот отдалён от бёдер,
       // стопы стоят на пальцах, обращённых к кибле
-      const sj = { w: { at: 'ear', o: [-3, -8.5, 4] }, pole: [-0.1, 1, 0.9], hd: [90, -4] };
-      P.sajda = _sPose(P.stand, { torso: 64, head: 22,
-        R: Object.assign({}, sj, kneeLeg, { th: [6, -2] }),
-        L: Object.assign({}, sj, kneeLeg, { th: [6, -2] }) });
+      const sj = { w: { at: 'ear', o: [0, -7, 4] }, pole: [-0.1, 1, 0.9], hd: [90, -4], tb: [-0.3, 0, -1] };
+      P.sajda = _sPose(P.stand, { torso: 56, head: 39,
+        R: Object.assign({}, sj, kneeLeg, { th: [0, -2] }),
+        L: Object.assign({}, sj, kneeLeg, { th: [0, -2] }) });
       // сидение (ифтираш): на левой стопе, правая стоит на пальцах к кибле,
       // ладони на бёдрах, кончики пальцев у колен, взгляд на колени
-      const sitArm = { w: { at: 'thigh', o: [-4, 7, 2] }, pole: [-0.4, 0, 1], hd: [88, -3] };
+      const sitArm = { w: { at: 'thigh', o: [-4, 7, 2] }, pole: [-0.4, 0, 1], hd: [88, -3], tb: [0.1, 0.3, -1] };
       P.sit = _sPose(P.stand, { torso: 176, head: 160,
-        R: Object.assign({}, sitArm, { th: [84, -3], sh: [-86, -2], ft: [6, 0], to: [92, 0] }),
-        L: Object.assign({}, sitArm, { th: [84, -3], sh: [-86, -2], ft: [-94, 8], to: [-94, 8] }) });
+        R: Object.assign({}, sitArm, { th: [76, 7], sh: [-98, 3], ft: [40, 0], to: [92, 0] }),
+        L: Object.assign({}, sitArm, { th: [76, 7], sh: [-90, 3], ft: [-95, 6], to: [-95, 6] }) });
       // ташаххуд: кольцо из большого и среднего пальцев, указательный
       // поднимается на «ля иляха» и опускается на «илля-Ллах»
       P.sitFinger = _sPose(P.sit, { finger: 1 });
@@ -13326,8 +13326,8 @@ function renderDictation(area) {
       P.salamL = _sPose(P.sit, { yaw: -75, head: 168 });
       // подъём на следующий ракаат: ладони на коленях, без опоры о пол
       P.rise = _sPose(P.stand, { torso: 132, head: 145,
-        R: { w: { at: 'knee', o: [4, 6, 3] }, pole: [-0.2, 0.2, 1], hd: [40, 0], th: [58, -2], sh: [-22, -1], ft: [36, 0], to: [90, 0] },
-        L: { w: { at: 'knee', o: [4, 6, 3] }, pole: [-0.2, 0.2, 1], hd: [40, 0], th: [58, -2], sh: [-22, -1], ft: [36, 0], to: [90, 0] } });
+        R: { w: { at: 'knee', o: [4, 6, 3] }, pole: [-0.2, 0.2, 1], hd: [40, 0], tb: [0.2, 0, -1], th: [58, -2], sh: [-22, -1], ft: [36, 0], to: [90, 0] },
+        L: { w: { at: 'knee', o: [4, 6, 3] }, pole: [-0.2, 0.2, 1], hd: [40, 0], tb: [0.2, 0, -1], th: [58, -2], sh: [-22, -1], ft: [36, 0], to: [90, 0] } });
       return P;
     })();
 
@@ -13339,7 +13339,7 @@ function renderDictation(area) {
       ['R', 'L'].forEach(function(s) {
         o[s] = {};
         ['th', 'sh', 'ft', 'to', 'hd'].forEach(function(seg) { o[s][seg] = [L(A[s][seg][0], B[s][seg][0]), L(A[s][seg][1], B[s][seg][1])]; });
-        o[s].wA = A[s].w; o[s].wB = B[s].w; o[s].pole = _sLerp3(A[s].pole, B[s].pole, e); o[s].wk = e;
+        o[s].wA = A[s].w; o[s].wB = B[s].w; o[s].pole = _sLerp3(A[s].pole, B[s].pole, e); o[s].wk = e; o[s].tb = _sLerp3(A[s].tb || [1, 0, 0], B[s].tb || [1, 0, 0], e);
       });
       return o;
     }
@@ -13403,7 +13403,14 @@ function renderDictation(area) {
         cap(p.bl, p.tt, 3.2, C.skin, 'toe');
         cap(p.sh, p.el, 5.6, C.shirt, 'ua');
         cap(p.el, p.wr, 4.6, C.shirt, 'fa');
-        cap(p.wr, ht, 3.7, C.skin, 'hd');
+        // кисть: ладонь, сомкнутые пальцы и отдельный большой палец
+        const palmEnd = _sAdd(ik.W, hdv, 8);
+        cap(p.wr, palmEnd, 3.9, C.skin, 'hd');
+        cap(palmEnd, ht, 3.0, C.skin, 'hd');
+        const tbv = S.tb || [1, 0, 0];
+        const tdir = _sNorm([tbv[0], tbv[1], tbv[2] * sg]);
+        const tbase = _sAdd(_sAdd(ik.W, hdv, 3), tdir, 3);
+        cap(tbase, _sAdd(tbase, _sNorm(_sAdd(_sMul(tdir, 0.7), hdv, 0.7)), 6.5), 1.9, C.skin, 'thumb');
         if (s === 'R' && P.finger > 0.01) {
           const kn2 = _sAdd(p.wr, hdv, R.hd * 0.6);
           const up = _sNorm(_sAdd(hdv, [0, 1, 0], 1.6 * P.finger));
@@ -13449,7 +13456,10 @@ function renderDictation(area) {
       const pr = function(p) { return [_sDot(p, cam.R), -_sDot(p, cam.U), _sDot(p, cam.V)]; };
       const f = function(n) { return Math.round(n * 10) / 10; };
       const poly = function(arr) { return arr.map(function(p) { return f(p[0]) + ',' + f(p[1]); }).join(' '); };
-      let out = '';
+      // кадр держится на центре коврика при любом повороте камеры
+      const _anc = [45, 42, 0], _ref = salahCamera(28, 12);
+      const shiftX = _sDot(_anc, _ref.R) - _sDot(_anc, cam.R), shiftY = -_sDot(_anc, _ref.U) + _sDot(_anc, cam.U);
+      let out = '<g transform="translate(' + f(shiftX) + ',' + f(shiftY) + ')">';
       // коврик (неподвижен), михраб-арка и стрелка в сторону киблы
       out += '<polygon points="' + poly([[-38, 0, -33], [128, 0, -33], [128, 0, 33], [-38, 0, 33]].map(pr)) + '" fill="#7a1f2b" stroke="#4a1019" stroke-width="1"/>';
       out += '<polygon points="' + poly([[-33, 0, -28], [123, 0, -28], [123, 0, 28], [-33, 0, 28]].map(pr)) + '" fill="none" stroke="#d9a441" stroke-width="1.2" opacity="0.85"/>';
@@ -13516,7 +13526,7 @@ function renderDictation(area) {
             '<circle cx="' + f(B[0]) + '" cy="' + f(B[1]) + '" r="2.4" fill="none" stroke="#fbbf24" stroke-width="1"/></g>';
         }
       }
-      return out;
+      return out + '</g>';
     }
     // Голова без черт лица: кожа спереди, волосы на затылке (полусфера —
     // как фаза луны), белая тюбетейка сверху, уши — видно, куда повёрнута голова.
@@ -13563,6 +13573,7 @@ function renderDictation(area) {
     // ----- «Крупно»: детальные рисунки кистей, стоп и положения рук -----
     // Отдельные 2D-рисунки (вид спереди/сверху/сбоку), где видны пальцы,
     // мочки ушей, стопы — то, что на общей фигуре слишком мелко.
+    const _SD_TEXT = false;
     const _SD = { skin: '#d6a47c', skinD: '#b9845c', edge: '#8a5a3a', shirt: '#ece6d8', shirtD: '#c9c0ac', trous: '#3f4a5a', hair: '#2b2118', cap: '#fafaf7', acc: '#fbbf24', q: '#d9a441', txt: '#e2e8f0' };
     function _sdCap(x1, y1, x2, y2, w, col, edge) {
       const d = 'M' + x1 + ' ' + y1 + 'L' + x2 + ' ' + y2;
@@ -13597,6 +13608,8 @@ function renderDictation(area) {
       return s;
     }
     function _sdLabel(x, y, text, anchor, col) {
+      // build 5.115: подписи вынесены под рисунок (текстом), чтобы не накладывались на рисунок
+      if (!_SD_TEXT) return '';
       return '<text x="' + x + '" y="' + y + '" font-size="6.4" fill="' + (col || _SD.txt) + '" text-anchor="' + (anchor || 'start') + '" font-family="system-ui,sans-serif">' + text + '</text>';
     }
     function _sdArrow(x1, y1, x2, y2, col) {
@@ -13652,7 +13665,7 @@ function renderDictation(area) {
         s += '<path d="M64 55 Q72 48 79 56" fill="none" stroke="' + _SD.edge + '" stroke-width="4.4" stroke-linecap="round"/><path d="M64 55 Q72 48 79 56" fill="none" stroke="' + _SD.skin + '" stroke-width="3.2" stroke-linecap="round"/>';
         s += '<path d="M64 71 Q72 79 79 75" fill="none" stroke="' + _SD.edge + '" stroke-width="3.8" stroke-linecap="round"/><path d="M64 71 Q72 79 79 75" fill="none" stroke="' + _SD.skin + '" stroke-width="2.6" stroke-linecap="round"/>';
         s += '<circle cx="74" cy="65" r="15" fill="none" stroke="' + _SD.acc + '" stroke-width="0.9" stroke-dasharray="2 1.5"/>';
-        s += _sdLabel(24, 92, kk ? 'оң қол — солдың' : 'правая кисть — на', 'start', '#2b2a26') + _sdLabel(24, 99, kk ? 'үстінде; бас бармақ' : 'левой; большой палец', 'start', '#2b2a26') + _sdLabel(24, 106, kk ? 'пен шынашақ білекті' : 'и мизинец — вокруг', 'start', '#2b2a26') + _sdLabel(24, 113, kk ? 'орайды' : 'запястья', 'start', '#2b2a26');
+        s += _sdLabel(24, 92, kk ? 'оң қол — сол қолдың' : 'правая кисть — на', 'start', '#2b2a26') + _sdLabel(24, 99, kk ? 'үстінде; бас бармақ пен' : 'левой; большой палец', 'start', '#2b2a26') + _sdLabel(24, 106, kk ? 'шынашақ білекті орайды' : 'и мизинец — вокруг', 'start', '#2b2a26') + _sdLabel(24, 113, kk ? '' : 'запястья', 'start', '#2b2a26');
         s += _sdLabel(24, 50, kk ? 'кіндіктен төмен' : 'ниже пупка', 'start', '#b45309');
         return s;
       },
@@ -13711,7 +13724,7 @@ function renderDictation(area) {
         for (let i = 0; i < 4; i++) s += _sdCap(93.5 + i * 3.3, 40, 93.5 + i * 3.3, 33, 2.6, _SD.skin);
         s += _sdLabel(12, 92, kk ? 'сол табан — астында' : 'левая стопа — под собой', 'start');
         s += _sdLabel(12, 32, kk ? 'оң табан тік,' : 'правая стоит,', 'start') + _sdLabel(12, 39, kk ? 'саусағы құбылаға' : 'пальцы к кибле', 'start');
-        s += _sdQibla(88, 14, 'up', kk);
+        s += _sdQibla(96, 14, 'up', kk);
         s += _sdLabel(12, 116, kk ? 'жоғарыдан' : 'вид сверху', 'start', '#64748b');
         return s;
       },
@@ -13751,6 +13764,32 @@ function renderDictation(area) {
         '<defs><marker id="sd-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="' + _SD.acc + '"/></marker>' +
         '<marker id="sd-arrq" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10z" fill="' + _SD.q + '"/></marker></defs>' +
         f(kk) + '</svg>';
+    }
+
+    // Пояснения к рисункам «крупно» — текстом под рисунком
+    const SALAH_DETAIL_NOTES = {
+      ears: { ru: ['Вид спереди; кибла — в сторону зрителя.', 'Кончики больших пальцев — у мочек ушей (жёлтые кружки).', 'Ладони обращены к кибле, пальцы в естественном положении — не сжаты и не растопырены.'],
+              kk: ['Алдынан көрініс; құбыла — көрерменге қарай.', 'Бас бармақтың ұшы — құлақ жұмсағында (сары шеңбер).', 'Алақан құбылаға қарайды, саусақтар табиғи күйде — қысылмаған да, ашылмаған да.'] },
+      fold: { ru: ['Руки — ниже пупка (пунктир — линия пупка).', 'Правая ладонь лежит на тыльной стороне левой кисти.', 'Большой палец и мизинец правой руки обхватывают левое запястье, три средних пальца лежат вдоль руки.'],
+              kk: ['Қол — кіндіктен төмен (пунктир — кіндік сызығы).', 'Оң алақан сол қолдың сыртында жатады.', 'Оң қолдың бас бармағы мен шынашағы сол білекті орайды, ортаңғы үш саусақ қолдың бойында жатады.'] },
+      knee: { ru: ['Вид сбоку; стрелка — кибла.', 'Ладонь обхватывает колено, пальцы раздвинуты.', 'Голени прямые, вертикальные.'],
+              kk: ['Бүйірден көрініс; бағыттауыш — құбыла.', 'Алақан тізені ұстайды, саусақтар ашық.', 'Балтыр түзу, тік.'] },
+      sajdaHands: { ru: ['Вид сверху; стрелка — кибла.', 'Лицо между ладонями; большие пальцы на уровне ушей (пунктир).', 'Пальцы рук сомкнуты и направлены к кибле.', 'Локти приподняты, не касаются боков и пола.'],
+              kk: ['Жоғарыдан көрініс; бағыттауыш — құбыла.', 'Бет екі алақанның арасында; бас бармақтар құлақ тұсында (пунктир).', 'Қол саусақтары жұмулы, құбылаға қарайды.', 'Шынтақ көтеріңкі, бүйірге де, еденге де тимейді.'] },
+      sajdaFeet: { ru: ['Вид сбоку; стрелка — кибла.', 'Стопа стоит вертикально, пятка вверху.', 'Пальцы ног загнуты и обращены к кибле (кружок).'],
+              kk: ['Бүйірден көрініс; бағыттауыш — құбыла.', 'Табан тік тұрады, өкше жоғарыда.', 'Аяқ саусақтары бүгіліп, құбылаға қарайды (шеңбер).'] },
+      iftirash: { ru: ['Вид сверху; стрелка — кибла.', 'Левая стопа лежит под собой — на ней сидят.', 'Правая стопа стоит на пальцах, пальцы обращены к кибле.'],
+              kk: ['Жоғарыдан көрініс; бағыттауыш — құбыла.', 'Сол табан астында жатады — соның үстіне отырады.', 'Оң табан саусақ ұшында тұрады, саусақтар құбылаға қарайды.'] },
+      finger: { ru: ['Ладонь на бедре, у колена.', 'Большой и средний пальцы — кольцо; безымянный и мизинец согнуты.', 'На «ля иляха» указательный поднимается (кружок), на «илля-Ллах» — опускается.'],
+              kk: ['Алақан санда, тізеге жақын.', 'Бас бармақ пен ортаңғы саусақ — сақина; шылдыр мен шынашақ бүгулі.', '«Лә иләһә» дегенде сұқ саусақ көтеріледі (шеңбер), «иллаллаһ» дегенде түседі.'] },
+      stance: { ru: ['Вид сверху; стрелка — кибла.', 'Между стопами — примерно четыре пальца.', 'Пальцы ног обращены к кибле.'],
+              kk: ['Жоғарыдан көрініс; бағыттауыш — құбыла.', 'Табандар арасы — шамамен төрт саусақ.', 'Аяқ саусақтары құбылаға қарайды.'] }
+    };
+    function salahDetailNotesHtml(id, kk) {
+      const n = SALAH_DETAIL_NOTES[id];
+      if (!n) return '';
+      return '<div style="padding:0 0.5rem;font-size:calc(0.78rem * var(--ru-scale, 1));line-height:1.45;color:#cbd5e1">' +
+        (kk ? n.kk : n.ru).map(function(x) { return '<div style="margin-top:0.2rem">• ' + x + '</div>'; }).join('') + '</div>';
     }
 
     // ----- Раздел «Как читать намаз» (Ещё → Как читать намаз) -----
@@ -13971,7 +14010,7 @@ function renderDictation(area) {
           }).join('') +
           '<div class="ayah-translation" style="margin-top:0.6rem;font-size:0.82rem;color:var(--text-muted)">' + (kk ? 'Алтыншы шарт — тахрима тәкбірі — «Намаз ішінде» бөлімінде анимациямен көрсетілген.' : 'Шестое условие — вступительный такбир — показано в анимации во вкладке «Во время намаза».') + '</div></div>' +
           '<div class="card" style="margin-top:0.6rem"><b>' + (kk ? 'Тұру қалпы' : 'Как встать') + '</b>' +
-          '<div style="max-width:260px;margin:0.4rem auto 0;background:#1e293b;border-radius:0.6rem">' + salahDetailSvg('stance', kk) + '</div>' +
+          '<div style="max-width:260px;margin:0.4rem auto 0;background:#1e293b;border-radius:0.6rem;padding-bottom:0.35rem">' + salahDetailSvg('stance', kk) + salahDetailNotesHtml('stance', kk) + '</div>' +
           '<div class="ayah-translation" style="margin-top:0.4rem;line-height:1.5">' + _hsList({ sunan: [10] }, kk)[0] + '</div></div>' + legend;
         el.innerHTML = h;
       } else if (window._hsTab === 'after') {
@@ -14004,18 +14043,18 @@ function renderDictation(area) {
     }
     function howSalahPlayerHtml(kk) {
       const btn = function(id, label, extra) { return '<button type="button" class="btn btn-sm" data-sa="' + id + '"' + (extra || '') + '>' + label + '</button>'; };
-      return '<div id="salah-anim" style="margin-top:0.6rem">' +
-        '<div style="position:relative;border-radius:0.6rem;overflow:hidden;background:radial-gradient(ellipse at 50% 35%, #26344d 0%, #141c2b 75%);touch-action:pan-y">' +
-        '<svg id="salah-anim-svg" viewBox="-72 -196 232 226" style="width:100%;height:auto;display:block;cursor:grab" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + (kk ? 'Намаз анимациясы' : 'Анимация намаза') + '"></svg>' +
+      return '<div id="salah-anim" style="margin:0.6rem auto 0;max-width:560px">' +
+        '<div style="position:relative;border-radius:0.6rem;overflow:hidden;background:radial-gradient(ellipse at 50% 35%, #26344d 0%, #141c2b 75%)">' +
+        '<svg id="salah-anim-svg" viewBox="-72 -196 232 226" style="width:100%;height:auto;display:block;cursor:grab;touch-action:none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + (kk ? 'Намаз анимациясы' : 'Анимация намаза') + '"></svg>' +
         '<div id="salah-anim-step" style="position:absolute;top:0.4rem;left:0.55rem;font-size:0.75rem;color:#cbd5e1"></div>' +
-        '<div style="position:absolute;top:0.4rem;right:0.55rem;font-size:0.7rem;color:#94a3b8">' + (kk ? '↔ айналдыру' : '↔ повернуть') + '</div>' +
+        '<div style="position:absolute;top:0.4rem;right:0.55rem;font-size:0.7rem;color:#94a3b8">' + (kk ? '✥ саусақпен айналдыру' : '✥ вращайте пальцем') + '</div>' +
         '<div style="position:absolute;bottom:0.35rem;left:0.55rem;font-size:0.68rem;color:#fbbf24">┄▸ ' + (kk ? 'көз қарау бағыты' : 'куда смотреть') + '</div>' +
         '</div>' +
         '<input type="range" id="salah-anim-seek" min="0" max="1" value="0" step="1" style="width:100%;margin-top:0.45rem">' +
         '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem;align-items:center">' +
         btn('prev', '⏮') + btn('play', '⏸', ' style="min-width:3rem"') + btn('next', '⏭') + btn('speed', '1×') +
         '<span style="flex:1"></span>' +
-        btn('cam-0', kk ? 'Бүйірден' : 'Сбоку') + btn('cam-35', '3/4') + btn('cam-90', kk ? 'Алдынан' : 'Спереди') +
+        btn('cam-0', kk ? 'Бүйірден' : 'Сбоку') + btn('cam-35', '3/4') + btn('cam-90', kk ? 'Алдынан' : 'Спереди') + btn('cam-top', kk ? 'Үстінен' : 'Сверху') +
         '</div>' +
         '<div id="salah-anim-cap" style="margin-top:0.6rem"></div>' +
         '<div style="margin-top:0.5rem;font-size:0.72rem;color:var(--text-muted)">' + (kk
@@ -14031,7 +14070,7 @@ function renderDictation(area) {
       const stepEl = box.querySelector('#salah-anim-step');
       const seek = box.querySelector('#salah-anim-seek');
       seek.max = String(steps.length - 1);
-      const st = { i: 0, t: 0, play: true, speed: 1, yaw: 28, yawTarget: 28, last: 0, more: false, lastGazeK: -1 };
+      const st = { i: 0, t: 0, play: true, speed: 1, yaw: 28, yawTarget: 28, el: 12, elTarget: 12, last: 0, more: false, lastGazeK: -1 };
       const defs = '<defs><marker id="salah-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#d9a441"/></marker>' +
         '<marker id="salah-garrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#fbbf24"/></marker></defs>';
       // точка на коврике, куда ляжет лоб (для взгляда «на место суджуда»)
@@ -14048,8 +14087,8 @@ function renderDictation(area) {
           '<div style="color:var(--accent);font-weight:600;margin-top:0.1rem">' + esc(kk ? G.say.kk : G.say.ru) + '</div>';
         html += '<div class="ayah-translation" style="margin-top:0.35rem;line-height:1.55">' + esc(kk ? G.nk : G.n) + '</div>';
         if (G.detail && G.detail.length) {
-          html += '<div style="display:grid;grid-template-columns:repeat(' + G.detail.length + ',minmax(0,1fr));gap:0.4rem;margin:0.55rem auto 0;max-width:' + (G.detail.length > 1 ? '480px' : '260px') + '">' +
-            G.detail.map(function(d) { return '<div style="background:#1e293b;border-radius:0.5rem;border:1px solid var(--border)">' + salahDetailSvg(d, kk) + '</div>'; }).join('') + '</div>';
+          html += '<div style="display:grid;grid-template-columns:repeat(' + G.detail.length + ',minmax(0,1fr));gap:0.4rem;margin:0.55rem auto 0;max-width:' + (G.detail.length > 1 ? '520px' : '280px') + '">' +
+            G.detail.map(function(d) { return '<div style="background:#1e293b;border-radius:0.5rem;border:1px solid var(--border);padding-bottom:0.35rem">' + salahDetailSvg(d, kk) + salahDetailNotesHtml(d, kk) + '</div>'; }).join('') + '</div>';
         }
         if (!s.short) {
           html += _hsBlock(kk ? 'Парыз / шарт' : 'Фарз / условие', '#f87171', _hsList(G.fard, kk)) +
@@ -14088,7 +14127,7 @@ function renderDictation(area) {
         const s = steps[st.i], G = HOWSALAH_STAGES[s.stage];
         const k = gazeK();
         st.lastGazeK = k;
-        svg.innerHTML = defs + salahRenderSvg(poseAt(), salahCamera(st.yaw, 12), { qibla: kk ? 'құбыла' : 'кибла', gaze: G.gaze, gazeK: k, matX: matX });
+        svg.innerHTML = defs + salahRenderSvg(poseAt(), salahCamera(st.yaw, st.el), { qibla: kk ? 'құбыла' : 'кибла', gaze: G.gaze, gazeK: k, matX: matX });
       };
       const setPlay = function(p) { st.play = p; const b = box.querySelector('[data-sa="play"]'); if (b) b.textContent = p ? '⏸' : '▶'; };
       const go = function(i, toEnd) {
@@ -14101,7 +14140,7 @@ function renderDictation(area) {
         const dt = st.last ? Math.min(100, ts - st.last) : 0;
         st.last = ts;
         let need = false;
-        if (Math.abs(st.yaw - st.yawTarget) > 0.3) { st.yaw += (st.yawTarget - st.yaw) * Math.min(1, dt / 160); need = true; }
+        if (Math.abs(st.yaw - st.yawTarget) > 0.3 || Math.abs(st.el - st.elTarget) > 0.3) { st.yaw += (st.yawTarget - st.yaw) * Math.min(1, dt / 160); st.el += (st.elTarget - st.el) * Math.min(1, dt / 160); need = true; }
         if (st.play && !document.hidden) {
           const s = steps[st.i];
           st.t += dt * st.speed;
@@ -14122,16 +14161,18 @@ function renderDictation(area) {
           } else if (a === 'prev') { setPlay(false); go(st.i - 1, true); }
           else if (a === 'next') { go(st.i + 1, !st.play); }
           else if (a === 'speed') { st.speed = st.speed === 1 ? 0.5 : 1; b.textContent = st.speed === 1 ? '1×' : '0.5×'; }
-          else if (a.indexOf('cam-') === 0) { st.yawTarget = parseFloat(a.slice(4)); }
+          else if (a === 'cam-top') { st.elTarget = 80; st.yawTarget = Math.round(st.yaw / 360) * 360 + 30; }
+          else if (a.indexOf('cam-') === 0) { const y = parseFloat(a.slice(4)); st.yawTarget = Math.round((st.yaw - y) / 360) * 360 + y; st.elTarget = 12; }
         });
       });
       seek.addEventListener('input', function() { setPlay(false); go(parseInt(seek.value, 10) || 0, true); });
       let drag = null;
-      svg.addEventListener('pointerdown', function(e) { drag = { x: e.clientX, yaw: st.yawTarget }; try { svg.setPointerCapture(e.pointerId); } catch(_) {} svg.style.cursor = 'grabbing'; });
+      svg.addEventListener('pointerdown', function(e) { drag = { x: e.clientX, y: e.clientY, yaw: st.yawTarget, el: st.elTarget }; try { svg.setPointerCapture(e.pointerId); } catch(_) {} svg.style.cursor = 'grabbing'; });
       svg.addEventListener('pointermove', function(e) {
         if (!drag) return;
-        st.yawTarget = Math.max(-30, Math.min(120, drag.yaw + (e.clientX - drag.x) * 0.5));
-        st.yaw = st.yawTarget; draw();
+        st.yawTarget = drag.yaw + (e.clientX - drag.x) * 0.6;
+        st.elTarget = Math.max(0, Math.min(88, drag.el + (e.clientY - drag.y) * 0.4));
+        st.yaw = st.yawTarget; st.el = st.elTarget; draw();
       });
       const end = function() { drag = null; svg.style.cursor = 'grab'; };
       svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
