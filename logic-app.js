@@ -1549,8 +1549,20 @@ const SURAH_CACHE_KEY = 'quran-surah-cache-v2'; // v2: старый кэш не 
       } catch (e) { return []; }
     }
 
-async function fetchSurah(num) {
+// build 6.18: кэш суры (на диске, в офлайн-наборе «Амма» и встроенный пакет) хранит перевод ОДНОГО языка. Смена языка чистила
+    // только ключи с другими именами, а настоящий кэш («quran-surah-cache-v2») и пакет «Амма» оставались — поэтому после перехода
+    // на русский «Напоминание дня» и читалка продолжали показывать казахский перевод (и наоборот). Теперь перевод из кэша берётся
+    // только если он подходит к выбранному; не подошёл — грузим заново, а старый используем лишь как запас, если сети нет.
+    function _trMatchesEdition(ayahs, edition) {
+      const s = (ayahs || []).slice(0, 8).map(function(a) { return (a && a.translation) || ''; }).join(' ');
+      if (!s.trim()) return true;
+      const kkText = /[әіңғүұқөһӘІҢҒҮҰҚӨҺ]/.test(s);
+      return String(edition || '').indexOf('kk') === 0 ? kkText : !kkText;
+    }
+    async function fetchSurah(num) {
       num = +num;
+      const wantEd = (state.settings && state.settings.translation) || 'ru.kuliev';
+      let stale = null; // запись с переводом на другом языке — запасной вариант без сети
       if (state.cache[num]) {
         const c = state.cache[num];
         if (c.ayahs && c.ayahs.some(a => a && a.text && String(a.text).trim())) return c;
@@ -1564,8 +1576,12 @@ async function fetchSurah(num) {
         if (cached && cached.ayahs && cached.ayahs.length) {
           const ok = cached.ayahs.some(a => a && a.text && String(a.text).trim().length > 0);
           if (ok) {
-            state.cache[num] = { meta: cached.meta, ayahs: cached.ayahs };
-            return state.cache[num];
+            const fits = (!cached.translationId || cached.translationId === wantEd) && _trMatchesEdition(cached.ayahs, wantEd);
+            if (fits) {
+              state.cache[num] = { meta: cached.meta, ayahs: cached.ayahs };
+              return state.cache[num];
+            }
+            stale = stale || { meta: cached.meta, ayahs: cached.ayahs };
           }
         }
       } catch (e) {}
@@ -1574,8 +1590,11 @@ async function fetchSurah(num) {
       if (typeof OFFLINE_SURAHS !== 'undefined' && OFFLINE_SURAHS[num]) {
         const data = OFFLINE_SURAHS[num];
         try { attachFallbackAudio(data, num); } catch (e) {}
-        state.cache[num] = data;
-        return data;
+        if (_trMatchesEdition(data.ayahs, wantEd)) {
+          state.cache[num] = data;
+          return data;
+        }
+        stale = stale || data;
       }
       // Offline Amma pack (78–114) from localStorage
       try {
@@ -1592,8 +1611,11 @@ async function fetchSurah(num) {
               }))
             };
             try { attachFallbackAudio(data, num); } catch (e) {}
-            state.cache[num] = data;
-            return data;
+            if (_trMatchesEdition(data.ayahs, wantEd)) {
+              state.cache[num] = data;
+              return data;
+            }
+            stale = stale || data;
           }
         }
       } catch (e) {}
@@ -1820,6 +1842,7 @@ async function fetchSurah(num) {
         }
       } catch (e) { errors.push('quran.com-v2: ' + (e.message || e)); }
 
+      if (stale) return stale; // сети нет — лучше перевод на другом языке, чем пустой экран
       throw new Error('Не удалось загрузить суру '+num+'. Проверьте интернет. Офлайн без сети: 1, 103, 108–114. Ошибки: ' + errors.join(' | '));
     }
 
@@ -2090,6 +2113,8 @@ async function fetchTafsir(surah, ayah) {
     }
 
 var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '🌐 Язык интерфейса', search: '🔍 Поиск', settings: '⚙️ Настройки', theme: '🌓 Тема оформления', bookmarks: '🔖 Закладки', cache: '📥 Офлайн и кэш', account: '👤 Мой аккаунт', fontsize: 'Aa Шрифт и размеры', update: '🔄 Обновить сайт', dmlist: '✉️ Личные сообщения', friends: '🧑\u200d🤝\u200d🧑 Друзья', notifications: '🔔 Уведомления', publicchat: '💭 Общий чат', groups: '👥 Групповые чаты', forum: '💬 Форум', myqa: '❓ Мои вопросы/ответы', achievements: '🏅 Достижения', stats: '📊 Статистика', prayertimes: '🕐 Время намаза и кибла' };
+var HEADER_BTN_LABELS_KK = { lock: '🔒 Қолданба құлпы', lang: '🌐 Интерфейс тілі', search: '🔍 Іздеу', settings: '⚙️ Баптаулар', theme: '🌓 Безендіру тақырыбы', bookmarks: '🔖 Бетбелгілер', cache: '📥 Офлайн және кэш', account: '👤 Менің аккаунтым', fontsize: 'Aa Қаріп және өлшемдер', update: '🔄 Сайтты жаңарту', dmlist: '✉️ Жеке хабарламалар', friends: '🧑\u200d🤝\u200d🧑 Достар', notifications: '🔔 Хабарландырулар', publicchat: '💭 Жалпы чат', groups: '👥 Топтық чаттар', forum: '💬 Форум', myqa: '❓ Менің сұрақ-жауаптарым', achievements: '🏅 Жетістіктер', stats: '📊 Статистика', prayertimes: '🕐 Намаз уақыты және қибла' };
+function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_BTN_LABELS_KK[id]) || HEADER_BTN_LABELS[id] || id; }
     var HEADER_BTN_ELS = { lock: 'btn-lock-app', lang: 'btn-lang-toggle', search: 'btn-header-search', settings: 'btn-header-settings', theme: 'btn-header-theme', bookmarks: 'btn-header-bookmarks', cache: 'btn-header-cache', account: 'btn-header-account', fontsize: 'btn-header-fontsize', dmlist: 'btn-header-dmlist', friends: 'btn-header-friends', notifications: 'btn-header-notifications', publicchat: 'btn-header-publicchat', groups: 'btn-header-groups', forum: 'btn-header-forum', myqa: 'btn-header-myqa', achievements: 'btn-header-achievements', stats: 'btn-header-stats', prayertimes: 'btn-header-prayertimes' };
     var HEADER_BTN_DEFAULT_ORDER = ['lang', 'theme', 'bookmarks', 'search', 'settings', 'lock', 'cache', 'account', 'fontsize', 'update', 'dmlist', 'friends', 'notifications', 'publicchat', 'groups', 'forum', 'myqa', 'achievements', 'stats', 'prayertimes'];
     var HEADER_BTN_MIN_HIDDEN = { lock: true, lang: true, search: false, settings: false, theme: true, bookmarks: true, cache: true, account: true, fontsize: true, update: true, dmlist: true, friends: true, notifications: true, publicchat: true, groups: true, forum: true, myqa: true, achievements: true, stats: true, prayertimes: true };
@@ -2184,7 +2209,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       el.innerHTML = order.map(function(id, idx) {
         var isHidden = !!hidden[id];
         return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:0.45rem;background:var(--bg)">' +
-          '<span style="flex:1' + (isHidden ? ';opacity:0.5' : '') + '">' + HEADER_BTN_LABELS[id] + '</span>' +
+          '<span style="flex:1' + (isHidden ? ';opacity:0.5' : '') + '">' + hbLabel(id) + '</span>' +
           '<button type="button" class="btn btn-sm hb-eye" data-i="' + idx + '" title="Показать/скрыть">' + (isHidden ? '🚫' : '👁') + '</button>' +
           '<button type="button" class="btn btn-sm hb-up" data-i="' + idx + '" ' + (idx === 0 ? 'disabled' : '') + '>↑</button>' +
           '<button type="button" class="btn btn-sm hb-dn" data-i="' + idx + '" ' + (idx === order.length - 1 ? 'disabled' : '') + '>↓</button></div>';
@@ -2409,6 +2434,10 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
     })();
 
     var DAILY_WIDGET_LABELS = { events:'Календарь событий', streak:'Стрик (дни подряд)', prayer:'Время намаза', ayah:'Аят часа/дня', command:'Напоминание дня', teachernext:'Следующий урок (Учитель)', story:'История дня', dua:'Дуа дня', name:'Имя Аллаха', hadith:'Хадис дня', sunnah:'Сунна дня', word:'Слово дня' };
+    // build 6.17: казахские подписи (раньше в настройках порядка виджетов и в заголовках сворачиваемых карточек были только русские)
+    var DAILY_WIDGET_LABELS_KK = { events:'Оқиғалар күнтізбесі', streak:'Серия (күн қатарынан)', prayer:'Намаз уақыты', ayah:'Сағат/күн аяты', command:'Күн ескертуі', teachernext:'Келесі сабақ (Мұғалім)', story:'Күн тарихы', dua:'Күн дұғасы', name:'Алланың есімі', hadith:'Күн хадисі', sunnah:'Күн сүннеті', word:'Күн сөзі' };
+    function dwLabel(id) { return ((typeof isKk === 'function' && isKk()) && DAILY_WIDGET_LABELS_KK[id]) || DAILY_WIDGET_LABELS[id] || id; }
+    function dwHiddenWord() { return (typeof isKk === 'function' && isKk()) ? '(жасырулы)' : '(скрыто)'; }
     function getDailyWidgetOrder() {
       // По умолчанию: календарь событий вместо стрика; стрик/хатм/тема дня — скрыты
       // build 6.05: нашёл реальную причину, почему «Напоминание дня» и
@@ -2459,7 +2488,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
       el.innerHTML = order.map(function(id, idx) {
         var isHidden = hidden.indexOf(id) >= 0;
         return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:0.45rem;background:var(--bg);'+(isHidden?'opacity:0.55':'')+'">' +
-          '<span style="flex:1">'+(DAILY_WIDGET_LABELS[id]||id)+(isHidden?' <span style="font-size:0.75rem;color:var(--text-muted)">(скрыто)</span>':'')+'</span>' +
+          '<span style="flex:1">'+dwLabel(id)+(isHidden?' <span style="font-size:0.75rem;color:var(--text-muted)">'+dwHiddenWord()+'</span>':'')+'</span>' +
           '<button type="button" class="btn btn-sm dw-hide" data-id="'+id+'" title="'+(isHidden?'Показать на «Ежедневном»':'Скрыть с «Ежедневного»')+'">'+(isHidden?'👁':'🙈')+'</button>' +
           '<button type="button" class="btn btn-sm dw-up" data-i="'+idx+'" '+(idx===0?'disabled':'')+'>↑</button>' +
           '<button type="button" class="btn btn-sm dw-dn" data-i="'+idx+'" '+(idx===order.length-1?'disabled':'')+'>↓</button></div>';
@@ -2514,7 +2543,7 @@ var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '�
     function renderMainTabsOrder() {
       var el = document.getElementById('main-tabs-order');
       if (!el) return;
-      var labels = { dailyhub:'Ежедневное', home:'Суры', study:'Учёба', online:'Онлайн' };
+      var labels = { dailyhub: t('nav_daily'), home: t('nav_surahs'), study: t('nav_study'), online: t('nav_online') };
       var order = getMainTabOrder();
       el.innerHTML = order.map(function(id, idx) {
         return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:0.45rem;background:var(--bg)">' +
@@ -6642,16 +6671,20 @@ function speakLetter(ch, name) {
       return { shellOk: shellOk, shellTotal: shellFiles.length, quranOk: quranOk };
     }
     function loadSurahForStudy(n, cb) {
-      // 1) built-in offline
-      if (typeof OFFLINE_SURAHS !== 'undefined' && OFFLINE_SURAHS[n]) {
-        const o = OFFLINE_SURAHS[n];
-        cb(null, { number: n, name: o.meta && o.meta.englishName, ayahs: o.ayahs.map(x => ({ number: x.number, text: x.text, translation: x.translation })) });
-        return;
-      }
-      // 2) downloaded amma cache
+      // build 6.18: пакеты «встроенный» и «Амма» хранят перевод одного языка — берём их, только если он подходит к выбранному;
+      // иначе общий загрузчик fetchSurah (он учитывает язык и сам откатывается на запасной вариант без сети).
+      const ed = (state.settings && state.settings.translation) || 'ru.kuliev';
+      const o = (typeof OFFLINE_SURAHS !== 'undefined') ? OFFLINE_SURAHS[n] : null;
       const amma = getOfflineAmma();
-      if (amma[n] && amma[n].ayahs) {
-        cb(null, amma[n]);
+      const a = amma[n] && amma[n].ayahs ? amma[n] : null;
+      const fromO = () => ({ number: n, name: o.meta && o.meta.englishName, ayahs: o.ayahs.map(x => ({ number: x.number, text: x.text, translation: x.translation })) });
+      // 1) built-in offline
+      if (o && _trMatchesEdition(o.ayahs, ed)) { cb(null, fromO()); return; }
+      // 2) downloaded amma cache
+      if (a && _trMatchesEdition(a.ayahs, ed)) { cb(null, a); return; }
+      if (o || a) {
+        fetchSurah(n).then(d => cb(null, { number: n, name: d.meta && d.meta.englishName, ayahs: d.ayahs.map(x => ({ number: x.number, text: x.text, translation: x.translation })) }))
+          .catch(() => cb(null, o ? fromO() : a));
         return;
       }
       // 3) network + save if 78-114
@@ -7141,43 +7174,71 @@ function speakLetter(ch, name) {
         theory: 'Арабский пишется и читается справа налево. Заглавных букв нет вообще. Буквы меняют начертание в зависимости от места в слове (в начале, середине, конце или отдельно) — это не другая буква, а другая форма той же самой. Таджвид — не украшение речи, а свод правил, без которых можно случайно исказить смысл слова.' },
       { id: 'letters_1', title: 'Буквы: ا ب', group: 'letters', prereq: ['orientation'], kind: 'letters', letters: ['ا','ب'], syllableGroup: 0,
         theory: 'ا (алиф) — не согласная буква, а знак долготы; горло и язык расслаблены. ب (ба) — губной звук, произносится смыканием губ, как русское «б».' },
-      { id: 'letters_2', title: 'Буквы: ت ث', group: 'letters', prereq: ['letters_1'], kind: 'letters', letters: ['ت','ث'], syllableGroup: 0,
-        theory: 'ت (та) — кончик языка у корней верхних зубов. ث (са) — язык слегка высунут между зубами, звук на грани «с» и английского th.' },
-      { id: 'harakat_sukun_intro', title: 'Огласовки и сукун: первое знакомство', group: 'letters', prereq: ['letters_2'], kind: 'harakat-intro',
+      { id: 'harakat_sukun_intro', title: 'Огласовки и сукун: первое знакомство', group: 'letters', prereq: ['letters_1'], kind: 'harakat-intro',
         theory: 'Сама по себе буква — это только согласный звук, без гласной. Чтобы прочитать её вслух, над или под буквой ставится значок — огласовка. Три главных значка: фатха (короткая чёрточка сверху) даёт звук «а», кясра (чёрточка снизу) — звук «и», дамма (завиток сверху) — звук «у». Есть и четвёртый значок — сукун (маленький кружок сверху): он означает, что гласной звука НЕТ ВООБЩЕ — буква просто «глухо» произносится и сразу сливается со следующей. Например, буква ا (алиф) сама по себе вообще не читается как отдельный звук — она либо несёт один из этих значков, либо служит знаком долготы после другой буквы. Вот как это работает на примере буквы ب (ба):' },
-      { id: 'blend_1', title: 'Соединяем буквы в слоги: ا ب ت ث', group: 'letters', prereq: ['harakat_sukun_intro'], kind: 'blend', letters: ['ب','ت','ث'],
+      { id: 'join_1', title: 'Читаем с соединением: ا ب', group: 'letters', prereq: ['harakat_sukun_intro'], kind: 'join', letters: ['ا','ب'], focus: ['ا','ب'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово. Алиф после буквы с фатхой удлиняет звук: بَا читается долго — «баа». Буквы ا соединяются только с предыдущей буквой, а со следующей — нет: после них слово «разрывается», и следующая буква пишется отдельно.' },
+      { id: 'letters_2', title: 'Буквы: ت ث', group: 'letters', prereq: ['join_1'], kind: 'letters', letters: ['ت','ث'], syllableGroup: 0,
+        theory: 'ت (та) — кончик языка у корней верхних зубов. ث (са) — язык слегка высунут между зубами, звук на грани «с» и английского th.' },
+      { id: 'join_2', title: 'Читаем с соединением: ت ث', group: 'letters', prereq: ['letters_2'], kind: 'join', letters: ['ا','ب','ت','ث'], focus: ['ت','ث'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово.' },
+      { id: 'blend_1', title: 'Соединяем буквы в слоги: ا ب ت ث', group: 'letters', prereq: ['join_2'], kind: 'blend', letters: ['ب','ت','ث'],
         theory: 'Теперь, когда выучены первые буквы и то, что такое огласовки, не ждём конца алфавита — сразу читаем буквы слогами с каждой из трёх огласовок: ба/би/бу, та/ти/ту и так далее. Это и есть первый шаг к настоящему чтению.' },
       { id: 'construct_1', title: 'Собери слог из букв', group: 'letters', prereq: ['blend_1'], kind: 'construct', letters: ['ب','ت','ث'],
         theory: 'Теперь вместо выбора из готовых вариантов — соберите слог сами: нажимайте на плитки с буквами в правильном порядке, пока не получится нужная последовательность.' },
       { id: 'letters_3', title: 'Буквы: ج ح', group: 'letters', prereq: ['construct_1'], kind: 'letters', letters: ['ج','ح'], syllableGroup: 0,
         theory: 'ج (джим) — середина языка касается нёба. ح (ха) — выдох из середины горла, без хрипоты, мягче, чем خ.' },
-      { id: 'letters_4', title: 'Буквы: خ د', group: 'letters', prereq: ['letters_3'], kind: 'letters', letters: ['خ','د'], syllableGroup: 1,
+      { id: 'join_3', title: 'Читаем с соединением: ج ح', group: 'letters', prereq: ['letters_3'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح'], focus: ['ج','ح'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово.' },
+      { id: 'letters_4', title: 'Буквы: خ د', group: 'letters', prereq: ['join_3'], kind: 'letters', letters: ['خ','د'], syllableGroup: 1,
         theory: 'خ (хаʼ) — глубже, чем ح, с лёгким хрипящим призвуком у самого корня языка. د (даль) — кончик языка у верхних зубов, звонкий, как русское «д».' },
-      { id: 'letters_5', title: 'Буквы: ذ ر', group: 'letters', prereq: ['letters_4'], kind: 'letters', letters: ['ذ','ر'], syllableGroup: 1,
+      { id: 'join_4', title: 'Читаем с соединением: خ د', group: 'letters', prereq: ['letters_4'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د'], focus: ['خ','د'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово. Буквы د соединяются только с предыдущей буквой, а со следующей — нет: после них слово «разрывается», и следующая буква пишется отдельно.' },
+      { id: 'letters_5', title: 'Буквы: ذ ر', group: 'letters', prereq: ['join_4'], kind: 'letters', letters: ['ذ','ر'], syllableGroup: 1,
         theory: 'ذ (заль) — как ث, но звонкая (язык между зубами, только с голосом). ر (ра) — лёгкая вибрация кончика языка, похоже на русское «р».' },
-      { id: 'blend_2', title: 'Слоги: + ج ح خ د ذ ر', group: 'letters', prereq: ['letters_5'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر'],
+      { id: 'join_5', title: 'Читаем с соединением: ذ ر', group: 'letters', prereq: ['letters_5'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر'], focus: ['ذ','ر'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово. Буквы ذ ر соединяются только с предыдущей буквой, а со следующей — нет: после них слово «разрывается», и следующая буква пишется отдельно.' },
+      { id: 'blend_2', title: 'Слоги: + ج ح خ د ذ ر', group: 'letters', prereq: ['join_5'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر'],
         theory: 'Прибавили ещё букв в копилку — слоги теперь вперемешку из всех пройденных до сих пор букв, не только из последней пары.' },
       { id: 'letters_6', title: 'Буквы: ز س', group: 'letters', prereq: ['blend_2'], kind: 'letters', letters: ['ز','س'], syllableGroup: 1,
         theory: 'ز (зай) — свистящий звонкий, как «з». س (син) — свистящий глухой, как «с»; язык не касается зубов, а держится близко к ним.' },
-      { id: 'letters_7', title: 'Буквы: ش ص', group: 'letters', prereq: ['letters_6'], kind: 'letters', letters: ['ش','ص'], syllableGroup: 2,
+      { id: 'join_6', title: 'Читаем с соединением: ز س', group: 'letters', prereq: ['letters_6'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س'], focus: ['ز','س'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово. Буквы ز соединяются только с предыдущей буквой, а со следующей — нет: после них слово «разрывается», и следующая буква пишется отдельно.' },
+      { id: 'letters_7', title: 'Буквы: ش ص', group: 'letters', prereq: ['join_6'], kind: 'letters', letters: ['ش','ص'], syllableGroup: 2,
         theory: 'ش (шин) — как русское «ш», но мягче. ص (сад) — «тяжёлая», эмфатическая версия س: корень языка приподнимается к нёбу, звук массивнее.' },
-      { id: 'letters_8', title: 'Буквы: ض ط', group: 'letters', prereq: ['letters_7'], kind: 'letters', letters: ['ض','ط'], syllableGroup: 3,
+      { id: 'join_7', title: 'Читаем с соединением: ش ص', group: 'letters', prereq: ['letters_7'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص'], focus: ['ش','ص'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово.' },
+      { id: 'letters_8', title: 'Буквы: ض ط', group: 'letters', prereq: ['join_7'], kind: 'letters', letters: ['ض','ط'], syllableGroup: 3,
         theory: 'ض (дад) — «тяжёлая» версия د, боковые края языка касаются коренных зубов; считается одним из самых сложных звуков арабского. ط (та) — «тяжёлая» версия ت.' },
-      { id: 'letters_9', title: 'Буквы: ظ ع', group: 'letters', prereq: ['letters_8'], kind: 'letters', letters: ['ظ','ع'], syllableGroup: 3,
+      { id: 'join_8', title: 'Читаем с соединением: ض ط', group: 'letters', prereq: ['letters_8'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط'], focus: ['ض','ط'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово.' },
+      { id: 'letters_9', title: 'Буквы: ظ ع', group: 'letters', prereq: ['join_8'], kind: 'letters', letters: ['ظ','ع'], syllableGroup: 3,
         theory: 'ظ (за) — «тяжёлая» версия ذ. ع (айн) — сжатие середины горла с голосом; у этого звука нет аналога в русском языке.' },
-      { id: 'blend_3', title: 'Слоги: + ز س ش ص ض ط ظ ع', group: 'letters', prereq: ['letters_9'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع'],
+      { id: 'join_9', title: 'Читаем с соединением: ظ ع', group: 'letters', prereq: ['letters_9'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع'], focus: ['ظ','ع'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово.' },
+      { id: 'blend_3', title: 'Слоги: + ز س ش ص ض ط ظ ع', group: 'letters', prereq: ['join_9'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع'],
         theory: 'Пул букв для слогов растёт вместе с пройденным алфавитом — уже больше половины согласных.' },
       { id: 'letters_10', title: 'Буквы: غ ف', group: 'letters', prereq: ['blend_3'], kind: 'letters', letters: ['غ','ف'], syllableGroup: 4,
         theory: 'غ (гайн) — как лёгкое французское «р», из глубины горла, звонкое. ف (фа) — верхние зубы касаются нижней губы, как русское «ф».' },
-      { id: 'letters_11', title: 'Буквы: ق ك', group: 'letters', prereq: ['letters_10'], kind: 'letters', letters: ['ق','ك'], syllableGroup: 4,
+      { id: 'join_10', title: 'Читаем с соединением: غ ف', group: 'letters', prereq: ['letters_10'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف'], focus: ['غ','ف'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово.' },
+      { id: 'letters_11', title: 'Буквы: ق ك', group: 'letters', prereq: ['join_10'], kind: 'letters', letters: ['ق','ك'], syllableGroup: 4,
         theory: 'ق (къаф) — смычка в самой глубине горла, звук массивнее и глуше обычного «к». ك (кяф) — обычное «к», смычка ближе ко рту.' },
-      { id: 'letters_12', title: 'Буквы: ل م', group: 'letters', prereq: ['letters_11'], kind: 'letters', letters: ['ل','م'], syllableGroup: 5,
+      { id: 'join_11', title: 'Читаем с соединением: ق ك', group: 'letters', prereq: ['letters_11'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك'], focus: ['ق','ك'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово.' },
+      { id: 'letters_12', title: 'Буквы: ل م', group: 'letters', prereq: ['join_11'], kind: 'letters', letters: ['ل','م'], syllableGroup: 5,
         theory: 'ل (лям) — кончик языка у нёба за верхними зубами, как русское «л». م (мим) — губной носовой звук, как «м».' },
-      { id: 'letters_13', title: 'Буквы: ن ه', group: 'letters', prereq: ['letters_12'], kind: 'letters', letters: ['ن','ه'], syllableGroup: 5,
+      { id: 'join_12', title: 'Читаем с соединением: ل م', group: 'letters', prereq: ['letters_12'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م'], focus: ['ل','م'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово.' },
+      { id: 'letters_13', title: 'Буквы: ن ه', group: 'letters', prereq: ['join_12'], kind: 'letters', letters: ['ن','ه'], syllableGroup: 5,
         theory: 'ن (нун) — носовой звук, кончик языка у нёба, как «н»; у нун и танвина потом появится целый блок правил (см. дальше). ه (ha) — лёгкий выдох из самого горла, без напряжения.' },
-      { id: 'letters_14', title: 'Буквы: و ي', group: 'letters', prereq: ['letters_13'], kind: 'letters', letters: ['و','ي'], syllableGroup: 6,
+      { id: 'join_13', title: 'Читаем с соединением: ن ه', group: 'letters', prereq: ['letters_13'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه'], focus: ['ن','ه'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово.' },
+      { id: 'letters_14', title: 'Буквы: و ي', group: 'letters', prereq: ['join_13'], kind: 'letters', letters: ['و','ي'], syllableGroup: 6,
         theory: 'و (уау) — губы округлены и слегка вытянуты, как «у» на выдохе; также используется как знак долготы. ي (я) — средняя часть языка приподнята к нёбу, как «й»; тоже бывает знаком долготы.' },
-      { id: 'blend_4', title: 'Слоги: все буквы вместе', group: 'letters', prereq: ['letters_14'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'],
+      { id: 'join_14', title: 'Читаем с соединением: و ي', group: 'letters', prereq: ['letters_14'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'], focus: ['و','ي'],
+        theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово. Буквы و соединяются только с предыдущей буквой, а со следующей — нет: после них слово «разрывается», и следующая буква пишется отдельно.' },
+      { id: 'blend_4', title: 'Слоги: все буквы вместе', group: 'letters', prereq: ['join_14'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'],
         theory: 'Финальная тренировка слогов — уже из всех 27 согласных букв вперемешку, случайным образом.' },
       { id: 'letter_forms', title: 'Формы букв (начало/середина/конец)', group: 'letters', prereq: ['blend_4'], kind: 'forms',
         theory: 'Каждая буква меняет начертание в зависимости от места в слове: отдельно, в начале, в середине или в конце слова. Это не другая буква — тот же самый звук, только другая «одежда». В этом навыке — узнавание одной и той же буквы в разных формах.' },
@@ -7273,6 +7334,62 @@ function speakLetter(ch, name) {
     // и так берутся из двуязычных данных «Теории», а вот собственные
     // названия навыков и вводные пояснения — нет).
     const PERSONAL_TEACHER_KK = {
+ "join_1": {
+  "title": "Қосып оқимыз: ا ب",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз. Фатхалы әріптен кейінгі әліф дыбысты ұзартады: بَا ұзақ оқылады — «бәә». ا әріптері тек алдыңғы әріппен жалғасады, келесімен жалғаспайды: олардан кейін сөз «үзіліп», келесі әріп бөлек жазылады."
+ },
+ "join_2": {
+  "title": "Қосып оқимыз: ت ث",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз."
+ },
+ "join_3": {
+  "title": "Қосып оқимыз: ج ح",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз."
+ },
+ "join_4": {
+  "title": "Қосып оқимыз: خ د",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз. د әріптері тек алдыңғы әріппен жалғасады, келесімен жалғаспайды: олардан кейін сөз «үзіліп», келесі әріп бөлек жазылады."
+ },
+ "join_5": {
+  "title": "Қосып оқимыз: ذ ر",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз. ذ ر әріптері тек алдыңғы әріппен жалғасады, келесімен жалғаспайды: олардан кейін сөз «үзіліп», келесі әріп бөлек жазылады."
+ },
+ "join_6": {
+  "title": "Қосып оқимыз: ز س",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз. ز әріптері тек алдыңғы әріппен жалғасады, келесімен жалғаспайды: олардан кейін сөз «үзіліп», келесі әріп бөлек жазылады."
+ },
+ "join_7": {
+  "title": "Қосып оқимыз: ش ص",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз."
+ },
+ "join_8": {
+  "title": "Қосып оқимыз: ض ط",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз."
+ },
+ "join_9": {
+  "title": "Қосып оқимыз: ظ ع",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз."
+ },
+ "join_10": {
+  "title": "Қосып оқимыз: غ ف",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз."
+ },
+ "join_11": {
+  "title": "Қосып оқимыз: ق ك",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз."
+ },
+ "join_12": {
+  "title": "Қосып оқимыз: ل م",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз."
+ },
+ "join_13": {
+  "title": "Қосып оқимыз: ن ه",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз."
+ },
+ "join_14": {
+  "title": "Қосып оқимыз: و ي",
+  "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз. و әріптері тек алдыңғы әріппен жалғасады, келесімен жалғаспайды: олардан кейін сөз «үзіліп», келесі әріп бөлек жазылады."
+ },
  "orientation": {
   "title": "Араб тілі қалай жұмыс істейді",
   "theory": "Араб тілі оңнан солға қарай жазылады және оқылады. Бас әріптер мүлде жоқ. Әріптер сөздегі орнына қарай (басында, ортасында, соңында немесе жеке) жазылу пішінін өзгертеді — бұл басқа әріп емес, сол әріптің басқа түрі. Тәжуид — сөйлеуді әшекейлеу емес, олар болмаса сөздің мағынасын байқаусызда бұрмалап алуға болатын ережелер жиынтығы."
@@ -7548,7 +7665,7 @@ function speakLetter(ch, name) {
         if (ratio >= 0.7) {
           m.reviewInterval = Math.max(1, Math.round((m.reviewInterval || 1) * 2.2));
           m.nextReview = Date.now() + m.reviewInterval * 86400000;
-        } else {
+        } else if (!_activeTeacherFree) {
           m.status = 'practiced';
           m.goodStreak = 0;
           delete m.nextReview;
@@ -7709,6 +7826,7 @@ function speakLetter(ch, name) {
     }
     let _activeTeacherSkill = null; // id текущего навыка, если практика запущена из «Учителя»
     let _activeTeacherReview = false; // true, если это повторение уже освоенного навыка
+    let _activeTeacherFree = false;  // build 6.18: «свободный повтор» по желанию — с теорией, и плохой результат НЕ снимает освоение
     let _teacherSessionWrongs = []; // накопленные ошибки ЭТОЙ сессии практики — для полного разбора в конце
 
     // Запуск практики для конкретного навыка — переиспользует уже
@@ -7808,6 +7926,19 @@ function speakLetter(ch, name) {
           '<div style="margin-top:0.6rem">' + rows + '</div>' +
           '</div>';
       }
+      if (skill.kind === 'join') {
+        // build 5.115: примеры слов с соединением — что именно предстоит читать
+        let ex = [];
+        try { ex = buildJoinItems(skill.letters, skill.focus, 4); } catch(e) {}
+        const exHtml = ex.map(function(it) {
+          return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
+            '<div class="arabic" dir="rtl" style="font-size:calc(2rem * var(--ar-scale, 1))">' + it.ar + '</div>' +
+            '<div style="font-weight:700;color:var(--accent)">' + it.tr + '</div></div>';
+        }).join('');
+        return '<div class="card"><div class="ayah-translation" style="line-height:1.6">' + skillTheory(skill) + '</div>' +
+          '<div style="margin-top:0.6rem;font-size:0.85rem;color:var(--text-muted)">' + (kkT ? 'Мысалдар (оңнан солға оқылады):' : 'Примеры (читаются справа налево):') + '</div>' +
+          exHtml + '</div>';
+      }
       if (skill.kind === 'letters' && typeof ARABIC_LETTERS !== 'undefined') {
         const formLabels = kkT ? ['Оқшау', 'Басында', 'Ортасында', 'Соңында'] : ['Отдельно', 'В начале', 'В середине', 'В конце'];
         return skill.letters.map(function(ch) {
@@ -7899,15 +8030,16 @@ function speakLetter(ch, name) {
       }
       return skillTheory(skill) ? ('<div class="card"><div class="ayah-translation" style="line-height:1.6">' + skillTheory(skill) + '</div></div>') : '';
     }
-    function startTeacherSkillPractice(skill, isReview) {
+    function startTeacherSkillPractice(skill, isReview, isFree) {
       _activeTeacherSkill = skill.id;
       _activeTeacherReview = !!isReview;
+      _activeTeacherFree = !!(isReview && isFree);
       _teacherSessionWrongs = [];
       const kkT = isKk();
       // Для повторения уже освоенного навыка — сразу в практику, без
       // повторного показа теории (её уже видели, когда учили навык впервые).
       const theoryHtml = buildTeacherSkillTheoryHtml(skill);
-      if (theoryHtml && !isReview) {
+      if (theoryHtml && (!isReview || isFree)) {
         showView('teacher');
         const rootEl = document.getElementById('teacher-body');
         if (rootEl) {
@@ -7917,7 +8049,7 @@ function speakLetter(ch, name) {
             '<div style="margin-top:0.5rem">' + theoryHtml + '</div>' +
             '<button type="button" class="btn btn-primary" id="teacher-lesson-start" style="width:100%;margin-top:0.3rem">▶ ' + (kkT ? 'Практиканы бастау' : 'Начать практику') + '</button>';
           document.getElementById('teacher-lesson-back')?.addEventListener('click', function() { _activeTeacherSkill = null; _teacherLessonCtx = null; renderPersonalTeacher(); });
-          _teacherLessonCtx = { skillId: skill.id, isReview: !!isReview, step: 'intro' };
+          _teacherLessonCtx = { skillId: skill.id, isReview: !!isReview, isFree: !!_activeTeacherFree, step: 'intro' };
           document.getElementById('teacher-lesson-start')?.addEventListener('click', function() { _launchTeacherSkillActivity(skill); });
           rootEl.querySelectorAll('[data-teacher-speak-letter]').forEach(function(btn) {
             btn.addEventListener('click', function() {
@@ -8044,12 +8176,13 @@ function speakLetter(ch, name) {
             '<div style="margin-bottom:0.3rem"><b style="font-size:1.1rem">' + skillTitle(skill) + '</b></div>' +
             buildTeacherSkillTheoryHtml(skill) +
             '<button type="button" class="btn btn-primary" id="teacher-info-done" style="width:100%;margin-top:0.6rem">✓ ' + (kkT ? 'Түсінікті' : 'Понятно') + '</button>';
-          _teacherLessonCtx = { skillId: skill.id, isReview: !!_activeTeacherReview, step: 'info' };
+          _teacherLessonCtx = { skillId: skill.id, isReview: !!_activeTeacherReview, isFree: !!_activeTeacherFree, step: 'info' };
           document.getElementById('teacher-info-done')?.addEventListener('click', function() {
             _teacherLessonCtx = null;
             recordSkillResult(skill.id, 1, _activeTeacherReview);
             _activeTeacherSkill = null;
             _activeTeacherReview = false;
+            _activeTeacherFree = false;
             renderPersonalTeacher();
           });
         }
@@ -8079,6 +8212,12 @@ function speakLetter(ch, name) {
         document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); b.style.display = 'none'; });
         try { _updateDifficultyPanelVisibility(); } catch(e) {}
         startBlendDrill(skill.letters);
+      } else if (skill.kind === 'join') {
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); b.style.display = 'none'; });
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        startJoinDrill(skill.letters, skill.focus);
       } else if (skill.kind === 'construct') {
         showView('games');
         document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
@@ -8275,7 +8414,7 @@ function speakLetter(ch, name) {
         btn.style.cssText = 'width:100%;margin-top:0.75rem';
         btn.textContent = '✓ ' + (kkT ? 'Дайын — Мұғалімге оралу' : 'Готово — вернуться к Учителю');
         btn.addEventListener('click', function() {
-          if (_activeTeacherSkill) { recordSkillResult(_activeTeacherSkill, 0.8, _activeTeacherReview); _activeTeacherSkill = null; _activeTeacherReview = false; }
+          if (_activeTeacherSkill) { recordSkillResult(_activeTeacherSkill, 0.8, _activeTeacherReview); _activeTeacherSkill = null; _activeTeacherReview = false; _activeTeacherFree = false; }
           showView('teacher');
         });
         container.appendChild(btn);
@@ -8315,8 +8454,8 @@ function speakLetter(ch, name) {
         const _sk = PERSONAL_TEACHER_SKILLS.find(function(x) { return x.id === _teacherLessonCtx.skillId; });
         if (_sk) {
           const _ctx = _teacherLessonCtx;
-          _activeTeacherSkill = _sk.id; _activeTeacherReview = !!_ctx.isReview;
-          if (_ctx.step === 'info') _launchTeacherSkillActivity(_sk); else startTeacherSkillPractice(_sk, _ctx.isReview);
+          _activeTeacherSkill = _sk.id; _activeTeacherReview = !!_ctx.isReview; _activeTeacherFree = !!_ctx.isFree;
+          if (_ctx.step === 'info') _launchTeacherSkillActivity(_sk); else startTeacherSkillPractice(_sk, _ctx.isReview, _ctx.isFree);
           return;
         }
       }
@@ -8423,6 +8562,7 @@ function speakLetter(ch, name) {
             '<div style="display:flex;justify-content:space-between;align-items:center">' +
             '<span>' + icon + ' ' + skillTitle(s) + '</span>' +
             (unlocked && status !== 'mastered' ? '<button type="button" class="btn btn-sm" data-teacher-skill="' + s.id + '">▶</button>' : '') +
+            (unlocked && status === 'mastered' ? '<button type="button" class="btn btn-sm" data-teacher-repeat="' + s.id + '" title="' + (kk ? 'Қайта өту (қалаған кезде)' : 'Пройти снова (когда захотите)') + '">🔁 ' + (kk ? 'Қайталау' : 'Повторить') + '</button>' : '') +
             '</div></div>';
         }).join('');
       });
@@ -8433,6 +8573,13 @@ function speakLetter(ch, name) {
       document.getElementById('teacher-start-cum')?.addEventListener('click', function() { if (pendingCum) startCumulativeReview(pendingCum, pendingCum.kind); });
       rootEl.querySelectorAll('[data-mix-group]').forEach(function(btn) {
         btn.addEventListener('click', function() { startMixedGroupReview(btn.getAttribute('data-mix-group')); });
+      });
+      // build 6.18: освоенные уроки можно проходить снова в любой момент — с теорией; результат не снимает «освоено»
+      rootEl.querySelectorAll('[data-teacher-repeat]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          const skill = PERSONAL_TEACHER_SKILLS.find(function(s){ return s.id === btn.getAttribute('data-teacher-repeat'); });
+          if (skill) startTeacherSkillPractice(skill, true, true);
+        });
       });
       rootEl.querySelectorAll('[data-teacher-skill]').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -8642,18 +8789,18 @@ function speakLetter(ch, name) {
           // всё нужное (78-114 + суры для «Напоминания дня»), остальные
           // кнопки остаются, если нужно докачать что-то одно отдельно.
           '<div class="card" style="border-color:var(--accent);background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 75%, #7c3aed) 100%);border:none">' +
-          '<b style="color:#fff">📥 Подготовить сайт к офлайну</b>' +
-          '<div style="color:rgba(255,255,255,0.85);font-size:0.85rem;margin-top:0.3rem">Скачает разом всё, что нужно для работы без интернета: джюз «Амма» (78-114) + суры для «Напоминания дня» (2, 6, 17, 24, 31, 49).</div>' +
-          '<button type="button" class="btn btn-sm" id="dl-prepare-all" style="margin-top:0.6rem;width:100%;background:rgba(255,255,255,0.18);color:#fff;border-color:rgba(255,255,255,0.3)">⬇ Скачать всё для офлайна</button>' +
+          '<b style="color:#fff">' + (isKk() ? '📥 Сайтты офлайнға дайындау' : '📥 Подготовить сайт к офлайну') + '</b>' +
+          '<div style="color:rgba(255,255,255,0.85);font-size:0.85rem;margin-top:0.3rem">' + (isKk() ? 'Интернетсіз жұмыс істеу үшін керектің бәрін бірден жүктейді: «Амма» джүзі (78–114) + «Күн ескертуі» сүрелері (2, 6, 17, 24, 31, 49).' : 'Скачает разом всё, что нужно для работы без интернета: джюз «Амма» (78-114) + суры для «Напоминания дня» (2, 6, 17, 24, 31, 49).') + '</div>' +
+          '<button type="button" class="btn btn-sm" id="dl-prepare-all" style="margin-top:0.6rem;width:100%;background:rgba(255,255,255,0.18);color:#fff;border-color:rgba(255,255,255,0.3)">' + (isKk() ? '⬇ Офлайн үшін бәрін жүктеу' : '⬇ Скачать всё для офлайна') + '</button>' +
           '<div id="dl-prepare-all-st" style="font-size:0.8rem;color:rgba(255,255,255,0.85);margin-top:0.35rem"></div>' +
           '</div>' +
-          '<div class="card" style="border-color:var(--accent)"><b>Офлайн 78–114 (джюз ‘Амма)</b>' +
+          '<div class="card" style="border-color:var(--accent)"><b>'+tLabel('Офлайн 78–114 (джюз ‘Амма)')+'</b>' +
           '<div class="ayah-translation">В кэше: '+ammaCount+' сур. Скачанные остаются здесь после обновления страницы.</div>' +
-          '<button type="button" class="btn btn-sm btn-primary" id="dl-amma" style="margin-top:0.4rem">⬇ Скачать/обновить 78–114</button>' +
+          '<button type="button" class="btn btn-sm btn-primary" id="dl-amma" style="margin-top:0.4rem">'+tLabel('⬇ Скачать/обновить 78–114')+'</button>' +
           '<div id="dl-amma-st" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem"></div>' +
-          '<button type="button" class="btn btn-sm" id="dl-daily-feat" style="margin-top:0.5rem;width:100%">⬇ Скачать для «Напоминания дня» (суры 2, 6, 17, 24, 31, 49)</button>' +
+          '<button type="button" class="btn btn-sm" id="dl-daily-feat" style="margin-top:0.5rem;width:100%">'+tLabel('⬇ Скачать для «Напоминания дня» (суры 2, 6, 17, 24, 31, 49)')+'</button>' +
           '<div id="dl-daily-feat-st" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem"></div></div>' +
-          '<p style="color:var(--text-muted);font-size:0.9rem;margin:0.75rem 0">Формат: <b>номер · имя · аятов</b>. ✓ = в кэше. Откройте → «По словам».</p>' +
+          '<p style="color:var(--text-muted);font-size:0.9rem;margin:0.75rem 0">Формат: <b>'+tLabel('номер · имя · аятов')+'</b>. ✓ = в кэше. Откройте → «По словам».</p>' +
           list.map(s =>
             '<div class="card" style="cursor:pointer" data-ss="'+s.n+'">' +
             '<b>'+s.n+' · '+s.name+' · '+s.ayahs+(s.cached?' ✓':'')+'</b>' +
@@ -9356,16 +9503,16 @@ function renderMistakes() {
       glottal:{ cat: 'throat', tongue: { T: [34,70], H: [62,64], R: [98,74], F: [98,90] }, lips: 'open', contact: [110,101],
         ru: { how: 'Самая глубина горла (гортань)', steps: '1) Горло расслаблено, связки раскрыты  2) Просто выдохните тёплый воздух — «х» без трения' },
         kk: { how: 'Тамақтың ең тереңі (көмей)', steps: '1) Тамақ босаңсыған, дауыс шымылдығы ашық  2) Жылы ауаны жай шығарыңыз — үйкеліссіз «һ»' } },
-      pharyng:{ cat: 'throat', tongue: { T: [34,70], H: [58,66], R: [108,70], F: [106,90] }, lips: 'open', contact: [116,76],
+      pharyng:{ cat: 'throat', tongue: { T: [34,70], H: [58,64], R: [114,72], F: [110,92] }, lips: 'open', contact: [119,72],
         ru: { how: 'Середина горла (глотка)', steps: '1) Корень языка отходит назад, глотка сужается  2) ح — выдох без голоса; ع — то же, но с голосом' },
         kk: { how: 'Тамақтың ортасы (жұтқыншақ)', steps: '1) Тіл түбі артқа тартылып, жұтқыншақ тарылады  2) ح — дауыссыз дем; ع — сол, бірақ дауыспен' } },
-      uvular: { cat: 'throat', tongue: { T: [34,70], H: [84,48], R: [104,62], F: [100,90] }, lips: 'open', contact: [102,43],
+      uvular: { cat: 'throat', tongue: { T: [34,70], H: [96,44], R: [108,58], F: [104,90] }, lips: 'open', contact: [104,41],
         ru: { how: 'Верх горла (у язычка)', steps: '1) Задняя часть языка поднимается к язычку  2) خ — без голоса, как немецкое ch; غ — с голосом' },
         kk: { how: 'Тамақтың жоғарғы жағы (тілшік маңы)', steps: '1) Тілдің арт жағы тілшікке көтеріледі  2) خ — дауыссыз; غ — дауыспен' } },
-      qaf:    { cat: 'tongue', tongue: { T: [34,72], H: [92,34], R: [106,56], F: [100,90] }, lips: 'open', contact: [93,31.5],
+      qaf:    { cat: 'tongue', tongue: { T: [34,72], H: [104,37], R: [111,56], F: [104,90] }, lips: 'open', contact: [104,34.6],
         ru: { how: 'Самая задняя часть языка + мягкое нёбо', steps: '1) Задняя часть языка плотно прижимается к мягкому нёбу, у язычка  2) Резко отпустите — звук глубокий и «тяжёлый»' },
         kk: { how: 'Тілдің ең артқы жағы + жұмсақ таңдай', steps: '1) Тілдің арт жағы жұмсақ таңдайға, тілшік тұсына тығыз тиеді  2) Кенет босатыңыз — дыбыс терең әрі «ауыр»' } },
-      kaf:    { cat: 'tongue', tongue: { T: [34,70], H: [76,31.5], R: [96,64], F: [98,90] }, lips: 'open', contact: [77,29.5],
+      kaf:    { cat: 'tongue', tongue: { T: [34,70], H: [90.5,33], R: [102,62], F: [98,90] }, lips: 'open', contact: [90.5,30.5],
         ru: { how: 'Задняя часть языка (чуть впереди ق)', steps: '1) Спинка языка касается мягкого нёба чуть ближе ко рту, чем у ق  2) Резко отпустите — лёгкое «к»' },
         kk: { how: 'Тілдің арт жағы (ق-дан сәл алдында)', steps: '1) Тіл арты жұмсақ таңдайға ق-дан сәл алдыңғы жерде тиеді  2) Кенет босатыңыз — жеңіл «к»' } },
       palatal:{ cat: 'tongue', tongue: { T: [35,63], H: [57,32.5], R: [96,70], F: [98,90] }, lips: 'open', contact: [57,30],
@@ -9438,7 +9585,9 @@ function renderMistakes() {
     function mouthPoseFor(info) {
       const base = info.g.tongue;
       let p = { T: base.T.slice(), H: base.H.slice(), R: base.R.slice(), F: base.F.slice() };
-      if (info.emphatic && info.gid !== 'dad') { p.R[0] += 6; p.R[1] += 1; p.F[0] += 4; p.H[1] = Math.min(p.H[1], 56) - 4; }
+      // build 6.23: заметное «ложкообразное» положение — передняя часть остаётся у места образования, задняя поднимается к мягкому нёбу, корень назад
+      if (info.emphatic && info.gid !== 'dad') { p.R = [p.R[0] + 8, p.R[1] - 16]; p.F[0] += 4; p.H[1] += 3; }
+      else if (info.emphatic) { p.R = [p.R[0] + 5, p.R[1] - 10]; p.F[0] += 3; }
       return p;
     }
     // плавная кривая через точки (Catmull-Rom → кубические Безье) для траектории воздуха
@@ -9548,9 +9697,9 @@ function renderMistakes() {
            '<rect x="27" y="61" width="6" height="11" rx="2" fill="#cbd5e1"/><rect x="34" y="64" width="6" height="9" rx="2" fill="#cbd5e1"/></g>';
       s += '<rect x="27" y="35" width="6" height="14" rx="2" fill="#f8fafc"/><rect x="34" y="37" width="6" height="11" rx="2" fill="#f8fafc"/>';
       s += '<path d="' + lipsNow.u + '" fill="none" stroke="#fb7185" stroke-width="4" stroke-linecap="round">' +
-           (g.lips !== 'open' ? A('d', [lipsRestU, MOUTH_LIPS[g.lips].u, MOUTH_LIPS[g.lips].u], [0, 0.22, 1]) : '') + '</path>';
+           (g.lips !== 'open' ? (g.lips === 'closed' && info.flow === 'stop' ? A('d', [lipsRestU, MOUTH_LIPS.closed.u, MOUTH_LIPS.closed.u, lipsRestU, lipsRestU], [0, 0.22, 0.66, 0.74, 1]) : A('d', [lipsRestU, MOUTH_LIPS[g.lips].u, MOUTH_LIPS[g.lips].u], [0, 0.22, 1])) : '') + '</path>';
       s += '<path d="' + lipsNow.l + '" fill="none" stroke="#fb7185" stroke-width="4" stroke-linecap="round">' +
-           (g.lips !== 'open' ? A('d', [lipsRestL, MOUTH_LIPS[g.lips].l, MOUTH_LIPS[g.lips].l], [0, 0.22, 1]) : '') + '</path>';
+           (g.lips !== 'open' ? (g.lips === 'closed' && info.flow === 'stop' ? A('d', [lipsRestL, MOUTH_LIPS.closed.l, MOUTH_LIPS.closed.l, lipsRestL, lipsRestL], [0, 0.22, 0.66, 0.74, 1]) : A('d', [lipsRestL, MOUTH_LIPS[g.lips].l, MOUTH_LIPS[g.lips].l], [0, 0.22, 1])) : '') + '</path>';
       // точка артикуляции (цвет = категория из легенды) с пульсацией при показе
       if (g.contact && showPose) {
         s += '<circle cx="' + g.contact[0] + '" cy="' + g.contact[1] + '" r="9" fill="' + col + '" opacity="0.28">' +
@@ -9757,7 +9906,7 @@ function renderMistakes() {
             (letterTr(l) ? '<div style="text-align:center;color:var(--accent);font-size:1.15rem;margin-bottom:0.35rem" dir="ltr">'+letterTr(l)+'</div>' : '') +
             '<div style="text-align:center">'+(typeof letterMouthSvg==='function'?letterMouthSvg(l.ch):'')+'</div>' +
             '<div class="ayah-translation" dir="ltr" style="text-align:center;unicode-bidi:isolate">'+((kkD ? (l.noteKk||l.note) : l.note)||'')+'</div>' +
-            ((typeof ARTICULATION !== 'undefined' && ARTICULATION[l.ch]) ? '<div style="margin-top:0.4rem;font-size:0.85rem;color:var(--accent);text-align:center" dir="ltr" style="unicode-bidi:isolate">🗣️ '+ARTICULATION[l.ch]+'</div>' : '') +
+            ((typeof ARTICULATION !== 'undefined' && ARTICULATION[l.ch]) ? '<div style="margin-top:0.4rem;font-size:0.85rem;color:var(--accent);text-align:center;unicode-bidi:isolate" dir="ltr">🗣️ '+ARTICULATION[l.ch]+'</div>' : '') +
             (l.forms ? '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.5rem;font-size:1.5rem;font-family:Amiri,serif" dir="rtl" lang="ar">'+l.forms.map(f=>'<span dir="rtl">'+f+'</span>').join(' ')+'</div>' : '') +
             '<button type="button" class="btn btn-primary btn-sm" style="margin-top:0.75rem;width:100%" id="btn-speak-letter">'+(kkD ? '🔊 Айту (жазба)' : '🔊 Произнести (запись)')+'</button>' +
             '<button type="button" class="btn btn-sm" id="btn-cache-letter-audio" style="width:100%;margin-top:0.35rem">'+(kkD ? '💾 Кэшке (аудио)' : '💾 В кэш (аудио)')+'</button>' +
@@ -10496,6 +10645,12 @@ function renderMistakes() {
         startFindRuleQuizStandalone();
       } else if (currentGame === 'speak' || currentGame === 'speak-ayah') {
         startSpeakGame(currentGame === 'speak-ayah');
+      } else if (currentGame === 'blend' && _activeBlendLetters) {
+        startBlendDrill(_activeBlendLetters);
+      } else if (currentGame === 'construct' && _lastConstructArgs) {
+        startConstructDrill(_lastConstructArgs[0], _lastConstructArgs[1]);
+      } else if (currentGame === 'join' && _lastJoinArgs) {
+        startJoinDrill(_lastJoinArgs[0], _lastJoinArgs[1]);
       }
     }
 
@@ -11007,13 +11162,16 @@ function renderMistakes() {
     // среди вариантов: даётся цель (последовательность слогов/букв) и
     // вперемешку плитки, из которых нужно собрать её в правильном порядке —
     // ближе к тому, как реально складывают слова при обучении чтению.
+    let _lastConstructArgs = null;
     function startConstructDrill(letters, useSukun) {
+      _lastConstructArgs = [letters, useSukun];
       currentGame = 'construct';
       const kkC = isKk();
-      const marks = [{h:'\u064E',v:'а',k:'a'},{h:'\u0650',v:'и',k:'i'},{h:'\u064F',v:'у',k:'u'}];
+      const marks = [{h:'َ',v:'а',k:'a'},{h:'ِ',v:'и',k:'i'},{h:'ُ',v:'у',k:'u'}];
       let round = 0;
       const totalRounds = 6;
       let score = 0;
+      gameScore = 0; gameTotal = 0;
       const paint = () => {
         if (round >= totalRounds) {
           gameScore = score; gameTotal = totalRounds;
@@ -11024,27 +11182,43 @@ function renderMistakes() {
         const target = [];
         for (let i = 0; i < len; i++) {
           const ch = letters[Math.floor(Math.random()*letters.length)];
-          if (useSukun && i === len - 1 && Math.random() < 0.5) target.push({ ar: ch + '\u0652', tr: consSound(ch) });
+          if (useSukun && i === len - 1 && Math.random() < 0.5) target.push({ ar: ch + 'ْ', tr: consSound(ch) });
           else { const mk = marks[Math.floor(Math.random()*marks.length)]; target.push({ ar: ch + mk.h, tr: sylTr(ch, mk) }); }
         }
         const decoys = [];
-        while (decoys.length < 2) {
+        let guard = 0;
+        while (decoys.length < 2 && guard++ < 50) {
           const ch = letters[Math.floor(Math.random()*letters.length)];
           const mk = marks[Math.floor(Math.random()*marks.length)];
-          decoys.push({ ar: ch + mk.h, tr: sylTr(ch, mk) });
+          const d = { ar: ch + mk.h, tr: sylTr(ch, mk) };
+          if (target.some(function(x){ return x.ar === d.ar; }) || decoys.some(function(x){ return x.ar === d.ar; })) continue;
+          decoys.push(d);
         }
         const tiles = shuffle(target.concat(decoys).map(function(t, i){ return Object.assign({}, t, { uid: i }); }));
         const picked = [];
         const area = document.getElementById('game-area');
-        const renderUi = () => {
+        const targetTr = target.map(function(x){ return x.tr; }).join('-');
+        const renderUi = (done, ok) => {
           area.innerHTML =
             '<div class="quiz-card" style="text-align:center">' +
-            '<div class="quiz-q">' + (kkC ? 'Буынды дұрыс ретпен жинаңыз' : 'Соберите слог/слово в правильном порядке') + '</div>' +
-            '<div class="arabic" dir="rtl" id="construct-target" style="min-height:3rem;font-size:calc(1.8rem * var(--ar-scale, 1));border:1px dashed var(--border);border-radius:0.5rem;padding:0.5rem;margin:0.75rem 0">' +
+            '<div class="quiz-q">' + (kkC ? 'Естіген буынды арабша жазыңыз' : 'Запишите по-арабски то, что слышите') + '</div>' +
+            '<div style="font-size:1.5rem;font-weight:700;color:var(--accent);margin:0.5rem 0">«' + targetTr + '»</div>' +
+            '<button type="button" class="btn btn-sm" id="construct-listen">🔊 ' + (kkC ? 'Тыңдау' : 'Послушать') + '</button>' +
+            '<div style="margin-top:0.5rem;color:var(--text-muted);font-size:0.82rem;line-height:1.5">' + (kkC
+              ? 'Тақтайшаларды естілу ретімен басыңыз: бірінші буын — оң жақта, сөз оңнан солға өсіп, әріптер өзара жалғасады.'
+              : 'Нажимайте плитки в том порядке, как звучит слово: первый слог встаёт справа, слово растёт справа налево, буквы сами соединяются.') + '</div>' +
+            '<div class="arabic" dir="rtl" id="construct-target" style="min-height:3.2rem;font-size:calc(2rem * var(--ar-scale, 1));border:1px dashed ' + (done ? (ok ? '#4ade80' : '#f87171') : 'var(--border)') + ';border-radius:0.5rem;padding:0.5rem;margin:0.75rem 0">' +
             picked.map(function(t){ return t.ar; }).join('') + '</div>' +
+            (done && !ok ? '<div style="margin-bottom:0.5rem">' + (kkC ? 'Дұрысы: ' : 'Правильно: ') + '<span class="arabic" dir="rtl" style="font-size:calc(1.6rem * var(--ar-scale, 1))">' + target.map(function(x){return x.ar;}).join('') + '</span></div>' : '') +
             '<div id="construct-tiles" style="display:flex;flex-wrap:wrap;gap:0.4rem;justify-content:center"></div>' +
+            (done ? '' : '<div style="margin-top:0.6rem"><button type="button" class="btn btn-sm" id="construct-undo">↩ ' + (kkC ? 'Соңғысын алып тастау' : 'Убрать последнюю') + '</button></div>') +
             '<div style="margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkC?'Раунд ':'Раунд ') + round + ' / ' + totalRounds + '</div>' +
             '</div>';
+          document.getElementById('construct-listen')?.addEventListener('click', function() {
+            try { if (typeof speakArText === 'function') speakArText(target.map(function(x){ return x.ar; }).join(''), 0.7); } catch(e) {}
+          });
+          document.getElementById('construct-undo')?.addEventListener('click', function() { picked.pop(); renderUi(); });
+          if (done) return;
           const tilesEl = document.getElementById('construct-tiles');
           tiles.forEach(function(t) {
             if (picked.indexOf(t) >= 0) return;
@@ -11056,10 +11230,11 @@ function renderMistakes() {
             b.addEventListener('click', function() {
               picked.push(t);
               if (picked.length === target.length) {
-                const correct = picked.every(function(p, i){ return p === target[i]; });
+                const correct = picked.every(function(p, i){ return p.ar === target[i].ar; });
                 if (correct) { score++; toast(kkC ? 'Дұрыс!' : 'Верно!'); }
-                else { toast((kkC ? 'Дұрысы: ' : 'Правильно: ') + target.map(function(x){return x.ar;}).join('')); }
-                setTimeout(paint, 1100);
+                try { recordMistake('blend', target.map(function(x){return x.ar;}).join(''), correct); } catch(e) {}
+                renderUi(true, correct);
+                setTimeout(paint, correct ? 1000 : 2200);
               } else {
                 renderUi();
               }
@@ -11070,6 +11245,152 @@ function renderMistakes() {
         renderUi();
       };
       paint();
+    }
+
+    // build 5.115: «читаем с соединением» — после КАЖДОЙ пары новых букв не
+    // только отдельные слоги (ба/би/бу), но и короткие слова из пройденных
+    // букв: буквы соединяются, у каждой своя огласовка, алиф удлиняет «а».
+    let _lastJoinArgs = null;
+    const JOIN_MARKS = [{h:'َ',v:'а',k:'a'},{h:'ِ',v:'и',k:'i'},{h:'ُ',v:'у',k:'u'}];
+    function _joinSyl(ch, mk, longA) {
+      const tr = sylTr(ch, mk);
+      if (longA) return { ar: ch + mk.h + 'ا', tr: tr + tr.slice(-1) };
+      return { ar: ch + mk.h, tr: tr };
+    }
+    function buildJoinItems(letters, focus, n) {
+      const cons = (letters || []).filter(function(c){ return BASE_CONSONANT_SOUND[c]; });
+      if (!cons.length) return [];
+      const foc = (focus || []).filter(function(c){ return cons.indexOf(c) >= 0; });
+      const hasAlif = (letters || []).indexOf('ا') >= 0;
+      const pick = function(a){ return a[Math.floor(Math.random() * a.length)]; };
+      const out = [], seen = {};
+      let guard = 0;
+      while (out.length < n && guard++ < 600) {
+        const len = Math.random() < 0.7 ? 2 : 3;
+        const parts = [], used = [];
+        for (let i = 0; i < len; i++) {
+          const ch = (i === 0 && foc.length && Math.random() < 0.5) ? pick(foc) : pick(cons);
+          const longA = hasAlif && Math.random() < 0.3;
+          parts.push(_joinSyl(ch, longA ? JOIN_MARKS[0] : pick(JOIN_MARKS), longA));
+          used.push(ch);
+        }
+        if (foc.length && !used.some(function(c){ return foc.indexOf(c) >= 0; })) continue;
+        const ar = parts.map(function(x){ return x.ar; }).join('');
+        if (seen[ar]) continue;
+        seen[ar] = 1;
+        out.push({ parts: parts, ar: ar, tr: parts.map(function(x){ return x.tr; }).join('-') });
+      }
+      return out;
+    }
+    function startJoinDrill(letters, focus) {
+      _lastJoinArgs = [letters, focus];
+      currentGame = 'join';
+      gameScore = 0; gameTotal = 0;
+      const kkJ = isKk();
+      const items = buildJoinItems(letters, focus, 8);
+      const cons = (letters || []).filter(function(c){ return BASE_CONSONANT_SOUND[c]; });
+      const hasAlif = (letters || []).indexOf('ا') >= 0;
+      const pick = function(a){ return a[Math.floor(Math.random() * a.length)]; };
+      const breakdown = function(item) {
+        return item.parts.map(function(p){ return '<span class="arabic" dir="rtl" style="font-size:1.3rem">' + p.ar + '</span> = ' + p.tr; }).join('  ·  ');
+      };
+      let round = 0;
+      const next = function() {
+        if (round >= items.length) return endGame();
+        const item = items[round];
+        round++; gameTotal++;
+        const area = document.getElementById('game-area');
+        const footer = '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkJ ? 'Есеп: ' : 'Счёт: ') + gameScore + ' / ' + gameTotal + ' · ' + round + '/' + items.length + '</div>';
+        if (round % 2 === 1) {
+          // чтение: слово → правильная транскрипция
+          const opts = [item.tr];
+          let g = 0;
+          while (opts.length < Math.max(3, Math.min(4, quizOptionCount())) && g++ < 80) {
+            const parts = item.parts.map(function(x){ return x; });
+            const i = Math.floor(Math.random() * parts.length);
+            const ch = pick(cons);
+            const longA = hasAlif && Math.random() < 0.3;
+            parts[i] = _joinSyl(ch, longA ? JOIN_MARKS[0] : pick(JOIN_MARKS), longA);
+            const tr2 = parts.map(function(x){ return x.tr; }).join('-');
+            if (opts.indexOf(tr2) < 0) opts.push(tr2);
+          }
+          area.innerHTML =
+            '<div class="quiz-card" style="text-align:center">' +
+            '<div class="quiz-q">' + (kkJ ? 'Бұл сөз қалай оқылады? (оңнан солға)' : 'Как читается это слово? (справа налево)') + '</div>' +
+            '<div class="arabic" dir="rtl" style="font-size:calc(3rem * var(--ar-scale, 1));margin:0.6rem 0">' + item.ar + '</div>' +
+            '<div class="quiz-opts" id="quiz-opts"></div><div id="join-explain" style="margin-top:0.6rem;font-size:0.9rem"></div>' + footer + '</div>';
+          const optsEl = document.getElementById('quiz-opts');
+          shuffle(opts).forEach(function(o) {
+            const b = document.createElement('button');
+            b.textContent = o;
+            b.addEventListener('click', function() {
+              optsEl.querySelectorAll('button').forEach(function(x){ x.disabled = true; });
+              const ok = (o === item.tr);
+              try { recordMistake('blend', item.ar, ok); } catch(e) {}
+              if (ok) { b.classList.add('correct'); gameScore++; }
+              else {
+                b.classList.add('wrong');
+                optsEl.querySelectorAll('button').forEach(function(x){ if (x.textContent === item.tr) x.classList.add('correct'); });
+              }
+              document.getElementById('join-explain').innerHTML = breakdown(item);
+              try { if (typeof speakArText === 'function') speakArText(item.ar, 0.7); } catch(e) {}
+              setTimeout(next, ok ? 1500 : 2600);
+            });
+            optsEl.appendChild(b);
+          });
+        } else {
+          // сборка: транскрипция → слово из плиток
+          const decoys = [];
+          let g = 0;
+          while (decoys.length < 2 && g++ < 80) {
+            const longA = hasAlif && Math.random() < 0.3;
+            const d = _joinSyl(pick(cons), longA ? JOIN_MARKS[0] : pick(JOIN_MARKS), longA);
+            if (item.parts.some(function(x){ return x.ar === d.ar; }) || decoys.some(function(x){ return x.ar === d.ar; })) continue;
+            decoys.push(d);
+          }
+          const tiles = shuffle(item.parts.concat(decoys).map(function(x, i){ return Object.assign({}, x, { uid: i }); }));
+          const picked = [];
+          const render = function(done, ok) {
+            area.innerHTML =
+              '<div class="quiz-card" style="text-align:center">' +
+              '<div class="quiz-q">' + (kkJ ? 'Сөзді арабша құраңыз' : 'Составьте слово по-арабски') + '</div>' +
+              '<div style="font-size:1.5rem;font-weight:700;color:var(--accent);margin:0.4rem 0">«' + item.tr + '»</div>' +
+              '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.5">' + (kkJ
+                ? 'Буындарды естілу ретімен басыңыз — бірінші буын оң жақта, әріптер өздері жалғасады.'
+                : 'Нажимайте слоги в порядке звучания — первый встаёт справа, буквы соединяются сами.') + '</div>' +
+              '<div class="arabic" dir="rtl" style="min-height:3.4rem;font-size:calc(2.4rem * var(--ar-scale, 1));border:1px dashed ' + (done ? (ok ? '#4ade80' : '#f87171') : 'var(--border)') + ';border-radius:0.5rem;padding:0.4rem;margin:0.7rem 0">' + picked.map(function(x){ return x.ar; }).join('') + '</div>' +
+              (done ? '<div style="font-size:0.9rem;margin-bottom:0.5rem">' + (ok ? '' : ((kkJ ? 'Дұрысы: ' : 'Правильно: ') + '<span class="arabic" dir="rtl" style="font-size:1.6rem">' + item.ar + '</span><br>')) + breakdown(item) + '</div>' : '') +
+              '<div id="join-tiles" style="display:flex;flex-wrap:wrap;gap:0.4rem;justify-content:center"></div>' +
+              (done ? '' : '<div style="margin-top:0.6rem"><button type="button" class="btn btn-sm" id="join-undo">↩ ' + (kkJ ? 'Соңғысын алып тастау' : 'Убрать последний') + '</button></div>') +
+              footer + '</div>';
+            document.getElementById('join-undo')?.addEventListener('click', function() { picked.pop(); render(); });
+            if (done) return;
+            const tilesEl = document.getElementById('join-tiles');
+            tiles.forEach(function(tl) {
+              if (picked.indexOf(tl) >= 0) return;
+              const b = document.createElement('button');
+              b.className = 'btn';
+              b.style.fontFamily = 'Amiri, serif';
+              b.style.fontSize = 'calc(1.6rem * var(--ar-scale, 1))';
+              b.textContent = tl.ar;
+              b.addEventListener('click', function() {
+                picked.push(tl);
+                if (picked.length === item.parts.length) {
+                  const ok = picked.every(function(x, i){ return x.ar === item.parts[i].ar; });
+                  if (ok) gameScore++;
+                  try { recordMistake('blend', item.ar, ok); } catch(e) {}
+                  render(true, ok);
+                  try { if (typeof speakArText === 'function') speakArText(item.ar, 0.7); } catch(e) {}
+                  setTimeout(next, ok ? 1500 : 2800);
+                } else render();
+              });
+              tilesEl.appendChild(b);
+            });
+          };
+          render();
+        }
+      };
+      next();
     }
 
     // build 5.99: смешанная проверка после целой группы навыков — буквы и
@@ -11581,6 +11902,7 @@ function renderMistakes() {
           back.addEventListener('click', function() {
             _activeTeacherSkill = null;
             _activeTeacherReview = false;
+            _activeTeacherFree = false;
             showView('teacher');
           });
           area.querySelector('.quiz-card').appendChild(back);
@@ -11613,7 +11935,7 @@ function renderMistakes() {
         _teacherPlacementStage = null;
         try {
           if (lettersRatio >= 0.75) {
-            ['orientation','letters_1','letters_2','blend_1','construct_1','letters_3','letters_4','letters_5','blend_2','letters_6','letters_7','letters_8','letters_9','blend_3','letters_10','letters_11','letters_12','letters_13','letters_14','blend_4','letter_forms'].forEach(function(id) {
+            ['orientation','join_1','join_2','join_3','join_4','join_5','join_6','join_7','join_8','join_9','join_10','join_11','join_12','join_13','join_14','letters_1','letters_2','blend_1','construct_1','letters_3','letters_4','letters_5','blend_2','letters_6','letters_7','letters_8','letters_9','blend_3','letters_10','letters_11','letters_12','letters_13','letters_14','blend_4','letter_forms'].forEach(function(id) {
               recordSkillResult(id, 1); recordSkillResult(id, 1); recordSkillResult(id, 1);
             });
           }
@@ -12305,7 +12627,7 @@ function renderMistakes() {
           '<div class="arabic" dir="rtl" style="font-size:calc(1.5rem * var(--ar-scale, 1));margin:0.6rem 0">'+ay.text+'</div>' +
           (ay.translation ? '<div class="ayah-translation">'+ay.translation+'</div>' : '') +
           '<button type="button" class="btn btn-sm btn-primary" id="ayahday-speak" style="margin-top:0.5rem">▶ Слушать</button></div>' +
-          '<div class="card"><b>На сегодня</b><div class="ayah-translation">Прочитайте аят трижды, найдите одно слово для словаря, сделайте одно добро по смыслу аята.</div></div>'
+          '<div class="card"><b>'+tLabel('На сегодня')+'</b><div class="ayah-translation">'+tLabel('Прочитайте аят трижды, найдите одно слово для словаря, сделайте одно добро по смыслу аята.')+'</div></div>'
         : '<div class="empty-state"><p>Нет офлайн-аятов. Скачайте суры 78–114 в Теории.</p></div>';
       document.getElementById('ayahday-speak')?.addEventListener('click', () => {
         if (ay && typeof speakArText === 'function') speakArText(ay.text);
@@ -13047,6 +13369,7 @@ function renderSalah() {
         return '<div class="card" style="margin-bottom:0.5rem">' +
           '<b>'+it.n+'. '+title+'</b>' +
           '<div class="ayah-translation" style="margin-top:0.4rem;line-height:1.55;white-space:pre-wrap">'+full+'</div>' +
+          (typeof htmlSourcesFooter==='function'?htmlSourcesFooter(desc || ''):'') +
           (typeof srcDisclaimerHtml==='function'?srcDisclaimerHtml():'') +
           '</div>';
       };
@@ -13117,7 +13440,7 @@ function renderSalah() {
             h = '<p class="ayah-translation" style="margin-bottom:0.5rem">'+(kkS ? 'Мустахаб — жасалғаны жақсы саналатын әрекеттер.' : 'Мустахаббаты — желательные действия.')+'</p>' +
               (B.mustahabb||[]).map(function(x,i){ return '<div class="card"><b>'+(i+1)+'.</b> <span class="ayah-translation">'+li(x)+'</span></div>'; }).join('');
           } else {
-            h = '<p class="ayah-translation" style="margin-bottom:0.5rem">'+(kkS ? '«Мені қалай намаз оқығанымды көрсеңдер, солай оқыңдар» (әл-Бухари).' : 'Суннаты. «Молитесь так, как вы видели меня молящимся» (Бухари).')+'</p>' +
+            h = '<p class="ayah-translation" style="margin-bottom:0.5rem">'+(kkS ? '«Мені қалай намаз оқығанымды көрсеңдер, солай оқыңдар» (әл-Бухари 631).' : 'Суннаты. «Молитесь так, как вы видели меня молящимся» (Бухари 631).')+'</p>' +
               (B.sunan||[]).map(function(x,i){ return '<div class="card"><b>'+(i+1)+'.</b> <span class="ayah-translation">'+li(x)+'</span></div>'; }).join('');
           }
         } else if (tab === 'mufs' && !hasSalahBookData()) {
@@ -13953,7 +14276,6 @@ bKk:
 '2) Садака джария (ṣadaqa jāriya) — «текущая» милостыня: награда продолжает записываться после смерти.\n' +
 'Хадис (Муслим 1631; также Абу Дауд, Тирмизи):\n«Когда умирает сын Адама, прерывается его дело, кроме трёх: текущей садаки; знания, которым пользуются; и праведного ребёнка, который молится за него.»\n\n' +
 'Что относят к садака джария (по смыслу хадисов и объяснениям учёных):\n• колодец, источник воды, водопой;\n• мечеть, молитвенное место;\n• постройка / ремонт дороги, моста;\n• посадка дерева, сад, урожай для людей и животных;\n• книги и распространение полезного знания;\n• вакф (имущество, доход с которого идёт нуждающимся);\n• обучение Корану и шариатским наукам, если плоды остаются.\n\n' +
-'Хадис (Ахмад; Ибн Маджа — смысл): среди дел, чья награда не прерывается — тот, кто научил знанию, оставил Коран в наследство, построил мечеть, оставил пристанище путнику, прорыл реку (канал), раздал милостыню из здоровья своего.\n\n' +
 'Важно: награда — при искреннем намерении ради Аллаха; польза должна реально доходить до людей.\n\n' +
 '3) Неимущественная:\nХадис (Бухари 2989; Муслим 1009):\n«На каждом суставе человека — садака каждый день, когда восходит солнце. Справедливо рассудить двоих — садака; помочь человеку сесть на его животное или поднять на него поклажу — садака; доброе слово — садака; каждый шаг к намазу — садака; убрать с дороги то, что причиняет вред, — садака.»\n\n' +
 '4) Садака аль-фитр — перед Ид (см. «Рамадан»).\n5) Каффара и обеты — по фикху.\n\n' +
@@ -13967,7 +14289,6 @@ bKk:
 '2) Садака джария (ṣadaqa jāriya) — «үздіксіз» садака: сауабы адам қайтыс болғаннан кейін де жазыла береді.\n' +
 'Хадис (Мүслім 1631; сондай-ақ Әбу Дәуід, ат-Тирмизи):\n«Адам баласы қайтыс болғанда, оның амалы үзіледі, тек үш нәрседен басқа: пайдаланылатын үздіксіз садакасы; пайда келтіретін білімі; және оған дұға қылатын жақсы перзенті.»\n\n' +
 'Садака джарияға жататындар (хадистердің мағынасы мен ғалымдардың түсіндірмесі бойынша):\n• құдық, су көзі, суат;\n• мешіт, ғибадат орны;\n• жол/көпір салу немесе жөндеу;\n• ағаш отырғызу, бақ, адамдар мен малға арналған өнім;\n• кітаптар мен пайдалы білімді тарату;\n• уақф (кірісі мұқтаждарға арналған мүлік);\n• Құран мен шариғат ғылымдарын үйрету, егер жемісі жалғаса берсе.\n\n' +
-'Хадис (Ахмад; Ибн Мәжа — мағынасы): сауабы үзілмейтін амалдардың арасында — білім үйреткен, Құранды мұра етіп қалдырған, мешіт салған, жолаушыға пана берген, өзен (арна) қазған, ден-саулығынан садака берген адам бар.\n\n' +
 'Маңызды: сауап — Аллаһ үшін шынайы ниетпен болғанда беріледі; пайдасы адамдарға шын мәнінде жетуі керек.\n\n' +
 '3) Мүліктік емес садака:\nХадис (әл-Бухари 2989; Мүслім 1009):\n«Адамның әр буынына күн шыққан сайын садака парыз. Екі адамды әділ билеу — садака; адамға көлігіне мінуге көмектесу немесе жүгін көтеріп беру — садака; жақсы сөз — садака; намазға қарай жасалған әр қадам — садака; жолдан зиян келтіретін нәрсені кетіру — садака.»\n\n' +
 '4) Садака әл-фитр — Айт алдында (қараңыз: «Рамазан»).\n5) Каффара мен серттер — фикх бойынша.\n\n' +
@@ -14049,7 +14370,7 @@ bKk:
 '• Не задерживать и не откладывать без нужды, когда есть возможность и намерение помочь.\n' +
 '• Желательно сопровождать садаку дуа за берущего (по примеру Пророка ﷺ, который молился за приносящих закят, 9:103) и не требовать ответной благодарности или услуги.\n\n' +
 'Дополнительные практические моменты адаба:\n' +
-'• не пренебрегать даже маленьким подарком или скромной садакой — Пророк ﷺ учил не считать милостыню незначительной, даже если это всего лишь баранье копытце (аль-Бухари, Муслим — хадис о принятии скромного подарка);\n' +
+'• не пренебрегать даже маленьким подарком или скромной садакой — Пророк ﷺ учил не считать милостыню незначительной, даже если это всего лишь баранье копытце (аль-Бухари 2566, Муслим 1030 — хадис о принятии скромного подарка);\n' +
 '• уважать достоинство получателя — предлагать помощь тактично, не выставляя её напоказ перед другими людьми без необходимости;\n' +
 '• благодарить Аллаха за возможность давать, а не гордиться собой — способность помогать другим сама по себе милость и испытание.',
 bKk:
@@ -14314,13 +14635,13 @@ bKk:
           b: 'Брак — взаимный договор («мисакан гализан» — крепкий завет, Коран 4:21), а не одностороннее подчинение; у мужа тоже есть права.\n\n' +
 '1) Право на послушание в дозволенном (маʿруф): жена подчиняется мужу в разумных семейных вопросах, если это не противоречит шариату. Коран 4:34: «праведные женщины покорны [Аллаху] и хранят то, что положено хранить в отсутствие мужей, из того, что хранит Аллах».\n\n' +
 '2) Право на честь дома и имущества: жена бережёт репутацию семьи, не разглашает интимные и семейные тайны посторонним. Хадис (Муслим 1437): «Поистине, одно из худших положений перед Аллахом в День воскресения — мужчина, сблизившийся с женой, и затем разглашающий её тайну».\n\n' +
-'3) Право на уважение и заботу: как и муж обязан хорошо обращаться с женой, так и жена обязана относиться к нему с уважением, не унижать и не пренебрегать им. Хадис (ат-Тирмизи, хасан): если бы кому-то было дозволено кланяться другому человеку, Аллах повелел бы жене кланяться мужу — этим подчёркивается величина его права, а не буквальное поклонение.\n\n' +
+'3) Право на уважение и заботу: как и муж обязан хорошо обращаться с женой, так и жена обязана относиться к нему с уважением, не унижать и не пренебрегать им. Хадис (ат-Тирмизи 1159, хасан): если бы кому-то было дозволено кланяться другому человеку, Аллах повелел бы жене кланяться мужу — этим подчёркивается величина его права, а не буквальное поклонение.\n\n' +
 '4) Право на верность и сохранение постели: Коран 4:34 упоминает хранение чести мужа в его отсутствие как одну из черт праведной жены.\n\n' +
 '5) Границы: ничто из этого не оправдывает жестокость, побои, оскорбления, принуждение или лишение свободы — Пророк ﷺ никогда не поднимал руку на жену и говорил: «Лучшие из вас — лучшие к своим жёнам» (ат-Тирмизи 3895). Право мужа — не абсолютная власть, а часть двустороннего договора, где у обоих есть обязанности друг перед другом (2:228: «и у них [жён] такие же права, как и обязанности, согласно принятому [в обществе] распорядку»).',
           bKk: 'Неке — өзара келісім-шарт («мисақан ғализа» — мықты серт, Құран 4:21), бір жақты бағыну емес; сондықтан күйеудің де құқықтары бар.\n\n' +
 '1) Рұқсат етілгенде мойынсұну құқығы (мағруф): нәзік жанды шариғатқа қайшы келмейтін ақылға қонымды үй мәселелерінде күйеуіне мойынсұнады. Құран 4:34: «...игі нәзік жандылар — мойынсұнғыш, күйеулерінің қасында болмаса да, Аллаһ сақтаған нәрсені сақтаушы».\n\n' +
 '2) Үй мен мүлік намысы құқығы: нәзік жанды отбасының беделін сақтайды, интимдік және отбасылық құпияларды бөгделерге жаймайды. Хадис (Мүслім 1437): «Шын мәнінде, Қиямет күні Аллаһ алдында ең жаман жағдайлардың бірі — нәзік жандысымен жақындасқаннан кейін оның құпиясын жайған ер адам».\n\n' +
-'3) Құрмет пен қамқорлық құқығы: күйеу нәзік жандысымен жақсы қарым-қатынаста болуға міндетті болғандай, нәзік жанды да оны құрметтеп, кемсітпей, елемеусіз қалдырмауы тиіс. Хадис (ат-Тирмизи, хасан): егер біреуге басқа адамға бас июге рұқсат етілсе, Аллаһ нәзік жандыны күйеуіне бас июге бұйырар еді — бұл сөзбен оның құқығының үлкендігі атап көрсетіледі, сөзбе-сөз табыну емес.\n\n' +
+'3) Құрмет пен қамқорлық құқығы: күйеу нәзік жандысымен жақсы қарым-қатынаста болуға міндетті болғандай, нәзік жанды да оны құрметтеп, кемсітпей, елемеусіз қалдырмауы тиіс. Хадис (ат-Тирмизи 3895, хасан): егер біреуге басқа адамға бас июге рұқсат етілсе, Аллаһ нәзік жандыны күйеуіне бас июге бұйырар еді — бұл сөзбен оның құқығының үлкендігі атап көрсетіледі, сөзбе-сөз табыну емес.\n\n' +
 '4) Адалдық пен төсек намысын сақтау құқығы: Құран 4:34 күйеу жоқта оның намысын сақтауды игі нәзік жандының белгісі ретінде атайды.\n\n' +
 '5) Шектер: осының бәрі қатыгездікті, соғуды, қорлауды, күштеуді немесе бостандықтан айыруды ақтамайды — Пайғамбар ﷺ ешқашан нәзік жандысына қол көтерген емес және: «Сендердің ең жақсыларың — нәзік жандыларына ең жақсы қарайтындарың» деген (ат-Тирмизи 3895). Күйеудің құқығы — абсолютті билік емес, екі жақты міндеттемесі бар келісімнің бір бөлігі (2:228: «...олардың [нәзік жандылардың] да қоғамда қабылданған тәртіп бойынша міндеттеріне сай құқықтары бар»).',
           ifs: ['Если отказ в дозволенном без причины: сначала увещевание и спокойный разговор; не бить и не проклинать.', 'Если ревность разрушает дом: опираться на факты, не заниматься харам-слежкой; тауба и восстановление доверия.', 'Если конфликт из-за родни: справедливость к жене и к своим родителям одновременно.', 'Если финансовые трудности: муж не освобождается от нафаки, но жена может по желанию помочь — это её выбор, не обязанность.'],
@@ -16886,66 +17207,66 @@ bKk:
           const yNow = new Date().getFullYear();
           const mNow = new Date().getMonth() + 1;
 
-                    const placeTitle = (loc.city || tLabel('Город не выбран')) + ' · ' + (PRAYER_METHODS[methodKey] ? PRAYER_METHODS[methodKey].name.split('(')[0].trim() : methodKey);
+                    const placeTitle = (loc.city || tLabel('Город не выбран')) + ' · ' + (PRAYER_METHODS[methodKey] ? tLabel(PRAYER_METHODS[methodKey].name).split('(')[0].trim() : methodKey);
           let placeCard =
             '<div class="card more-expand" data-exp="pt-place" style="cursor:pointer">' +
             '<b>📍 ' + placeTitle + '</b>' +
-            '<div class="exp-short ayah-translation" style="margin-top:0.25rem;font-size:calc(0.85rem * var(--ru-scale, 1))">Нажмите — страна, город, метод</div>' +
+            '<div class="exp-short ayah-translation" style="margin-top:0.25rem;font-size:calc(0.85rem * var(--ru-scale, 1))">'+tLabel('Нажмите — страна, город, метод')+'</div>' +
             '<div class="exp-detail" style="display:none;margin-top:0.5rem">' +
-            '<label style="display:block;margin-top:0.35rem;font-size:0.85rem;color:var(--text-muted)">Страна</label>' +
+            '<label style="display:block;margin-top:0.35rem;font-size:0.85rem;color:var(--text-muted)">'+tLabel('Страна')+'</label>' +
             '<select id="pt-country" style="width:100%;padding:0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
-            Object.keys(PRAYER_COUNTRIES).map(function(k){ return '<option value="'+k+'" '+(k===country?'selected':'')+'>'+PRAYER_COUNTRIES[k].name+'</option>'; }).join('') +
+            Object.keys(PRAYER_COUNTRIES).map(function(k){ return '<option value="'+k+'" '+(k===country?'selected':'')+'>'+tLabel(PRAYER_COUNTRIES[k].name)+'</option>'; }).join('') +
             '</select>' +
-            '<label style="display:block;margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted)">Город</label>' +
+            '<label style="display:block;margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted)">'+tLabel('Город')+'</label>' +
             '<select id="pt-city" style="width:100%;padding:0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
-            '<option value="">— Выберите —</option>' +
-            cities.map(function(c){ return '<option value="'+c.lat+'|'+c.lon+'|'+c.n+'" '+(loc.city===c.n?'selected':'')+'>'+c.n+'</option>'; }).join('') +
+            '<option value="">'+tLabel('— Выберите —')+'</option>' +
+            cities.map(function(c){ return '<option value="'+c.lat+'|'+c.lon+'|'+c.n+'" '+(loc.city===c.n?'selected':'')+'>'+tLabel(c.n)+'</option>'; }).join('') +
             '</select>' +
-            '<label style="display:block;margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted)">Метод</label>' +
+            '<label style="display:block;margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted)">'+tLabel('Метод')+'</label>' +
             '<select id="pt-method" style="width:100%;padding:0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
-            Object.keys(PRAYER_METHODS).map(function(k){ return '<option value="'+k+'" '+(k===methodKey?'selected':'')+'>'+PRAYER_METHODS[k].name+'</option>'; }).join('') +
+            Object.keys(PRAYER_METHODS).map(function(k){ return '<option value="'+k+'" '+(k===methodKey?'selected':'')+'>'+tLabel(PRAYER_METHODS[k].name)+'</option>'; }).join('') +
             '</select>' +
             '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem">' +
-            '<button type="button" class="btn btn-sm btn-primary" id="pt-geo">📍 Моё место</button>' +
-            '<button type="button" class="btn btn-sm" id="pt-save-loc">Сохранить</button></div>' +
+            '<button type="button" class="btn btn-sm btn-primary" id="pt-geo">'+tLabel('📍 Моё место')+'</button>' +
+            '<button type="button" class="btn btn-sm" id="pt-save-loc">'+tLabel('Сохранить')+'</button></div>' +
             '</div>' +
-            '<div class="exp-hint" style="font-size:0.75rem;color:var(--accent);margin-top:0.3rem">▾ подробнее</div></div>';
+            '<div class="exp-hint" style="font-size:0.75rem;color:var(--accent);margin-top:0.3rem">▾ '+tLabel('подробнее')+'</div></div>';
 
           let toolsCard = '';
           const notifOn = !!(state.settings && state.settings.prayerNotif);
           const adhanOn = state.settings.prayerAdhan !== false;
           const azanTextCard = buildAzanTextCard();
           toolsCard =
-            '<div class="card"><b>🔔 Уведомления и азан</b>' +
-            '<div class="ayah-translation" style="margin-top:0.3rem">Раздел «Уведомления и виджет» сверху. Азан — запись муэдзина (нужен интернет). Пока сайт открыт.</div>' +
-            '<div class="setting-row" style="margin-top:0.4rem"><span>Напоминания о намазе</span>' +
-            '<button type="button" class="btn btn-sm '+(notifOn?'btn-primary':'')+'" id="pt-notif">'+(notifOn?'Вкл':'Выкл')+'</button></div>' +
-            '<button type="button" class="btn btn-sm" id="pt-notif-test" style="width:100%;margin-top:0.3rem">🔔 Тест уведомления</button>' +
+            '<div class="card"><b>'+tLabel('🔔 Уведомления и азан')+'</b>' +
+            '<div class="ayah-translation" style="margin-top:0.3rem">'+tLabel('Раздел «Уведомления и виджет» сверху. Азан — запись муэдзина (нужен интернет). Пока сайт открыт.')+'</div>' +
+            '<div class="setting-row" style="margin-top:0.4rem"><span>'+tLabel('Напоминания о намазе')+'</span>' +
+            '<button type="button" class="btn btn-sm '+(notifOn?'btn-primary':'')+'" id="pt-notif">'+tLabel(notifOn?'Вкл':'Выкл')+'</button></div>' +
+            '<button type="button" class="btn btn-sm" id="pt-notif-test" style="width:100%;margin-top:0.3rem">'+tLabel('🔔 Тест уведомления')+'</button>' +
             '<div class="ayah-translation" id="pt-notif-test-status" style="font-size:calc(0.78rem * var(--ru-scale, 1));margin-top:0.25rem;min-height:1.1rem"></div>' +
-            '<div class="setting-row"><span>Напомнить за</span>' +
+            '<div class="setting-row"><span>'+tLabel('Напомнить за')+'</span>' +
             '<select id="pt-lead" style="padding:0.35rem 0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
-            [5,10,15,20].map(function(m){ return '<option value="'+m+'"'+((+(state.settings.prayerNotifLead||10)===m)?' selected':'')+'>'+m+' мин до намаза</option>'; }).join('') +
+            [5,10,15,20].map(function(m){ return '<option value="'+m+'"'+((+(state.settings.prayerNotifLead||10)===m)?' selected':'')+'>'+m+' '+tLabel('мин до намаза')+'</option>'; }).join('') +
             '</select></div>' +
-            '<div class="setting-row"><span>Звук азана при намазе</span>' +
-            '<button type="button" class="btn btn-sm '+(adhanOn?'btn-primary':'')+'" id="pt-adhan">'+(adhanOn?'Вкл':'Выкл')+'</button></div>' +
-            '<div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem"><span>Чтец азана (суннит.)</span>' +
+            '<div class="setting-row"><span>'+tLabel('Звук азана при намазе')+'</span>' +
+            '<button type="button" class="btn btn-sm '+(adhanOn?'btn-primary':'')+'" id="pt-adhan">'+tLabel(adhanOn?'Вкл':'Выкл')+'</button></div>' +
+            '<div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem"><span>'+tLabel('Чтец азана (суннит.)')+'</span>' +
             '<select id="pt-adhan-reciter" style="padding:0.4rem 0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
             (typeof ADHAN_RECITERS!=='undefined'?ADHAN_RECITERS:[]).map(function(r){
               return '<option value="'+r.id+'"'+(((state.settings.adhanReciter||'mishary')===r.id)?' selected':'')+'>'+r.name+'</option>';
             }).join('') +
             '</select></div>' +
             '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">' +
-            '<button type="button" class="btn btn-sm btn-primary" id="pt-adhan-test" style="flex:1">▶ Слушать</button>' +
-            '<button type="button" class="btn btn-sm" id="pt-adhan-stop" style="flex:1">⏹ Стоп</button></div>' +
+            '<button type="button" class="btn btn-sm btn-primary" id="pt-adhan-test" style="flex:1">'+tLabel('▶ Слушать')+'</button>' +
+            '<button type="button" class="btn btn-sm" id="pt-adhan-stop" style="flex:1">'+tLabel('⏹ Стоп')+'</button></div>' +
             '<audio id="adhan-player-ui" controls style="width:100%;margin-top:0.5rem;height:2.2rem"></audio>' +
-            '<div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-top:0.35rem">Плеер и «Слушать» — проверка. Азан при намазе только пока сайт открыт и есть сеть.</div></div>' +
+            '<div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-top:0.35rem">'+tLabel('Плеер и «Слушать» — проверка. Азан при намазе только пока сайт открыт и есть сеть.')+'</div></div>' +
             azanTextCard +
-            '<div class="card"><b>Виджет в ежедневном</b>' +
-            '<div class="ayah-translation" style="margin-top:0.3rem">Необязательные времена на главном экране.</div>' +
-            '<div class="setting-row"><span>Духа</span>' +
-            '<button type="button" class="btn btn-sm '+((state.settings.widgetDuha===true)?'btn-primary':'')+'" id="pt-w-duha">'+((state.settings.widgetDuha===true)?'Вкл':'Выкл')+'</button></div>' +
-            '<div class="setting-row"><span>Тахаджуд</span>' +
-            '<button type="button" class="btn btn-sm '+((state.settings.widgetTahajjud)?'btn-primary':'')+'" id="pt-w-tah">'+((state.settings.widgetTahajjud)?'Вкл':'Выкл')+'</button></div></div>';
+            '<div class="card"><b>'+tLabel('Виджет в ежедневном')+'</b>' +
+            '<div class="ayah-translation" style="margin-top:0.3rem">'+tLabel('Необязательные времена на главном экране.')+'</div>' +
+            '<div class="setting-row"><span>'+tLabel('Духа')+'</span>' +
+            '<button type="button" class="btn btn-sm '+((state.settings.widgetDuha===true)?'btn-primary':'')+'" id="pt-w-duha">'+tLabel((state.settings.widgetDuha===true)?'Вкл':'Выкл')+'</button></div>' +
+            '<div class="setting-row"><span>'+tLabel('Тахаджуд')+'</span>' +
+            '<button type="button" class="btn btn-sm '+((state.settings.widgetTahajjud)?'btn-primary':'')+'" id="pt-w-tah">'+tLabel((state.settings.widgetTahajjud)?'Вкл':'Выкл')+'</button></div></div>';
 
           let locCard = placeCard; // legacy name for event binding section — times use placeCard+toolsCard
 
@@ -16956,7 +17277,7 @@ let body = '';
             } else {
               let t = resolveDayTimes(+loc.lat, +loc.lon, new Date(), methodKey);
               if (!t && methodKey === 'DUMK') {
-                body = '<div class="card"><div class="ayah-translation">Загрузка времён ДУМК с muftyat.kz…</div></div>';
+                body = '<div class="card"><div class="ayah-translation">'+tLabel('Загрузка времён ДУМК с muftyat.kz…')+'</div></div>';
                 var _lat = +loc.lat, _lon = +loc.lon, _y = new Date().getFullYear();
                 var loader = (typeof ensureMuftyatCache === 'function')
                   ? ensureMuftyatCache(_lat, _lon, _y)
@@ -16974,12 +17295,12 @@ let body = '';
                       if (elb) {
                         /* keep message */
                       }
-                      toast('Не удалось загрузить muftyat.kz — проверьте сеть');
+                      toast(tLabel('Не удалось загрузить muftyat.kz — проверьте сеть'));
                     }
                   } catch(e) {}
-                }).catch(function(){ try { toast('Ошибка сети muftyat.kz'); } catch(e) {} });
+                }).catch(function(){ try { toast(tLabel('Ошибка сети muftyat.kz')); } catch(e) {} });
               } else if (!t) {
-                body = '<div class="card"><div class="ayah-translation">Не удалось рассчитать времена. Выберите другой метод или проверьте координаты.</div></div>';
+                body = '<div class="card"><div class="ayah-translation">'+tLabel('Не удалось рассчитать времена. Выберите другой метод или проверьте координаты.')+'</div></div>';
               } else {
                 const rows = [
                   ['fajr', 'Фаджр', t.fajr],
@@ -17005,9 +17326,9 @@ let body = '';
                   const bStyle = isSel ? 'color:#fff' : (isPast ? 'color:var(--text-muted)' : '');
                   return '<div class="setting-row" data-select-prayer-pt="'+key+'" style="'+rowStyle+'"><span style="'+spanStyle+'">'+icon+' '+tLabel(label)+(isSel?' ✦':'')+'</span><b id="pt-t-'+key+'" style="'+bStyle+'">'+val+'</b></div>';
                 }).join('');
-                const srcLabel = t._src === 'cache-muftyat' ? 'ДУМК / muftyat.kz (кэш)' :
-                  (t._src === 'muftyat' ? 'ДУМК / muftyat.kz' :
-                  (t._src === 'aladhan' ? 'Aladhan' : 'Локальный расчёт'));
+                const srcLabel = t._src === 'cache-muftyat' ? tLabel('ДУМК / muftyat.kz (кэш)') :
+                  (t._src === 'muftyat' ? tLabel('ДУМК / muftyat.kz') :
+                  (t._src === 'aladhan' ? 'Aladhan' : tLabel('Локальный расчёт')));
                 // build 5.64: карточка обратного отсчёта — до ближайшего намаза
                 // по умолчанию, либо до конкретного выбранного кликом по строке
                 // ниже (то же состояние выбора, что и в виджете «Ежедневного»,
@@ -17033,8 +17354,8 @@ let body = '';
                       '</div>';
                   }
                 } catch(e) {}
-                body = countdownCardHtml + '<div class="card"><b>'+tLabel('Сегодня')+'</b> <span style="font-size:0.8rem;color:var(--text-muted)">· '+(PRAYER_METHODS[methodKey]?PRAYER_METHODS[methodKey].name:'')+'</span>'+rows +
-                  '<div class="ayah-translation" id="pt-src" style="font-size:calc(0.78rem * var(--ru-scale, 1));margin-top:0.35rem">'+srcLabel+' · сверяйте с мечетью</div></div>';
+                body = countdownCardHtml + '<div class="card"><b>'+tLabel('Сегодня')+'</b> <span style="font-size:0.8rem;color:var(--text-muted)">· '+(PRAYER_METHODS[methodKey]?tLabel(PRAYER_METHODS[methodKey].name):'')+'</span>'+rows +
+                  '<div class="ayah-translation" id="pt-src" style="font-size:calc(0.78rem * var(--ru-scale, 1));margin-top:0.35rem">'+srcLabel+' · '+tLabel('сверяйте с мечетью')+'</div></div>';
                 try {
                   const q = qiblaBearing(+loc.lat, +loc.lon);
                   const kk = (typeof isKk === 'function') && isKk();
@@ -17102,7 +17423,7 @@ let body = '';
               }
             }
           } else if (tab === 'week' || tab === 'month') {
-            if (!has) body = '<div class="card"><div class="ayah-translation">Сначала выберите город.</div></div>';
+            if (!has) body = '<div class="card"><div class="ayah-translation">'+tLabel('Сначала выберите город.')+'</div></div>';
             else {
               const days = tab === 'week' ? 7 : 30;
               const names = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
@@ -17118,12 +17439,12 @@ let body = '';
                   '<td style="padding:0.35rem 0.2rem">'+t.asr+'</td><td style="padding:0.35rem 0.2rem">'+t.maghrib+'</td>' +
                   '<td style="padding:0.35rem 0.2rem">'+t.isha+'</td></tr>';
               }
-              body = '<div class="card" style="overflow-x:auto" id="pt-table-card"><b>Таблица на '+(tab==='week'?'неделю':'месяц')+'</b>' +
-                '<div style="margin:0.4rem 0"><button type="button" class="btn btn-sm btn-primary" id="pt-export-img">📷 Сохранить картинкой</button></div>' +
+              body = '<div class="card" style="overflow-x:auto" id="pt-table-card"><b>'+tLabel(tab==='week'?'Таблица на неделю':'Таблица на месяц')+'</b>' +
+                '<div style="margin:0.4rem 0"><button type="button" class="btn btn-sm btn-primary" id="pt-export-img">'+tLabel('📷 Сохранить картинкой')+'</button></div>' +
                 '<table id="pt-table" style="width:100%;font-size:0.78rem;margin-top:0.35rem;border-collapse:collapse">' +
-                '<thead><tr style="color:var(--text-muted);text-align:left"><th style="padding:0.3rem">День</th><th>Ф</th><th>Восх</th><th>З</th><th>А</th><th>М</th><th>И</th></tr></thead>' +
+                '<thead><tr style="color:var(--text-muted);text-align:left"><th style="padding:0.3rem">'+tLabel('День')+'</th><th>Ф</th><th>'+tLabel('Восх')+'</th><th>З</th><th>А</th><th>М</th><th>И</th></tr></thead>' +
                 '<tbody>'+rows+'</tbody></table>' +
-                '<div class="ayah-translation" style="margin-top:0.4rem;font-size:calc(0.78rem * var(--ru-scale, 1))">Восход = конец времени фаджра · сверяйте с мечетью</div></div>';
+                '<div class="ayah-translation" style="margin-top:0.4rem;font-size:calc(0.78rem * var(--ru-scale, 1))">'+tLabel('Восход = конец времени фаджра · сверяйте с мечетью')+'</div></div>';
             }
           }
 
@@ -17146,25 +17467,25 @@ let body = '';
                 return '';
               })() +
               // download card only: rebuild minimal
-              '<div class="card"><b>Таблица на месяц (офлайн)</b>' +
-              '<div class="ayah-translation" style="margin-top:0.3rem">Для ежедневных времён сверху скачивать не нужно — они подгружаются сами. Здесь можно сохранить таблицу на месяц в кэш (без интернета в поездке).</div>' +
-              '<label style="display:block;margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted)">Месяц</label>' +
+              '<div class="card"><b>'+tLabel('Таблица на месяц (офлайн)')+'</b>' +
+              '<div class="ayah-translation" style="margin-top:0.3rem">'+tLabel('Для ежедневных времён сверху скачивать не нужно — они подгружаются сами. Здесь можно сохранить таблицу на месяц в кэш (без интернета в поездке).')+'</div>' +
+              '<label style="display:block;margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted)">'+tLabel('Месяц')+'</label>' +
               '<select id="pt-dl-month" style="width:100%;padding:0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
               [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
-                const names = ['','Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+                const names = ['','Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'].map(function(x){ return tLabel(x); });
                 return '<option value="'+m+'" '+(m===mNow?'selected':'')+'>'+names[m]+' '+yNow+'</option>';
               }).join('') +
               '</select>' +
               '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem">' +
-              '<button type="button" class="btn btn-sm btn-primary" id="pt-dl-year">Весь '+yNow+' год</button>' +
-              '<button type="button" class="btn btn-sm" id="pt-dl-month-btn">Выбранный месяц</button>' +
-              '<button type="button" class="btn btn-sm" id="pt-dl-30">С сегодня +30 дней</button></div>' +
+              '<button type="button" class="btn btn-sm btn-primary" id="pt-dl-year">'+((typeof isKk==='function'&&isKk())?(yNow+' жылдың барлығы'):('Весь '+yNow+' год'))+'</button>' +
+              '<button type="button" class="btn btn-sm" id="pt-dl-month-btn">'+tLabel('Выбранный месяц')+'</button>' +
+              '<button type="button" class="btn btn-sm" id="pt-dl-30">'+tLabel('С сегодня +30 дней')+'</button></div>' +
               '<div id="pt-dl-status" class="ayah-translation" style="margin-top:0.35rem;font-size:calc(0.8rem * var(--ru-scale, 1))"></div></div>';
           }
           el.innerHTML =
             '<div class="tabs-row" style="margin-bottom:0.65rem;flex-wrap:wrap">' +
-            '<button type="button" class="btn btn-sm '+(cat==='times'?'btn-primary':'')+'" data-pt-cat="times">Времена</button>' +
-            '<button type="button" class="btn btn-sm '+(cat==='alerts'?'btn-primary':'')+'" data-pt-cat="alerts">🔔 Уведомления · азан</button>' +
+            '<button type="button" class="btn btn-sm '+(cat==='times'?'btn-primary':'')+'" data-pt-cat="times">'+tLabel('Времена')+'</button>' +
+            '<button type="button" class="btn btn-sm '+(cat==='alerts'?'btn-primary':'')+'" data-pt-cat="alerts">'+tLabel('🔔 Уведомления · азан')+'</button>' +
             '</div>' + catBody;
           try { bindExpandableCards(el); } catch(e) {}
           (function(){
@@ -17268,17 +17589,17 @@ let body = '';
               if (window._ptWorking) state.prayerLoc = Object.assign({}, window._ptWorking);
               if (window._ptMethodWorking) state.settings.prayerMethod = window._ptMethodWorking;
               saveState();
-              toast('Сохранено');
-            } catch(err) { toast('Ошибка'); }
+              toast(tLabel('Сохранено'));
+            } catch(err) { toast(tLabel('Ошибка')); }
           });
           const geoBtn = document.getElementById('pt-geo');
           if (geoBtn) geoBtn.addEventListener('click', function(){
-            if (!navigator.geolocation) { toast('Геолокация недоступна'); return; }
+            if (!navigator.geolocation) { toast(tLabel('Геолокация недоступна')); return; }
             navigator.geolocation.getCurrentPosition(function(pos){
               window._ptWorking = { lat: +pos.coords.latitude.toFixed(4), lon: +pos.coords.longitude.toFixed(4), city: 'GPS', country: (window._ptWorking && window._ptWorking.country) || country };
               paint(tab);
-              toast('Место выбрано — нажмите «Сохранить»');
-            }, function(){ toast('Нет доступа к GPS'); }, { timeout: 8000 });
+              toast(tLabel('Место выбрано — нажмите «Сохранить»'));
+            }, function(){ toast(tLabel('Нет доступа к GPS')); }, { timeout: 8000 });
           });
 
           // Download handlers
@@ -17286,7 +17607,7 @@ let body = '';
             const st = document.getElementById('pt-dl-status');
             if (!data || !data.days) {
               if (st) st.textContent = 'Не удалось скачать (сеть/CORS). Останется локальный расчёт.';
-              toast('Скачивание не удалось');
+              toast(tLabel('Скачивание не удалось'));
               return;
             }
             savePrayerCache(+loc.lat, +loc.lon, data.year || yNow, data);
@@ -17299,12 +17620,12 @@ let body = '';
           if (dlYear) dlYear.addEventListener('click', function(){
             const st = document.getElementById('pt-dl-status');
             if (st) st.textContent = 'Загрузка '+yNow+'…';
-            if (!has) { toast('Сначала город'); return; }
+            if (!has) { toast(tLabel('Сначала город')); return; }
             fetchMuftyatYear(+loc.lat, +loc.lon, yNow).then(function(data){ afterDl(data, 'год '+yNow); });
           });
           const dlMonthBtn = document.getElementById('pt-dl-month-btn');
           if (dlMonthBtn) dlMonthBtn.addEventListener('click', function(){
-            if (!has) { toast('Сначала город'); return; }
+            if (!has) { toast(tLabel('Сначала город')); return; }
             const mm = +(document.getElementById('pt-dl-month') && document.getElementById('pt-dl-month').value) || mNow;
             const st = document.getElementById('pt-dl-status');
             if (st) st.textContent = 'Загрузка месяца…';
@@ -17322,7 +17643,7 @@ let body = '';
           });
           const dl30 = document.getElementById('pt-dl-30');
           if (dl30) dl30.addEventListener('click', function(){
-            if (!has) { toast('Сначала город'); return; }
+            if (!has) { toast(tLabel('Сначала город')); return; }
             const st = document.getElementById('pt-dl-status');
             if (st) st.textContent = 'Загрузка 30 дней…';
             fetchMuftyatYear(+loc.lat, +loc.lon, yNow).then(function(data){
@@ -18549,8 +18870,8 @@ function renderDict() {
         '<button type="button" class="btn btn-sm" id="dict-add-folder">'+L.addFolder+'</button></div>' +
         '<div style="display:flex;gap:0.35rem;margin-bottom:0.75rem;flex-wrap:wrap">' +
         '<button type="button" class="btn btn-sm '+(showMeta?'btn-primary':'')+'" id="dict-toggle-meta">'+(showMeta?L.hideAll:L.showAll)+'</button>' +
-        '<button type="button" class="btn btn-sm" id="dict-expand-all">Развернуть все</button>' +
-        '<button type="button" class="btn btn-sm" id="dict-collapse-all">Свернуть все</button></div>' +
+        '<button type="button" class="btn btn-sm" id="dict-expand-all">'+tLabel('Развернуть все')+'</button>' +
+        '<button type="button" class="btn btn-sm" id="dict-collapse-all">'+tLabel('Свернуть все')+'</button></div>' +
         (dict.length ? dict.map((d, i) => {
           const ar = d.ar || d.word || '';
           const transcription = d.transcription || d.tr || '';
@@ -19121,10 +19442,10 @@ function renderDict() {
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap">' +
         '<b>' + (preset.icon || '⭐') + ' ' + preset.label + '</b>' +
         '<div style="display:flex;align-items:center;gap:0.4rem">' + badge +
-        '<button type="button" class="btn btn-sm btn-primary" data-apply-preset="' + preset.id + '">Применить</button>' + delBtn +
+        '<button type="button" class="btn btn-sm btn-primary" data-apply-preset="' + preset.id + '">'+tLabel('Применить')+'</button>' + delBtn +
         '</div></div>' +
         '<div class="ayah-translation" style="margin-top:0.3rem;font-size:calc(0.82rem * var(--ru-scale, 1))">' + (preset.desc || '') + ' Нажмите — что изменится ▾</div>' +
-        '<div class="tip-body ayah-translation" style="display:none;margin-top:0.5rem;font-size:calc(0.82rem * var(--ru-scale, 1))">Будет изменено:<br>' + lines + '</div>' +
+        '<div class="tip-body ayah-translation" style="display:none;margin-top:0.5rem;font-size:calc(0.82rem * var(--ru-scale, 1))">'+tLabel('Будет изменено:')+'<br>' + lines + '</div>' +
         '</div>';
     }
     function allPresets() {
@@ -20609,7 +20930,7 @@ function renderDict() {
       var todayTopic = (typeof TOPICS !== 'undefined') ? TOPICS[todayIdx] : null;
 
       var searchHtml = '<div style="margin:0.5rem 0;display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">' +
-        '<input type="search" id="topics-search" placeholder="'+(_kk?'Тақырып іздеу…':'Поиск темы…')+'" style="flex:1;min-width:140px;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text)" />' +
+        '<input type="search" id="topics-search" placeholder="'+(_kk?'Тақырып іздеу…':'Поиск темы…')+'" style="flex:1;min-width:140px;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text)" />' +
         (todayTopic ? '<button type="button" class="btn btn-sm btn-primary" data-topic-today="1">'+(_kk?'Бүгінгі тақырып':'Тема дня')+'</button>' : '') +
         '</div>';
 
@@ -21369,9 +21690,21 @@ function playArabicAudio(text, fallbackRu, opts) {
     }
 
     /** Извлечь ссылки вида 2:255 из любого текста */
+    // build 6.33: ссылка «N:M» считается аятом, только если такая сура/аят существуют и это не время («22:00», «5:30 утра», «12:30:15»)
+    function _ayahRefOk(a, b, c, str, off, len) {
+      var s = +a, v = +b;
+      if (!(s >= 1 && s <= 114) || !(v >= 1) || /^0/.test(String(b))) return false;
+      var cnt = (typeof surahAyahCount === 'function') ? surahAyahCount(s) : 0;
+      if (cnt && (v > cnt || (c && +c > cnt))) return false;
+      var after = String(str).slice(off + len, off + len + 14), before = String(str).slice(Math.max(0, off - 2), off);
+      if (/^:\d/.test(after) || /\d$/.test(before)) return false;
+      if (/^\s*(?:утра|вечера|ночи|дня|ч\b|час|AM|PM|am|pm|сағат)/i.test(after)) return false;
+      return true;
+    }
     function extractAyahRefs(text) {
       var out = [], seen = {};
-      String(text || '').replace(/(\d{1,3})\s*:\s*(\d{1,3})(?:\s*[-–—]\s*\d{1,3})?/g, function (m) {
+      String(text || '').replace(/(\d{1,3})\s*:\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?/g, function (m, a1, b1, c1, off, str) {
+        if (!_ayahRefOk(a1, b1, c1, str, off, m.length)) return m;
         var ref = m.replace(/\s/g, '');
         if (!seen[ref]) { seen[ref] = 1; out.push(ref); }
         return m;
@@ -21412,14 +21745,24 @@ function playArabicAudio(text, fallbackRu, opts) {
         });
       } catch (e) {}
       if (!names.length) names = ['Бухари', 'Муслим', 'Тирмизи', 'Абу Дауд', 'Насаи', 'Ибн Маджа', 'Ахмад', 'Малик', 'Хаким', 'ад-Дарими'];
-      ['Бухари','аль-Бухари','әл-Бухари','Муслим','Мүслім','Тирмизи','ат-Тирмизи','әт-Тирмизи','Абу Дауд','Абу Давуд','Әбу Дәуіт','Әбу Дәуід','Насаи','ан-Насаи','ән-Насаи','Ибн Маджа','Ибн Мажа','Ахмад','Малик','Хаким','аль-Хаким','ад-Дарими'].forEach(function(n){ if (names.indexOf(n) < 0) names.push(n); });
+      ['Бухари','аль-Бухари','әл-Бухари','Бұхари','әл-Бұхари','Муслим','Мүслім','Мұслім','Тирмизи','ат-Тирмизи','әт-Тирмизи','Абу Дауд','Абу Давуд','Әбу Дәуіт','Әбу Дәуід','Насаи','ан-Насаи','ән-Насаи','Ибн Маджа','Ибн Мажа','Ибн Мәжа','Нәсәи','ән-Нәсәи','Ахмад','Малик','Хаким','аль-Хаким','ад-Дарими'].forEach(function(n){ if (names.indexOf(n) < 0) names.push(n); });
       var esc = names.map(function (n) { return String(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); })
         .sort(function (a, b) { return b.length - a.length; });
-      var re = new RegExp('\\(?((?:аль-)?(?:' + esc.join('|') + '))\\s*,?\\s*(?:№\\s*)?(\\d{1,5}[a-z]?)\\)?', 'gi');
+      var re = new RegExp('\\(?((?:аль-)?(?:' + esc.join('|') + '))\\s*,?\\s*(?:№\\s*)?(\\d{1,5}[a-z]?)(?![\\/\\d])\\)?', 'gi');
       var m;
       while ((m = re.exec(s)) !== null) {
         var label = (typeof srcHadith === 'function') ? srcHadith(m[1], m[2]) : (m[1] + ' ' + m[2]);
         if (!seen[label]) { seen[label] = 1; out.push({ book: m[1], num: m[2], label: label }); }
+        // build 6.19: хадис, который передан в двух сборниках («аль-Бухари 1; Муслим 1907»), в тексте мог быть назван одним —
+        // тогда в подвале показывался один чип, хотя во встроенной ссылке источников два. Добавляем остальные.
+        try {
+          var f0 = (typeof findCitedHadith === 'function') ? findCitedHadith(m[1], m[2]) : null;
+          if (f0 && f0.also && f0.also.length) f0.also.forEach(function (a) {
+            if (!a || !a.book || a.num == null) return;
+            var l2 = srcHadith(a.book, a.num);
+            if (!seen[l2]) { seen[l2] = 1; out.push({ book: a.book, num: String(a.num), label: l2 }); }
+          });
+        } catch (e0) {}
       }
       return out;
     }
@@ -21647,7 +21990,7 @@ function playArabicAudio(text, fallbackRu, opts) {
     // ========== ЕДИНЫЙ ШАБЛОН ИСТОЧНИКОВ ==========
     // Аят (X:Y) · Хадис (сборник, №) · Мнение учёных / не фетва
     var HADITH_BOOK_NAMES = {
-      'бухари': 'Сахих аль-Бухари', 'bukhari': 'Сахих аль-Бухари', 'аль-бухари': 'Сахих аль-Бухари', 'әл-бухари': 'Сахих аль-Бухари', 'сахих аль-бухари': 'Сахих аль-Бухари',
+      'бухари': 'Сахих аль-Бухари', 'бұхари': 'Сахих аль-Бухари', 'әл-бұхари': 'Сахих аль-Бухари', 'мұслім': 'Сахих Муслим', 'ибн мәжа': 'Сунан Ибн Маджа', 'нәсәи': 'Сунан ан-Насаи', 'bukhari': 'Сахих аль-Бухари', 'аль-бухари': 'Сахих аль-Бухари', 'әл-бухари': 'Сахих аль-Бухари', 'сахих аль-бухари': 'Сахих аль-Бухари',
       'муслим': 'Сахих Муслим', 'muslim': 'Сахих Муслим', 'мүслім': 'Сахих Муслим', 'сахих муслим': 'Сахих Муслим',
       'тирмизи': 'Джами ат-Тирмизи', 'tirmidhi': 'Джами ат-Тирмизи', 'ат-тирмизи': 'Джами ат-Тирмизи', 'әт-тирмизи': 'Джами ат-Тирмизи',
       'абу дауд': 'Сунан Абу Дауд', 'abu dawud': 'Сунан Абу Дауд', 'абу давуд': 'Сунан Абу Дауд', 'abudawud': 'Сунан Абу Дауд',
@@ -21676,6 +22019,8 @@ function playArabicAudio(text, fallbackRu, opts) {
       var kk = srcIsKk();
       var key = String(book || '').toLowerCase().trim();
       var name = HADITH_BOOK_NAMES[key] || book || (kk ? 'Хадис' : 'Хадис');
+      // build 6.30: в казахском режиме названия сборников — по-казахски, как в казахских текстах приложения
+      if (kk) { var KKN = {'Сахих аль-Бухари':'Сахих әл-Бухари','Сахих Муслим':'Сахих Мүслім','Джами ат-Тирмизи':'Жәми‘ ат-Тирмизи','Сунан Абу Дауд':'Сунан Әбу Дәуіт','Сунан ан-Насаи':'Сунан ән-Насаи','Сунан Ибн Маджа':'Сунан Ибн Мәжа','Муснад Ахмада':'Мүснад Ахмад','Муватта Малика':'Муватта Мәлік','Сунан ад-Дарими':'Сунан ад-Дәрими','Мустадрак аль-Хакима':'Мустадрак әл-Хәким'}; if (KKN[name]) name = KKN[name]; }
       var n = (num != null && num !== '') ? String(num).replace(/^№\s*/i, '') : '';
       var s = kk ? ('Хадис: ' + name + (n ? ', № ' + n : '')) : ('Хадис: ' + name + (n ? ', № ' + n : ''));
       if (extra) s += ' · ' + extra;
@@ -21886,18 +22231,8 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Кто верует в Аллаха и Последний день — пусть почтит гостя.',
         kk:'Аллаһ пен Ақыретке сенген адам қонағын құрметтесін.',
         topic:'Адаб · Соцсети' },
-      { key:'bukhari_6114_adab', book:'bukhari', num:6114, srcLabel:'Бухари 6114',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'إِذَا غَضِبَ أَحَدُكُمْ فَلْيَسْكُتْ',
-        ru:'Если кто-то из вас разгневался — пусть молчит.',
-        kk:'Ашулансаңдар — үндемеңдер.',
-        topic:'Адаб · Гнев' },
-      { key:'muslim_2609_adab', book:'muslim', num:2609, srcLabel:'Муслим 2609',
-        from:'От Ибн Мас‘уда (р.а.)', fromKk:'Ибн Мәсғұдтан (р.а.)',
-        ar:'لَيْسَ الْمُؤْمِنُ بِالطَّعَّانِ وَلَا اللَّعَّانِ وَلَا الْفَاحِشِ وَلَا الْبَذِيءِ',
-        ru:'Верующий не хулитель, не проклинатель, не сквернослов и не непристойный.',
-        kk:'Мүмін — балағаттаушы, лағнеттеуші, ұятсыз емес.',
-        topic:'Адаб · Гнев' },
+      
+      
       { key:'abudawud_4782_adab', book:'abudawud', num:4782, srcLabel:'Абу Дауд 4782',
         from:'От Абу Зарра (р.а.)', fromKk:'Әбу Заррдан (р.а.)',
         ar:'إِذَا غَضِبَ أَحَدُكُمْ وَهُوَ قَائِمٌ فَلْيَجْلِسْ فَإِنْ ذَهَبَ عَنْهُ الْغَضَبُ وَإِلَّا فَلْيَضْطَجِعْ',
@@ -21934,8 +22269,9 @@ function playArabicAudio(text, fallbackRu, opts) {
         kk:'Пайғамбар ﷺ: «Аллаһ әр нәрседе ихсанды парыз етті. Өлтірсеңдер — жақсылап өлтіріңдер, сойсаңдар — жақсылап сойыңдар» деді.',
         topic:'Акида · Ихсан' },
       { key:'bukhari_6810', book:'bukhari', num:6810, srcLabel:'аль-Бухари 6810; Муслим 57',
+        also:[{book:'muslim', num:57}],
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'لَا يَزْنِي الزَّانِي حِينَ يَزْنِي وَهُوَ مُؤْمِنٌ، وَلَا يَسْرِقُ السَّارِقُ حِينَ يَسْرِقُ وَهُوَ مُؤْمِنٌ، وَلَا يَشْرَبُ الْخَمْرَ حِينَ يَشْرَبُهَا وَهُوَ مُؤْمِنٌ',
+        ar:'لاَ يَزْنِي الزَّانِي حِينَ يَزْنِي وَهْوَ مُؤْمِنٌ، وَلاَ يَسْرِقُ حِينَ يَسْرِقُ وَهْوَ مُؤْمِنٌ، وَلاَ يَشْرَبُ حِينَ يَشْرَبُهَا وَهْوَ مُؤْمِنٌ، وَالتَّوْبَةُ مَعْرُوضَةٌ بَعْدُ',
         ru:'Посланник Аллаха ﷺ сказал: «Не прелюбодействует прелюбодей в момент прелюбодеяния, будучи верующим; не крадёт вор в момент кражи, будучи верующим; и не пьёт вино пьющий в момент питья, будучи верующим». (Примечание: речь о временном ослаблении полноты имана в момент греха, а не о выходе из ислама — это разъясняют комментаторы хадиса, в т.ч. ан-Навави.)',
         kk:'Пайғамбар ﷺ: «Зинақор адам зина жасаған кезде мүмін күйінде зина жасамайды; ұры ұрлық жасаған кезде мүмін күйінде ұрламайды; арақ ішуші оны ішкен кезде мүмін күйінде ішпейді» деді. (Ескерту: бұл исламнан шығу емес, дәл сол күнә сәтінде иманның толықтығының уақытша әлсіреуі туралы — мұны хадис түсіндірмешілері, соның ішінде ән-Навави, түсіндіреді.)',
         topic:'Акида · Иман (увеличение/уменьшение)' },
@@ -22512,11 +22848,11 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Он рассказывал: «Я лежал на животе (из-за боли в боку), а Посланник Аллаха ﷺ подтолкнул меня ногой и сказал: „Что с тобой, что ты так лежишь? Это поза, которую ненавидит Аллах“».',
         kk:'Ол әңгімеледі: «Мен (қабырға ауруынан) құрсағыммен жатыр едім, Аллаһтың Елшісі ﷺ мені аяғымен түртіп: „Саған не болды, неге осылай жатырсың? Бұл Аллаһ жек көретін жатыс“ деді».',
         topic:'Сунны · Сон' },
-      { key:'tirmidhi_2574', book:'tirmidhi', num:2574, srcLabel:'ат-Тирмизи — точный номер неоднозначен, встречается как 2768 в ряде источников',
+      { key:'tirmidhi_2768', book:'tirmidhi', num:2768, srcLabel:'ат-Тирмизи 2768, хасан',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'إِذَا أَوَى أَحَدُكُمْ إِلَى فِرَاشِهِ فَلْيَأْخُذْ دَاخِلَةَ إِزَارِهِ …',
-        ru:'⚠️ Аналогичный запрет спать на животе передаётся и через ат-Тирмизи, но точный номер издания не удалось подтвердить со стопроцентной уверенностью (в ряде вторичных источников указывается 2768). Смысл и общая атрибуция достоверны, но при использовании в проповеди рекомендуется свериться самостоятельно.',
-        kk:'⚠️ Құрсағымен жатуға тыйым салу ат-Тирмизи арқылы да жеткізіледі, бірақ басылымның нақты нөмірін жүз пайыз сеніммен растау мүмкін болмады (кейбір қосалқы дереккөздерде 2768 көрсетілген). Мағынасы мен жалпы атрибуциясы дұрыс, бірақ уағызда қолданар алдында өз бетіңізше тексерген жөн.',
+        ar:'إِنَّ هَذِهِ ضَجْعَةٌ لاَ يُحِبُّهَا اللَّهُ',
+        ru:'Посланник Аллаха ﷺ увидел человека, лежащего на животе, и сказал: «Поистине, такое положение лёжа Аллах не любит».',
+        kk:'Аллаһтың елшісі ﷺ құрсағымен жатқан адамды көріп: «Расында, бұл — Аллаһ ұнатпайтын жату тәсілі», — деді.',
         topic:'Сунны · Сон' },
       { key:'abudawud_5041', book:'abudawud', num:5041, srcLabel:'Абу Дауд 5041',
         from:'От Али ибн Шайбана (р.а.)', fromKk:'Али ибн Шайбанадан (р.а.)',
@@ -22661,24 +22997,19 @@ function playArabicAudio(text, fallbackRu, opts) {
         kk:'Ұйқы кезінде үйде от қалдырмаңдар.',
         topic:'Сунны · Дом' },
       { key:'muslim_54', book:'muslim', num:54, srcLabel:'Муслим 54',
-        from:'От Абдуллаха ибн Амра (р.а.)', fromKk:'Абдуллаһ ибн Амрдан (р.а.)',
-        ar:'الْمُسْلِمُ مَنْ سَلِمَ الْمُسْلِمُونَ مِنْ لِسَانِهِ وَيَدِهِ',
-        ru:'Мусульманин — тот, от языка и руки которого мусульмане в безопасности.',
-        kk:'Мұсылман — тілі мен қолынан басқа мұсылмандар аман болатын адам.',
-        topic:'Сунны · Речь' },
-      { key:'bukhari_12', book:'bukhari', num:12, srcLabel:'Бухари 12',
-        from:'От Абдуллаха ибн Амра (р.а.)', fromKk:'Абдуллаһ ибн Амрдан (р.а.)',
-        ar:'الْمُسْلِمُ مَنْ سَلِمَ الْمُسْلِمُونَ مِنْ لِسَانِهِ وَيَدِهِ',
-        ru:'Мусульманин — тот, от языка и руки которого мусульмане в безопасности.',
-        kk:'Мұсылман — тілі мен қолынан мұсылмандар аман болатын.',
-        topic:'Сунны · Речь' },
-      { key:'muslim_39', book:'muslim', num:39, srcLabel:'Муслим 39',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
         ar:'لَا تَدْخُلُونَ الْجَنَّةَ حَتَّى تُؤْمِنُوا وَلَا تُؤْمِنُوا حَتَّى تَحَابُّوا … أَفْشُوا السَّلَامَ بَيْنَكُمْ',
         ru:'Не войдёте в Рай, пока не уверуете; не уверуете, пока не полюбите друг друга… Распространяйте салам между собой.',
         kk:'Иман келтірмей Жәннатқа кірмейсіңдер; бір-біріңді сүймей иман келтірмейсіңдер… Араларыңда сәлемді таратыңдар.',
         topic:'Сунны · Речь' },
-      { key:'bukhari_6234', book:'bukhari', num:6234, srcLabel:'Бухари 6234',
+      { key:'bukhari_12', book:'bukhari', num:12, also:[{ book:'muslim', num:39 }], srcLabel:'аль-Бухари 12; Муслим 39',
+        from:'От Абдуллаха ибн Амра (р.а.)', fromKk:'Абдуллаһ ибн Амрдан (р.а.)',
+        ar:'تُطْعِمُ الطَّعَامَ، وَتَقْرَأُ السَّلَامَ عَلَى مَنْ عَرَفْتَ وَمَنْ لَمْ تَعْرِفْ',
+        ru:'Один человек спросил Посланника Аллаха ﷺ: «Какой ислам лучше?» Он ответил: «Ты кормишь людей и приветствуешь салямом того, кого знаешь, и того, кого не знаешь».',
+        kk:'Бір адам Аллаһтың Елшісінен ﷺ: «Қандай ислам жақсы?» — деп сұрады. Ол: «Тамақ беруің және танысыңа да, танымайтыныңа да сәлем беруің», — деді.',
+        topic:'Сунны · Речь' },
+      
+      { key:'bukhari_6227', book:'bukhari', num:6227, srcLabel:'Бухари 6227',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
         ar:'خَلَقَ اللَّهُ آدَمَ عَلَى صُورَتِهِ … وَالسَّلَامُ عَلَيْكُمْ',
         ru:'Обучение саламу: Адам поприветствовал ангелов, и это стало приветствием его потомков.',
@@ -22696,17 +23027,12 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Ближе всех к Аллаху — кто первым даёт салам.',
         kk:'Сәлемді бірінші бастаған Аллаһқа жақынырақ.',
         topic:'Сунны · Речь' },
-      { key:'bukhari_6116', book:'bukhari', num:6116, srcLabel:'Бухари 6116',
+      
+      { key:'bukhari_6114', book:'bukhari', num:6114, also:[{ book:'muslim', num:2609 }], srcLabel:'аль-Бухари 6114; Муслим 2609',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'لَيْسَ الشَّدِيدُ بِالصُّرَعَةِ إِنَّمَا الشَّدِيدُ الَّذِي يَمْلِكُ نَفْسَهُ عِنْدَ الْغَضَبِ',
-        ru:'Сильный — не тот, кто борёт, а тот, кто владеет собой в гневе.',
-        kk:'Күшті — күресте жеңген емес, ашуда өзін ұстаған.',
-        topic:'Сунны · Речь' },
-      { key:'bukhari_6114', book:'bukhari', num:6114, srcLabel:'Бухари 6114',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'إِذَا غَضِبَ أَحَدُكُمْ فَلْيَسْكُتْ',
-        ru:'Если кто-то из вас разгневался — пусть молчит.',
-        kk:'Ашулансаңдар — үндемеңдер.',
+        ar:'لَيْسَ الشَّدِيدُ بِالصُّرَعَةِ، إِنَّمَا الشَّدِيدُ الَّذِي يَمْلِكُ نَفْسَهُ عِنْدَ الْغَضَبِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Сильный — не тот, кто побеждает в борьбе, а тот, кто владеет собой в гневе».',
+        kk:'Аллаһтың Елшісі ﷺ: «Күшті адам — күресте жеңген емес, ашу кезінде өзін-өзі ұстай алған», — деді.',
         topic:'Сунны · Речь' },
       { key:'bukhari_6115', book:'bukhari', num:6115, srcLabel:'Бухари 6115',
         from:'От Сулеймана ибн Сурада (р.а.)', fromKk:'Сүлеймен ибн Сурадтан (р.а.)',
@@ -22966,12 +23292,7 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Кого назначили на работу и кто скрыл от нас даже иголку — это гулюль (хищение).',
         kk:'Жұмысқа қойып, тіпті ине жасырған — гулюль.',
         topic:'Грехи · Имущество' },
-      { key:'tirmidhi_614', book:'tirmidhi', num:614, srcLabel:'Тирмизи 614',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'Хадис о тяжести оставления закята и наказании удерживающего его.',
-        kk:'Зекеттің қалдырылуының ауырлығы туралы хадис.',
-        topic:'Грехи · Кабаир' },
+      
       { key:'tirmidhi_1337', book:'tirmidhi', num:1337, srcLabel:'Тирмизи 1337, Ибн Маджа 2313',
         from:'От Абдуллаха ибн Амра (р.а.)', fromKk:'Абдуллаһ ибн Амрдан (р.а.)',
         ar:'لَعْنَةُ اللَّهِ عَلَى الرَّاشِي وَالْمُرْتَشِي',
@@ -22990,18 +23311,7 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Сыну Адама предписана доля зина: глаза — их зина во взгляд…',
         kk:'Адам баласына зинадан үлес жазылған: көздің зинасы — қарау…',
         topic:'Грехи · Зина' },
-      { key:'ahmad_12383', book:'ahmad', num:12383, srcLabel:'Ахмад 12383',
-        from:'От Анаса (р.а.)', fromKk:'Анасдан (р.а.)',
-        ar:'…',
-        ru:'О предательстве доверия (хияна) и тяжести нарушения аманы.',
-        kk:'Аманатқа қиянаттың ауырлығы туралы.',
-        topic:'Грехи · Хияна' },
-      { key:'muslim_2609', book:'muslim', num:2609, srcLabel:'Муслим 2609',
-        from:'От Ибн Мас‘уда (р.а.)', fromKk:'Ибн Мәсғұдтан (р.а.)',
-        ar:'لَيْسَ الْمُؤْمِنُ بِالطَّعَّانِ وَلَا اللَّعَّانِ وَلَا الْفَاحِشِ وَلَا الْبَذِيءِ',
-        ru:'Верующий не хулитель, не проклинатель, не сквернослов и не непристойный.',
-        kk:'Мүмін — балағаттаушы, лағнеттеуші, ұятсыз емес.',
-        topic:'Грехи · Язык' },
+      
       { key:'muslim_2610', book:'muslim', num:2610, srcLabel:'Муслим 2610',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
         ar:'أَتَدْرُونَ مَا الْغِيبَةُ … ذِكْرُكَ أَخَاكَ بِمَا يَكْرَهُ',
@@ -23043,9 +23353,9 @@ function playArabicAudio(text, fallbackRu, opts) {
         topic:'Сунны · Речь' },
       { key:'muslim_3', book:'muslim', num:3, srcLabel:'Муслим 3',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О вопросе Джибриля об исламе, имане и ихсане (хадис Джибриля).',
-        kk:'Жәбірейіл хадисі: ислам, иман, ихсан.',
+        ar:'مَنْ كَذَبَ عَلَىَّ مُتَعَمِّدًا فَلْيَتَبَوَّأْ مَقْعَدَهُ مِنَ النَّارِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Кто намеренно солжёт на меня, пусть займёт своё место в Огне».',
+        kk:'Пайғамбар ﷺ: «Кім маған қасақана жалған айтса, өзінің орнын тозақтан алсын», — деді.',
         topic:'Хадисы · Основы' },
       { key:'bukhari_3', book:'bukhari', num:3, srcLabel:'Бухари 3',
         from:'От Аиши (р.а.)', fromKk:'Айшадан (р.а.)',
@@ -23108,72 +23418,50 @@ function playArabicAudio(text, fallbackRu, opts) {
         kk:'Қияметте құлдың амалынан бірінші сұралатыны — намаз.',
         topic:'Хадисы · Намаз' },
 
-      { key:'abudawud_2178', book:'abudawud', num:2178, srcLabel:'Абу Дауд 2178',
+      { key:'abudawud_2178', book:'abudawud', num:2178, srcLabel:'Абу Дауд 2178, слабый хадис',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О браке и правах.',
-        kk:'Неке және құқықтар.',
+        ar:'أَبْغَضُ الْحَلاَلِ إِلَى اللَّهِ تَعَالَى الطَّلاَقُ',
+        ru:'Посланник Аллаха ﷺ сказал: «Самое ненавистное из дозволенного для Аллаха — развод».',
+        kk:'Пайғамбар ﷺ: «Алла Тағалаға ең жек көрінішті халал нәрсе — талақ», — деді.',
         topic:'Хадисы · Семья' },
       { key:'abudawud_2226', book:'abudawud', num:2226, srcLabel:'Абу Дауд 2226',
         from:'От Ибн Умара (р.а.)', fromKk:'Ибн Умардан (р.а.)',
-        ar:'…',
-        ru:'О таляке.',
-        kk:'Таляк туралы.',
+        ar:'أَيُّمَا امْرَأَةٍ سَأَلَتْ زَوْجَهَا طَلاَقًا فِي غَيْرِ مَا بَأْسٍ فَحَرَامٌ عَلَيْهَا رَائِحَةُ الْجَنَّةِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Любой женщине, которая попросит у мужа развода без веской причины, запретён запах Рая».',
+        kk:'Пайғамбар ﷺ: «Қай әйел күйеуінен еш себепсіз талақ сұраса, оған Жәннаттың иісі харам», — деді.',
         topic:'Хадисы · Семья' },
       { key:'abudawud_3376', book:'abudawud', num:3376, srcLabel:'Абу Дауд 3376',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О продаже и гараре.',
-        kk:'Сауда және ғарар.',
+        ar:'نَهَى عَنْ بَيْعِ الْغَرَرِ وَالْحَصَاةِ',
+        ru:'Пророк ﷺ запретил продажу, основанную на риске и неопределённости (гарар), и сделку, определяемую броском камешка.',
+        kk:'Пайғамбар ﷺ белгісіздігі мен тәуекелі бар (ғарар) сатылымды және тас лақтыру арқылы анықталатын мәмілені тыйды.',
         topic:'Грехи · Имущество' },
       { key:'abudawud_3580', book:'abudawud', num:3580, srcLabel:'Абу Дауд 3580',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О судье и справедливости.',
-        kk:'Қазы және әділдік.',
+        ar:'لَعَنَ رَسُولُ اللَّهِ صلى الله عليه وسلم الرَّاشِيَ وَالْمُرْتَشِيَ',
+        ru:'Посланник Аллаха ﷺ проклял дающего взятку и берущего её.',
+        kk:'Аллаһтың Елшісі ﷺ пара берушіні де, пара алушыны да қарғады.',
         topic:'Грехи · Суд' },
-      { key:'abudawud_4616', book:'abudawud', num:4616, srcLabel:'Абу Дауд 4616',
-        from:'От Абу Зарра (р.а.)', fromKk:'Әбу Заррдан (р.а.)',
-        ar:'…',
-        ru:'О входе с правой ноги / адабе.',
-        kk:'Оң аяқпен кіру әдебі.',
-        topic:'Сунны · Дом' },
-      { key:'ahmad_5', book:'ahmad', num:5, srcLabel:'Ахмад 5',
+      { key:'ahmad_5', book:'ahmad', num:5, srcLabel:'Ахмад 5, слабый хадис',
         from:'От Абу Бакры (р.а.)', fromKk:'Әбу Бакрдан (р.а.)',
-        ar:'…',
-        ru:'Хадис из Муснада Ахмада (начало сборника).',
-        kk:'Ахмад муснадынан хадис.',
+        ar:'عَلَيْكُمْ بِالصِّدْقِ فَإِنَّهُ مَعَ الْبِرِّ وَهُمَا فِي الْجَنَّةِ وَإِيَّاكُمْ وَالْكَذِبَ فَإِنَّهُ مَعَ الْفُجُورِ وَهُمَا فِي النَّارِ وَلَا تَحَاسَدُوا وَلَا تَبَاغَضُوا وَلَا تَقَاطَعُوا وَلَا تَدَابَرُوا وَكُونُوا إِخْوَانًا كَمَا أَمَرَكُمْ اللَّهُ تَعَالَى',
+        ru:'Абу Бакр (р.а.) сказал: «Держитесь правдивости, ибо она с благочестием, и оба они в Раю. Остерегайтесь лжи, ибо она с распутством, и оба они в Огне. Не завидуйте друг другу, не питайте ненависти, не разрывайте отношений и не отворачивайтесь друг от друга, и будьте братьями, как повелел вам Аллах Всевышний».',
+        kk:'Әбу Бәкір (р.а.): «Шыншыл болыңдар, өйткені ол игілікпен бірге, екеуі де Жәннатта. Өтіріктен сақтаныңдар, өйткені ол бұзақылықпен бірге, екеуі де Тозақта. Бір-біріңе қызғанбаңдар, өшікпеңдер, қатынасты үзбеңдер, теріс айналмаңдар және Алла Тағала сендерге бұйырғандай бауыр болыңдар», — деді.',
         topic:'Хадисы' },
-      { key:'ahmad_8002', book:'ahmad', num:8002, srcLabel:'Ахмад 8002',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'Хадис из Муснада Ахмада.',
-        kk:'Ахмад муснадынан.',
-        topic:'Хадисы' },
-      { key:'bukhari_1403', book:'bukhari', num:1403, srcLabel:'Бухари 1403',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О закяте и наказании удерживающего его.',
-        kk:'Зекетті ұстаушының жазасы.',
-        topic:'Грехи · Кабаир' },
+      
       { key:'bukhari_1521', book:'bukhari', num:1521, srcLabel:'Бухари 1521',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О хадже и его обязательности.',
-        kk:'Қажылық парызы.',
+        ar:'مَنْ حَجَّ لِلَّهِ فَلَمْ يَرْفُثْ وَلَمْ يَفْسُقْ رَجَعَ كَيَوْمِ وَلَدَتْهُ أُمُّهُ',
+        ru:'Я слышал, как Пророк ﷺ говорил: «Кто совершил хадж ради Аллаха, не вступал в близость, не совершал греха и непослушания, тот вернётся (свободным от грехов), как в день, когда родила его мать». Передал Абу Хурайра (р.а.).',
+        kk:'Мен Пайғамбардың ﷺ: «Кім Алла үшін қажылық жасап, жыныстық қатынасқа бармаса және күнә істемесе, ол анасынан туған күніндей (күнәдан пәк) оралады», — дегенін естідім. Әбу Һурайра (р.а.) жеткізді.',
         topic:'Грехи · Кабаир', alsoTopics:['Хадж · Ихрам'] },
       { key:'bukhari_163', book:'bukhari', num:163, srcLabel:'Бухари 163',
         from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
-        ar:'…',
-        ru:'О вуду и его предписаниях.',
-        kk:'Дәрет үкімдері.',
+        ar:'وَيْلٌ لِلأَعْقَابِ مِنَ النَّارِ',
+        ru:'Пророк ﷺ громко воскликнул: «Горе пяткам от Огня!» — дважды или трижды (когда сподвижники небрежно омывали ноги при вуду). Передал Абдуллах ибн Амр (р.а.).',
+        kk:'Пайғамбар ﷺ (сахабалар дәретте аяқтарын жете жумай жатқанда) қатты дауыспен: «Өкшелерге Оттан қасірет!» — деп екі не үш рет айтты. Абдуллаһ ибн Амр (р.а.) жеткізді.',
         topic:'Хадисы · Тахара' },
-      { key:'bukhari_2365', book:'bukhari', num:2365, srcLabel:'Бухари 2365',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О несправедливости и притеснении.',
-        kk:'Зұлымдық туралы.',
-        topic:'Грехи · Зульм' },
+      
       { key:'bukhari_24', book:'bukhari', num:24, srcLabel:'Бухари 24',
         from:'От Ибн Умара (р.а.)', fromKk:'Ибн Умардан (р.а.)',
         ar:'بُنِيَ الْإِسْلَامُ عَلَى خَمْسٍ',
@@ -23181,16 +23469,17 @@ function playArabicAudio(text, fallbackRu, opts) {
         kk:'Ислам бес негізге құрылған.',
         topic:'Хадисы · Основы' },
       { key:'bukhari_3198', book:'bukhari', num:3198, srcLabel:'Бухари 3198',
-        from:'От Абу Зарра (р.а.)', fromKk:'Әбу Заррдан (р.а.)',
-        ar:'…',
-        ru:'О солнце и луне как знамениях.',
-        kk:'Күн мен ай — белгілер.',
-        topic:'Хадисы · Знамения' },
+        also:[{ book:'muslim', num:1610 }],
+        from:'От Са‘ида ибн Зейда (р.а.)', fromKk:'Са‘ид ибн Зейдтен (р.а.)',
+        ar:'مَنْ أَخَذَ شِبْرًا مِنَ الأَرْضِ ظُلْمًا، فَإِنَّهُ يُطَوَّقُهُ يَوْمَ الْقِيَامَةِ مِنْ سَبْعِ أَرَضِينَ',
+        ru:'Посланник Аллаха ﷺ сказал: «Кто несправедливо присвоит себе пядь земли, тому в День воскресения наденут её на шею вместе с семью землями».',
+        kk:'Аллаһтың Елшісі ﷺ: «Кім біреудің жерінен бір тұтам жерді әділетсіз тартып алса, қиямет күні оның мойнына жеті қабат жер оралады», — деді.',
+        topic:'Грехи · Имущество' },
       { key:'bukhari_3237', book:'bukhari', num:3237, srcLabel:'Бухари 3237',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О ангелах и их записях.',
-        kk:'Періштелер және жазулары.',
+        ar:'إِذَا دَعَا الرَّجُلُ امْرَأَتَهُ إِلَى فِرَاشِهِ فَأَبَتْ، فَبَاتَ غَضْبَانَ عَلَيْهَا، لَعَنَتْهَا الْمَلاَئِكَةُ حَتّى تُصْبِحَ',
+        ru:'Посланник Аллаха ﷺ сказал: «Если муж позовёт жену в свою постель, а она откажется, и он проведёт ночь, гневаясь на неё, ангелы будут проклинать её до утра». Передал Абу Хурайра (р.а.).',
+        kk:'Пайғамбар ﷺ: «Егер ер өз әйелін төсегіне шақырып, ол бас тартса да, ер оған ашуланған күйі түнесе, періштелер таң атқанша оны қарғайды», — деді. Әбу Һурайра (р.а.) жеткізді.',
         topic:'Хадисы · Иман' },
       { key:'bukhari_34', book:'bukhari', num:34, srcLabel:'Бухари 34',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
@@ -23200,130 +23489,99 @@ function playArabicAudio(text, fallbackRu, opts) {
         topic:'Грехи · Нифак' },
       { key:'bukhari_3461', book:'bukhari', num:3461, srcLabel:'Бухари 3461',
         from:'От Абдуллаха ибн Амра (р.а.)', fromKk:'Абдуллаһ ибн Амрдан (р.а.)',
-        ar:'…',
-        ru:'О передаче от иудеев и осторожности.',
-        kk:'Яһудилерден риуаят.',
+        ar:'بَلِّغُوا عَنِّي وَلَوْ آيَةً، وَحَدِّثُوا عَنْ بَنِي إِسْرَائِيلَ وَلاَ حَرَجَ، وَمَنْ كَذَبَ عَلَىَّ مُتَعَمِّدًا فَلْيَتَبَوَّأْ مَقْعَدَهُ مِنَ النَّارِ',
+        ru:'Пророк ﷺ сказал: «Передавайте от меня, даже если это один аят, рассказывайте о сынах Исраиля — в этом нет греха, а кто умышленно солжёт на меня, пусть займёт своё место в Огне».',
+        kk:'Пайғамбар ﷺ: «Менен жеткізіңдер, тіпті бір аят болса да. Исраил ұрпақтарынан жеткізіңдер, ештеңе етпейді. Кім маған қасақана жалған айтса, орнын тозақтан дайындай берсін», — деді.',
         topic:'Хадисы · Знание' },
       { key:'bukhari_39', book:'bukhari', num:39, srcLabel:'Бухари 39',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О религии как лёгкости.',
-        kk:'Дін — жеңілдік.',
+        ar:'إِنَّ الدِّينَ يُسْرٌ، وَلَنْ يُشَادَّ الدِّينَ أَحَدٌ إِلاَّ غَلَبَهُ، فَسَدِّدُوا وَقَارِبُوا وَأَبْشِرُوا، وَاسْتَعِينُوا بِالْغَدْوَةِ وَالرَّوْحَةِ وَشَىْءٍ مِنَ الدُّلْجَةِ',
+        ru:'Пророк ﷺ сказал: «Поистине, религия — это лёгкость, и никто не станет обременять себя в религии, не будучи побеждённым ею. Так держитесь середины, стремитесь к совершенству, радуйтесь благой вести и прибегайте к помощи утреннего и вечернего пути и части ночного».',
+        kk:'Пайғамбар ﷺ: «Дін — жеңілдік. Кім дінде өзін қиындыққа салса, дін оны жеңеді. Сондықтан дұрыс жолда болыңдар, кемелдікке жақындаңдар, қуанышты хабарға қуаныңдар және таңертеңгі, түстен кейінгі және түннің бір бөлігіндегі амалдан жәрдем сұраңдар», — деді.',
         topic:'Хадисы · Основы' },
-      { key:'bukhari_481', book:'bukhari', num:481, srcLabel:'Бухари 481',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О молитве в один ряд / сутре.',
-        kk:'Сүтре туралы.',
-        topic:'Хадисы · Намаз' },
+      
       { key:'bukhari_5027', book:'bukhari', num:5027, srcLabel:'Бухари 5027',
         from:'От Аиши (р.а.)', fromKk:'Айшадан (р.а.)',
-        ar:'…',
-        ru:'О чтении Корана и его знатоке.',
-        kk:'Құран оқу және білгір.',
+        ar:'خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ',
+        ru:'Пророк ﷺ сказал со слов Усмана (р.а.): «Лучший из вас тот, кто изучил Коран и обучил ему других».',
+        kk:'Пайғамбар ﷺ Осман (р.а.) жеткізген хадисте: «Араларыңдағы ең жақсысы — Құранды үйренген және оны үйреткен адам», — деді.',
         topic:'Сунны · Поклонение' },
-      { key:'bukhari_5063', book:'bukhari', num:5063, srcLabel:'Бухари 5063',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О зависти только в двух случаях (Коран и трата ради Аллаха).',
-        kk:'Тек екі нәрсеге қызғану.',
+      { key:'bukhari_5063', book:'bukhari', num:5063, also:[{ book:'muslim', num:1401 }], srcLabel:'аль-Бухари 5063; Муслим 1401',
+        from:'От Анаса ибн Малика (р.а.)', fromKk:'Анас ибн Мәліктен (р.а.)',
+        ar:'لَكِنِّي أَصُومُ وَأُفْطِرُ، وَأُصَلِّي وَأَرْقُدُ، وَأَتَزَوَّجُ النِّسَاءَ، فَمَنْ رَغِبَ عَنْ سُنَّتِي فَلَيْسَ مِنِّي',
+        ru:'Пророк ﷺ сказал: «Я же пощусь и разговляюсь, молюсь и сплю, и женюсь на женщинах. Кто отвернётся от моей сунны — тот не из меня».',
+        kk:'Пайғамбар ﷺ: «Ал мен ораза ұстаймын да, аузымды да ашамын, намаз оқимын да, ұйықтаймын да, әйелдерге үйленемін де. Кім менің сүннетімнен бас тартса, ол менен емес», — деді.',
         topic:'Грехи · Сердце' },
       { key:'bukhari_5787', book:'bukhari', num:5787, srcLabel:'Бухари 5787',
         from:'От Ибн Умара (р.а.)', fromKk:'Ибн Умардан (р.а.)',
-        ar:'…',
-        ru:'О запрете волочения одежды из высокомерия.',
-        kk:'Киімді тәкаппарлықпен сүйрету.',
+        ar:'مَا أَسْفَلَ مِنَ الْكَعْبَيْنِ مِنَ الإِزَارِ فَفِي النَّارِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Та часть изара, что ниже щиколоток, — в Огне».',
+        kk:'Пайғамбар ﷺ: «Ізардың жұлын сүйектен төмен түскен бөлігі тозақта», — деді.',
         topic:'Грехи · Кибр' },
       { key:'bukhari_6477', book:'bukhari', num:6477, srcLabel:'Бухари 6477',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О том, кто говорит «я забыл аят» — скорее ему дали забыть.',
-        kk:'«Аятты ұмыттым» деу.',
+        ar:'إِنَّ الْعَبْدَ لَيَتَكَلَّمُ بِالْكَلِمَةِ مَا يَتَبَيَّنُ فِيهَا، يَزِلُّ بِهَا فِي النَّارِ أَبْعَدَ مِمَّا بَيْنَ الْمَشْرِقِ وَالْمَغْرِبِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Поистине, раб может произнести слово, не вникая, правильно ли оно, и оно низвергнет его в Огонь дальше, чем расстояние между востоком [и западом]».',
+        kk:'Пайғамбар ﷺ: «Құл бір сөзді дұрыс-бұрысына мән бермей айтады, сол сөзі оны тозаққа шығыс пен батыстың арасынан да алысқа құлатады», — деді.',
         topic:'Сунны · Поклонение' },
       { key:'bukhari_6989', book:'bukhari', num:6989, srcLabel:'Бухари 6989',
         from:'От Абу Катады (р.а.)', fromKk:'Әбу Қатададан (р.а.)',
-        ar:'…',
-        ru:'О праведном сне и кошмаре.',
-        kk:'Жақсы түс пен қорқынышты түс.',
+        ar:'الرُّؤْيَا الصَّالِحَةُ جُزْءٌ مِنْ سِتَّةٍ وَأَرْبَعِينَ جُزْءًا مِنَ النُّبُوَّةِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Благой сон — одна из сорока шести частей пророчества».',
+        kk:'Пайғамбар ﷺ: «Жақсы түс — пайғамбарлықтың қырық алты бөлігінің бірі», — деді.',
         topic:'Сунны · Сон' },
-      { key:'bukhari_893', book:'bukhari', num:893, srcLabel:'Бухари 893',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О пятничном гусле.',
-        kk:'Жұма ғұсылы.',
+      { key:'bukhari_893', book:'bukhari', num:893, also:[{ book:'muslim', num:1829 }], srcLabel:'аль-Бухари 893; Муслим 1829',
+        from:'От Абдуллаха ибн Умара (р.а.)', fromKk:'Абдуллаһ ибн Омардан (р.а.)',
+        ar:'كُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Каждый из вас — пастырь, и каждый в ответе за свою паству».',
+        kk:'Аллаһтың Елшісі ﷺ: «Әрқайсыңыз бақташысыз, әрқайсыңыз өз қарамағыңыздағылар үшін жауаптысыз», — деді.',
         topic:'Сунны · Дом' },
-      { key:'ibnmajah_2055', book:'ibnmajah', num:2055, srcLabel:'Ибн Маджа 2055',
+      { key:'ibnmajah_2055', book:'ibnmajah', num:2055, srcLabel:'Ибн Маджа 2055, слабый хадис',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О риба и его проклятии.',
-        kk:'Риба және лағнет.',
+        ar:'أَيُّمَا امْرَأَةٍ سَأَلَتْ زَوْجَهَا الطَّلاَقَ فِي غَيْرِ مَا بَأْسٍ فَحَرَامٌ عَلَيْهَا رَائِحَةُ الْجَنَّةِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Любой женщине, которая попросит у мужа развода без крайней нужды, запретён аромат Рая».',
+        kk:'Пайғамбар ﷺ: «Қай әйел күйеуінен еш қиындықсыз ажырасуды сұраса, оған жәннаттың иісі харам», — деді.',
         topic:'Грехи · Имущество' },
       { key:'ibnmajah_2340', book:'ibnmajah', num:2340, srcLabel:'Ибн Маджа 2340',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О обмане в торговле.',
-        kk:'Саудада алдау.',
-        topic:'Грехи · Имущество' },
-      { key:'muslim_102', book:'muslim', num:102, srcLabel:'Муслим 102',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'مَنْ غَشَّنَا فَلَيْسَ مِنَّا',
-        ru:'Кто обманывает нас — не из нас.',
-        kk:'Кім бізді алдаса — бізден емес.',
-        topic:'Грехи · Имущество' },
+        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
+        ar:'لَا ضَرَرَ وَلَا ضِرَارَ',
+        ru:'Посланник Аллаха ﷺ сказал: «Нет вреда и нанесения вреда [другому]».',
+        kk:'Аллаһтың Елшісі ﷺ: «Зиян жоқ және біріне-бірі зиян келтіру жоқ», — деді.',
+        topic:'Грехи · Прочие' },
       { key:'muslim_103', book:'muslim', num:103, srcLabel:'Муслим 103',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'مَنْ غَشَّ فَلَيْسَ مِنَّا',
-        ru:'Кто обманывает — не из нас.',
-        kk:'Алдаушы бізден емес.',
-        topic:'Грехи · Имущество' },
+        from:'От Абдуллаха ибн Мас‘уда (р.а.)', fromKk:'Абдуллаһ ибн Мәсғұдтан (р.а.)',
+        ar:'لَيْسَ مِنَّا مَنْ لَطَمَ الْخُدُودَ، وَشَقَّ الْجُيُوبَ، وَدَعَا بِدَعْوَى الْجَاهِلِيَّةِ',
+        ru:'Пророк ﷺ сказал: «Не из нас тот, кто бьёт себя по щекам, раздирает одежды и взывает призывом времён невежества».',
+        kk:'Пайғамбар ﷺ: «Бет-аузына ұрған, киімін жыртқан және жәһилият дәуірінің нидасымен шақырған адам бізден емес», — деді.',
+        topic:'Крайности в скорби' },
       { key:'muslim_1037', book:'muslim', num:1037, srcLabel:'Муслим 1037',
         from:'От Абу Саида (р.а.)', fromKk:'Әбу Саидтен (р.а.)',
-        ar:'…',
-        ru:'О лучших делах и садаке.',
-        kk:'Ең қайырлы амалдар.',
+        ar:'مَنْ يُرِدِ اللَّهُ بِهِ خَيْرًا يُفَقِّهْهُ فِي الدِّينِ وَإِنَّمَا أَنَا قَاسِمٌ وَيُعْطِي اللَّهُ',
+        ru:'Посланник Аллаха ﷺ сказал: «Тому, кому Аллах желает блага, Он даёт понимание религии. Я лишь распределяю, а даёт Аллах».',
+        kk:'Пайғамбар ﷺ: «Аллаһ кімге жақсылық қаласа, оған дінді терең түсінуді нәсіп етеді. Мен тек бөлушімін, ал беруші — Аллаһ», — деді.',
         topic:'Хадисы · Садака' },
-      { key:'muslim_1155', book:'muslim', num:1155, srcLabel:'Муслим 1155',
-        from:'От Абу Катады (р.а.)', fromKk:'Әбу Қатададан (р.а.)',
-        ar:'…',
-        ru:'Пост в понедельник (рождение Пророка ﷺ и начало откровения).',
-        kk:'Дүйсенбі оразасы.',
-        topic:'Сунны · Поклонение' },
-      { key:'muslim_1401', book:'muslim', num:1401, srcLabel:'Муслим 1401',
-        from:'От Абдуллаха ибн Мас‘уда (р.а.)', fromKk:'Ибн Мәсғұдтан (р.а.)',
-        ar:'…',
-        ru:'О браке и половине религии.',
-        kk:'Неке — діннің жартысы.',
-        topic:'Хадисы · Семья' },
+      
+      
       { key:'muslim_1436', book:'muslim', num:1436, srcLabel:'Муслим 1436',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О правах жены и мужа.',
-        kk:'Жұбайлардың құқықтары.',
+        ar:'إِذَا دَعَا الرَّجُلُ امْرَأَتَهُ إِلَى فِرَاشِهِ فَأَبَتْ، فَبَاتَ غَضْبَانَ عَلَيْهَا، لَعَنَتْهَا الْمَلَائِكَةُ حَتَّى تُصْبِحَ',
+        ru:'Пророк ﷺ сказал: «Если муж зовёт жену в постель, а она отказывается, и он проводит ночь, гневаясь на неё, ангелы проклинают её до утра».',
+        kk:'Пайғамбар ﷺ: «Күйеуі әйелін төсекке шақырып, ол бас тартса, ал күйеуі оған ашуланып түн өткізсе, періштелер таң атқанша оны қарғайды», — деді.',
         topic:'Хадисы · Семья' },
       { key:'muslim_1605', book:'muslim', num:1605, srcLabel:'Муслим 1605',
-        from:'От Джабира (р.а.)', fromKk:'Жабирден (р.а.)',
-        ar:'…',
-        ru:'О запрете риба.',
-        kk:'Рибаға тыйым.',
+        from:'От Ма‘мара ибн Абдуллаха (р.а.)', fromKk:'Мағмар ибн Абдуллаһтан (р.а.)',
+        ar:'لَا يَحْتَكِرُ إِلَّا خَاطِئٌ',
+        ru:'Посланник Аллаха ﷺ сказал: «Не удерживает [товар, ожидая подорожания], кроме грешника».',
+        kk:'Аллаһтың Елшісі ﷺ: «Тауарды [бағасы өсуін күтіп] ұстап қалатын — тек күнәкар ғана», — деді.',
         topic:'Грехи · Имущество' },
       { key:'muslim_1610', book:'muslim', num:1610, srcLabel:'Муслим 1610',
-        from:'От Убады ибн ас-Самита (р.а.)', fromKk:'Убада ибн әс-Самиттен (р.а.)',
-        ar:'…',
-        ru:'О видах риба (золото за золото и т.д.).',
-        kk:'Риба түрлері.',
+        from:'От Са‘ида ибн Зейда (р.а.)', fromKk:'Са‘ид ибн Зейдтен (р.а.)',
+        ar:'مَنِ اقْتَطَعَ شِبْرًا مِنَ الأَرْضِ ظُلْمًا طَوَّقَهُ اللَّهُ إِيَّاهُ يَوْمَ الْقِيَامَةِ مِنْ سَبْعِ أَرَضِينَ',
+        ru:'Посланник Аллаха ﷺ сказал: «Кто несправедливо присвоит себе пядь земли, тому Аллах в День воскресения наденет её на шею вместе с семью землями».',
+        kk:'Аллаһтың Елшісі ﷺ: «Кім біреудің жерінен бір тұтам жерді әділетсіз тартып алса, қиямет күні Аллаһ оның мойнына жеті қабат жерді орайды», — деді.',
         topic:'Грехи · Имущество' },
-      { key:'muslim_1829', book:'muslim', num:1829, srcLabel:'Муслим 1829',
-        from:'От Ибн Умара (р.а.)', fromKk:'Ибн Умардан (р.а.)',
-        ar:'…',
-        ru:'О правителе-попечителе и ответственности.',
-        kk:'Басшының жауапкершілігі.',
-        topic:'Грехи · Власть' },
-      { key:'muslim_2244', book:'muslim', num:2244, srcLabel:'Муслим 2244',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О милости к животным.',
-        kk:'Жануарларға мейірім.',
-        topic:'Грехи · Жестокость' },
+      
+      
       // build 5.61: содержимое было неполным (плейсхолдер «…» вместо
       // арабского текста) и с неверным передатчиком (Анас вместо Аиши).
       // Сверено на sunnah.com, содержание — про то, что Пророк ﷺ никогда
@@ -23336,9 +23594,9 @@ function playArabicAudio(text, fallbackRu, opts) {
         topic:'Права семьи · Супруги' },
       { key:'muslim_244', book:'muslim', num:244, srcLabel:'Муслим 244',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О имане и его ветвях.',
-        kk:'Иман және оның тармақтары.',
+        ar:'إِذَا تَوَضَّأَ الْعَبْدُ الْمُسْلِمُ - أَوِ الْمُؤْمِنُ - فَغَسَلَ وَجْهَهُ خَرَجَ مِنْ وَجْهِهِ كُلُّ خَطِيئَةٍ نَظَرَ إِلَيْهَا بِعَيْنَيْهِ مَعَ الْمَاءِ - أَوْ مَعَ آخِرِ قَطْرِ الْمَاءِ - فَإِذَا غَسَلَ يَدَيْهِ خَرَجَ مِنْ يَدَيْهِ كُلُّ خَطِيئَةٍ كَانَ بَطَشَتْهَا يَدَاهُ مَعَ الْمَاءِ - أَوْ مَعَ آخِرِ قَطْرِ الْمَاءِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Когда раб-мусульманин (или верующий) совершает омовение и умывает лицо, с водой (или с последней каплей воды) выходит из его лица каждый грех, на который он посмотрел глазами. А когда он умывает руки, с водой (или с последней каплей воды) выходит из его рук каждый грех, который совершили его руки».',
+        kk:'Пайғамбар ﷺ: «Мұсылман (немесе мүмін) құл дәрет алып, бетін жуғанда, көзімен қараған әрбір күнәсі сумен бірге (немесе соңғы су тамшысымен бірге) бетінен шығады. Қолын жуғанда, қолдарымен істеген әрбір күнәсі сумен бірге (немесе соңғы су тамшысымен бірге) қолдарынан шығады», — деді.',
         topic:'Хадисы · Основы' },
       { key:'muslim_2553', book:'muslim', num:2553, srcLabel:'Муслим 2553',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
@@ -23354,51 +23612,45 @@ function playArabicAudio(text, fallbackRu, opts) {
         topic:'Сунны · Еда' },
       { key:'muslim_2988', book:'muslim', num:2988, srcLabel:'Муслим 2988',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О мирской жизни как обмане.',
-        kk:'Дүние — алдамшы.',
+        ar:'إِنَّ الْعَبْدَ لَيَتَكَلَّمُ بِالْكَلِمَةِ يَنْزِلُ بِهَا فِي النَّارِ أَبْعَدَ مَا بَيْنَ الْمَشْرِقِ وَالْمَغْرِبِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Поистине, раб произносит слово, из-за которого он низвергается в Огонь дальше, чем расстояние между востоком и западом».',
+        kk:'Пайғамбар ﷺ: «Құл бір сөз айтады, сол сөзі үшін тозаққа шығыс пен батыстың арасынан да алысқа түседі», — деді.',
         topic:'Грехи · Сердце' },
       { key:'muslim_60', book:'muslim', num:60, srcLabel:'Муслим 60',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'Признаки лицемерия.',
-        kk:'Мұнафиқтық белгілері.',
+        ar:'إِذَا كَفَّرَ الرَّجُلُ أَخَاهُ فَقَدْ بَاءَ بِهَا أَحَدُهُمَا',
+        ru:'Посланник Аллаха ﷺ сказал: «Если человек объявит своего брата неверующим (кафиром), то это (обвинение) непременно вернётся к одному из них».',
+        kk:'Пайғамбар ﷺ: «Егер адам өз бауырын кәпір деп атаса, бұл сөз міндетті түрде екеуінің біріне қайтады», — деді.',
         topic:'Грехи · Нифак' },
-      { key:'nasai_2562', book:'nasai', num:2562, srcLabel:'Насаи 2562',
+      { key:'nasai_2562', book:'nasai', num:2562, srcLabel:'Насаи 2562, слабый хадис',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О закяте и имуществе.',
-        kk:'Зекет және мүлік.',
+        ar:'ثَلاَثَةٌ لاَ يَنْظُرُ اللَّهُ عَزَّ وَجَلَّ إِلَيْهِمْ يَوْمَ الْقِيَامَةِ الْعَاقُّ لِوَالِدَيْهِ وَالْمَرْأَةُ الْمُتَرَجِّلَةُ وَالدَّيُّوثُ وَثَلاَثَةٌ لاَ يَدْخُلُونَ الْجَنَّةَ الْعَاقُّ لِوَالِدَيْهِ وَالْمُدْمِنُ عَلَى الْخَمْرِ وَالْمَنَّانُ بِمَا أَعْطَى',
+        ru:'Посланник Аллаха ﷺ сказал: «Трое, на кого Аллах Всемогущий и Великий не посмотрит в День воскресения: непочтительный к родителям, женщина, подражающая мужчинам, и дайюс (не ревнующий к своей семье). И трое не войдут в Рай: непочтительный к родителям, пристрастившийся к вину и попрекающий тем, что дал».',
+        kk:'Пайғамбар ﷺ: «Қиямет күні Аллаһ Азза уа Жалла үш адамға қарамайды: ата-анасына қарсы келген, ер адамдарға ұқсауға тырысқан әйел және әйелін қызғанбайтын дәюс. Және үш адам жәннатқа кірмейді: ата-анасына қарсы келген, ішімдікке үйір болған және берген садақасын бетке басатын адам», — деді.',
         topic:'Грехи · Кабаир' },
-      { key:'tirmidhi_1187', book:'tirmidhi', num:1187, srcLabel:'Тирмизи 1187',
+      { key:'tirmidhi_1187', book:'tirmidhi', num:1187, srcLabel:'Тирмизи 1187, слабый хадис',
         from:'От Ибн Умара (р.а.)', fromKk:'Ибн Умардан (р.а.)',
-        ar:'…',
-        ru:'О правах супругов.',
-        kk:'Ерлі-зайыпты құқықтары.',
+        ar:'أَيُّمَا امْرَأَةٍ سَأَلَتْ زَوْجَهَا طَلاَقًا مِنْ غَيْرِ بَأْسٍ فَحَرَامٌ عَلَيْهَا رَائِحَةُ الْجَنَّةِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Любой женщине, которая попросит у мужа развода без вреда (веской причины), запретён аромат Рая».',
+        kk:'Пайғамбар ﷺ: «Қай әйел күйеуінен еш себепсіз ажырасуды талап етсе, оған жәннаттың иісі харам», — деді.',
         topic:'Грехи · Семья' },
-      { key:'tirmidhi_1924', book:'tirmidhi', num:1924, srcLabel:'Тирмизи 1924',
+      { key:'tirmidhi_1924', book:'tirmidhi', num:1924, srcLabel:'Тирмизи 1924, слабый хадис',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О правах мусульманина на мусульманина.',
-        kk:'Мұсылманның мұсылманға құқығы.',
+        ar:'الرَّاحِمُونَ يَرْحَمُهُمُ الرَّحْمَنُ ارْحَمُوا مَنْ فِي الأَرْضِ يَرْحَمْكُمْ مَنْ فِي السَّمَاءِ الرَّحِمُ شُجْنَةٌ مِنَ الرَّحْمَنِ فَمَنْ وَصَلَهَا وَصَلَهُ اللَّهُ وَمَنْ قَطَعَهَا قَطَعَهُ اللَّهُ',
+        ru:'Посланник Аллаха ﷺ сказал: «Милостивых милует Милостивый (Ар-Рахман). Будьте милостивы к тем, кто на земле, и помилует вас Тот, Кто на небесах. Родственная связь (ар-рахим) — ответвление от Ар-Рахмана: кто поддерживает её, того поддержит Аллах, а кто порвёт её, того Аллах лишит Своей милости».',
+        kk:'Пайғамбар ﷺ: «Мейірімділерге Рахман мейірім етеді. Жердегілерге мейірімді болыңдар, сонда көктегі сендерге мейірім етеді. Туыстық байланыс — Рахманнан тараған бұтақ: оны қосқанды Аллаһ қосады, үзгенді Аллаһ үзеді», — деді.',
         topic:'Сунны · Речь' },
-      { key:'tirmidhi_1977', book:'tirmidhi', num:1977, srcLabel:'Тирмизи 1977',
-        from:'От Абу Зарра (р.а.)', fromKk:'Әбу Заррдан (р.а.)',
-        ar:'…',
-        ru:'О улыбке и добром слове как садаке.',
-        kk:'Күлімсіреу мен жақсы сөз — садақа.',
+      { key:'tirmidhi_1977', book:'tirmidhi', num:1977, srcLabel:'ат-Тирмизи 1977',
+        from:'От Ибн Мас‘уда (р.а.)', fromKk:'Ибн Мәсғұдтан (р.а.)',
+        ar:'لَيْسَ الْمُؤْمِنُ بِالطَّعَّانِ وَلَا اللَّعَّانِ وَلَا الْفَاحِشِ وَلَا الْبَذِيءِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Верующий не бывает ни хулителем, ни проклинающим, ни сквернословом, ни бесстыжим».',
+        kk:'Аллаһтың Елшісі ﷺ: «Мүмін — өсекші де, қарғағыш та, былапыт сөйлеуші де, арсыз да болмайды», — деді.',
         topic:'Сунны · Речь' },
-      { key:'tirmidhi_2506', book:'tirmidhi', num:2506, srcLabel:'Тирмизи 2506',
+      { key:'tirmidhi_2646', book:'tirmidhi', num:2646, srcLabel:'Тирмизи 2646, слабый хадис',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О зависти и её вреде.',
-        kk:'Қызғаныштың зияны.',
-        topic:'Грехи · Сердце' },
-      { key:'tirmidhi_2646', book:'tirmidhi', num:2646, srcLabel:'Тирмизи 2646',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О знании и его ценности.',
-        kk:'Білімнің қадірі.',
+        ar:'مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ طَرِيقًا إِلَى الْجَنَّةِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Кто пойдёт путём, ища на нём знание, тому Аллах облегчит путь в Рай».',
+        kk:'Пайғамбар ﷺ: «Кім білім іздеп бір жолға түссе, Аллаһ оған жәннатқа апаратын жолды жеңілдетеді», — деді.',
         topic:'Хадисы · Знание' },
       { key:'tirmidhi_3', book:'tirmidhi', num:3, srcLabel:'Тирмизи 3',
         from:'От Умара (р.а.)', fromKk:'Омардан (р.а.)',
@@ -23406,18 +23658,18 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Дела по намерениям.',
         kk:'Амалдар ниетке.',
         topic:'Хадисы · Начало' },
-      { key:'tirmidhi_500', book:'tirmidhi', num:500, srcLabel:'Тирмизи 500',
+      { key:'tirmidhi_500', book:'tirmidhi', num:500, srcLabel:'Тирмизи 500, слабый хадис',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'…',
-        ru:'О витре и ночном намазе.',
-        kk:'Уітір және түнгі намаз.',
+        ar:'مَنْ تَرَكَ الْجُمُعَةَ ثَلاَثَ مَرَّاتٍ تَهَاوُنًا بِهَا طَبَعَ اللَّهُ عَلَى قَلْبِهِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Кто оставит (пятничную молитву) три раза из пренебрежения ею, тому Аллах запечатает сердце».',
+        kk:'Пайғамбар ﷺ: «Кім жұманы үш рет немқұрайлылықпен тастаса, Аллаһ оның жүрегіне мөр басады», — деді.',
         topic:'Сунны · Поклонение' },
-      { key:'tirmidhi_889', book:'tirmidhi', num:889, srcLabel:'Тирмизи 889',
-        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
-        ar:'…',
-        ru:'О посте и его адабе.',
-        kk:'Ораза әдебі.',
-        topic:'Сунны · Поклонение', alsoTopics:['Хадж · Порядок','Хадж · Виды'] },
+      { key:'tirmidhi_889', book:'tirmidhi', num:889, srcLabel:'ат-Тирмизи 889',
+        from:'От Абдуррахмана ибн Йа‘мара (р.а.)', fromKk:'Абдурахман ибн Яғмурдан (р.а.)',
+        ar:'الْحَجُّ عَرَفَةُ',
+        ru:'Посланник Аллаха ﷺ сказал: «Хадж — это Арафа».',
+        kk:'Аллаһтың Елшісі ﷺ: «Қажылық — Арафа», — деді.',
+        topic:'Хадж · Порядок' },
 
       // ===== Адаб общения: полные тексты (сверено с базами дурар.нет/сунна.com) =====
       { key:'bukhari_527', book:'bukhari', num:527, srcLabel:'аль-Бухари 527',
@@ -23443,12 +23695,6 @@ function playArabicAudio(text, fallbackRu, opts) {
         ar:'إِنَّ الرِّفْقَ لاَ يَكُونُ فِي شَيْءٍ إِلاَّ زَانَهُ، وَلاَ يُنْزَعُ مِنْ شَيْءٍ إِلاَّ شَانَهُ',
         ru:'«Поистине, мягкость не сопутствует ничему, не украшая это, и не покидает ничего, не обезобразив».',
         kk:'«Шын мәнінде, жұмсақтық қандай да бір нәрседе болса, оны әдемілейді, ал одан алынса, оны құнсыздандырады».',
-        topic:'Адаб · Речь' },
-      { key:'bukhari_2989', book:'bukhari', num:2989, srcLabel:'аль-Бухари 2989',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
-        ar:'كُلُّ سُلاَمَى مِنَ النَّاسِ عَلَيْهِ صَدَقَةٌ، كُلَّ يَوْمٍ تَطْلُعُ فِيهِ الشَّمْسُ: تَعْدِلُ بَيْنَ اثْنَيْنِ صَدَقَةٌ، وَتُعِينُ الرَّجُلَ فِي دَابَّتِهِ فَتَحْمِلُهُ عَلَيْهَا، أَوْ تَرْفَعُ لَهُ عَلَيْهَا مَتَاعَهُ صَدَقَةٌ، وَالْكَلِمَةُ الطَّيِّبَةُ صَدَقَةٌ، وَبِكُلِّ خُطْوَةٍ تَمْشِيهَا إِلَى الصَّلاَةِ صَدَقَةٌ، وَتُمِيطُ الأَذَى عَنِ الطَّرِيقِ صَدَقَةٌ',
-        ru:'«На каждом суставе человека — обязательный долг садаки, и так — в каждый день, когда восходит солнце: рассудить по справедливости между двумя — садака, помочь человеку взобраться на его верховое животное или поднять на него поклажу — садака, доброе слово — садака, каждый шаг к намазу — садака, и устранение препятствия с дороги — садака».',
-        kk:'«Адамның әр буынына садақа парыз, әр күн шыққан күнде: екі адамның арасында әділдікпен билік ету — садақа, кісіге көлігіне мінуге немесе жүгін артуға көмектесу — садақа, жақсы сөз — садақа, намазға бір қадам басу — садақа, жолдан кедергіні алып тастау — садақа».',
         topic:'Адаб · Речь' },
       { key:'muslim_1009', book:'muslim', num:1009, srcLabel:'Муслим 1009',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
@@ -23833,6 +24079,72 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Пророк ﷺ сказал: «У каждого пророка есть верный помощник (хавари), и мой хавари — аз-Зубайр ибн аль-Аввам».',
         kk:'Пайғамбар ﷺ: «Әр пайғамбардың адал көмекшісі (хауари) бар, менің хауарим — әз-Зубайр ибн әл-Аууам», — деді.',
         topic:'История · Сахаба' },
+      { key:'bukhari_3744', book:'bukhari', num:3744, srcLabel:'аль-Бухари 3744',
+        from:'От Анаса ибн Малика (р.а.)', fromKk:'Анас ибн Мәліктен (р.а.)',
+        ar:'إِنَّ لِكُلِّ أُمَّةٍ أَمِينًا، وَإِنَّ أَمِينَنَا أَيَّتُهَا الأُمَّةُ أَبُو عُبَيْدَةَ بْنُ الْجَرَّاحِ',
+        ru:'Посланник Аллаха ﷺ сказал: «У каждой общины есть доверенный, и доверенный этой общины — Абу Убайда ибн аль-Джаррах».',
+        kk:'Аллаһтың Елшісі ﷺ: «Әрбір үмбеттің сенімді адамы бар, ал осы үмбеттің сенімді адамы — Әбу Убайда ибн әл-Жаррах», — деді.',
+        topic:'История · Сахаба' },
+      { key:'bukhari_3483', book:'bukhari', num:3483, srcLabel:'аль-Бухари 3483',
+        from:'От Абу Мас‘уда аль-Бадри (р.а.)', fromKk:'Әбу Мәсғұд әл-Бәдриден (р.а.)',
+        ar:'إِذَا لَمْ تَسْتَحِ فَاصْنَعْ مَا شِئْتَ',
+        ru:'Пророк ﷺ сказал: «Поистине, из того, что люди усвоили из слов первых пророков: если ты не стыдишься — делай что хочешь».',
+        kk:'Пайғамбар ﷺ: «Адамдар бұрынғы пайғамбарлар сөзінен үйренгеннің бірі: егер ұялмасаң — қалағаныңды істе», — деді.',
+        topic:'Сунны · Речь' },
+      { key:'tirmidhi_2485', book:'tirmidhi', num:2485, also:[{ book:'ibnmajah', num:3251 }, { book:'ibnmajah', num:1334 }], srcLabel:'ат-Тирмизи 2485; Ибн Маджа 3251',
+        from:'От Абдуллаха ибн Саляма (р.а.)', fromKk:'Абдуллаһ ибн Сәламнан (р.а.)',
+        ar:'يَا أَيُّهَا النَّاسُ أَفْشُوا السَّلَامَ وَأَطْعِمُوا الطَّعَامَ وَصِلُوا الْأَرْحَامَ وَصَلُّوا بِاللَّيْلِ وَالنَّاسُ نِيَامٌ تَدْخُلُوا الْجَنَّةَ بِسَلَامٍ',
+        ru:'Первое, что я услышал от Посланника Аллаха ﷺ: «О люди! Распространяйте салям, кормите людей, поддерживайте родственные связи и молитесь ночью, когда люди спят, — войдёте в Рай в мире».',
+        kk:'Аллаһтың Елшісінен ﷺ естігенімнің алғашқысы: «Уа, адамдар! Сәлемді таратыңдар, адамдарды тамақтандырыңдар, туыстық байланысты сақтаңдар және халық ұйықтап жатқанда түнде намаз оқыңдар — Жәннатқа аман-есен кіресіңдер», — деген сөз.',
+        topic:'Сунны · Речь' },
+      { key:'abudawud_2133', book:'abudawud', num:2133, also:[{ book:'tirmidhi', num:1141 }, { book:'ibnmajah', num:1969 }], srcLabel:'Абу Дауд 2133; ат-Тирмизи 1141',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
+        ar:'مَنْ كَانَتْ لَهُ امْرَأَتَانِ فَمَالَ إِلَى إِحْدَاهُمَا، جَاءَ يَوْمَ الْقِيَامَةِ وَشِقُّهُ مَائِلٌ',
+        ru:'Пророк ﷺ сказал: «У кого две жены, и он склонился к одной из них, тот придёт в День воскресения с наклонившейся стороной тела».',
+        kk:'Пайғамбар ﷺ: «Кімнің екі әйелі болып, біреуіне бейім болса, ол қиямет күні бір жағы қисайып келеді», — деді.',
+        topic:'Хадисы · Семья' },
+      { key:'abudawud_2659', book:'abudawud', num:2659, srcLabel:'Абу Дауд 2659',
+        from:'От Джабира ибн Атика (р.а.)', fromKk:'Жәбір ибн Атиктен (р.а.)',
+        ar:'مِنَ الْغَيْرَةِ مَا يُحِبُّ اللَّهُ، وَمِنْهَا مَا يُبْغِضُ اللَّهُ، فَأَمَّا الْغَيْرَةُ الَّتِي يُحِبُّ اللَّهُ فَالْغَيْرَةُ فِي الرِّيبَةِ، وَأَمَّا الْغَيْرَةُ الَّتِي يُبْغِضُ اللَّهُ فَالْغَيْرَةُ فِي غَيْرِ رِيبَةٍ',
+        ru:'Пророк ﷺ сказал: «Есть ревность, которую любит Аллах, и есть ревность, которую Он ненавидит. Ревность, которую любит Аллах, — ревность при наличии подозрения, а ревность, которую Он ненавидит, — ревность без подозрения».',
+        kk:'Пайғамбар ﷺ: «Аллаһ жақсы көретін қызғаныш бар, Аллаһ жек көретін қызғаныш бар. Аллаһ жақсы көретін қызғаныш — күмән болғандағы қызғаныш, ал Аллаһ жек көретіні — күдіксіз қызғаныш», — деді.',
+        topic:'Грехи · Прочие' },
+      { key:'bukhari_5136', book:'bukhari', num:5136, also:[{ book:'muslim', num:1419 }], srcLabel:'аль-Бухари 5136; Муслим 1419',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
+        ar:'لَا تُنْكَحُ الْأَيِّمُ حَتَّى تُسْتَأْمَرَ، وَلَا تُنْكَحُ الْبِكْرُ حَتَّى تُسْتَأْذَنَ',
+        ru:'Пророк ﷺ сказал: «Вдову (разведённую) не выдают замуж, пока не спросят её совета, а девственницу не выдают замуж, пока не спросят её разрешения».',
+        kk:'Пайғамбар ﷺ: «Жесір әйелді оның кеңесін алмай күйеуге бермейді, ал қызды оның рұқсатын сұрамай күйеуге бермейді», — деді.',
+        topic:'Хадисы · Семья' },
+      { key:'bukhari_6116', book:'bukhari', num:6116, srcLabel:'аль-Бухари 6116',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
+        ar:'أَوْصِنِي، قَالَ: لَا تَغْضَبْ، فَرَدَّدَ مِرَارًا، قَالَ: لَا تَغْضَبْ',
+        ru:'Один человек сказал Пророку ﷺ: «Дай мне наставление». Он ответил: «Не гневайся». Тот повторил просьбу несколько раз, и каждый раз Пророк ﷺ отвечал: «Не гневайся».',
+        kk:'Бір адам Пайғамбарға ﷺ: «Маған өсиет айт», — деді. Ол: «Ашуланба», — деді. Адам бірнеше рет қайталады, ал Пайғамбар ﷺ әр жолы: «Ашуланба», — деп жауап берді.',
+        topic:'Сунны · Речь' },
+      { key:'tirmidhi_2317', book:'tirmidhi', num:2317, srcLabel:'ат-Тирмизи 2317',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
+        ar:'مِنْ حُسْنِ إِسْلَامِ الْمَرْءِ تَرْكُهُ مَا لَا يَعْنِيهِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Из достоинства ислама человека — оставление того, что его не касается».',
+        kk:'Аллаһтың Елшісі ﷺ: «Адамның исламының көркемдігінен — өзіне қатысы жоқ нәрседен бас тартуы», — деді.',
+        topic:'Грехи · Прочие' },
+      { key:'abudawud_4031', book:'abudawud', num:4031, srcLabel:'Абу Дауд 4031',
+        from:'От Ибн Умара (р.а.)', fromKk:'Ибн Омардан (р.а.)',
+        ar:'مَنْ تَشَبَّهَ بِقَوْمٍ فَهُوَ مِنْهُمْ',
+        ru:'Посланник Аллаха ﷺ сказал: «Кто уподобился какому-либо народу — тот из них».',
+        kk:'Аллаһтың Елшісі ﷺ: «Кім бір халыққа ұқсаса, ол солардың бірі», — деді.',
+        topic:'Грехи · Прочие' },
+      { key:'bukhari_5233', book:'bukhari', num:5233, also:[{ book:'muslim', num:1341 }], srcLabel:'аль-Бухари 5233; Муслим 1341',
+        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
+        ar:'لَا يَخْلُوَنَّ رَجُلٌ بِامْرَأَةٍ إِلَّا مَعَ ذِي مَحْرَمٍ',
+        ru:'Пророк ﷺ сказал: «Пусть ни один мужчина не остаётся наедине с женщиной, если только с ней нет махрама».',
+        kk:'Пайғамбар ﷺ: «Ешбір ер адам бейтаныс әйелмен оңаша қалмасын, егер онымен бірге махрам болмаса», — деді.',
+        topic:'Грехи · Прочие' },
+      { key:'bukhari_4380', book:'bukhari', num:4380, srcLabel:'аль-Бухари 4380',
+        from:'От Хузайфы (р.а.)', fromKk:'Хузайфадан (р.а.)',
+        ar:'لَأَبْعَثَنَّ إِلَيْكُمْ رَجُلاً أَمِينًا حَقَّ أَمِينٍ',
+        ru:'Пророк ﷺ сказал жителям Наджрана: «Я непременно пошлю к вам доверенного человека — поистине доверенного» — и послал Абу Убайду ибн аль-Джарраха.',
+        kk:'Пайғамбар ﷺ нәжрандықтарға: «Мен сендерге шын мәнінде сенімді адамды жіберемін», — деп, Әбу Убайда ибн әл-Жарраһты жіберді.',
+        topic:'История · Сахаба' },
       { key:'muslim_2415', book:'muslim', num:2415, srcLabel:'Муслим 2415',
         from:'От Джабира ибн Абдуллаха (р.а.)', fromKk:'Жәбір ибн Абдуллаһтан (р.а.)',
         ar:'لِكُلِّ نَبِيٍّ حَوَارِيٌّ، وَحَوَارِيَّ الزُّبَيْرُ بْنُ الْعَوَّامِ',
@@ -24194,12 +24506,6 @@ function playArabicAudio(text, fallbackRu, opts) {
       // встречается близкая версия от Укбы ибн Амира через Абу Дауда.
       // Указано честно, с обеими версиями, без утверждения ложной
       // точности там, где её нет.
-      { key:'ahmad_17001', book:'ahmad', num:17001, srcLabel:'Ахмад (от Рувайфи‘ ибн Сабита) — точный номер не подтверждён однозначно; близкая версия — Абу Дауд, от Укбы ибн Амира',
-        from:'От Рувайфи‘ ибн Сабита / Укбы ибн Амира (р.а.)', fromKk:'Рувайфиғ ибн Сабиттен / Уқба ибн Әмірден (р.а.)',
-        ar:'لاَ يَدْخُلُ الْجَنَّةَ صَاحِبُ مَكْسٍ',
-        ru:'Посланник Аллаха ﷺ сказал: «Сборщик незаконного побора (мукса) не войдёт в Рай». ⚠️ Смысл и общая атрибуция (это подлинный, широко цитируемый хадис) достоверны, но точный номер в Муснаде Ахмада не удалось подтвердить со стопроцентной уверенностью без прямого доступа к базе — при использовании в проповеди рекомендуется свериться самостоятельно.',
-        kk:'Аллаһтың Елшісі ﷺ: «Заңсыз алым (мукс) жинаушы Жәннатқа кірмейді» деді. ⚠️ Мағынасы мен жалпы атрибуциясы (бұл шынайы, кеңінен келтірілетін хадис) дұрыс, бірақ Муснад Ахмадтағы нақты нөмірді тікелей базаға қолжетімсіз түрде жүз пайыз сеніммен растау мүмкін болмады — уағызда қолданар алдында өз бетіңізше тексерген жөн.',
-        topic:'Грехи · Прочие' },
 
       /* —— Рамадан (объединённые источники: один текст = одна запись) —— */
       { key:'bukhari_1894', book:'bukhari', num:1894, also:[{book:'muslim',num:1079}], srcLabel:'аль-Бухари 1894; Муслим 1079',
@@ -24298,12 +24604,6 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Пророк ﷺ сказал: «Кто не оставит ложь и действие по ней — Аллаху нет нужды, чтобы он оставлял еду и питьё».',
         kk:'Пайғамбар ﷺ: «Кім өтірік пен оған сәйкес істі тастамаса — Аллаһтың оның тамақ-сусынды тастауына мұқтаждығы жоқ».',
         topic:'Рамадан · О Рамадане' },
-      { key:'bukhari_660', book:'bukhari', num:660, also:[{book:'muslim',num:1031}], srcLabel:'аль-Бухари 660; Муслим 1031',
-        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'سَبْعَةٌ يُظِلُّهُمُ اللَّهُ فِي ظِلِّهِ ... وَرَجُلٌ تَصَدَّقَ بِصَدَقَةٍ فَأَخْفَاهَا',
-        ru:'Семеро под сенью Аллаха: в т.ч. тот, кто дал садака так тайно, что левая рука не знает, что дала правая.',
-        kk:'Аллаһ саясындағы жеті: жасырын садақа берген адам.',
-        topic:'Рамадан · О Рамадане' },
       { key:'bukhari_1', book:'bukhari', num:1, also:[{book:'muslim',num:1907}], srcLabel:'аль-Бухари 1; Муслим 1907',
         from:'От Умара (р.а.)', fromKk:'Омардан (р.а.)',
         ar:'إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى',
@@ -24340,13 +24640,13 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Пророк ﷺ сказал: «Сын Адама не наполнил сосуда хуже, чем желудок» — делить на пищу, питьё и воздух.',
         kk:'Пайғамбар ﷺ: «Адам ұрпағы асқазанынан жаман ыдыс толтырған емес».',
         topic:'Рамадан · Подготовка' },
-      { key:'tirmidhi_1956', book:'tirmidhi', num:1956, also:[], srcLabel:'ат-Тирмизи 1956',
+      { key:'tirmidhi_1970', book:'tirmidhi', num:1970, srcLabel:'ат-Тирмизи 1970, достоверный',
         from:'От Джабира (р.а.)', fromKk:'Джабирден (р.а.)',
         ar:'كُلُّ مَعْرُوفٍ صَدَقَةٌ وَإِنَّ مِنَ الْمَعْرُوفِ أَنْ تَلْقَى أَخَاكَ بِوَجْهٍ طَلْقٍ',
         ru:'Пророк ﷺ сказал: «Каждое благое дело — садака, и из благого — встретить брата с улыбкой».',
         kk:'Пайғамбар ﷺ: «Әрбір игі іс — садақа, ал игіліктің бірі — бауырыңды күлімсіреп қарсы алу».',
         topic:'Рамадан · Подготовка' },
-      { key:'bukhari_6465', book:'bukhari', num:6465, also:[], srcLabel:'аль-Бухари 6465',
+      { key:'bukhari_6464', book:'bukhari', num:6464, also:[], srcLabel:'аль-Бухари 6464',
         from:'От Аиши (р.а.)', fromKk:'Айшадан (р.а.)',
         ar:'سَدِّدُوا وَقَارِبُوا ...',
         ru:'Пророк ﷺ призвал к умеренности и постоянству в поклонении.',
@@ -24466,11 +24766,11 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Пророк ﷺ сказал: «Разговляйтесь финиками; если нет — водой, ибо она очищает».',
         kk:'Пайғамбар ﷺ: «Құрмамен ауыз ашыңдар; болмаса сумен — ол тазартқыш».',
         topic:'Рамадан · Фикх' },
-      { key:'bukhari_1923', book:'bukhari', num:1923, also:[], srcLabel:'аль-Бухари 1923',
-        from:'От Анаса (р.а.)', fromKk:'Анастан (р.а.)',
-        ar:'لَا تُوَاصِلُوا',
-        ru:'Пророк ﷺ запретил висаль (непрерывный пост без ночного разговения) для уммы.',
-        kk:'Пайғамбар ﷺ үмметке висальды тыйым салған.',
+      { key:'bukhari_1923', book:'bukhari', num:1923, srcLabel:'аль-Бухари 1923',
+        from:'От Анаса ибн Малика (р.а.)', fromKk:'Анас ибн Мәліктен (р.а.)',
+        ar:'تَسَحَّرُوا فَإِنَّ فِي السَّحُورِ بَرَكَةً',
+        ru:'Пророк ﷺ сказал: «Принимайте сухур: поистине, в сухуре — баракат».',
+        kk:'Пайғамбар ﷺ: «Сәресі ішіңдер, өйткені сәресіде береке бар», — деді.',
         topic:'Рамадан · Фикх' },
       { key:'bukhari_1927', book:'bukhari', num:1927, also:[], srcLabel:'аль-Бухари 1927',
         from:'От Аиши (р.а.)', fromKk:'Айшадан (р.а.)',
@@ -24508,18 +24808,6 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Пророк ﷺ сказал: «Порвал пост делающий хиджаму и тот, кому её делают» (часть учёных считает нарушением, часть — нет).',
         kk:'Пайғамбар ﷺ: «Хижама жасаушы да, жасатушы да оразасын бұзды» (ғалымдар пікірі бөлінеді).',
         topic:'Рамадан · Фикх' },
-      { key:'bukhari_1503', book:'bukhari', num:1503, also:[{book:'muslim',num:984}], srcLabel:'аль-Бухари 1503; Муслим 984',
-        from:'От Ибн Умара (р.а.)', fromKk:'Ибн Умардан (р.а.)',
-        ar:'فَرَضَ رَسُولُ اللَّهِ صَلَّى اللَّهُ عَلَيْهِ وَسَلَّمَ زَكَاةَ الْفِطْرِ صَاعًا مِنْ تَمْرٍ أَوْ صَاعًا مِنْ شَعِيرٍ',
-        ru:'Пророк ﷺ обязал закят аль-фитр: са‘ фиников или са‘ ячменя с каждого.',
-        kk:'Пайғамбар ﷺ фитр зекетін парыз етті: бір са‘ құрма немесе арпа.',
-        topic:'Рамадан · Фикх' },
-      { key:'abudawud_1609', book:'abudawud', num:1609, also:[], srcLabel:'Абу Дауд 1609',
-        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
-        ar:'فَرَضَ رَسُولُ اللَّهِ صَلَّى اللَّهُ عَلَيْهِ وَسَلَّمَ زَكَاةَ الْفِطْرِ طُهْرَةً لِلصَّائِمِ مِنَ اللَّغْوِ وَالرَّفَثِ',
-        ru:'Закят аль-фитр — очищение для постящегося и пища для бедных; до намаза — закят, после — садака.',
-        kk:'Фитр зекеті — ораза ұстаушыны тазарту және кедейлерге азық.',
-        topic:'Рамадан · Фикх' },
       // build 5.60: у этой записи ранее ошибочно дублировалось содержание
       // bukhari_1990 (запрет поста в Ид) — явно неверно, карточка ссылается
       // на историю про детей и приучение к посту (игрушки-отвлечение).
@@ -24527,12 +24815,12 @@ function playArabicAudio(text, fallbackRu, opts) {
       // Ашуру, Рубайи бинт Муаввиз), но точный номер именно у аль-Бухари
       // подтвердить поиском не удалось со стопроцентной уверенностью —
       // отмечено честно, без ложной точности.
-      { key:'bukhari_1960', book:'bukhari', num:1960, also:[], srcLabel:'аль-Бухари 1960 ⚠️ номер не подтверждён на 100% — см. пометку в тексте карточки',
-        from:'От Ар-Рубаййи бинт Муаввиз (р.а.)', fromKk:'ар-Рубаййи бинт Муаввиздан (р.а.)',
-        ar:'وَكُنَّا نُصَوِّمُهُمْ الصِّغَارَ وَنَجْعَلُ لَهُمُ اللُّعْبَةَ مِنَ الْعِهْنِ',
-        ru:'⚠️ Точный номер этого хадиса у аль-Бухари не удалось подтвердить со стопроцентной уверенностью — сама история достоверна и хорошо задокументирована (в частности, версия у Муслима): «Мы приучали к посту даже маленьких детей и делали им игрушку из шерсти — когда кто-то из них плакал и просил еды, мы давали ему эту игрушку, пока не наступало время разговения». При использовании в проповеди рекомендуется свериться самостоятельно.',
-        kk:'⚠️ Осы хадистің әл-Бухаридегі нақты нөмірін жүз пайыз сеніммен растау мүмкін болмады — тарихтың өзі дұрыс және жақсы құжатталған (атап айтқанда, Мүслімдегі нұсқасы): «Біз кішкентай балаларды да оразаға үйрететінбіз және оларға жүннен ойыншық жасайтынбыз — олардың біреуі жылап, тамақ сұраса, ауызашар уақыты келгенше сол ойыншықты берер едік». Уағызда қолданар алдында өз бетіңізше тексерген жөн.',
-        topic:'Рамадан · Фикх' },
+      { key:'bukhari_1960', book:'bukhari', num:1960, srcLabel:'аль-Бухари 1960',
+        from:'От ар-Рубайи бинт Муаввиз (р.а.)', fromKk:'Рубайи бинт Муағауизден (р.а.)',
+        ar:'فَكُنَّا نَصُومُهُ بَعْدُ، وَنُصَوِّمُ صِبْيَانَنَا، وَنَجْعَلُ لَهُمُ اللُّعْبَةَ مِنَ الْعِهْنِ، فَإِذَا بَكَى أَحَدُهُمْ عَلَى الطَّعَامِ أَعْطَيْنَاهُ ذَاكَ',
+        ru:'«Мы постились в этот день и приучали к посту наших мальчиков. Мы делали им игрушки из шерсти, и если кто-нибудь из них плакал, прося еды, мы давали ему эту игрушку…»',
+        kk:'«Біз кейін де осы күні ораза ұстадық және ұлдарымызды да ораза ұстаттық. Оларға жүннен ойыншық жасап беретінбіз, біреуі тамақ сұрап жылаған кезде соны беретінбіз…»',
+        topic:'Рамадан · Дети и пост' },
       { key:'bukhari_1990', book:'bukhari', num:1990, also:[{book:'muslim',num:1137}], srcLabel:'аль-Бухари 1990; Муслим 1137',
         from:'От Абу Са‘ида аль-Худри (р.а.)', fromKk:'Әбу Саид әл-Худридан (р.а.)',
         ar:'نَهَى النَّبِيُّ صَلَّى اللَّهُ عَلَيْهِ وَسَلَّمَ عَنْ صَوْمِ يَوْمَيْنِ يَوْمِ الْفِطْرِ وَيَوْمِ النَّحْرِ',
@@ -24633,8 +24921,8 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'Сподвижники спросили Пророка ﷺ, разве есть награда за близость с собственной женой; он ответил: «А что, если бы он вложил её в запретное — разве не было бы на нём греха? Так и если вложит в дозволенное — ему за это награда».',
         kk:'Сахабалар Пайғамбардан ﷺ өз жұбайымен жақындасқаны үшін сауап бар ма деп сұрады; ол: «Ал егер оны харамға салса, соған күнәлі болмас па еді? Сол сияқты, оны халалға салса — соған сауап бар», — деп жауап берді.',
         topic:'Садака · Что такое садака' },
-      { key:'bukhari_2989', book:'bukhari', num:2989, srcLabel:'аль-Бухари 2989; Муслим 1009',
-        ar:'كُلُّ سُلَامَى مِنَ النَّاسِ عَلَيْهِ صَدَقَةٌ كُلَّ يَوْمٍ تَطْلُعُ فِيهِ الشَّمْسُ: يَعْدِلُ بَيْنَ الِاثْنَيْنِ صَدَقَةٌ، وَيُعِينُ الرَّجُلَ عَلَى دَابَّتِهِ فَيَحْمِلُهُ عَلَيْهَا أَوْ يَرْفَعُ لَهُ عَلَيْهَا مَتَاعَهُ صَدَقَةٌ، وَالْكَلِمَةُ الطَّيِّبَةُ صَدَقَةٌ، وَكُلُّ خُطْوَةٍ يَمْشِيهَا إِلَى الصَّلَاةِ صَدَقَةٌ، وَيُمِيطُ الْأَذَى عَنِ الطَّرِيقِ صَدَقَةٌ',
+      { key:'bukhari_2989', book:'bukhari', num:2989, also:[{book:'muslim', num:1009}], srcLabel:'аль-Бухари 2989; Муслим 1009',
+        ar:'كُلُّ سُلاَمَى مِنَ النَّاسِ عَلَيْهِ صَدَقَةٌ كُلَّ يَوْمٍ تَطْلُعُ فِيهِ الشَّمْسُ، يَعْدِلُ بَيْنَ الاِثْنَيْنِ صَدَقَةٌ، وَيُعِينُ الرَّجُلَ عَلَى دَابَّتِهِ، فَيَحْمِلُ عَلَيْهَا، أَوْ يَرْفَعُ عَلَيْهَا مَتَاعَهُ صَدَقَةٌ، وَالْكَلِمَةُ الطَّيِّبَةُ صَدَقَةٌ، وَكُلُّ خَطْوَةٍ يَخْطُوهَا إِلَى الصَّلاَةِ صَدَقَةٌ، وَيُمِيطُ الأَذَى عَنِ الطَّرِيقِ صَدَقَةٌ',
         ru:'«На каждом суставе человека — садака каждый день, когда восходит солнце. Справедливо рассудить двоих — садака; помочь человеку сесть на его животное или поднять на него поклажу — садака; доброе слово — садака; каждый шаг к намазу — садака; убрать с дороги то, что причиняет вред, — садака».',
         kk:'«Адамның әр буынына күн шыққан сайын садака парыз. Екі адамды әділ билеу — садака; адамға көлігіне мінуге көмектесу немесе жүгін көтеріп беру — садака; жақсы сөз — садака; намазға қарай жасалған әр қадам — садака; жолдан зиян келтіретін нәрсені кетіру — садака».',
         topic:'Садака · Виды садаки' },
@@ -24642,11 +24930,6 @@ function playArabicAudio(text, fallbackRu, opts) {
         ar:'إِذَا مَاتَ الْإِنْسَانُ انْقَطَعَ عَنْهُ عَمَلُهُ إِلَّا مِنْ ثَلَاثَةٍ: صَدَقَةٍ جَارِيَةٍ، أَوْ عِلْمٍ يُنْتَفَعُ بِهِ، أَوْ وَلَدٍ صَالِحٍ يَدْعُو لَهُ',
         ru:'«Когда умирает сын Адама, прерывается его дело, кроме трёх: текущей садаки; знания, которым пользуются; и праведного ребёнка, который молится за него».',
         kk:'«Адам баласы қайтыс болғанда, оның амалы үзіледі, тек үш нәрседен басқа: пайдаланылатын үздіксіз садакасы; пайда келтіретін білімі; және оған дұға қылатын жақсы перзенті».',
-        topic:'Садака · Виды садаки' },
-      { key:'ahmad_ibnmaja_sadaqa_jariya', book:'ahmad', num:0, srcLabel:'Ахмад; Ибн Маджа (по смыслу)',
-        ar:'',
-        ru:'Среди дел, чья награда не прерывается: тот, кто научил знанию, оставил Коран в наследство, построил мечеть, оставил пристанище путнику, прорыл реку (канал), раздал милостыню из здоровья своего.',
-        kk:'Сауабы үзілмейтін амалдардың арасында — білім үйреткен, Құранды мұра етіп қалдырған, мешіт салған, жолаушыға пана берген, өзен (арна) қазған, ден-саулығынан садака берген адам бар.',
         topic:'Садака · Виды садаки' },
       { key:'muslim_997', book:'muslim', num:997, srcLabel:'Муслим 997',
         from:'От Джабира (р.а.)', fromKk:'Жәбірден (р.а.)',
@@ -24666,15 +24949,10 @@ function playArabicAudio(text, fallbackRu, opts) {
         topic:'Садака · Кому давать' },
       { key:'bukhari_1421', book:'bukhari', num:1421, srcLabel:'аль-Бухари 1421',
         from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
-        ar:'',
-        ru:'Хадис о человеке, давшем садаку вору, прелюбодейке и богачу, не зная об этом заранее, — награда всё равно засчиталась за искреннее намерение.',
-        kk:'Адамға ұрыға, зинақорға және байға, оларды алдын ала білместен садака берген адам туралы хадис — шынайы ниет үшін сауап барлығы да есептелген.',
+        ar:'فَقَالَ اللَّهُمَّ لَكَ الْحَمْدُ، عَلَى سَارِقٍ وَعَلَى زَانِيَةٍ وَعَلَى غَنِيٍّ. فَأُتِيَ فَقِيلَ لَهُ أَمَّا صَدَقَتُكَ عَلَى سَارِقٍ فَلَعَلَّهُ أَنْ يَسْتَعِفَّ عَنْ سَرِقَتِهِ، وَأَمَّا الزَّانِيَةُ فَلَعَلَّهَا أَنْ تَسْتَعِفَّ عَنْ زِنَاهَا، وَأَمَّا الْغَنِيُّ فَلَعَلَّهُ يَعْتَبِرُ فَيُنْفِقُ مِمَّا أَعْطَاهُ اللَّهُ',
+        ru:'Посланник Аллаха ﷺ сказал: «Тогда он сказал: «О Аллах, хвала Тебе — за вора, за прелюбодейку и за богача!» И к нему пришли и сказали: «Что до твоей милостыни вору — быть может, он удержится от воровства; что до прелюбодейки — быть может, она удержится от прелюбодеяния; а что до богача — быть может, он извлечёт урок и будет расходовать из того, что дал ему Аллах»».',
+        kk:'Пайғамбар ﷺ: «Сонда ол: «Уа, Аллаһ, ұры үшін де, жезөкше үшін де, бай үшін де саған мақтау болсын!» — деді. Оған келіп: «Ұрыға берген садақаң — мүмкін ол ұрлығынан тыйылар; жезөкшеге берген садақаң — мүмкін ол азғындығынан тыйылар; ал байға берген садақаң — мүмкін ол ғибрат алып, Аллаһ берген нәрседен жұмсар», — делінді», — деді.',
         topic:'Садака · Кому давать' },
-      { key:'bukhari_1417', book:'bukhari', num:1417, srcLabel:'аль-Бухари 1417',
-        ar:'اتَّقُوا النَّارَ وَلَوْ بِشِقِّ تَمْرَةٍ',
-        ru:'«Защитите себя от Огня хотя бы половинкой финика [в садаке]».',
-        kk:'«Тозақтан хұрма жартысымен болса да сақтаныңдар [садака беру арқылы]».',
-        topic:'Садака · Сколько давать' },
       { key:'bukhari_1419', book:'bukhari', num:1419, srcLabel:'аль-Бухари 1419; Муслим 1032',
         ar:'أَفْضَلُ الصَّدَقَةِ أَنْ تَصَدَّقَ وَأَنْتَ صَحِيحٌ شَحِيحٌ تَخْشَى الْفَقْرَ وَتَأْمُلُ الْغِنَى',
         ru:'«Лучшая садака — та, что ты даёшь, будучи здоровым, скупясь [в душе] и надеясь на богатство, боясь бедности…»',
@@ -24686,7 +24964,7 @@ function playArabicAudio(text, fallbackRu, opts) {
         ru:'«Самое любимое дело для Аллаха — то, что совершается постоянно, даже если оно небольшое».',
         kk:'«Аллаһ үшін ең сүйікті амал — аз болса да үздіксіз жасалатын амал».',
         topic:'Садака · Сколько давать' },
-      { key:'bukhari_660', book:'bukhari', num:660, srcLabel:'аль-Бухари 660; Муслим 1031',
+      { key:'bukhari_660', book:'bukhari', num:660, also:[{book:'muslim', num:1031}], srcLabel:'аль-Бухари 660; Муслим 1031',
         ar:'وَرَجُلٌ تَصَدَّقَ بِصَدَقَةٍ فَأَخْفَاهَا حَتَّى لَا تَعْلَمَ شِمَالُهُ مَا تُنْفِقُ يَمِينُهُ',
         ru:'Из хадиса о семи, кого Аллах осенит Своей тенью в День, когда не будет иной тени: «…и человек, давший садаку так, что левая рука не знала, что дала правая…»',
         kk:'Аллаһ Өз көлеңкесіне аларатын жеті адам туралы хадистен: «…және садақаны сол қолы не бергенін оң қолы білмейтіндей жасырын берген адам…»',
@@ -24714,9 +24992,9 @@ function playArabicAudio(text, fallbackRu, opts) {
         kk:'«Егер мені жіліншікке немесе тұяққа шақырса да — қабыл алар едім, маған жіліншік немесе тұяқ сыйласа да — қабыл алар едім» (кішкентай сыйлықты немесе қарапайым садақаны менсінбеу керектігі туралы).',
         topic:'Садака · Адаб садаки' },
       { key:'muslim_1631_jariya_examples', book:'muslim', num:1631, also:[], srcLabel:'Муслим 1631',
-        ar:'',
-        ru:'Практические идеи садака джария (см. полный хадис в карточке «Виды садаки»): колодец и питьевая вода, мечеть, дорога или мост, посадка деревьев, книги и распространение знания, вакф, обучение Корану.',
-        kk:'Садака джарияның практикалық идеялары (толық хадисті «Түрлері» карточкасынан қараңыз): құдық пен ауызсу, мешіт, жол не көпір, ағаш отырғызу, кітаптар мен білімді тарату, уақф, Құранды үйрету.',
+        ar:'إِذَا مَاتَ الإِنْسَانُ انْقَطَعَ عَنْهُ عَمَلُهُ إِلاَّ مِنْ ثَلاَثَةٍ إِلاَّ مِنْ صَدَقَةٍ جَارِيَةٍ أَوْ عِلْمٍ يُنْتَفَعُ بِهِ أَوْ وَلَدٍ صَالِحٍ يَدْعُو لَهُ',
+        ru:'Посланник Аллаха ﷺ сказал: «Когда человек умирает, его дела прекращаются, кроме трёх: непрерывной милостыни (садака джария), или знания, которым пользуются, или праведного ребёнка, который молится за него».',
+        kk:'Пайғамбар ﷺ: «Адам қайтыс болғанда, оның амалы үш нәрседен басқасы тоқтайды: үздіксіз жалғасатын садақадан, пайдаланылатын білімнен немесе өзіне дұға ететін игі баладан», — деді.',
         topic:'Садака · Садака джария — идеи' },
 
       // === Садака: карточки 9–12 из 16 («Садака и долги», «Отличие от закята», «Садака аль-фитр», «Каффара») ===
@@ -24732,9 +25010,9 @@ function playArabicAudio(text, fallbackRu, opts) {
         kk:'Шейіт туралы: «Шейітке бәрі кешіріледі, тек қарыздан басқа».',
         topic:'Садака · Садака и долги' },
       { key:'bukhari_2289', book:'bukhari', num:2289, also:[2295,2298], srcLabel:'аль-Бухари 2289, 2295, 2298',
-        ar:'',
-        ru:'Пророку ﷺ приносили умерших с непогашенным долгом, и он спрашивал, оставил ли покойный средства на его выплату; отказывался молиться за него, пока долг не был обеспечен, — пока Абу Катада не поручился за долг одного из них.',
-        kk:'Пайғамбарға ﷺ қарызы өтелмеген қайтыс болғандарды әкелетін, ол қайтыс болған адам қарызын өтейтін мүлік қалдырды ма деп сұрайтын; қарызға кепілдік берілмейінше оның жаназасын оқудан бас тартатын — Әбу Қатада олардың бірінің қарызына кепілдік бергенге дейін.',
+        ar:'ثُمَّ أُتِيَ بِالثَّالِثَةِ، فَقَالُوا صَلِّ عَلَيْهَا. قَالَ هَلْ تَرَكَ شَيْئًا. قَالُوا لاَ. قَالَ فَهَلْ عَلَيْهِ دَيْنٌ. قَالُوا ثَلاَثَةُ دَنَانِيرَ. قَالَ صَلُّوا عَلَى صَاحِبِكُمْ. قَالَ أَبُو قَتَادَةَ صَلِّ عَلَيْهِ يَا رَسُولَ اللَّهِ، وَعَلَىَّ دَيْنُهُ. فَصَلَّى عَلَيْهِ',
+        ru:'Салама ибн аль-Акуа (р.а.) сказал: затем принесли третьего умершего, и сказали: «Соверши над ним молитву». Он спросил: «Оставил ли он что-нибудь?» Сказали: «Нет». Он спросил: «А есть ли на нём долг?» Сказали: «Три динара». Тогда Посланник Аллаха ﷺ сказал: «Помолитесь за вашего товарища». Абу Катада (р.а.) сказал: «Помолись над ним, о Посланник Аллаха, а долг — на мне». И он совершил над ним молитву.',
+        kk:'Сәлама ибн әл-Ақуа (р.а.): Содан кейін үшінші жаназа әкелінді, сонда: «Оған намаз оқы», — деді. Ол: «Бірдеңе қалдырды ма?» — деді. «Жоқ», — деді. «Ал оның қарызы бар ма?» — деді. «Үш динар», — деді. Сонда Пайғамбар ﷺ: «Жолдасыңа өздерің намаз оқыңдар», — деді. Әбу Қатада (р.а.): «Уа, Аллаһтың Елшісі, оған намаз оқы, қарызы менің мойнымда», — деді. Сонда ол оған намаз оқыды.',
         topic:'Садака · Садака и долги' },
       { key:'bukhari_1503', book:'bukhari', num:1503, srcLabel:'аль-Бухари 1503; Муслим 984',
         from:'От Ибн Умара (р.а.)', fromKk:'Ибн Умардан (р.а.)',
@@ -24757,164 +25035,153 @@ function playArabicAudio(text, fallbackRu, opts) {
 
       // === Хадж и умра: карточки шести вкладок раздела «Хадж» ===
       { key:'bukhari_1526', book:'bukhari', num:1526, also:[{book:'muslim',num:1181}], srcLabel:'аль-Бухари 1526; Муслим 1181',
-        ar:'…',
-        ru:'Пророк ﷺ установил микаты для жителей соответствующих направлений и для всех, кто идёт через них с намерением хаджа или умры, «даже если они не из их числа».',
-        kk:'Пайғамбар ﷺ тиісті бағыттардың тұрғындары үшін және хадж немесе умра ниетімен сол жерлерден өтетін барлық адамдар үшін микаттарды белгіледі, «тіпті олар сол тұрғындардан болмаса да».',
+        ar:'وَقَّتَ رَسُولُ اللَّهِ صلى الله عليه وسلم لأَهْلِ الْمَدِينَةِ ذَا الْحُلَيْفَةَ، وَلأَهْلِ الشَّأْمِ الْجُحْفَةَ، وَلأَهْلِ نَجْدٍ قَرْنَ الْمَنَازِلِ، وَلأَهْلِ الْيَمَنِ يَلَمْلَمَ، فَهُنَّ لَهُنَّ وَلِمَنْ أَتَى عَلَيْهِنَّ مِنْ غَيْرِ أَهْلِهِنَّ، لِمَنْ كَانَ يُرِيدُ الْحَجَّ وَالْعُمْرَةَ',
+        ru:'Посланник Аллаха ﷺ установил для жителей Медины Зуль-Хулейфу, для жителей Шама — Аль-Джухфу, для жителей Неджда — Карн аль-Маназиль, а для жителей Йемена — Ялямлям. Эти места — для них и для тех, кто проходит через них, даже если они не из их числа, из тех, кто намеревается совершить хадж или умру.',
+        kk:'Аллаһтың Елшісі ﷺ мәдиналықтарға Зул-Хулайфаны, шамдықтарға әл-Жухфаны, нәжділіктерге Қарн әл-Манәзилді, ал жемендіктерге Ялямлямды миқат етіп белгіледі. Бұлар сол жерлердің тұрғындарына және хажды не умраны ниет етіп, олардан өтетін өзге жерліктерге арналған.',
         topic:'Хадж · Порядок' },
       { key:'muslim_1141', book:'muslim', num:1141, srcLabel:'Муслим 1141',
-        ar:'…',
-        ru:'«Дни ташрика — это дни еды, питья и поминания Аллаха» — в эти дни пост запрещён, это дни праздничного отдыха после Курбан-байрама.',
-        kk:'«Ташрик күндері — тамақтану, ішу және Аллаһты еске алу күндері» — бұл күндері ораза тыйым салынған, бұл Құрбан айт кейінгі мейрам демалысы күндері.',
+        from:'От Нубайши аль-Худали (р.а.)', fromKk:'Нубайша әл-Хузалидан (р.а.)',
+        ar:'أَيَّامُ التَّشْرِيقِ أَيَّامُ أَكْلٍ وَشُرْبٍ وَذِكْرٍ لِلَّهِ',
+        ru:'Посланник Аллаха ﷺ сказал: «Дни ташрика — дни еды, питья и поминания Аллаха».',
+        kk:'Аллаһтың Елшісі ﷺ: «Ташрик күндері — жеу, ішу және Аллаһты еске алу күндері», — деді.',
         topic:'Хадж · Порядок' },
       { key:'muslim_1297', book:'muslim', num:1297, srcLabel:'Муслим 1297',
-        ar:'…',
-        ru:'«Учитесь у меня обрядам хаджа» — сказано Пророком ﷺ у джамарата аль-Акаба, что стало основой принципа точного следования его действиям в хадже.',
-        kk:'«Хадж ғұрыптарын менен үйреніңдер» — Пайғамбар ﷺ Ақаба жамарасында осылай деген, бұл оның хаждағы іс-әрекеттерін дәл қайталау қағидасының негізі болды.',
+        from:'От Джабира (р.а.)', fromKk:'Жәбірден (р.а.)',
+        ar:'خُذُوا عَنِّي مَنَاسِكَكُمْ',
+        ru:'Пророк ﷺ сказал: «Берите у меня ваши обряды [хаджа]».',
+        kk:'Пайғамбар ﷺ: «Қажылық амалдарыңызды менен алыңдар», — деді.',
         topic:'Хадж · Порядок' },
       { key:'bukhari_1727', book:'bukhari', num:1727, also:[{book:'muslim',num:1301}], srcLabel:'аль-Бухари 1727; Муслим 1301',
-        ar:'…',
-        ru:'Пророк ﷺ трижды произнёс дуа за обривших голову и один раз — за укоротивших волосы после хаджа.',
-        kk:'Пайғамбар ﷺ хаждан кейін шашын алдырғандарға үш рет, ал қысқартқандарға бір рет дұға етті.',
+        ar:'اللَّهُمَّ ارْحَمِ الْمُحَلِّقِينَ". قَالُوا وَالْمُقَصِّرِينَ يَا رَسُولَ اللَّهِ قَالَ "اللَّهُمَّ ارْحَمِ الْمُحَلِّقِينَ". قَالُوا وَالْمُقَصِّرِينَ يَا رَسُولَ اللَّهِ قَالَ "وَالْمُقَصِّرِينَ',
+        ru:'Посланник Аллаха ﷺ сказал: «О Аллах, помилуй бривших голову!» Люди сказали: «И укоротивших волосы, о Посланник Аллаха?» Он сказал: «О Аллах, помилуй бривших голову!» Они сказали: «И укоротивших волосы, о Посланник Аллаха?» Тогда он сказал: «И укоротивших волосы». (Передал Ибн Умар, р.а.)',
+        kk:'Алла елшісі ﷺ: «Уа, Алла, басын қырғандарға рақым ете гөр!» — деді. Адамдар: «Шашын қысқартқандарға да, уа, Алла елшісі?» — деді. Ол: «Уа, Алла, басын қырғандарға рақым ете гөр!» — деді. Олар: «Шашын қысқартқандарға да, уа, Алла елшісі?» — деді. Сонда ол: «Шашын қысқартқандарға да», — деді. (Ибн Омар, р.а., жеткізген.)',
         topic:'Хадж · Порядок' },
       { key:'muslim_1327', book:'muslim', num:1327, srcLabel:'Муслим 1327',
-        ar:'…',
-        ru:'«Пусть никто не уезжает [из Мекки], пока последним его делом не станет [таваф вокруг] Дома» — прощальный таваф должен быть последним действием перед отъездом.',
-        kk:'«Ешкім [Меккеден] соңғы ісі [Қағбаны] тауаф ету болмайынша кетпесін» — қоштасу тауафы аттанар алдындағы соңғы іс болуы керек.',
+        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
+        ar:'لَا يَنْفِرَنَّ أَحَدٌ حَتَّى يَكُونَ آخِرُ عَهْدِهِ بِالْبَيْتِ',
+        ru:'Люди разъезжались в разные стороны, и Пророк ﷺ сказал: «Пусть никто не уезжает, пока последним его действием не станет [тавaф] у Дома».',
+        kk:'Адамдар әр жаққа тарап жатқанда, Пайғамбар ﷺ: «Ешкім соңғы амалы Үймен [тауап] болмайынша аттанбасын», — деді.',
         topic:'Хадж · Порядок' },
-      { key:'tirmidhi_3585', book:'tirmidhi', num:3585, srcLabel:'Тирмизи 3585',
-        ar:'…',
-        ru:'«Нет дня, в который Аллах освобождает от Огня больше рабов, чем день Арафа» (хасан).',
-        kk:'«Аллаһ құлдарын Отттан ең көп азат ететін күн — Арафа күні» (хасан).',
+      { key:'tirmidhi_3585', book:'tirmidhi', num:3585, srcLabel:'ат-Тирмизи 3585',
+        from:'От Амра ибн Шу‘айба со слов отца и деда (р.а.)', fromKk:'Амр ибн Шуғайбтан, әкесі мен атасынан (р.а.)',
+        ar:'خَيْرُ الدُّعَاءِ دُعَاءُ يَوْمِ عَرَفَةَ، وَخَيْرُ مَا قُلْتُ أَنَا وَالنَّبِيُّونَ مِنْ قَبْلِي: لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ',
+        ru:'Пророк ﷺ сказал: «Лучшая мольба — мольба в день Арафа, а лучшее, что говорил я и пророки до меня: „Нет бога, кроме Аллаха, Единого, у Которого нет сотоварища“».',
+        kk:'Пайғамбар ﷺ: «Дұғаның жақсысы — Арафа күнгі дұға, ал мен және менен бұрынғы пайғамбарлар айтқандардың жақсысы: „Аллаһтан басқа тәңір жоқ, Ол жалғыз, Оның серігі жоқ“», — деді.',
         topic:'Хадж · Порядок' },
       { key:'muslim_1348', book:'muslim', num:1348, srcLabel:'Муслим 1348',
-        ar:'…',
-        ru:'В день Арафа Аллах гордится стоящими [на Арафате] и говорит ангелам: «Что хотят эти [люди]?» — само присутствие на Арафате уже приближает к прощению.',
-        kk:'Арафа күні Аллаһ [Арафатта] тұрғандармен мақтанып, періштелерге: «Бұлар не қалайды?» — дейді, бұл Арафатта болудың өзі кешірімге жақындататынын білдіреді.',
+        from:'От Аиши (р.а.)', fromKk:'Айшадан (р.а.)',
+        ar:'مَا مِنْ يَوْمٍ أَكْثَرَ مِنْ أَنْ يُعْتِقَ اللَّهُ فِيهِ عَبْدًا مِنَ النَّارِ مِنْ يَوْمِ عَرَفَةَ',
+        ru:'Посланник Аллаха ﷺ сказал: «Нет дня, в который Аллах освобождает от Огня больше рабов, чем в день Арафа».',
+        kk:'Аллаһтың Елшісі ﷺ: «Аллаһ құлдарды тозақтан Арафа күніндей көп азат ететін күн жоқ», — деді.',
         topic:'Хадж · Порядок' },
       { key:'ibnmajah_3029', book:'ibnmajah', num:3029, srcLabel:'Ибн Маджа 3029',
-        ar:'…',
-        ru:'Пророк ﷺ порицал чрезмерность (гулюв) в поклонении, в т.ч. на примере бросания в Мине непомерно крупных камней вместо обычных, размером с горошину (хасан).',
-        kk:'Пайғамбар ﷺ құлшылықтағы шектен шығуды (гулюв) айыптады, оның ішінде Минада бұршақтай кәдімгі тастың орнына тым үлкен тас лақтыруды мысалға алды (хасан).',
+        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
+        ar:'إِيَّاكُمْ وَالْغُلُوَّ فِي الدِّينِ، فَإِنَّمَا أَهْلَكَ مَنْ كَانَ قَبْلَكُمُ الْغُلُوُّ فِي الدِّينِ',
+        ru:'Пророк ﷺ сказал: «Остерегайтесь чрезмерности в религии: ведь погубило тех, кто был до вас, именно чрезмерность в религии».',
+        kk:'Пайғамбар ﷺ: «Дінде шектен шығудан сақтаныңдар, өйткені сендерден бұрынғыларды дінде шектен шығу жойды», — деді.',
         topic:'Хадж · Порядок' },
-      { key:'bukhari_1773', book:'bukhari', num:1773, also:[{book:'muslim',num:1349}], srcLabel:'аль-Бухари 1773; Муслим 1349',
-        ar:'…',
-        ru:'«Умра за умрой — искупление того, что между ними, а хадж, принятый [Аллахом], не имеет иной награды, кроме Рая».',
-        kk:'«Умрадан кейінгі умра — екеуінің арасындағыны өтейді, ал [Аллаһ] қабыл еткен хаждың сауабы Жәннаттан басқа ештеңе емес».',
+      { key:'bukhari_1773', book:'bukhari', num:1773, also:[{ book:'muslim', num:1349 }], srcLabel:'аль-Бухари 1773; Муслим 1349',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Һурайрадан (р.а.)',
+        ar:'الْعُمْرَةُ إِلَى الْعُمْرَةِ كَفَّارَةٌ لِمَا بَيْنَهُمَا، وَالْحَجُّ الْمَبْرُورُ لَيْسَ لَهُ جَزَاءٌ إِلَّا الْجَنَّةُ',
+        ru:'Посланник Аллаха ﷺ сказал: «Умра за умрой — искупление того, что между ними, а хадж, принятый [Аллахом], не имеет иной награды, кроме Рая».',
+        kk:'Аллаһтың Елшісі ﷺ: «Бір умрадан екінші умраға дейінгі аралықтың күнәсіне кеффарат болады, ал қабыл болған қажылықтың сыйы тек Жәннат», — деді.',
         topic:'Хадж · Порядок' },
       { key:'bukhari_1784', book:'bukhari', num:1784, also:[{book:'muslim',num:1211}], srcLabel:'аль-Бухари 1784; Муслим 1211',
-        ar:'…',
-        ru:'Пророк ﷺ указал жителям Мекки, желающим совершить умру, выходить к ближайшей точке миката — мечети Аиши в Тан‘име.',
-        kk:'Пайғамбар ﷺ умра жасағысы келетін Мекке тұрғындарына ең жақын микат нүктесіне — Тәннимдегі Аиша мешітіне шығуды нұсқады.',
+        ar:'أَنَّ النَّبِيَّ صلى الله عليه وسلم أَمَرَهُ أَنْ يُرْدِفَ عَائِشَةَ، وَيُعْمِرَهَا مِنَ التَّنْعِيمِ',
+        ru:'Абдуррахман ибн Абу Бакр (р.а.) сообщил, что Пророк ﷺ велел ему посадить Аишу (р.а.) позади себя и совершить для неё умру из Тан‘има.',
+        kk:'Абдурахман ибн Әбу Бәкір (р.а.): Пайғамбар ﷺ оған Айшаны (р.а.) артына мінгізіп, Тәнғимнен умра жасатуды бұйырды, — деді.',
         topic:'Хадж · Порядок', alsoTopics:['Хадж · Виды', 'Хадж · Женщинам'] },
       { key:'bukhari_1562', book:'bukhari', num:1562, srcLabel:'аль-Бухари 1562',
-        ar:'…',
-        ru:'Аиша (р.а.) передаёт, что в прощальном хадже сподвижники разделились на три группы — ифрад, кыран и таматту‘ — и Пророк ﷺ одобрил все три варианта.',
-        kk:'Аиша (р.а.) риуаят етеді, қоштасу хажында сахабалар үш топқа бөлінген — ифрад, кыран және таматту‘ — және Пайғамбар ﷺ үшеуін де мақұлдаған.',
+        ar:'خَرَجْنَا مَعَ رَسُولِ اللَّهِ صلى الله عليه وسلم عَامَ حَجَّةِ الْوَدَاعِ، فَمِنَّا مَنْ أَهَلَّ بِعُمْرَةٍ، وَمِنَّا مَنْ أَهَلَّ بِحَجَّةٍ وَعُمْرَةٍ، وَمِنَّا مَنْ أَهَلَّ بِالْحَجِّ وَأَهَلَّ رَسُولُ اللَّهِ صلى الله عليه وسلم بِالْحَجِّ',
+        ru:'Аиша (р.а.) сказала: «Мы вышли с Посланником Аллаха ﷺ в год прощального хаджа. Одни из нас вошли в ихрам для умры, другие — для хаджа и умры, а третьи — только для хаджа. Посланник Аллаха ﷺ вошёл в ихрам для хаджа».',
+        kk:'Айша (р.а.): «Біз Алла елшісімен ﷺ қоштасу қажылығы жылы шықтық. Біздің кейбіріміз умраға, кейбіріміз қажылық пен умраға бірге, ал кейбіріміз тек қажылыққа ихрамға кірдік. Алла елшісі ﷺ қажылыққа ихрамға кірді», — деді.',
         topic:'Хадж · Виды' },
       { key:'bukhari_1568', book:'bukhari', num:1568, srcLabel:'аль-Бухари 1568',
-        ar:'…',
-        ru:'Большинство сподвижников в прощальном хадже перешли на таматту‘ по указанию Пророка ﷺ, выйдя из ихрама после умры и войдя в новый ихрам для хаджа позже.',
-        kk:'Қоштасу хажында сахабалардың көпшілігі Пайғамбардың ﷺ нұсқауымен таматту‘ға көшкен, умрадан кейін ихрамнан шығып, кейінірек хаджға жаңа ихрам киген.',
-        topic:'Хадж · Виды' },
-      { key:'bukhari_1785', book:'bukhari', num:1785, srcLabel:'аль-Бухари 1785',
-        ar:'…',
-        ru:'По ряду достоверных риваятов, хадж самого Пророка ﷺ был кыраном — единым ихрамом сразу на умру и хадж.',
-        kk:'Бірқатар сенімді риуаят бойынша, Пайғамбардың ﷺ өз хажы кыран болған — умра мен хаджға бірден кірген жалғыз ихрам.',
+        ar:'أَحِلُّوا مِنْ إِحْرَامِكُمْ بِطَوَافِ الْبَيْتِ وَبَيْنَ الصَّفَا وَالْمَرْوَةِ، وَقَصِّرُوا ثُمَّ أَقِيمُوا حَلاَلاً، حَتَّى إِذَا كَانَ يَوْمُ التَّرْوِيَةِ فَأَهِلُّوا بِالْحَجِّ، وَاجْعَلُوا الَّتِي قَدِمْتُمْ بِهَا مُتْعَةً',
+        ru:'Посланник Аллаха ﷺ сказал им: «Выйдите из ихрама, совершив обход Дома и сай между Сафа и Марва, укоротите волосы и оставайтесь вне ихрама; а когда наступит день тарвия, войдите в ихрам для хаджа, и сделайте то, с чем вы пришли, таматту‘». (Передал Джабир ибн Абдуллах, р.а.)',
+        kk:'Пайғамбар ﷺ оларға: «Үйді тауап етіп, Сафа мен Мәруа арасында жүгіріп ихрамнан шығыңдар, шаштарыңды қысқартып, ихрамсыз күйде тұрыңдар; тәруия күні келгенде қажылыққа ихрамға кіріңдер, ал өздерің келген бұл ихрамды таматтуғ (умра) қылыңдар», — деді. (Жәбір ибн Абдулла, р.а., жеткізген.)',
         topic:'Хадж · Виды' },
       { key:'bukhari_1513', book:'bukhari', num:1513, also:[{book:'muslim',num:1334}], srcLabel:'аль-Бухари 1513; Муслим 1334',
-        ar:'…',
-        ru:'Хадис о женщине из племени Хас‘ам: она спросила Пророка ﷺ, обязателен ли хадж для её престарелого отца, который не может удержаться в седле, и получила ответ: «Да».',
-        kk:'Хас‘ам тайпасынан болған нәзік жанды туралы хадис: ол Пайғамбардан ﷺ ершіде отыра алмайтын кәрі әкесі үшін хадж парыз ба деп сұрағанда, «Иә» деген жауап алды.',
+        ar:'فَقَالَتْ يَا رَسُولَ اللَّهِ إِنَّ فَرِيضَةَ اللَّهِ عَلَى عِبَادِهِ فِي الْحَجِّ أَدْرَكَتْ أَبِي شَيْخًا كَبِيرًا، لاَ يَثْبُتُ عَلَى الرَّاحِلَةِ، أَفَأَحُجُّ عَنْهُ قَالَ نَعَمْ',
+        ru:'Ибн Аббас (р.а.) рассказал: женщина из племени Хас‘ам сказала: «О Посланник Аллаха, обязанность хаджа для рабов Аллаха застала моего отца глубоким стариком, который не может удержаться на верховом животном. Могу ли я совершить хадж за него?» Он ﷺ ответил: «Да».',
+        kk:'Ибн Аббас (р.а.): Хасғам тайпасынан бір әйел: «Уа, Алла елшісі, Алланың құлдарына парыз еткен қажылығы әкемді өте қарт күйінде кездестірді, ол көлікте отыра алмайды. Мен оның орнына қажылық жасасам бола ма?» — деді. Ол ﷺ: «Иә», — деді.',
         topic:'Хадж · Условия', alsoTopics:['Хадж · Вопросы'] },
       { key:'bukhari_1862', book:'bukhari', num:1862, also:[{book:'muslim',num:1341}], srcLabel:'аль-Бухари 1862; Муслим 1341',
-        ar:'…',
-        ru:'Пророк ﷺ сказал: «Пусть женщина не отправляется в путь длиной в один день пути, кроме как с махрамом».',
-        kk:'Пайғамбар ﷺ: «Нәзік жанды бір күндік жол жүрсе, махрамсыз жүрмесін» деген.',
+        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
+        ar:'لاَ تُسَافِرِ الْمَرْأَةُ إِلاَّ مَعَ ذِي مَحْرَمٍ، وَلاَ يَدْخُلُ عَلَيْهَا رَجُلٌ إِلاَّ وَمَعَهَا مَحْرَمٌ',
+        ru:'Посланник Аллаха ﷺ сказал: «Женщина не должна отправляться в путь иначе как с махрамом, и пусть никакой мужчина не входит к ней, если с ней нет махрама».',
+        kk:'Пайғамбар ﷺ: «Әйел адам махрамымен бірге болмаса, жолға шықпасын, және жанында махрамы болмаса, оның қасына ешбір ер адам кірмесін», — деді.',
         topic:'Хадж · Условия', alsoTopics:['Хадж · Женщинам'] },
       { key:'bukhari_1852', book:'bukhari', num:1852, srcLabel:'аль-Бухари 1852',
-        ar:'…',
-        ru:'Женщина спросила Пророка ﷺ о матери, умершей с невыполненным обетом хаджа, и он велел ей выполнить обет за мать, сравнив это с выплатой долга умершего.',
-        kk:'Бір нәзік жанды хадж міндетін орындамай қайтыс болған анасы туралы сұрағанда, Пайғамбар ﷺ оны анасының орнына орындауды бұйырды, мұны қайтыс болғанның қарызын өтеумен теңеді.',
+        ar:'إِنَّ أُمِّي نَذَرَتْ أَنْ تَحُجَّ، فَلَمْ تَحُجَّ حَتَّى مَاتَتْ أَفَأَحُجُّ عَنْهَا قَالَ "نَعَمْ‏.‏ حُجِّي عَنْهَا، أَرَأَيْتِ لَوْ كَانَ عَلَى أُمِّكِ دَيْنٌ أَكُنْتِ قَاضِيَةً اقْضُوا اللَّهَ، فَاللَّهُ أَحَقُّ بِالْوَفَاءِ',
+        ru:'Женщина из племени Джухайна сказала: «Моя мать дала обет совершить хадж, но не совершила его и умерла. Могу ли я совершить хадж за неё?» Он ﷺ сказал: «Да, совершай хадж за неё. Как ты думаешь, если бы на твоей матери был долг, разве ты не выплатила бы его? Выплатите же долг Аллаху, ибо Аллах более достоин того, чтобы долг Ему был выплачен». (Передал Ибн Аббас, р.а.)',
+        kk:'Жухайна тайпасынан бір әйел: «Анам қажылыққа ант етіп еді, бірақ қажылық жасамай қайтыс болды. Мен оның орнына қажылық жасасам бола ма?» — деді. Ол ﷺ: «Иә, оның орнына қажылық жаса. Анаңның қарызы болса, оны өтер ме едің? Алланың алдындағы борышты өтеңдер, өйткені Алла өтелуге ең лайық», — деді. (Ибн Аббас, р.а., жеткізген.)',
         topic:'Хадж · Условия' },
       { key:'abudawud_1811', book:'abudawud', num:1811, srcLabel:'Абу Дауд 1811',
-        ar:'…',
-        ru:'Пророк ﷺ, услышав, как человек произносит тальбию «Ляббайка ‘ан Шубрума», спросил, совершил ли он хадж за себя; узнав, что нет, велел сначала совершить хадж за себя (хасан).',
-        kk:'Пайғамбар ﷺ бір адамның «Ляббайка ‘ан Шубрума» деп тәлбия айтқанын естіп, өзінің хажын жасады ма деп сұрады; жасамағанын білгенде, алдымен өзі үшін хадж жасауды бұйырды (хасан).',
+        ar:'أَنَّ النَّبِيَّ صلى الله عليه وسلم سَمِعَ رَجُلاً يَقُولُ لَبَّيْكَ عَنْ شُبْرُمَةَ. قَالَ "مَنْ شُبْرُمَةَ". قَالَ أَخٌ لِي أَوْ قَرِيبٌ لِي. قَالَ "حَجَجْتَ عَنْ نَفْسِكَ". قَالَ لاَ. قَالَ "حُجَّ عَنْ نَفْسِكَ ثُمَّ حُجَّ عَنْ شُبْرُمَةَ',
+        ru:'Ибн Аббас (р.а.) передал, что Пророк ﷺ услышал, как один человек говорит: «Ляббайка ‘ан Шубрума». Он ﷺ спросил: «Кто такой Шубрума?» Тот ответил: «Мой брат или родственник». Он ﷺ спросил: «Ты совершил хадж за себя?» Тот сказал: «Нет». Он ﷺ сказал: «Соверши хадж за себя, а потом соверши хадж за Шубруму».',
+        kk:'Ибн Аббас (р.а.): Пайғамбар ﷺ бір адамның: «Шубрума үшін лаббайк», — дегенін естіді. Ол ﷺ: «Шубрума кім?» — деді. Анау: «Бауырым немесе туысым», — деді. Ол ﷺ: «Өз атыңнан қажылық жасадың ба?» — деді. Анау: «Жоқ», — деді. Ол ﷺ: «Алдымен өз атыңнан қажылық жаса, сосын Шубрума үшін жаса», — деді.',
         topic:'Хадж · Условия' },
       { key:'bukhari_369', book:'bukhari', num:369, also:[{book:'bukhari',num:4655}], srcLabel:'аль-Бухари 369; аль-Бухари 4655',
-        ar:'…',
-        ru:'По указанию Пророка ﷺ Али (р.а.) объявил паломникам: «После этого года ни один многобожник не совершит хадж, и никто не будет обходить Дом обнажённым».',
-        kk:'Пайғамбардың ﷺ нұсқауымен Әли (р.а.) қажыларға: «Бұл жылдан кейін ешбір мүшрік хадж жасамайды, әрі ешкім Үйді жалаңаш айналмайды» деп жариялады.',
+        ar:'أَنْ لاَ يَحُجَّ بَعْدَ الْعَامِ مُشْرِكٌ، وَلاَ يَطُوفَ بِالْبَيْتِ عُرْيَانٌ‏.‏ قَالَ حُمَيْدُ بْنُ عَبْدِ الرَّحْمَنِ ثُمَّ أَرْدَفَ رَسُولُ اللَّهِ صلى الله عليه وسلم عَلِيًّا، فَأَمَرَهُ أَنْ يُؤَذِّنَ بِبَرَاءَةَ قَالَ أَبُو هُرَيْرَةَ فَأَذَّنَ مَعَنَا عَلِيٌّ فِي أَهْلِ مِنًى يَوْمَ النَّحْرِ لاَ يَحُجُّ بَعْدَ الْعَامِ مُشْرِكٌ، وَلاَ يَطُوفُ بِالْبَيْتِ عُرْيَانٌ',
+        ru:'Абу Хурайра (р.а.) сказал: «Абу Бакр послал меня в том хадже с глашатаями в день жертвоприношения объявить в Мине: после этого года ни один многобожник не совершит хадж и никто не будет обходить Дом обнажённым». Затем Посланник Аллаха ﷺ отправил следом Али (р.а.) и велел ему огласить суру «Бара’а». Абу Хурайра (р.а.) сказал: «Али объявил вместе с нами жителям Мины в день жертвоприношения: после этого года ни один многобожник не совершит хадж, и никто не будет обходить Дом обнажённым».',
+        kk:'Әбу Һурайра (р.а.): «Әбу Бәкір мені сол қажылықта құрбан күні Мынада: ‹Осы жылдан кейін ешбір мүшрік қажылық жасамайды және ешкім Үйді жалаңаш тауап етпейді›, — деп жар салатын жарушылардың арасында жіберді». Сосын Алла елшісі ﷺ Әлиді (р.а.) артынан жіберіп, оған ‹Бәраә› сүресін жария етуді бұйырды. Әбу Һурайра (р.а.): «Әли бізбен бірге құрбан күні Мына тұрғындарына: ‹Осы жылдан кейін ешбір мүшрік қажылық жасамайды және ешкім Үйді жалаңаш тауап етпейді›, — деп жар салды», — деді.',
         topic:'Хадж · Условия' },
       { key:'bukhari_1539', book:'bukhari', num:1539, also:[{book:'muslim',num:1190}], srcLabel:'аль-Бухари 1539; Муслим 1190',
-        ar:'…',
-        ru:'Аиша (р.а.) рассказывала, что умащала Пророка ﷺ благовониями перед его вступлением в ихрам.',
-        kk:'Аиша (р.а.): Пайғамбарды ﷺ ихрамға кірер алдында хош иіспен майлағанын айтқан.',
+        ar:'كُنْتُ أُطَيِّبُ رَسُولَ اللَّهِ صلى الله عليه وسلم لإِحْرَامِهِ حِينَ يُحْرِمُ، وَلِحِلِّهِ قَبْلَ أَنْ يَطُوفَ بِالْبَيْتِ',
+        ru:'Аиша (р.а.) сказала: «Я умащала Посланника Аллаха ﷺ благовониями для его ихрама, когда он входил в ихрам, и для выхода из него, перед обходом Дома».',
+        kk:'Айша (р.а.): «Мен Алла елшісін ﷺ ихрамға кірерде ихрамы үшін, сондай-ақ Үйді тауап етпес бұрын ихрамнан шыққанда хош иіспен аңқытатын едім», — деді.',
         topic:'Хадж · Ихрам' },
       { key:'bukhari_1587', book:'bukhari', num:1587, srcLabel:'аль-Бухари 1587',
-        ar:'…',
-        ru:'Пророк ﷺ сказал в день взятия Мекки: «Поистине, эту землю Аллах сделал заповедной в день сотворения небес и земли» — запрет рубить деревья и вырывать растения харама.',
-        kk:'Пайғамбар ﷺ Мекке жаулап алынған күні: «Бұл жерді Аллаһ көктер мен жерді жаратқан күні қасиетті етті» деген — харам ағаштарын кесуге, өсімдіктерін жұлуға тыйым.',
+        ar:'إِنَّ هَذَا الْبَلَدَ حَرَّمَهُ اللَّهُ، لاَ يُعْضَدُ شَوْكُهُ، وَلاَ يُنَفَّرُ صَيْدُهُ، وَلاَ يَلْتَقِطُ لُقَطَتَهُ إِلاَّ مَنْ عَرَّفَهَا',
+        ru:'В день взятия Мекки Посланник Аллаха ﷺ сказал: «Поистине, этот город Аллах сделал заповедным: нельзя рубить его колючие кусты, нельзя спугивать его дичь, и нельзя поднимать его потерянные вещи, кроме как тому, кто будет объявлять о них».',
+        kk:'Мекке жеңілген күні Пайғамбар ﷺ: «Расында, бұл қаланы Аллаһ қасиетті етті: оның тікенектерін шабуға, аңын үркітуге болмайды, жоғалған затын тек жариялайтыннан басқа ешкім алмасын», — деді.',
         topic:'Хадж · Ихрам' },
-      { key:'bukhari_1814', book:'bukhari', num:1814, also:[{book:'muslim',num:1201}], srcLabel:'аль-Бухари 1814 ⚠️ номер не подтверждён на 100%; Муслим 1201',
-        ar:'…',
-        ru:'Хадис Кааба ибн Уджры — основание «фидьи одного вида» (пост, кормление или жертва) за срезание ногтей, удаление волос или парфюм в ихраме.',
-        kk:'Кааб ибн Ужра хадисі — ихрамда тырнақ алу, шаш алу немесе хош иіс жағу үшін «бір түрлі фидия» (ораза, тамақтандыру немесе құрбандық) негізі.',
+      { key:'bukhari_1814', book:'bukhari', num:1814, also:[{book:'muslim',num:1201}], srcLabel:'аль-Бухари 1814; Муслим 1201',
+        ar:'لَعَلَّكَ آذَاكَ هَوَامُّكَ. قَالَ نَعَمْ يَا رَسُولَ اللَّهِ. فَقَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم احْلِقْ رَأْسَكَ وَصُمْ ثَلاَثَةَ أَيَّامٍ، أَوْ أَطْعِمْ سِتَّةَ مَسَاكِينَ، أَوِ انْسُكْ بِشَاةٍ',
+        ru:'Посланник Аллаха ﷺ сказал Каабу ибн Уджре (р.а.): «Быть может, твои вши причинили тебе страдание?» Он ответил: «Да, о Посланник Аллаха». Тогда Посланник Аллаха ﷺ сказал: «Обрей голову, и постись три дня, или накорми шестерых бедняков, или заколи овцу в жертву».',
+        kk:'Пайғамбар ﷺ Каағб ибн Ужра (р.а.) -ға: «Бітің сені қинап жүрген шығар?» — деді. Ол: «Иә, уа, Аллаһтың елшісі», — деді. Сонда Аллаһтың елшісі ﷺ: «Басыңды қырып, үш күн ораза ұста, немесе алты міскінді тамақтандыр, немесе бір қой құрбандыққа шал», — деді.',
         topic:'Хадж · Ихрам' },
       { key:'bukhari_1838', book:'bukhari', num:1838, srcLabel:'аль-Бухари 1838',
-        ar:'…',
-        ru:'«Пусть женщина, находящаяся в ихраме, не закрывает лицо никабом и не надевает перчатки» — запрет специфичен именно для состояния ихрама.',
-        kk:'«Ихрамдағы нәзік жанды бетін нікабпен жаппасын және қолғап кимесін» — тыйым дәл ихрам күйіне тән.',
-        topic:'Хадж · Ихрам' },
-      // build 5.61: точный номер аль-Бухари для этой истории (спор Ибн
-      // Аббаса с Мисваром про мытьё головы в ихраме, ответ Абу Аюба
-      // аль-Ансари) не удалось подтвердить со стопроцентной уверенностью —
-      // сама история достоверна и хорошо задокументирована, но конкретный
-      // номер 1847 показать в поиске напрямую не получилось.
-      { key:'bukhari_1847', book:'bukhari', num:1847, also:[{book:'muslim',num:1205}], srcLabel:'аль-Бухари 1847 ⚠️ номер не подтверждён на 100%; Муслим 1205',
-        ar:'…',
-        ru:'⚠️ Точный номер этого хадиса у аль-Бухари не удалось подтвердить со стопроцентной уверенностью — сама история достоверна и хорошо задокументирована. Абдуллах ибн Умар направил спросивших к Абу Аюбу аль-Ансари, который рассказал, что видел, как Пророк ﷺ мыл голову в ихраме обычной водой. При использовании в проповеди рекомендуется свериться самостоятельно.',
-        kk:'⚠️ Осы хадистің әл-Бухаридегі нақты нөмірін жүз пайыз сеніммен растау мүмкін болмады — тарихтың өзі дұрыс және жақсы құжатталған. Абдуллаһ ибн Омар сұрағандарды Әбу Аюб әл-Ансариге бағыттады, ол Пайғамбардың ﷺ ихрамда әдеттегі сумен басын жуғанын көргенін айтты. Уағызда қолданар алдында өз бетіңізше тексерген жөн.',
-        topic:'Хадж · Ихрам' },
-      { key:'ibnmajah_2043', book:'ibnmajah', num:2043, srcLabel:'Ибн Маджа 2043',
-        ar:'…',
-        ru:'Хадис о снятии ответственности за ошибку, забывчивость и принуждение с общины Пророка ﷺ (хасан) — основа освобождения от фидьи за непреднамеренные нарушения ихрама.',
-        kk:'Пайғамбар ﷺ үмметінен қателік, ұмытшақтық және мәжбүрлеу үшін жауапкершілікті алу туралы хадис (хасан) — ихрамды байқаусыз бұзғаны үшін фидиядан босатудың негізі.',
+        ar:'لاَ تَلْبَسُوا الْقَمِيصَ وَلاَ السَّرَاوِيلاَتِ وَلاَ الْعَمَائِمَ، وَلاَ الْبَرَانِسَ إِلاَّ أَنْ يَكُونَ أَحَدٌ لَيْسَتْ لَهُ نَعْلاَنِ، فَلْيَلْبَسِ الْخُفَّيْنِ، وَلْيَقْطَعْ أَسْفَلَ مِنَ الْكَعْبَيْنِ، وَلاَ تَلْبَسُوا شَيْئًا مَسَّهُ زَعْفَرَانٌ، وَلاَ الْوَرْسُ، وَلاَ تَنْتَقِبِ الْمَرْأَةُ الْمُحْرِمَةُ وَلاَ تَلْبَسِ الْقُفَّازَيْنِ',
+        ru:'Пророк ﷺ сказал: «Не надевайте рубашку, штаны, чалмы и капюшоны, кроме того, у кого нет сандалий: пусть он наденет кожаные носки и обрежет их ниже щиколоток. И не надевайте ничего, чего касался шафран или варс. А женщина в ихраме пусть не закрывает лицо никабом и не надевает перчатки».',
+        kk:'Пайғамбар ﷺ: «Көйлек, дамбал, сәлде және капюшон киіп жүрмеңдер; тек кімнің шәркейі болмаса, ол былғары шұлық киіп, тобықтан төмен қылып кесіп тастасын. Сондай-ақ зағфыран немесе уарс тиген ештеңе кимеңдер. Ихрамдағы әйел бетін никабпен жаппасын және қолғап кимесін», — деді.',
         topic:'Хадж · Ихрам' },
       { key:'bukhari_134', book:'bukhari', num:134, also:[{book:'muslim',num:1177}], srcLabel:'аль-Бухари 134; Муслим 1177',
-        ar:'…',
-        ru:'На вопрос, что можно надевать в ихраме, Пророк ﷺ перечислил запрещённое: рубашки, чалмы, штаны, капюшоны и закрытую обувь.',
-        kk:'Ихрамда не киюге болатыны туралы сұраққа Пайғамбар ﷺ тыйым салынғанды атады: көйлек, сәлде, шалбар, капюшон және жабық аяқкиім.',
+        ar:'لاَ يَلْبَسِ الْقَمِيصَ وَلاَ الْعِمَامَةَ وَلاَ السَّرَاوِيلَ وَلاَ الْبُرْنُسَ وَلاَ ثَوْبًا مَسَّهُ الْوَرْسُ أَوِ الزَّعْفَرَانُ، فَإِنْ لَمْ يَجِدِ النَّعْلَيْنِ فَلْيَلْبَسِ الْخُفَّيْنِ وَلْيَقْطَعْهُمَا حَتَّى يَكُونَا تَحْتَ الْكَعْبَيْنِ',
+        ru:'Когда человек спросил Пророка ﷺ, что может надевать совершающий ихрам, он ответил: «Пусть не надевает рубашку, чалму, штаны, капюшон и одежду, которой касались варс или шафран. А если не найдёт сандалий, пусть наденет кожаные носки и обрежет их так, чтобы они были ниже щиколоток».',
+        kk:'Бір адам Пайғамбардан ﷺ ихрам киген адам не киюі керек екенін сұрағанда, ол: «Көйлек, сәлде, дамбал, капюшон және уарс немесе зағфыран тиген киім кимесін. Ал шәркей таппаса, былғары шұлық киіп, оларды тобықтан төмен болатындай етіп кесіп тастасын», — деді.',
         topic:'Хадж · Ихрам' },
       { key:'muslim_1409', book:'muslim', num:1409, srcLabel:'Муслим 1409',
-        ar:'…',
-        ru:'«Не заключает никах находящийся в ихраме, и не сватается» — прямой запрет на брачный договор в состоянии ихрама.',
-        kk:'«Ихрамдағы адам неке қимайды және құда түспейді» — ихрам күйінде неке шартына тікелей тыйым.',
+        ar:'لاَ يَنْكِحُ الْمُحْرِمُ وَلاَ يُنْكَحُ وَلاَ يَخْطُبُ',
+        ru:'Посланник Аллаха ﷺ сказал: «Находящийся в ихраме не вступает в брак, не выдаёт замуж другого и не сватается».',
+        kk:'Пайғамбар ﷺ: «Ихрамдағы адам үйленбейді, үйлендірмейді және құда түспейді», — деді.',
         topic:'Хадж · Ихрам' },
       { key:'bukhari_1824', book:'bukhari', num:1824, also:[{book:'muslim',num:1196}], srcLabel:'аль-Бухари 1824; Муслим 1196',
-        ar:'…',
-        ru:'Абу Катада, будучи вне ихрама, подстрелил дикого осла и принёс мясо спутникам в ихраме; Пророк ﷺ разрешил им есть это мясо, узнав, что они не участвовали в охоте.',
-        kk:'Әбу Қатада ихрамда болмай жабайы есекті атып, ихрамдағы серіктеріне ет әкелді; Пайғамбар ﷺ олардың аңға қатыспағанын білгенде, етті жеуге рұқсат берді.',
+        ar:'مِنْكُمْ أَحَدٌ أَمَرَهُ أَنْ يَحْمِلَ عَلَيْهَا، أَوْ أَشَارَ إِلَيْهَا. قَالُوا لاَ. قَالَ فَكُلُوا مَا بَقِيَ مِنْ لَحْمِهَا',
+        ru:'Пророк ﷺ спросил: «Есть ли среди вас тот, кто приказал ему напасть на неё или указал на неё?» Они ответили: «Нет». Он сказал: «Тогда ешьте то, что осталось от её мяса».',
+        kk:'Пайғамбар ﷺ: «Араларыңда оған оны шабуға бұйырған немесе оған нұсқаған адам бар ма?» — деді. Олар: «Жоқ», — деді. Сонда ол: «Олай болса, оның қалған етін жеңдер», — деді.',
         topic:'Хадж · Ихрам' },
       { key:'bukhari_1088', book:'bukhari', num:1088, srcLabel:'аль-Бухари 1088',
-        ar:'…',
-        ru:'Пророк ﷺ сказал: «Пусть женщина не отправляется в путь длительностью более суток иначе как с махрамом».',
-        kk:'Пайғамбар ﷺ: «Нәзік жанды бір тәуліктен астам жол жүрсе, махрамсыз жүрмесін» деген.',
+        ar:'لاَ يَحِلُّ لاِمْرَأَةٍ تُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الآخِرِ أَنْ تُسَافِرَ مَسِيرَةَ يَوْمٍ وَلَيْلَةٍ لَيْسَ مَعَهَا حُرْمَةٌ',
+        ru:'Пророк ﷺ сказал: «Не дозволено женщине, верующей в Аллаха и в Последний день, отправляться в путь продолжительностью в день и ночь без махрама».',
+        kk:'Пайғамбар ﷺ: «Аллаһқа және ақырет күніне сенетін әйелге махрамсыз бір күндік және бір түндік жолға шығуға болмайды», — деді.',
         topic:'Хадж · Женщинам' },
       { key:'bukhari_305', book:'bukhari', num:305, srcLabel:'аль-Бухари 305',
-        ar:'…',
-        ru:'Пророк ﷺ сказал Аише (р.а.) во время месячных: «Делай всё, что делает совершающий хадж, кроме тавафа вокруг Дома, пока не очистишься».',
-        kk:'Пайғамбар ﷺ Айшаға (р.а.) хайыз кезінде: «Тазармайынша, Үйді тауаф етуден басқа, хажы жасайтын нәрсенің бәрін жаса» деген.',
+        ar:'فَإِنَّ ذَلِكَ شَىْءٌ كَتَبَهُ اللَّهُ عَلَى بَنَاتِ آدَمَ، فَافْعَلِي مَا يَفْعَلُ الْحَاجُّ، غَيْرَ أَنْ لاَ تَطُوفِي بِالْبَيْتِ حَتَّى تَطْهُرِي',
+        ru:'Пророк ﷺ сказал Аише (р.а.): «Поистине, это то, что Аллах предписал дочерям Адама. Делай то, что делает паломник, только не совершай обход вокруг Дома, пока не очистишься».',
+        kk:'Пайғамбар ﷺ Айшаға (р.а.): «Негізінде, бұл — Аллаһ Адам қыздарына жазған нәрсе. Сондықтан қажы не істесе, соны істе, тек тазармайынша Үйді тауап етпе», — деді.',
         topic:'Хадж · Женщинам' },
       { key:'bukhari_1758', book:'bukhari', num:1758, srcLabel:'аль-Бухари 1758',
-        ar:'…',
-        ru:'Когда сподвижники спросили Пророка ﷺ о выезде женщины в состоянии хайда без прощального тавафа, он сказал: «Пусть она уезжает» — прощальный таваф снимается с неё в этом состоянии.',
-        kk:'Сахабалар Пайғамбардан ﷺ хайыз күйіндегі нәзік жандының қоштасу тауафысыз кетуі туралы сұрағанда, ол: «Кете берсін» деген — қоштасу тауафы осы күйде одан алынады.',
+        from:'От Икримы, вольноотпущенника Ибн Аббаса, со слов Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастың азат етілген құлы Икримадан, Ибн Аббастан (р.а.)',
+        ar:'أَنَّ أَهْلَ الْمَدِينَةِ، سَأَلُوا ابْنَ عَبَّاسٍ ـ رضى الله عنهما ـ عَنِ امْرَأَةٍ، طَافَتْ ثُمَّ حَاضَتْ، قَالَ لَهُمْ تَنْفِرُ',
+        ru:'Жители Медины спросили Ибн Аббаса (р.а.) о женщине, которая совершила таваф (аль-ифада), а затем у неё начались месячные. Он сказал им: «Пусть уезжает».',
+        kk:'Мәдина тұрғындары Ибн Аббастан (р.а.) тауап жасап болған соң етеккірі келген әйел туралы сұрады. Ол оларға: «Кете берсін», — деді.',
         topic:'Хадж · Женщинам' },
       { key:'bukhari_1854', book:'bukhari', num:1854, srcLabel:'аль-Бухари 1854',
-        ar:'…',
-        ru:'Женщина спросила Пророка ﷺ о хадже за отца, который не может держаться на верблюде, — он ответил: «Соверши хадж за него».',
-        kk:'Бір нәзік жанды түйеде отыра алмайтын әкесі үшін сұрағанда, Пайғамбар ﷺ: «Оның атынан хадж жаса» деп жауап берген.',
+        ar:'جَاءَتِ امْرَأَةٌ مِنْ خَثْعَمَ، عَامَ حَجَّةِ الْوَدَاعِ، قَالَتْ يَا رَسُولَ اللَّهِ إِنَّ فَرِيضَةَ اللَّهِ عَلَى عِبَادِهِ فِي الْحَجِّ أَدْرَكَتْ أَبِي شَيْخًا كَبِيرًا، لاَ يَسْتَطِيعُ أَنْ يَسْتَوِيَ عَلَى الرَّاحِلَةِ فَهَلْ يَقْضِي عَنْهُ أَنْ أَحُجَّ عَنْهُ قَالَ نَعَمْ',
+        ru:'В год прощального хаджа к Пророку ﷺ пришла женщина из племени Хас\'ам и сказала: «О Посланник Аллаха, обязанность хаджа, предписанная Аллахом Своим рабам, застала моего отца глубоким стариком, который не может удержаться на верховом животном. Будет ли достаточно, если я совершу хадж за него?» Он ответил: «Да».',
+        kk:'Қоштасу қажылығы жылы Хас\'ам тайпасынан бір әйел келіп: «Уа, Аллаһтың елшісі, Аллаһтың құлдарына парыз еткен қажылығы әкемді өте қарт шағында қамтыды, ол көлікте отыра алмайды. Мен оның орнына қажылық жасасам, ол үшін жеткілікті бола ма?» — деді. Пайғамбар ﷺ: «Иә», — деді.',
         topic:'Хадж · Вопросы' },
       // build 5.12: раздел «Фикх» — недостающие источники для хадисов,
       // которые в тексте карточек упоминались вообще без номера (просто
@@ -25103,16 +25370,554 @@ function playArabicAudio(text, fallbackRu, opts) {
         kk:'Оның әкесі оны, ол жесір (немесе ажырасқан) кезінде күйеуге берген, бұл оған ұнамаған. Ол Аллаһтың Елшісіне ﷺ келді, ол осы некені жарамсыз деп танылды.',
         topic:'Права семьи · Супруги' },
 
+      { key:'bukhari_6405', book:'bukhari', num:6405, srcLabel:'аль-Бухари 6405',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'مَنْ قَالَ سُبْحَانَ اللَّهِ وَبِحَمْدِهِ فِي يَوْمٍ مِائَةَ مَرَّةٍ حُطَّتْ خَطَايَاهُ، وَإِنْ كَانَتْ مِثْلَ زَبَدِ الْبَحْرِ',
+        ru:'«Кто скажет в день сто раз: „Субхана-Ллахи ва би-хамдихи“ — тому будут прощены грехи, даже если их будет столько, сколько пены на море».',
+        kk:'«Кім күніне жүз рет: „Субханаллаһи уә бихәмдихи“ десе, күнәләрі теңіз көбігіндей көп болса да кешіріледі».',
+        topic:'Зикр · Достоинства' },
+      { key:'bukhari_6384', book:'bukhari', num:6384, srcLabel:'аль-Бухари 6384; Муслим 2704',
+        also:[{book:'muslim', num:2704}],
+        from:'От Абу Мусы аль-Аш‘ари (р.а.)', fromKk:'Әбу Муса әл-Ашғаридан (р.а.)',
+        ar:'أَيُّهَا النَّاسُ ارْبَعُوا عَلَى أَنْفُسِكُمْ، فَإِنَّكُمْ لاَ تَدْعُونَ أَصَمَّ وَلاَ غَائِبًا، وَلَكِنْ تَدْعُونَ سَمِيعًا بَصِيرًا',
+        ru:'В пути Пророк ﷺ сказал сподвижникам, громко произносившим такбир: «О люди, будьте мягки к себе — вы взываете не к глухому и не к отсутствующему, а к Слышащему, Видящему». Затем он сказал Абу Мусе, что «ля хауля ва ля куввата илля би-Ллях» — одно из сокровищ Рая.',
+        kk:'Сапарда Пайғамбар ﷺ дауыстап тәкбір айтқан сахабаларға: «Ей, адамдар, өздеріңізге жеңіл болыңдар — сендер саңырауға да, жоқ біреуге де емес, Естуші, Көрушіге жалбарынып тұрсыңдар», — деді. Содан кейін Әбу Мусаға «лә хәулә уә лә қуууәта илла биллаһ» — Жәннат қазыналарының бірі екенін айтты.',
+        topic:'Зикр · Достоинства' },
+      { key:'bukhari_6403', book:'bukhari', num:6403, srcLabel:'аль-Бухари 6403; Муслим 2691',
+        also:[{book:'muslim', num:2691}],
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'مَنْ قَالَ لاَ إِلَهَ إِلاَّ اللَّهُ، وَحْدَهُ لاَ شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ، وَهْوَ عَلَى كُلِّ شَىْءٍ قَدِيرٌ',
+        ru:'Кто скажет в день сто раз «Ля иляха илля-Ллаху вахдаху ля шарика лях, ляху-ль-мульку ва ляху-ль-хамд, ва хува ала кулли шайин кадир» — тому награда как за освобождение десяти рабов, запишутся сто благих дел, сотрётся сто грехов, и он будет защищён от шайтана до вечера.',
+        kk:'Кім күніне жүз рет «Лә иләһә иллаллаһу уахдаһу лә шәрикә ләһ, ләһул-мулку уә ләһул-хамд, уә һуә ъала кулли шәйин қадир» десе, он құлды азат еткендей сауап алады, жүз жақсылығы жазылып, жүз күнәсі өшіріледі, кешке дейін шайтаннан қорғалады.',
+        topic:'Зикр · Достоинства' },
+      { key:'bukhari_4563', book:'bukhari', num:4563, srcLabel:'аль-Бухари 4563',
+        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
+        ar:'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ، قَالَهَا إِبْرَاهِيمُ عَلَيْهِ السَّلاَمُ حِينَ أُلْقِيَ فِي النَّارِ، وَقَالَهَا مُحَمَّدٌ صلى الله عليه وسلم حِينَ قَالُوا إِنَّ النَّاسَ قَدْ جَمَعُوا لَكُمْ',
+        ru:'«Достаточно нам Аллаха, и прекрасный Он покровитель» — эти слова произнёс Ибрахим (мир ему), когда его бросили в огонь, и Мухаммад ﷺ, когда ему сказали: «Люди собрались против вас».',
+        kk:'«Бізге Аллаһ жеткілікті, Ол — қандай жақсы Жақтаушы» — бұл сөзді Ибраһим (оған сәлем) оған от жағып, оны отқа тастағанда айтты, ал Мұхаммед ﷺ «Адамдар сендерге қарсы жиналды» дегенде айтты.',
+        topic:'Зикр · Достоинства' },
+      { key:'bukhari_5361', book:'bukhari', num:5361, srcLabel:'аль-Бухари 5361; Муслим 2727',
+        also:[{book:'muslim', num:2727}],
+        from:'От Али ибн Абу Талиба (р.а.)', fromKk:'Әли ибн Әбу Тәлибтен (р.а.)',
+        ar:'أَلاَ أَدُلُّكُمَا عَلَى خَيْرٍ مِمَّا سَأَلْتُمَا، إِذَا أَخَذْتُمَا مَضَاجِعَكُمَا فَسَبِّحَا ثَلاَثًا وَثَلاَثِينَ، وَاحْمَدَا ثَلاَثًا وَثَلاَثِينَ، وَكَبِّرَا أَرْبَعًا وَثَلاَثِينَ، فَهْوَ خَيْرٌ لَكُمَا مِنْ خَادِمٍ',
+        ru:'Когда Фатима пожаловалась на мозоли от жерновов и просила слугу, Пророк ﷺ сказал ей и Али: «Не указать ли вам лучшее, чем то, о чём вы просили? Ложась спать, говорите 33 раза „Субхана-Ллах“, 33 раза „Аль-хамду ли-Ллях“ и 34 раза „Аллаху акбар“ — это лучше для вас, чем слуга».',
+        kk:'Фатима диірменнен қолы қабарғанын айтып, қызметші сұрағанда, Пайғамбар ﷺ оған және Әлиге: «Сұрағандарыңнан да жақсысын көрсетейін бе? Төсекке жатқанда 33 рет „Субханаллаһ“, 33 рет „Әлхамдулиллаһ“, 34 рет „Аллаһу әкбар“ деңдер — бұл сендерге қызметшіден жақсы», — деді.',
+        topic:'Зикр · Перед сном' },
+      { key:'bukhari_6406', book:'bukhari', num:6406, srcLabel:'аль-Бухари 6406; Муслим 2694',
+        also:[{book:'muslim', num:2694}],
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'كَلِمَتَانِ خَفِيفَتَانِ عَلَى اللِّسَانِ، ثَقِيلَتَانِ فِي الْمِيزَانِ، حَبِيبَتَانِ إِلَى الرَّحْمَنِ، سُبْحَانَ اللَّهِ الْعَظِيمِ، سُبْحَانَ اللَّهِ وَبِحَمْدِهِ',
+        ru:'«Два слова лёгких для языка, тяжёлых на весах, любимых Милостивым: „Субхана-Ллахи-ль-‘Азым“, „Субхана-Ллахи ва би-хамдихи“».',
+        kk:'«Тілге жеңіл, таразыда ауыр, Рахманға сүйікті екі сөз: „Субханаллаһил-ғазым“, „Субханаллаһи уә бихәмдихи“».',
+        topic:'Зикр · Достоинства' },
+      { key:'muslim_384', book:'muslim', num:384, srcLabel:'Муслим 384',
+        from:'От Абдуллаха ибн ‘Амра (р.а.)', fromKk:'Абдуллаһ ибн Амрдан (р.а.)',
+        ar:'إِذَا سَمِعْتُمُ الْمُؤَذِّنَ فَقُولُوا مِثْلَ مَا يَقُولُ ثُمَّ صَلُّوا عَلَىَّ فَإِنَّهُ مَنْ صَلَّى عَلَىَّ صَلاَةً صَلَّى اللَّهُ عَلَيْهِ بِهَا عَشْرًا ثُمَّ سَلُوا اللَّهَ لِيَ الْوَسِيلَةَ فَإِنَّهَا مَنْزِلَةٌ فِي الْجَنَّةِ لاَ تَنْبَغِي إِلاَّ لِعَبْدٍ مِنْ عِبَادِ اللَّهِ وَأَرْجُو أَنْ أَكُونَ أَنَا هُوَ فَمَنْ سَأَلَ لِيَ الْوَسِيلَةَ حَلَّتْ لَهُ الشَّفَاعَةُ',
+        ru:'«Когда услышите муаззина, повторяйте за ним, затем призывайте на меня благословение… затем просите Аллаха для меня аль-Василя» — ради этого достоинства, за которое заступничество Пророка ﷺ станет обязательным для просящего.',
+        kk:'«Муәззинді естігенде, оның айтқанын қайталаңдар, сосын маған салауат айтыңдар… сосын Аллаһтан мен үшін әл-Уәсилә сұраңдар» — осылай істеген адамға Пайғамбардың ﷺ шапағаты уәжіп болады.',
+        topic:'Азан · Ответ на азан' },
+      { key:'abudawud_2201', book:'abudawud', num:2201, srcLabel:'Абу Дауд 2201; аль-Бухари 1',
+        from:'От Умара ибн аль-Хаттаба (р.а.)', fromKk:'Омар ибн әл-Хаттабтан (р.а.)',
+        ar:'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى فَمَنْ كَانَتْ هِجْرَتُهُ إِلَى اللَّهِ وَرَسُولِهِ فَهِجْرَتُهُ إِلَى اللَّهِ وَرَسُولِهِ وَمَنْ كَانَتْ هِجْرَتُهُ لِدُنْيَا يُصِيبُهَا أَوِ امْرَأَةٍ يَتَزَوَّجُهَا فَهِجْرَتُهُ إِلَى مَا هَاجَرَ إِلَيْهِ',
+        ru:'«Поистине, деяния оцениваются только по намерениям, и каждому человеку — то, что он намеревался». Албани назвал хадис достоверным.',
+        kk:'«Істер тек ниетке қарай бағаланады, әркімге тек ниет еткені бар». Әл-Албани бұл хадисті сахих деп бағалаған.',
+        topic:'Намерение' },
+      { key:'muslim_2318', book:'muslim', num:2318, srcLabel:'Муслим 2318',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'إِنَّهُ مَنْ لاَ يَرْحَمْ لاَ يُرْحَمْ',
+        ru:'Аль-Акра‘ ибн Хабис, увидев, как Пророк ﷺ целует Хасана, сказал, что у него десять детей и он не целовал ни одного. Пророк ﷺ ответил: «Кто не проявляет милосердия, к тому не проявят милосердия».',
+        kk:'Әл-Ақра ибн Хәбис Пайғамбардың ﷺ Хасанды сүйгенін көріп, он баласы бар, бірін де сүймегенін айтты. Пайғамбар ﷺ: «Кім мейірім көрсетпесе, оған мейірім көрсетілмейді», — деді.',
+        topic:'Милосердие · Дети' },
+      { key:'abudawud_4941', book:'abudawud', num:4941, srcLabel:'Абу Дауд 4941',
+        from:'От Абдуллаха ибн ‘Амра (р.а.)', fromKk:'Абдуллаһ ибн Амрдан (р.а.)',
+        ar:'الرَّاحِمُونَ يَرْحَمُهُمُ الرَّحْمَنُ ارْحَمُوا أَهْلَ الأَرْضِ يَرْحَمْكُمْ مَنْ فِي السَّمَاءِ',
+        ru:'«Милосердным оказывает милость Милостивый. Будьте милосердны к тем, кто на земле, — и помилует вас Тот, Кто на небесах». Хадис признан достоверным (Албани).',
+        kk:'«Мейірімділерге Рахман мейірім көрсетеді. Жердегілерге мейірімді болыңдар — көктегі сендерге мейірім көрсетеді». Хадис сахих деп бағаланған (әл-Албани).',
+        topic:'Милосердие' },
+      { key:'bukhari_7404', book:'bukhari', num:7404, srcLabel:'аль-Бухари 7404; Муслим 2751',
+        also:[{book:'muslim', num:2751}],
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'إِنَّ رَحْمَتِي تَغْلِبُ غَضَبِي',
+        ru:'«Когда Аллах сотворил творение, Он записал в Своей Книге… „Воистину, Моя милость превосходит Мой гнев“».',
+        kk:'«Аллаһ жаратылысты жаратқанда, Өз Кітабына жазды… „Шын мәнінде, Менің мейірімім Менің ашуымнан басым“».',
+        topic:'Милость Аллаха' },
+      { key:'bukhari_6316', book:'bukhari', num:6316, srcLabel:'аль-Бухари 6316; Муслим 763',
+        also:[{book:'muslim', num:763}],
+        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
+        ar:'اللَّهُمَّ اجْعَلْ فِي قَلْبِي نُورًا، وَفِي بَصَرِي نُورًا، وَفِي سَمْعِي نُورًا، وَعَنْ يَمِينِي نُورًا، وَعَنْ يَسَارِي نُورًا، وَفَوْقِي نُورًا، وَتَحْتِي نُورًا، وَأَمَامِي نُورًا، وَخَلْفِي نُورًا، وَاجْعَلْ لِي نُورًا',
+        ru:'Ибн Аббас ночевал у Маймуны и видел ночной намаз Пророка ﷺ. В конце Пророк ﷺ произносил мольбу: «О Аллах, сделай свет в моём сердце, свет в моём зрении, свет в моём слухе…» — и перечислял другие стороны света.',
+        kk:'Ибн Аббас Маймунаның үйінде түнеп, Пайғамбардың ﷺ түнгі намазын көрді. Соңында Пайғамбар ﷺ: «Аллаһым, жүрегімде нұр, көзімде нұр, құлағымда нұр ет…» деп дұға етті.',
+        topic:'Дуа · Ночной намаз' },
+      { key:'muslim_2699', book:'muslim', num:2699, srcLabel:'Муслим 2699',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'مَنْ نَفَّسَ عَنْ مُؤْمِنٍ كُرْبَةً مِنْ كُرَبِ الدُّنْيَا نَفَّسَ اللَّهُ عَنْهُ كُرْبَةً مِنْ كُرَبِ يَوْمِ الْقِيَامَةِ وَمَنْ يَسَّرَ عَلَى مُعْسِرٍ يَسَّرَ اللَّهُ عَلَيْهِ فِي الدُّنْيَا وَالآخِرَةِ وَمَنْ سَتَرَ مُسْلِمًا سَتَرَهُ اللَّهُ فِي الدُّنْيَا وَالآخِرَةِ وَاللَّهُ فِي عَوْنِ الْعَبْدِ مَا كَانَ الْعَبْدُ فِي عَوْنِ أَخِيهِ وَمَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ بِهِ طَرِيقًا إِلَى الْجَنَّةِ وَمَا اجْتَمَعَ قَوْمٌ فِي بَيْتٍ مِنْ بُيُوتِ اللَّهِ يَتْلُونَ كِتَابَ اللَّهِ وَيَتَدَارَسُونَهُ بَيْنَهُمْ إِلاَّ نَزَلَتْ عَلَيْهِمُ السَّكِينَةُ وَغَشِيَتْهُمُ الرَّحْمَةُ وَحَفَّتْهُمُ الْمَلاَئِكَةُ وَذَكَرَهُمُ اللَّهُ فِيمَنْ عِنْدَهُ وَمَنْ بَطَّأَ بِهِ عَمَلُهُ لَمْ يُسْرِعْ بِهِ نَسَبُهُ',
+        ru:'«Кто облегчит верующему одну из бед этого мира, тому Аллах облегчит одну из бед Дня воскресения…» — далее в хадисе: облегчение должнику, сокрытие недостатков мусульманина, помощь брату, стремление к знанию, собрания в мечетях для чтения Корана.',
+        kk:'«Кім мүминнің дүниедегі бір қиындығын жеңілдетсе, Аллаһ оның қиямет күніндегі бір қиындығын жеңілдетеді…» — әрі қарай хадисте: борышкерге жеңілдік, мұсылманның айыбын жасыру, бауырына көмек, білім іздеу, мешітте Құран оқу үшін жиналу туралы айтылады.',
+        topic:'Помощь · Братство' },
+      { key:'bukhari_2443', book:'bukhari', num:2443, srcLabel:'аль-Бухари 2443',
+        from:'От Анаса ибн Малика (р.а.)', fromKk:'Анас ибн Мәликтен (р.а.)',
+        ar:'انْصُرْ أَخَاكَ ظَالِمًا أَوْ مَظْلُومًا',
+        ru:'«Помогай своему брату — притеснителю или притесняемому». Когда спросили, как помочь притеснителю, Пророк ﷺ ответил: «Удержи его от притеснения» (аль-Бухари 2444).',
+        kk:'«Бауырыңа зұлым болса да, зұлымдық көрген болса да көмектес». Зұлымға қалай көмектесеміз деп сұрағанда, Пайғамбар ﷺ: «Оны зұлымдықтан тыйып ұста», — деді (әл-Бухари 2444).',
+        topic:'Братство · Справедливость' },
+      { key:'bukhari_6072', book:'bukhari', num:6072, srcLabel:'аль-Бухари 6072',
+        from:'От Анаса ибн Малика (р.а.)', fromKk:'Анас ибн Мәликтен (р.а.)',
+        ar:'كَانَتِ الأَمَةُ مِنْ إِمَاءِ أَهْلِ الْمَدِينَةِ لَتَأْخُذُ بِيَدِ رَسُولِ اللَّهِ صلى الله عليه وسلم فَتَنْطَلِقُ بِهِ حَيْثُ شَاءَتْ',
+        ru:'«Любая из рабынь Медины могла взять Посланника Аллаха ﷺ за руку и увести его, куда ей было нужно» — пример скромности и доступности Пророка ﷺ.',
+        kk:'«Мәдина күңдерінің кез келгені Аллаһ елшісінің ﷺ қолынан ұстап, қалаған жеріне апара алатын» — Пайғамбардың ﷺ қарапайымдылығы мен қолжетімділігіне мысал.',
+        topic:'Смирение' },
+      { key:'tirmidhi_1907', book:'tirmidhi', num:1907, srcLabel:'ат-Тирмизи 1907, хасан сахих',
+        from:'От Абдуррахмана ибн ‘Ауфа (р.а.)', fromKk:'Абдурахман ибн Ғауфтан (р.а.)',
+        ar:'قَالَ اللَّهُ أَنَا اللَّهُ وَأَنَا الرَّحْمَنُ خَلَقْتُ الرَّحِمَ وَشَقَقْتُ لَهَا مِنَ اسْمِي فَمَنْ وَصَلَهَا وَصَلْتُهُ وَمَنْ قَطَعَهَا بَتَتُّهُ',
+        ru:'Аллах сказал: «Я — Аллах, и Я — Ар-Рахман. Я сотворил родственные узы и дал им имя от Моего имени. Кто поддерживает их — того Я поддержу, а кто разорвёт — от того Я отвернусь».',
+        kk:'Аллаһ: «Мен — Аллаһпын, Мен — Рахманмын. Туысқандық байланысты жараттым және оған Өз есімімнен ат бердім. Кім оны жалғастырса, Мен оны жалғастырамын, кім үзсе, Мен одан безінемін», — деді.',
+        topic:'Родство' },
+      { key:'bukhari_2035', book:'bukhari', num:2035, srcLabel:'аль-Бухари 2035, 2038',
+        from:'От Сафии, жены Пророка ﷺ (р.а.)', fromKk:'Пайғамбардың ﷺ жұбайы Сафияден (р.а.)',
+        ar:'إِنَّ الشَّيْطَانَ يَبْلُغُ مِنَ الإِنْسَانِ مَبْلَغَ الدَّمِ، وَإِنِّي خَشِيتُ أَنْ يَقْذِفَ فِي قُلُوبِكُمَا شَيْئًا',
+        ru:'Во время и‘тикафа Сафия навестила Пророка ﷺ; на обратном пути двое ансаров увидели их, и он сказал: «Шайтан достигает человека так, как кровь, и я побоялся, что он вложит что-то в ваши сердца».',
+        kk:'Иғтикаф кезінде Сафия Пайғамбарға ﷺ келіп, қайтар жолда екі ансар оларды көргенде, ол: «Шайтан адамға қан жеткендей жетеді, сендердің жүректеріңе бір нәрсе салады деп қорықтым», — деді.',
+        topic:'Подозрение · Этика' },
+      { key:'muslim_2021', book:'muslim', num:2021, srcLabel:'Муслим 2021',
+        from:'От Саляма ибн аль-Аква‘ (р.а.)', fromKk:'Сәләмә ибн әл-Әкуаътан (р.а.)',
+        ar:'كُلْ بِيَمِينِكَ',
+        ru:'Пророк ﷺ сказал человеку, евшему левой рукой: «Ешь правой!» — тот ответил из высокомерия: «Не могу». Пророк ﷺ сказал: «Не сможешь!» — и с тех пор его рука не поднялась ко рту.',
+        kk:'Пайғамбар ﷺ сол қолымен жеп отырған адамға: «Оң қолыңмен же!» — деді. Ол тәкаппарлықпен: «Алмаймын», — деді. Пайғамбар ﷺ: «Алмайтын бол!» — деді, сонан кейін оның қолы аузына жетпей қалды.',
+        topic:'Этикет · Еда' },
+      { key:'bukhari_2571', book:'bukhari', num:2571, srcLabel:'аль-Бухари 2571; Муслим 2029',
+        also:[{book:'muslim', num:2029}],
+        from:'От Анаса ибн Малика (р.а.)', fromKk:'Анас ибн Мәликтен (р.а.)',
+        ar:'الأَيْمَنُونَ، الأَيْمَنُونَ، أَلاَ فَيَمِّنُوا',
+        ru:'Пророку ﷺ принесли молоко, смешанное с водой; справа от него сидел бедуин, слева — Абу Бакр. Выпив, он отдал чашу бедуину и сказал: «Тому, кто справа, затем тому, кто справа» — и Анас назвал это сунной.',
+        kk:'Пайғамбарға ﷺ сумен араластырылған сүт әкелінді; оң жағында бәдәуи, сол жағында Әбу Бәкір отырды. Ол іше салып, тостағанды бәдәуиге берді де: «Оң жақтағыға, одан кейін оң жақтағыға», — деді. Анас мұны сүннет деп атады.',
+        topic:'Этикет · Питьё' },
+      { key:'bukhari_2451', book:'bukhari', num:2451, srcLabel:'аль-Бухари 2451; Муслим 2030',
+        also:[{book:'muslim', num:2030}],
+        from:'От Сахля ибн Са‘да ас-Са‘иди (р.а.)', fromKk:'Сәһл ибн Сағд әс-Сағидиден (р.а.)',
+        ar:'أُتِيَ بِشَرَابٍ، فَشَرِبَ مِنْهُ وَعَنْ يَمِينِهِ غُلاَمٌ وَعَنْ يَسَارِهِ الأَشْيَاخُ',
+        ru:'Пророку ﷺ принесли питьё; справа от него сидел мальчик, слева — старшие. Он спросил мальчика, позволит ли отдать остаток старшим. Тот ответил: «Клянусь Аллахом, я не уступлю никому свою долю от тебя!» — и Пророк ﷺ вложил чашу в его руку.',
+        kk:'Пайғамбарға ﷺ сусын әкелінді; оң жағында бала, сол жағында үлкендер отырды. Ол баладан қалғанын үлкендерге беруге рұқсат етесің бе деп сұрады. Бала: «Аллаһқа ант, сенен тиетін үлесімді ешкімге бермеймін!» — деді, сонда Пайғамбар ﷺ тостағанды оның қолына салды.',
+        topic:'Этикет · Питьё' },
+      { key:'bukhari_1637', book:'bukhari', num:1637, srcLabel:'аль-Бухари 1637; Муслим 2027',
+        also:[{book:'muslim', num:2027}],
+        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
+        ar:'سَقَيْتُ رَسُولَ اللَّهِ صلى الله عليه وسلم مِنْ زَمْزَمَ فَشَرِبَ وَهُوَ قَائِمٌ',
+        ru:'«Я напоил Посланника Аллаха ﷺ водой Замзам, и он пил стоя».',
+        kk:'«Мен Аллаһ елшісіне ﷺ Зәмзәм суын бердім, ол тұрып ішті».',
+        topic:'Этикет · Питьё', alsoTopics:['Хадж · Замзам'] },
+      { key:'abudawud_3730', book:'abudawud', num:3730, srcLabel:'Абу Дауд 3730, хасан',
+        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
+        ar:'إِذَا أَكَلَ أَحَدُكُمْ طَعَامًا فَلْيَقُلِ اللَّهُمَّ بَارِكْ لَنَا فِيهِ وَأَطْعِمْنَا خَيْرًا مِنْهُ وَإِذَا سُقِيَ لَبَنًا فَلْيَقُلِ اللَّهُمَّ بَارِكْ لَنَا فِيهِ وَزِدْنَا مِنْهُ فَإِنَّهُ لَيْسَ شَىْءٌ يُجْزِئُ مِنَ الطَّعَامِ وَالشَّرَابِ إِلاَّ اللَّبَنُ',
+        ru:'«Когда кто-либо из вас ест пищу, пусть скажет: „О Аллах, благослови нам в ней и накорми нас лучшим, чем она“; а когда его напоили молоком, пусть скажет: „О Аллах, благослови нам в нём и дай нам его больше“, — ибо нет ничего, что заменяло бы еду и питьё, кроме молока». Хадис оценён как хасан (Албани).',
+        kk:'«Біріңіз тамақ жесе: „Аллаһым, бізге онда береке бер және одан жақсысымен тамақтандыр“ десін; ал сүт ішкізілсе: „Аллаһым, бізге онда береке бер және одан көбірек бер“ десін, өйткені тамақ пен судың орнын сүттен басқа ештеңе баспайды». Хадис хасан деп бағаланған (әл-Албани).',
+        topic:'Этикет · Еда' },
+      { key:'ibnmajah_1765', book:'ibnmajah', num:1765, srcLabel:'Ибн Маджа 1765, хасан',
+        from:'От Синана ибн Суннаха аль-Аслами (р.а.)', fromKk:'Синан ибн Суннаһ әл-Әслемиден (р.а.)',
+        ar:'الطَّاعِمُ الشَّاكِرُ لَهُ مِثْلُ أَجْرِ الصَّائِمِ الصَّابِرِ',
+        ru:'«Благодарный едок получит награду, подобную награде терпеливого постящегося». Хадис оценён как хасан.',
+        kk:'«Шүкір етіп тамақтанушы сабырлы ораза ұстаушының сауабындай сауап алады». Хадис хасан деп бағаланған.',
+        topic:'Этикет · Еда' },
+      { key:'tirmidhi_1295', book:'tirmidhi', num:1295, srcLabel:'ат-Тирмизи 1295, хасан; Ибн Маджа 3380',
+        also:[{book:'ibnmajah', num:3380}],
+        from:'От Анаса ибн Малика (р.а.)', fromKk:'Анас ибн Мәликтен (р.а.)',
+        ar:'لَعَنَ رَسُولُ اللَّهِ صلى الله عليه وسلم فِي الْخَمْرِ عَشَرَةً عَاصِرَهَا وَمُعْتَصِرَهَا وَشَارِبَهَا وَحَامِلَهَا وَالْمَحْمُولَةَ إِلَيْهِ وَسَاقِيَهَا وَبَائِعَهَا وَآكِلَ ثَمَنِهَا وَالْمُشْتَرِيَ لَهَا وَالْمُشْتَرَاةَ لَهُ',
+        ru:'Посланник Аллаха ﷺ проклял в связи с вином десятерых: выжимающего его, того, для кого его выжимают, пьющего, несущего, того, кому его несут, разливающего, продающего, поедающего его цену, покупающего и того, для кого покупают.',
+        kk:'Аллаһ елшісі ﷺ шарапқа қатысты он адамды қарғады: оны сығушыны, оны сықтырушыны, ішушіні, көтеріп апарушыны, оған апарылатын адамды, құюшыны, сатушыны, бағасын жеушіні, сатып алушыны және өзіне сатып алынатын адамды.',
+        topic:'Опьяняющее · Хамр' },
+      { key:'tirmidhi_2417', book:'tirmidhi', num:2417, srcLabel:'ат-Тирмизи 2417',
+        from:'От Абу Барзы аль-Аслами (р.а.)', fromKk:'Әбу Барза әл-Әслемиден (р.а.)',
+        ar:'لاَ تَزُولُ قَدَمَا عَبْدٍ يَوْمَ الْقِيَامَةِ حَتَّى يُسْأَلَ عَنْ عُمْرِهِ فِيمَا أَفْنَاهُ وَعَنْ عِلْمِهِ فِيمَا فَعَلَ وَعَنْ مَالِهِ مِنْ أَيْنَ اكْتَسَبَهُ وَفِيمَا أَنْفَقَهُ وَعَنْ جِسْمِهِ فِيمَا أَبْلاَهُ',
+        ru:'«Не сдвинутся ноги раба в День воскресения, пока его не спросят о жизни — на что он её истратил; о знании — как он поступал с ним; об имуществе — откуда он его приобрёл и на что потратил; о теле — в чём его истощил». Ат-Тирмизи назвал хадис хасан сахих; в издании Дарус-Салям он оценён как слабый.',
+        kk:'«Қиямет күні құлдың аяғы мына нәрселер туралы сұралмайынша қозғалмайды: өмірі — оны немен өткізді; білімі — онымен не істеді; мал-мүлкі — қайдан тапты, неге жұмсады; денесі — оны неге тоздырды». Тирмизи бұл хадисті хасан-сахих деген; Дарус-Салам басылымында әлсіз деп бағаланған.',
+        topic:'Вопрос в День суда' },
+      { key:'muslim_2581', book:'muslim', num:2581, srcLabel:'Муслим 2581',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'أَتَدْرُونَ مَا الْمُفْلِسُ؟ قَالُوا الْمُفْلِسُ فِينَا مَنْ لاَ دِرْهَمَ لَهُ وَلاَ مَتَاعَ. فَقَالَ: إِنَّ الْمُفْلِسَ مِنْ أُمَّتِي يَأْتِي يَوْمَ الْقِيَامَةِ بِصَلاَةٍ وَصِيَامٍ وَزَكَاةٍ وَيَأْتِي قَدْ شَتَمَ هَذَا وَقَذَفَ هَذَا وَأَكَلَ مَالَ هَذَا وَسَفَكَ دَمَ هَذَا وَضَرَبَ هَذَا فَيُعْطَى هَذَا مِنْ حَسَنَاتِهِ وَهَذَا مِنْ حَسَنَاتِهِ فَإِنْ فَنِيَتْ حَسَنَاتُهُ قَبْلَ أَنْ يُقْضَى مَا عَلَيْهِ أُخِذَ مِنْ خَطَايَاهُمْ فَطُرِحَتْ عَلَيْهِ ثُمَّ طُرِحَ فِي النَّارِ',
+        ru:'«Знаете ли вы, кто такой банкрот?.. Банкрот из моей общины — тот, кто придёт в День воскресения с намазом, постом и закятом, но придёт, оскорбив одного, оклеветав другого, присвоив имущество третьего… Его благие дела раздадут обиженным, а когда они закончатся — на него возложат их грехи, и его бросят в Огонь».',
+        kk:'«Банкроттың кім екенін білесіңдер ме?.. Менің үмметімнен банкрот — қиямет күні намаз, ораза, зекетпен келіп, біреуді сөксе, біреуге жала жапса, біреудің малын жесе… Сонда оның жақсылықтары зұлымдық көргендерге үлестіріледі, таусылса — олардың күнәлары оған жүктеліп, ол отқа тасталады».',
+        topic:'Права людей' },
+      { key:'bukhari_2143', book:'bukhari', num:2143, srcLabel:'аль-Бухари 2143; Муслим 1514',
+        also:[{book:'muslim', num:1514}],
+        from:'От Абдуллаха ибн Умара (р.а.)', fromKk:'Абдуллаһ ибн Омардан (р.а.)',
+        ar:'نَهَى عَنْ بَيْعِ حَبَلِ الْحَبَلَةِ',
+        ru:'Пророк ﷺ запретил сделку «хабаль аль-хабаля» — продажу потомства того, что ещё не родилось (верблюдицу, которая появится от будущего приплода), как неопределённую (гарар) сделку.',
+        kk:'Пайғамбар ﷺ «хабәл әл-хабәлә» мәмілесін — әлі туылмаған төлдің төлін сатуды белгісіздік (ғарар) болғандықтан тыйым салды.',
+        topic:'Торговля · Запрещённое' },
+      { key:'muslim_2551', book:'muslim', num:2551, srcLabel:'Муслим 2551',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'رَغِمَ أَنْفُ ثُمَّ رَغِمَ أَنْفُ ثُمَّ رَغِمَ أَنْفُ قِيلَ مَنْ يَا رَسُولَ اللَّهِ قَالَ مَنْ أَدْرَكَ أَبَوَيْهِ عِنْدَ الْكِبَرِ أَحَدَهُمَا أَوْ كِلَيْهِمَا فَلَمْ يَدْخُلِ الْجَنَّةَ',
+        ru:'«Да будет унижен, да будет унижен, да будет унижен!» — «Кто, о Посланник Аллаха?» — «Тот, кто застал своих родителей в старости, одного из них или обоих, и не вошёл в Рай».',
+        kk:'«Мұрны жерге тисін, мұрны жерге тисін, мұрны жерге тисін!» — «Кім, уа, Аллаһ елшісі?» — «Ата-анасының біреуін немесе екеуін қартайған шағында тауып, Жәннатқа кіре алмаған адам».',
+        topic:'Родители' },
+      { key:'bukhari_2079', book:'bukhari', num:2079, srcLabel:'аль-Бухари 2079; Муслим 1532',
+        also:[{book:'muslim', num:1532}],
+        from:'От Хакима ибн Хизама (р.а.)', fromKk:'Хәким ибн Хизамнан (р.а.)',
+        ar:'الْبَيِّعَانِ بِالْخِيَارِ مَا لَمْ يَتَفَرَّقَا أَوْ قَالَ حَتَّى يَتَفَرَّقَا فَإِنْ صَدَقَا وَبَيَّنَا بُورِكَ لَهُمَا فِي بَيْعِهِمَا، وَإِنْ كَتَمَا وَكَذَبَا مُحِقَتْ بَرَكَةُ بَيْعِهِمَا',
+        ru:'«Продавец и покупатель вправе отказаться от сделки, пока не разошлись. Если они были правдивы и всё объяснили, их сделка будет благословлена, а если скрыли и солгали — благодать их сделки будет уничтожена».',
+        kk:'«Сатушы мен сатып алушы бір-бірінен ажырамайынша таңдау құқығында. Егер шыншыл болып, ақауын түсіндірсе, олардың саудасына береке беріледі, ал жасырып, өтірік айтса — сауданың берекесі кетеді».',
+        topic:'Торговля · Честность' },
+      { key:'muslim_1688', book:'muslim', num:1688, srcLabel:'Муслим 1688',
+        from:'От Аиши (р.а.)', fromKk:'Айшадан (р.а.)',
+        ar:'أَتَشْفَعُ فِي حَدٍّ مِنْ حُدُودِ اللَّهِ ثُمَّ قَامَ فَاخْتَطَبَ فَقَالَ أَيُّهَا النَّاسُ إِنَّمَا أَهْلَكَ الَّذِينَ قَبْلَكُمْ أَنَّهُمْ كَانُوا إِذَا سَرَقَ فِيهِمُ الشَّرِيفُ تَرَكُوهُ وَإِذَا سَرَقَ فِيهِمُ الضَّعِيفُ أَقَامُوا عَلَيْهِ الْحَدَّ وَايْمُ اللَّهِ لَوْ أَنَّ فَاطِمَةَ بِنْتَ مُحَمَّدٍ سَرَقَتْ لَقَطَعْتُ يَدَهَا',
+        ru:'Курайшиты просили заступиться за знатную женщину из рода Махзум, совершившую кражу. Пророк ﷺ ответил: «Ты заступаешься в одном из установлений Аллаха?» — и сказал, что прежние народы погибли, оттого что прощали знатных и наказывали слабых; «клянусь Аллахом, если бы Фатима, дочь Мухаммада, украла, я бы отсёк ей руку».',
+        kk:'Құрайыштықтар ұрлық жасаған Махзум руының текті әйелі үшін араша сұрады. Пайғамбар ﷺ: «Аллаһтың шектеулерінің біріне араша сұрайсың ба?» — деп, бұрынғы үмметтер текті адамды кешіріп, әлсізді жазалағандықтан жойылғанын айтты; «Аллаһқа ант, Мұхаммедтің қызы Фатима ұрласа, қолын кесер едім».',
+        topic:'Справедливость · Худуд' },
+      { key:'tirmidhi_2649', book:'tirmidhi', num:2649, srcLabel:'ат-Тирмизи 2649, хасан',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'مَنْ سُئِلَ عَنْ عِلْمٍ عَلِمَهُ ثُمَّ كَتَمَهُ أُلْجِمَ يَوْمَ الْقِيَامَةِ بِلِجَامٍ مِنْ نَارٍ',
+        ru:'«Кого спросят о знании, которое он знает, а он скроет его, тому в День воскресения наденут узду из огня».',
+        kk:'«Кімнен өзі білетін білім туралы сұралып, ол оны жасырса, қиямет күні оған отты ноқта кигізіледі».',
+        topic:'Знание · Передача' },
+      { key:'muslim_145', book:'muslim', num:145, srcLabel:'Муслим 145',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'بَدَأَ الإِسْلاَمُ غَرِيبًا وَسَيَعُودُ كَمَا بَدَأَ غَرِيبًا فَطُوبَى لِلْغُرَبَاءِ',
+        ru:'«Ислам начался чужим и вернётся чужим, как начался, — благо чужим».',
+        kk:'«Ислам бейтаныс болып басталды және басталғандай бейтаныс болып қайтады — бейтаныстарға құтты болсын».',
+        topic:'Стойкость в вере' },
+      { key:'muslim_86', book:'muslim', num:86, srcLabel:'Муслим 86; аль-Бухари 4477',
+        from:'От Абдуллаха ибн Мас‘уда (р.а.)', fromKk:'Абдуллаһ ибн Мәсғұдтан (р.а.)',
+        ar:'أَنْ تَجْعَلَ لِلَّهِ نِدًّا وَهُوَ خَلَقَكَ ثُمَّ أَنْ تَقْتُلَ وَلَدَكَ مَخَافَةَ أَنْ يَطْعَمَ مَعَكَ ثُمَّ أَنْ تُزَانِيَ حَلِيلَةَ جَارِكَ',
+        ru:'На вопрос о самом великом грехе Пророк ﷺ назвал: придавать Аллаху равного, хотя Он сотворил тебя; затем — убить своего ребёнка из страха, что он будет есть вместе с тобой; затем — прелюбодействовать с женой соседа.',
+        kk:'Ең ауыр күнә туралы сұралғанда, Пайғамбар ﷺ: сені жаратқан Аллаһқа теңдес қосуды; содан кейін өзіңмен бірге тамақ ішеді деп қорқып, баласын өлтіруді; содан кейін көршінің әйелімен зина жасауды атады.',
+        topic:'Большие грехи' },
+      { key:'muslim_2060', book:'muslim', num:2060, srcLabel:'аль-Бухари 5393; Муслим 2060',
+        also:[{book:'bukhari', num:5393}],
+        from:'От Ибн Умара (р.а.)', fromKk:'Ибн Омардан (р.а.)',
+        ar:'الْكَافِرُ يَأْكُلُ فِي سَبْعَةِ أَمْعَاءٍ وَالْمُؤْمِنُ يَأْكُلُ فِي مِعًى وَاحِدٍ',
+        ru:'«Неверующий ест в семь кишок, а верующий — в одну».',
+        kk:'«Кәпір жеті ішекке жейді, мүмін бір ішекке жейді».',
+        topic:'Этикет · Еда' },
+      { key:'muslim_2033', book:'muslim', num:2033, srcLabel:'Муслим 2033',
+        from:'От Джабира (р.а.)', fromKk:'Жәбірден (р.а.)',
+        ar:'أَمَرَ بِلَعْقِ الأَصَابِعِ وَالصَّحْفَةِ وَقَالَ إِنَّكُمْ لاَ تَدْرُونَ فِي أَيِّهِ الْبَرَكَةُ',
+        ru:'Пророк ﷺ велел облизывать пальцы и посуду после еды, сказав: «Вы не знаете, в какой части пищи находится благодать».',
+        kk:'Пайғамбар ﷺ тамақтан кейін саусақтар мен ыдысты жалауды бұйырып: «Береке тамақтың қай бөлігінде екенін білмейсіңдер», — деді.',
+        topic:'Этикет · Еда' },
+      { key:'bukhari_6234', book:'bukhari', num:6234, srcLabel:'аль-Бухари 6234; Муслим 2160',
+        also:[{book:'muslim', num:2160}],
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'يُسَلِّمُ الصَّغِيرُ عَلَى الْكَبِيرِ، وَالْمَارُّ عَلَى الْقَاعِدِ، وَالْقَلِيلُ عَلَى الْكَثِيرِ',
+        ru:'«Пусть младший приветствует старшего, идущий — сидящего, а малочисленные — многочисленных».',
+        kk:'«Кіші үлкенге, жүріп бара жатқан отырғанға, аз адам көп адамға сәлем берсін».',
+        topic:'Этикет · Салам' },
+      { key:'bukhari_6927', book:'bukhari', num:6927, srcLabel:'аль-Бухари 6927, 6030; Муслим 2593',
+        also:[{book:'muslim', num:2593}],
+        from:'От Аиши (р.а.)', fromKk:'Айшадан (р.а.)',
+        ar:'اسْتَأْذَنَ رَهْطٌ مِنَ الْيَهُودِ عَلَى النَّبِيِّ صلى الله عليه وسلم فَقَالُوا السَّامُ عَلَيْكَ. فَقُلْتُ بَلْ عَلَيْكُمُ السَّامُ وَاللَّعْنَةُ. فَقَالَ يَا عَائِشَةُ إِنَّ اللَّهَ رَفِيقٌ يُحِبُّ الرِّفْقَ فِي الأَمْرِ كُلِّهِ. قُلْتُ أَوَلَمْ تَسْمَعْ مَا قَالُوا قَالَ قُلْتُ وَعَلَيْكُمْ',
+        ru:'Когда иудеи приветствовали Пророка ﷺ словами «ас-саму алейка» («смерть тебе»), Аиша ответила резко. Пророк ﷺ сказал ей: «Спокойнее, Аиша! Воистину, Аллах любит мягкость во всём» — и сам ответил лишь: «И вам».',
+        kk:'Жәһүдтер Пайғамбарды ﷺ «әс-сәму ъаләйкә» («саған өлім») деп амандасқанда, Айша өткір жауап берді. Пайғамбар ﷺ оған: «Байсалды бол, Айша! Шын мәнінде, Аллаһ әр істе жұмсақтықты жақсы көреді», — деді де, өзі тек «Сендерге де» деп жауап берді.',
+        topic:'Мягкость · Этикет' },
+      { key:'bukhari_934', book:'bukhari', num:934, srcLabel:'аль-Бухари 934; Муслим 851',
+        also:[{book:'muslim', num:851}],
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'إِذَا قُلْتَ لِصَاحِبِكَ يَوْمَ الْجُمُعَةِ أَنْصِتْ وَالإِمَامُ يَخْطُبُ فَقَدْ لَغَوْتَ',
+        ru:'«Если ты скажешь своему соседу в пятницу, когда имам читает проповедь: „Молчи!“ — ты уже совершил пустословие (лягв)».',
+        kk:'«Жұма күні имам уағыз айтып тұрғанда жолдасыңа „Үндеме!“ десең, сен бос сөз айтқан боласың».',
+        topic:'Джума · Этикет' },
+      { key:'abudawud_4878', book:'abudawud', num:4878, srcLabel:'Абу Дауд 4878, хасан',
+        from:'От Анаса ибн Малика (р.а.)', fromKk:'Анас ибн Мәликтен (р.а.)',
+        ar:'لَمَّا عُرِجَ بِي مَرَرْتُ بِقَوْمٍ لَهُمْ أَظْفَارٌ مِنْ نُحَاسٍ يَخْمِشُونَ وُجُوهَهُمْ وَصُدُورَهُمْ فَقُلْتُ مَنْ هَؤُلاَءِ يَا جِبْرِيلُ قَالَ هَؤُلاَءِ الَّذِينَ يَأْكُلُونَ لُحُومَ النَّاسِ وَيَقَعُونَ فِي أَعْرَاضِهِمْ',
+        ru:'«Во время вознесения я проходил мимо людей с медными ногтями — они царапали ими свои лица и груди. Я спросил: „Кто это, о Джибриль?“ Он ответил: „Это те, кто поедал плоть людей (злословием) и посягал на их честь“». Хадис признан хорошим (Албани).',
+        kk:'«Көкке көтерілген кезде мен мыс тырнақты бір топ адамның жанынан өттім — олар тырнақтарымен өз беттері мен кеуделерін тырнап жатыр еді. „Бұлар кім, ей Жебірейіл?“ — дедім. Ол: „Бұлар адамдардың етін жеп (ғайбат қылып), ар-намысына тиіскендер“, — деді». Хадис хасан деп бағаланған (әл-Албани).',
+        topic:'Злословие · Гыйба' },
+      { key:'bukhari_6058', book:'bukhari', num:6058, srcLabel:'аль-Бухари 6058, 7179; Муслим 2526',
+        also:[{book:'muslim', num:2526}],
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'تَجِدُ مِنْ شَرِّ النَّاسِ يَوْمَ الْقِيَامَةِ عِنْدَ اللَّهِ ذَا الْوَجْهَيْنِ، الَّذِي يَأْتِي هَؤُلاَءِ بِوَجْهٍ وَهَؤُلاَءِ بِوَجْهٍ',
+        ru:'«В День воскресения ты найдёшь худшими из людей перед Аллахом двуликого — того, кто приходит к одним с одним лицом, а к другим — с другим».',
+        kk:'«Қиямет күні Аллаһ алдында адамдардың ең жаманы — біреулерге бір жүзбен, екіншілеріне басқа жүзбен баратын екіжүзді екенін көресің».',
+        topic:'Двуличие' },
+      { key:'tirmidhi_2698', book:'tirmidhi', num:2698, srcLabel:'ат-Тирмизи 2698, хасан гариб',
+        from:'От Анаса ибн Малика (р.а.)', fromKk:'Анас ибн Мәликтен (р.а.)',
+        ar:'يَا بُنَىَّ إِذَا دَخَلْتَ عَلَى أَهْلِكَ فَسَلِّمْ يَكُونُ بَرَكَةً عَلَيْكَ وَعَلَى أَهْلِ بَيْتِكَ',
+        ru:'«Когда входишь к своей семье — приветствуй их салямом: это будет благодатью для тебя и для обитателей твоего дома». Ат-Тирмизи назвал хадис хасан гариб; в издании Дарус-Салям он оценён как слабый.',
+        kk:'«Отбасыңа кіргенде сәлем бер — бұл саған да, үйіңдегілерге де береке болады». Тирмизи бұл хадисті хасан-ғариб деген; Дарус-Салам басылымында әлсіз деп бағаланған.',
+        topic:'Этикет · Салам' },
+      { key:'bukhari_247', book:'bukhari', num:247, srcLabel:'аль-Бухари 247; Муслим 2710',
+        also:[{book:'muslim', num:2710}],
+        from:'От аль-Бараъ ибн ‘Азиба (р.а.)', fromKk:'Әл-Бараъ ибн Ғәзибтен (р.а.)',
+        ar:'إِذَا أَتَيْتَ مَضْجَعَكَ فَتَوَضَّأْ وُضُوءَكَ لِلصَّلاَةِ، ثُمَّ اضْطَجِعْ عَلَى شِقِّكَ الأَيْمَنِ، ثُمَّ قُلِ اللَّهُمَّ أَسْلَمْتُ وَجْهِي إِلَيْكَ، وَفَوَّضْتُ أَمْرِي إِلَيْكَ، وَأَلْجَأْتُ ظَهْرِي إِلَيْكَ، رَغْبَةً وَرَهْبَةً إِلَيْكَ، لاَ مَلْجَأَ وَلاَ مَنْجَا مِنْكَ إِلاَّ إِلَيْكَ، اللَّهُمَّ آمَنْتُ بِكِتَابِكَ الَّذِي أَنْزَلْتَ، وَبِنَبِيِّكَ الَّذِي أَرْسَلْتَ، فَإِنْ مُتَّ مِنْ لَيْلَتِكَ فَأَنْتَ عَلَى الْفِطْرَةِ، وَاجْعَلْهُنَّ آخِرَ مَا تَتَكَلَّمُ بِهِ',
+        ru:'Пророк ﷺ научил: «Когда ляжешь в постель, соверши омовение, как для намаза, затем ляг на правый бок и скажи: „О Аллах, я предал Тебе своё лицо, поручил Тебе своё дело, прислонил к Тебе спину — с надеждой и страхом перед Тобой… Нет убежища и спасения от Тебя, кроме как у Тебя. О Аллах, я уверовал в Твою Книгу, которую Ты ниспослал, и в Твоего Пророка, которого Ты послал“». Аль-Бара’ при повторении сказал «и в Твоего посланника» — Пророк ﷺ поправил: «и в Твоего Пророка, которого Ты послал». Кто умрёт в эту ночь — умрёт на фитре.',
+        kk:'Пайғамбар ﷺ үйретті: «Төсегіңе жатарда намазға алатындай дәрет ал, сосын оң жағыңа жат та: „Аллаһым, жүзімді Саған бұрдым, ісімді Саған тапсырдым, арқамды Саған сүйедім — үміт пен қорқыныш үстінде… Сенен басқа пана да, құтылар жер де жоқ. Аллаһым, Өзің түсірген Кітабыңа және Өзің жіберген Пайғамбарыңа иман келтірдім“ деп айт». Әл-Бәраъ қайталағанда «Сенің елшіңе» деп еді, Пайғамбар ﷺ: «Сен жіберген Пайғамбарыңа» деп түзетті. Сол түні қайтыс болған адам фитрада өледі.',
+        topic:'Дуа · Перед сном' },
+      { key:'tirmidhi_3399', book:'tirmidhi', num:3399, srcLabel:'ат-Тирмизи 3399, хасан гариб',
+        from:'От аль-Бараъ ибн ‘Азиба (р.а.)', fromKk:'Әл-Бараъ ибн Ғәзибтен (р.а.)',
+        ar:'كَانَ رَسُولُ اللَّهِ صلى الله عليه وسلم يَتَوَسَّدُ يَمِينَهُ عِنْدَ الْمَنَامِ ثُمَّ يَقُولُ رَبِّ قِنِي عَذَابَكَ يَوْمَ تَبْعَثُ عِبَادَكَ',
+        ru:'Ложась спать, Пророк ﷺ клал правую руку под щёку и говорил: «Господи, защити меня от Твоего наказания в тот день, когда Ты воскресишь Своих рабов».',
+        kk:'Жатарда Пайғамбар ﷺ оң қолын бетінің астына қойып: «Раббым, құлдарыңды тірілтетін күні мені азабыңнан сақта», — дейтін.',
+        topic:'Дуа · Перед сном' },
+      { key:'muslim_173', book:'muslim', num:173, srcLabel:'Муслим 173',
+        from:'От Абдуллаха ибн Мас‘уда (р.а.)', fromKk:'Абдуллаһ ибн Мәсғұдтан (р.а.)',
+        ar:'لَمَّا أُسْرِيَ بِرَسُولِ اللَّهِ صلى الله عليه وسلم انْتُهِيَ بِهِ إِلَى سِدْرَةِ الْمُنْتَهَى وَهِيَ فِي السَّمَاءِ السَّادِسَةِ إِلَيْهَا يَنْتَهِي مَا يُعْرَجُ بِهِ مِنَ الأَرْضِ فَيُقْبَضُ مِنْهَا وَإِلَيْهَا يَنْتَهِي مَا يُهْبَطُ بِهِ مِنْ فَوْقِهَا فَيُقْبَضُ مِنْهَا قَالَ إِذْ يَغْشَى السِّدْرَةَ مَا يَغْشَى قَالَ فَرَاشٌ مِنْ ذَهَبٍ قَالَ فَأُعْطِيَ رَسُولُ اللَّهِ صلى الله عليه وسلم ثَلاَثًا أُعْطِيَ الصَّلَوَاتِ الْخَمْسَ وَأُعْطِيَ خَوَاتِيمَ سُورَةِ الْبَقَرَةِ وَغُفِرَ لِمَنْ لَمْ يُشْرِكْ بِاللَّهِ مِنْ أُمَّتِهِ شَيْئًا',
+        ru:'В ночь Ми‘раджа у Сидрат аль-Мунтаха Пророку ﷺ было дано три: пять намазов, последние аяты суры «Аль-Бакара» и прощение больших грехов тем из его общины, кто не приобщал к Аллаху сотоварищей.',
+        kk:'Миғраж түнінде Сидрәтүл-мунтаһада Пайғамбарға ﷺ үш нәрсе берілді: бес уақыт намаз, «Бақара» сүресінің соңғы аяттары және Аллаһқа ортақ қоспаған үмбетінің ауыр күнәларының кешірілуі.',
+        topic:'Ми‘радж' },
+      { key:'bukhari_1154', book:'bukhari', num:1154, srcLabel:'аль-Бухари 1154',
+        from:'От ‘Убады ибн ас-Самита (р.а.)', fromKk:'Убәда ибн Саміттен (р.а.)',
+        ar:'مَنْ تَعَارَّ مِنَ اللَّيْلِ فَقَالَ لاَ إِلَهَ إِلاَّ اللَّهُ وَحْدَهُ لاَ شَرِيكَ لَهُ، لَهُ الْمُلْكُ، وَلَهُ الْحَمْدُ، وَهُوَ عَلَى كُلِّ شَىْءٍ قَدِيرٌ. الْحَمْدُ لِلَّهِ، وَسُبْحَانَ اللَّهِ، وَلاَ إِلَهَ إِلاَّ اللَّهُ، وَاللَّهُ أَكْبَرُ، وَلاَ حَوْلَ وَلاَ قُوَّةَ إِلاَّ بِاللَّهِ. ثُمَّ قَالَ اللَّهُمَّ اغْفِرْ لِي. أَوْ دَعَا اسْتُجِيبَ، فَإِنْ تَوَضَّأَ وَصَلَّى قُبِلَتْ صَلاَتُهُ',
+        ru:'«Кто проснётся ночью и скажет: „Нет бога, кроме Аллаха, единого, у Которого нет сотоварища…“, а затем обратится с мольбой — ему ответят; а если совершит омовение и помолится — его намаз будет принят».',
+        kk:'«Кім түнде оянып: „Аллаһтан басқа тәңір жоқ, Ол жалғыз, оның серігі жоқ…“ десе, сосын дұға етсе — дұғасы қабыл болады; дәрет алып намаз оқыса — намазы қабыл етіледі».',
+        topic:'Ночной намаз · Дуа' },
+      { key:'bukhari_3035', book:'bukhari', num:3035, srcLabel:'аль-Бухари 3035, 3036',
+        from:'От Джарира ибн Абдуллаха (р.а.)', fromKk:'Жәрир ибн Абдуллаһтан (р.а.)',
+        ar:'مَا حَجَبَنِي النَّبِيُّ صلى الله عليه وسلم مُنْذُ أَسْلَمْتُ، وَلاَ رَآنِي إِلاَّ تَبَسَّمَ فِي وَجْهِي. وَلَقَدْ شَكَوْتُ إِلَيْهِ إِنِّي لاَ أَثْبُتُ عَلَى الْخَيْلِ. فَضَرَبَ بِيَدِهِ فِي صَدْرِي وَقَالَ اللَّهُمَّ ثَبِّتْهُ وَاجْعَلْهُ هَادِيًا مَهْدِيًّا',
+        ru:'«С тех пор, как я принял ислам, Пророк ﷺ никогда не отказывал мне во встрече и всегда, увидев меня, улыбался мне». Когда Джарир пожаловался, что плохо держится в седле, Пророк ﷺ ударил его ладонью в грудь и сказал: «О Аллах, укрепи его и сделай его ведущим и ведомым прямым путём».',
+        kk:'«Мен ислам қабылдағаннан бері Пайғамбар ﷺ мені ешқашан қабылдаудан бас тартқан емес және мені көрсе, маған жымиып қарайтын». Жәрир атқа мықты отыра алмайтынын айтқанда, Пайғамбар ﷺ оның кеудесіне қолымен ұрып: «Аллаһым, оны орнықты ет, оны тура жолға салушы әрі тура жолға түскен ет», — деді.',
+        topic:'Улыбка · Этикет' },
+      { key:'bukhari_2692', book:'bukhari', num:2692, srcLabel:'аль-Бухари 2692; Муслим 2605',
+        also:[{book:'muslim', num:2605}],
+        from:'От Умм Кульсум бинт ‘Укбы (р.а.)', fromKk:'Үмму Күлсүм бинт Ұқбадан (р.а.)',
+        ar:'لَيْسَ الْكَذَّابُ الَّذِي يُصْلِحُ بَيْنَ النَّاسِ، فَيَنْمِي خَيْرًا، أَوْ يَقُولُ خَيْرًا',
+        ru:'«Не лжец тот, кто примиряет людей, говоря хорошее или передавая хорошее».',
+        kk:'«Адамдарды татуластырып, жақсы сөз айтатын немесе жақсы жеткізетін адам өтірікші емес».',
+        topic:'Примирение' },
+      { key:'bukhari_6236', book:'bukhari', num:6236, srcLabel:'аль-Бухари 6236',
+        from:'От Абдуллаха ибн ‘Амра (р.а.)', fromKk:'Абдуллаһ ибн Амрдан (р.а.)',
+        ar:'تُطْعِمُ الطَّعَامَ، وَتَقْرَأُ السَّلاَمَ عَلَى مَنْ عَرَفْتَ، وَعَلَى مَنْ لَمْ تَعْرِفْ',
+        ru:'Человек спросил Пророка ﷺ, какой ислам лучше. Он ответил: «Кормить людей и приветствовать салямом того, кого знаешь, и того, кого не знаешь».',
+        kk:'Бір адам Пайғамбардан ﷺ қай ислам жақсы екенін сұрады. Ол: «Адамдарға тамақ беру және танитын да, танымайтын да адамға сәлем беру», — деді.',
+        topic:'Этикет · Салам' },
+      { key:'bukhari_6250', book:'bukhari', num:6250, srcLabel:'аль-Бухари 6250; Муслим 2155',
+        also:[{book:'muslim', num:2155}],
+        from:'От Джабира ибн Абдуллаха (р.а.)', fromKk:'Жәбір ибн Абдуллаһтан (р.а.)',
+        ar:'أَتَيْتُ النَّبِيَّ صلى الله عليه وسلم فِي دَيْنٍ كَانَ عَلَى أَبِي فَدَقَقْتُ الْبَابَ فَقَالَ مَنْ ذَا. فَقُلْتُ أَنَا. فَقَالَ أَنَا أَنَا. كَأَنَّهُ كَرِهَهَا',
+        ru:'Джабир постучал в дверь Пророка ﷺ по делу о долге отца. «Кто это?» — спросил Пророк ﷺ. «Я», — ответил Джабир. «Я, я?» — повторил Пророк ﷺ, как бы выражая неодобрение: стучащему следует назвать своё имя.',
+        kk:'Жәбір әкесінің қарызы жайында Пайғамбардың ﷺ есігін қақты. «Кім бұл?» — деді Пайғамбар ﷺ. «Мен», — деді Жәбір. «Мен, мен?» — деп қайталады Пайғамбар ﷺ, яғни есік қағушы өз атын айтуы керек.',
+        topic:'Этикет · Вход' },
+      { key:'muslim_2162', book:'muslim', num:2162, srcLabel:'Муслим 2162',
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'خَمْسٌ تَجِبُ لِلْمُسْلِمِ عَلَى أَخِيهِ رَدُّ السَّلاَمِ وَتَشْمِيتُ الْعَاطِسِ وَإِجَابَةُ الدَّعْوَةِ وَعِيَادَةُ الْمَرِيضِ وَاتِّبَاعُ الْجَنَائِزِ',
+        ru:'«Права мусульманина на мусульманина — пять: ответить на салям, навестить больного, сопровождать похороны, принять приглашение и сказать „Да помилует тебя Аллах“ чихнувшему».',
+        kk:'«Мұсылманның мұсылманда бес құқығы бар: сәлемге жауап беру, науқасты көру, жаназаға еру, шақыруға бару және түшкіргенге „Аллаһ саған рақым етсін“ деу».',
+        topic:'Права мусульманина' },
+      { key:'ibnmajah_3276', book:'ibnmajah', num:3276, srcLabel:'Ибн Маджа 3276, хасан',
+        from:'От Васила ибн аль-Аска‘ (р.а.)', fromKk:'Уәсила ибн әл-Әсқағтан (р.а.)',
+        ar:'كُلُوا بِسْمِ اللَّهِ مِنْ حَوَالَيْهَا وَاعْفُوا رَأْسَهَا فَإِنَّ الْبَرَكَةَ تَأْتِيهَا مِنْ فَوْقِهَا',
+        ru:'О блюде «сарид» Пророк ﷺ сказал: «Ешьте с именем Аллаха с краёв и оставьте вершину — благодать нисходит на неё сверху». Хадис оценён как хасан (Дарус-Салям); точность формулировки арабского отрывка стоит сверить.',
+        kk:'Сарид тағамы туралы Пайғамбар ﷺ: «Аллаһтың атымен шетінен жеңдер де, төбесін қалдырыңдар — береке оған жоғарыдан түседі», — деді. Хадис хасан деп бағаланған (Дарус-Салам); арабша үзіндінің дәлдігін тексерген жөн.',
+        topic:'Этикет · Еда' },
+      { key:'muslim_1695', book:'muslim', num:1695, srcLabel:'Муслим 1695',
+        from:'От Бурайды (р.а.)', fromKk:'Бурайдадан (р.а.)',
+        ar:'إِنَّهَا حُبْلَى مِنَ الزِّنَا ... لَقَدْ تَابَتْ تَوْبَةً لَوْ تَابَهَا صَاحِبُ مَكْسٍ لَغُفِرَ لَهُ',
+        ru:'Женщина из племени Гамид пришла и призналась в зина, прося очистить её. Пророк ﷺ дождался рождения и вскармливания ребёнка, затем она была подвергнута наказанию. О ней он сказал: «Она принесла такое покаяние, что если бы его принёс сборщик незаконных податей, ему было бы прощено».',
+        kk:'Ғамид руының әйелі келіп, зина жасағанын мойындап, өзін тазартуды сұрады. Пайғамбар ﷺ баласы туып, емізіп болғанша күтті, содан кейін ол жазаланды. Ол туралы: «Ол сондай тәубе етті, егер оны заңсыз салық жинаушы еткенде, кешірілер еді», — деді.',
+        topic:'Покаяние · Худуд' },
+      { key:'bukhari_5590', book:'bukhari', num:5590, srcLabel:'аль-Бухари 5590',
+        from:'От Абу ‘Амира или Абу Малика аль-Аш‘ари (р.а.)', fromKk:'Әбу Амир немесе Әбу Мәлік әл-Ашғаридан (р.а.)',
+        ar:'لَيَكُونَنَّ مِنْ أُمَّتِي أَقْوَامٌ يَسْتَحِلُّونَ الْحِرَ وَالْحَرِيرَ وَالْخَمْرَ وَالْمَعَازِفَ، وَلَيَنْزِلَنَّ أَقْوَامٌ إِلَى جَنْبِ عَلَمٍ يَرُوحُ عَلَيْهِمْ بِسَارِحَةٍ لَهُمْ، يَأْتِيهِمْ يَعْنِي الْفَقِيرَ لِحَاجَةٍ فَيَقُولُوا ارْجِعْ إِلَيْنَا غَدًا. فَيُبَيِّتُهُمُ اللَّهُ وَيَضَعُ الْعَلَمَ، وَيَمْسَخُ آخَرِينَ قِرَدَةً وَخَنَازِيرَ إِلَى يَوْمِ الْقِيَامَةِ',
+        ru:'«Среди моей общины непременно будут люди, которые сочтут дозволенными прелюбодеяние, шёлк (для мужчин), вино и музыкальные инструменты». Аль-Бухари приводит хадис в форме та‘лик (без полного иснада).',
+        kk:'«Менің үмметімнен зинаны, жібекті (ерлер үшін), шарапты және музыка аспаптарын халал санайтын қауымдар болады». Әл-Бухари хадисті тағлиқ түрінде (толық иснадсыз) келтіреді.',
+        topic:'Предостережения' },
+      { key:'muslim_2555', book:'muslim', num:2555, srcLabel:'Муслим 2555; аль-Бухари 5988',
+        also:[{book:'bukhari', num:5988}],
+        from:'От Аиши (р.а.)', fromKk:'Айшадан (р.а.)',
+        ar:'الرَّحِمُ مُعَلَّقَةٌ بِالْعَرْشِ تَقُولُ مَنْ وَصَلَنِي وَصَلَهُ اللَّهُ وَمَنْ قَطَعَنِي قَطَعَهُ اللَّهُ',
+        ru:'«Родственная связь подвешена к Трону и говорит: „Кто поддерживает меня — того поддержит Аллах, а кто разорвёт меня — того оставит Аллах“». У аль-Бухари 5988 (от Абу Хурайры): «Родство — частица от Милостивого; Аллах сказал: „Кто поддерживает тебя — того Я поддержу…“».',
+        kk:'«Туыстық байланыс Арышқа ілініп тұрып: „Кім мені жалғастырса, Аллаһ оны жалғастырады, кім мені үзсе, Аллаһ оны үзеді“, — дейді». Әл-Бухари 5988-де (Әбу Хурайрадан): «Туыстық — Рахманнан бір бөлшек; Аллаһ: „Кім сені жалғастырса, Мен оны жалғастырамын…“ деді».',
+        topic:'Родство' },
+      { key:'bukhari_3208', book:'bukhari', num:3208, srcLabel:'аль-Бухари 3208; Муслим 2643',
+        also:[{book:'muslim', num:2643}],
+        from:'От Ибн Мас‘уда (р.а.)', fromKk:'Ибн Мәсғұдтан (р.а.)',
+        ar:'إِنَّ أَحَدَكُمْ يُجْمَعُ خَلْقُهُ فِي بَطْنِ أُمِّهِ أَرْبَعِينَ يَوْمًا، ثُمَّ يَكُونُ عَلَقَةً مِثْلَ ذَلِكَ، ثُمَّ يَكُونُ مُضْغَةً مِثْلَ ذَلِكَ، ثُمَّ يَبْعَثُ اللَّهُ مَلَكًا، فَيُؤْمَرُ بِأَرْبَعِ كَلِمَاتٍ، وَيُقَالُ لَهُ اكْتُبْ عَمَلَهُ وَرِزْقَهُ وَأَجَلَهُ وَشَقِيٌّ أَوْ سَعِيدٌ. ثُمَّ يُنْفَخُ فِيهِ الرُّوحُ، فَإِنَّ الرَّجُلَ مِنْكُمْ لَيَعْمَلُ حَتَّى مَا يَكُونُ بَيْنَهُ وَبَيْنَ الْجَنَّةِ إِلاَّ ذِرَاعٌ، فَيَسْبِقُ عَلَيْهِ كِتَابُهُ، فَيَعْمَلُ بِعَمَلِ أَهْلِ النَّارِ، وَيَعْمَلُ حَتَّى مَا يَكُونُ بَيْنَهُ وَبَيْنَ النَّارِ إِلاَّ ذِرَاعٌ، فَيَسْبِقُ عَلَيْهِ الْكِتَابُ، فَيَعْمَلُ بِعَمَلِ أَهْلِ الْجَنَّةِ',
+        ru:'Пророк ﷺ сказал: «Поистине, каждый из вас формируется во чреве матери сорок дней в виде капли (нутфа), затем становится сгустком крови (алака) столько же, затем куском плоти (мудга) столько же, а потом к нему посылается ангел, который вдувает в него дух и получает повеление записать четыре вещи: его удел, срок его жизни, его дела и то, будет ли он несчастным или счастливым. И клянусь Аллахом, кроме Которого нет иного бога: поистине, человек может совершать дела обитателей Рая, пока между ним и Раем не останется расстояние в один локоть, но тут его опережает предписанное, и он начинает совершать дела обитателей Огня и входит в него. И поистине, человек может совершать дела обитателей Огня, пока между ним и Огнём не останется расстояние в один локоть, но тут его опережает предписанное, и он начинает совершать дела обитателей Рая и входит в него».',
+        kk:'Пайғамбар ﷺ: «Шын мәнінде, әрқайсыларың ана құрсағында қырық күн нұтфа (тамшы) күйінде жиналасыңдар, содан кейін сол мөлшерде алақа (қан ұйындысы) боласыңдар, содан кейін сол мөлшерде мудға (ет кесегі) боласыңдар, содан соң оған періште жіберіліп, оған рух үрлейді әрі төрт нәрсені жазуға бұйырылады: оның ризығын, ажалын, амалын, әрі бақытсыз немесе бақытты болатынын. Аллаһтан басқа құдай жоқ екеніне ант етемін: шын мәнінде, кейбіреуің Жәннат тұрғындарының амалын істей бересің, тіпті ол мен Жәннаттың арасында бір қары ғана қалады, бірақ жазмыш алдын ала озып, ол От тұрғындарының амалын істей бастап, соған кіреді. Ал кейбіреуің От тұрғындарының амалын істей бересің, тіпті ол мен От арасында бір қары ғана қалады, бірақ жазмыш алдын ала озып, ол Жәннат тұрғындарының амалын істей бастап, соған кіреді», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'bukhari_2697', book:'bukhari', num:2697, srcLabel:'аль-Бухари 2697; Муслим 1718',
+        from:'От Аиши (р.а.)', fromKk:'Айшадан (р.а.)',
+        ar:'مَنْ أَحْدَثَ فِي أَمْرِنَا هَذَا مَا لَيْسَ فِيهِ فَهُوَ رَدٌّ',
+        ru:'Пророк ﷺ сказал: «Кто введёт в это наше дело то, что не из него, — то отвергнуто». В другой версии: «Кто совершит дело, на которое нет нашего повеления, — то отвергнуто».',
+        kk:'Пайғамбар ﷺ: «Кім біздің осы ісімізге одан болмаған нәрсені енгізсе, ол қабылданбайды», — деді. Басқа риуаятта: «Кім біздің бұйрығымыз жоқ іс жасаса, ол қабылданбайды».',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'bukhari_52', book:'bukhari', num:52, srcLabel:'аль-Бухари 52; Муслим 1599',
+        also:[{book:'muslim', num:1599}],
+        from:'От ан-Ну‘мана ибн Башира (р.а.)', fromKk:'Ән-Нұғман ибн Баширден (р.а.)',
+        ar:'الْحَلاَلُ بَيِّنٌ وَالْحَرَامُ بَيِّنٌ، وَبَيْنَهُمَا مُشَبَّهَاتٌ لاَ يَعْلَمُهَا كَثِيرٌ مِنَ النَّاسِ، فَمَنِ اتَّقَى الْمُشَبَّهَاتِ اسْتَبْرَأَ لِدِيِنِهِ وَعِرْضِهِ، وَمَنْ وَقَعَ فِي الشُّبُهَاتِ كَرَاعٍ يَرْعَى حَوْلَ الْحِمَى، يُوشِكُ أَنْ يُوَاقِعَهُ. أَلاَ وَإِنَّ لِكُلِّ مَلِكٍ حِمًى، أَلاَ إِنَّ حِمَى اللَّهِ فِي أَرْضِهِ مَحَارِمُهُ، أَلاَ وَإِنَّ فِي الْجَسَدِ مُضْغَةً إِذَا صَلَحَتْ صَلَحَ الْجَسَدُ كُلُّهُ، وَإِذَا فَسَدَتْ فَسَدَ الْجَسَدُ كُلُّهُ. أَلاَ وَهِيَ الْقَلْبُ',
+        ru:'Пророк ﷺ сказал: «Поистине, дозволенное ясно, и запретное ясно, а между ними — сомнительные дела, о которых не знают многие люди. Кто остережётся сомнительного, тот обезопасит свою религию и свою честь. А кто впадёт в сомнительное, тот впадёт в запретное — подобно пастуху, пасущему у заповедного места, который вот-вот забредёт в него. Поистине, у каждого правителя есть свой заповедный удел, и, поистине, заповедный удел Аллаха — то, что Он запретил. И, поистине, в теле есть кусочек плоти: если он здоров, то здорово всё тело, а если он испорчен, то испорчено всё тело. Знайте, это — сердце».',
+        kk:'Пайғамбар ﷺ: «Шын мәнінде, халал анық, харам да анық, ал екеуінің арасында көптеген адамдар білмейтін күмәнді нәрселер бар. Кім күмәнділерден сақтанса, ол дінін және ар-намысын сақтап қалады. Ал кім күмәндіге түссе, харамға түседі — қоршаудың айналасында мал жайған қойшы сияқты, кез келген сәтте оған кіріп кетуі мүмкін. Шын мәнінде, әр патшаның өз қоршауы бар, ал Аллаһтың қоршауы — Оның харам еткен нәрселері. Шын мәнінде, денеде бір ет кесегі бар: ол дұрыс болса, бүкіл дене дұрыс болады, ал ол бұзылса, бүкіл дене бұзылады. Біліңдер, ол — жүрек», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'bukhari_25', book:'bukhari', num:25, srcLabel:'аль-Бухари 25; Муслим 22',
+        also:[{book:'muslim', num:22}],
+        from:'От Ибн Умара (р.а.)', fromKk:'Ибн Омардан (р.а.)',
+        ar:'أُمِرْتُ أَنْ أُقَاتِلَ النَّاسَ حَتَّى يَشْهَدُوا أَنْ لاَ إِلَهَ إِلاَّ اللَّهُ وَأَنَّ مُحَمَّدًا رَسُولُ اللَّهِ، وَيُقِيمُوا الصَّلاَةَ، وَيُؤْتُوا الزَّكَاةَ، فَإِذَا فَعَلُوا ذَلِكَ عَصَمُوا مِنِّي دِمَاءَهُمْ وَأَمْوَالَهُمْ إِلاَّ بِحَقِّ الإِسْلاَمِ، وَحِسَابُهُمْ عَلَى اللَّهِ',
+        ru:'Пророк ﷺ сказал: «Мне велено сражаться с людьми, пока они не засвидетельствуют, что нет бога, кроме Аллаха, и что Мухаммад — посланник Аллаха, не будут выстаивать намаз и выплачивать закят. Если сделают это — защитят от меня свою кровь и своё имущество, кроме как по праву ислама, а расчёт с ними — на Аллахе».',
+        kk:'Пайғамбар ﷺ: «Маған адамдармен, олар Аллаһтан басқа құдай жоқ, Мұхаммед Аллаһтың елшісі екеніне куәлік еткенше, намазды тұрақты орындап, зекет бергенше соғысу бұйырылды. Егер осыны істесе, ислам хақымен болмаса, олар өз қандары мен мүліктерін менен қорғап алады, ал есеп алу Аллаһқа тиесілі», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'bukhari_7288', book:'bukhari', num:7288, srcLabel:'аль-Бухари 7288; Муслим 1337',
+        also:[{book:'muslim', num:1337}],
+        from:'От Абу Хурайры (р.а.)', fromKk:'Әбу Хурайрадан (р.а.)',
+        ar:'دَعُونِي مَا تَرَكْتُكُمْ، إِنَّمَا هَلَكَ مَنْ كَانَ قَبْلَكُمْ بِسُؤَالِهِمْ وَاخْتِلاَفِهِمْ عَلَى أَنْبِيَائِهِمْ، فَإِذَا نَهَيْتُكُمْ عَنْ شَىْءٍ فَاجْتَنِبُوهُ، وَإِذَا أَمَرْتُكُمْ بِأَمْرٍ فَأْتُوا مِنْهُ مَا اسْتَطَعْتُمْ',
+        ru:'Пророк ﷺ сказал: «Если я запретил вам что-то — избегайте этого, а если повелел вам что-то — исполняйте по мере сил. Погубили тех, кто был до вас, их многочисленные вопросы и разногласия со своими пророками».',
+        kk:'Пайғамбар ﷺ: «Мен сендерге бір нәрседен тыйым салсам, одан аулақ болыңдар, ал бір нәрсеге бұйырсам, оны шамаларың келгенше орындаңдар. Шын мәнінде, сендерден бұрынғыларды көп сұрақтары мен пайғамбарларына қайшы келуі құртты», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'tirmidhi_2518', book:'tirmidhi', num:2518, srcLabel:'ат-Тирмизи 2518, хадис хороший',
+        from:'От аль-Хасана ибн Али (р.а.)', fromKk:'Әл-Хасан ибн Алиден (р.а.)',
+        ar:'دَعْ مَا يَرِيبُكَ إِلَى مَا لاَ يَرِيبُكَ فَإِنَّ الصِّدْقَ طُمَأْنِينَةٌ وَإِنَّ الْكَذِبَ رِيبَةٌ',
+        ru:'«Я запомнил от посланника Аллаха ﷺ: „Оставь то, что вызывает у тебя сомнение, ради того, что сомнения не вызывает“».',
+        kk:'«Мен Аллаһтың елшісінен ﷺ мынаны жаттап алдым: „Сені күмәндандыратын нәрсені тастап, күмәндандырмайтын нәрсеге бет бұр“».',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'muslim_45', book:'muslim', num:45, srcLabel:'аль-Бухари 13; Муслим 45',
+        from:'От Анаса (р.а.)', fromKk:'Анастан (р.а.)',
+        ar:'لاَ يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لأَخِيهِ أَوْ قَالَ لِجَارِهِ مَا يُحِبُّ لِنَفْسِهِ',
+        ru:'Пророк ﷺ сказал: «Не уверует по-настоящему никто из вас, пока не станет желать своему брату того же, чего желает самому себе».',
+        kk:'Пайғамбар ﷺ: «Сендердің ешқайсың өзіне қалайтын нәрсені мұсылман бауырына да қаламайынша, шынайы иманға келмейді», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'bukhari_6878', book:'bukhari', num:6878, srcLabel:'аль-Бухари 6878; Муслим 1676',
+        also:[{book:'muslim', num:1676}],
+        from:'От Ибн Мас‘уда (р.а.)', fromKk:'Ибн Мәсғұдтан (р.а.)',
+        ar:'لاَ يَحِلُّ دَمُ امْرِئٍ مُسْلِمٍ يَشْهَدُ أَنْ لاَ إِلَهَ إِلاَّ اللَّهُ وَأَنِّي رَسُولُ اللَّهِ إِلاَّ بِإِحْدَى ثَلاَثٍ النَّفْسُ بِالنَّفْسِ وَالثَّيِّبُ الزَّانِي، وَالْمَارِقُ مِنَ الدِّينِ التَّارِكُ الْجَمَاعَةَ',
+        ru:'Пророк ﷺ сказал: «Не дозволена кровь мусульманина, свидетельствующего, что нет бога, кроме Аллаха, и что я — посланник Аллаха, иначе как в одном из трёх случаев: жизнь за жизнь; женатый прелюбодей; и оставивший свою религию, отделившийся от общины».',
+        kk:'Пайғамбар ﷺ: «Аллаһтан басқа құдай жоқ және мен Аллаһтың елшісі екеніне куәлік ететін мұсылманның қаны үш жағдайдың бірінен басқа харам: жанға жан; үйленген зинақор; және дінінен безіп, жамағаттан бөлінген адам», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'tirmidhi_1987', book:'tirmidhi', num:1987, srcLabel:'ат-Тирмизи 1987, хадис хороший',
+        from:'От Абу Зарра и Му‘аза ибн Джабаля (р.а.)', fromKk:'Әбу Зарр мен Мұғаз ибн Жабалдан (р.а.)',
+        ar:'اتَّقِ اللَّهَ حَيْثُمَا كُنْتَ وَأَتْبِعِ السَّيِّئَةَ الْحَسَنَةَ تَمْحُهَا وَخَالِقِ النَّاسَ بِخُلُقٍ حَسَنٍ',
+        ru:'Пророк ﷺ сказал: «Бойся Аллаха, где бы ты ни был, и следуй за дурным поступком добрым — он сотрёт его, и веди себя с людьми, проявляя хороший нрав».',
+        kk:'Пайғамбар ﷺ: «Қайда болсаң да Аллаһтан қорық, жаман істің артынан жақсы іс жаса — ол оны өшіреді, әрі адамдармен көркем мінезбен қарым-қатынас жаса», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'tirmidhi_2516', book:'tirmidhi', num:2516, srcLabel:'ат-Тирмизи 2516, хадис хороший',
+        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
+        ar:'يَا غُلاَمُ إِنِّي أُعَلِّمُكَ كَلِمَاتٍ احْفَظِ اللَّهَ يَحْفَظْكَ احْفَظِ اللَّهَ تَجِدْهُ تُجَاهَكَ إِذَا سَأَلْتَ فَاسْأَلِ اللَّهَ وَإِذَا اسْتَعَنْتَ فَاسْتَعِنْ بِاللَّهِ وَاعْلَمْ أَنَّ الأُمَّةَ لَوِ اجْتَمَعَتْ عَلَى أَنْ يَنْفَعُوكَ بِشَيْءٍ لَمْ يَنْفَعُوكَ إِلاَّ بِشَيْءٍ قَدْ كَتَبَهُ اللَّهُ لَكَ وَلَوِ اجْتَمَعُوا عَلَى أَنْ يَضُرُّوكَ بِشَيْءٍ لَمْ يَضُرُّوكَ إِلاَّ بِشَيْءٍ قَدْ كَتَبَهُ اللَّهُ عَلَيْكَ رُفِعَتِ الأَقْلاَمُ وَجَفَّتِ الصُّحُفُ',
+        ru:'Пророк ﷺ сказал: «Юноша! Поистине, я научу тебя нескольким словам: храни заповеди Аллаха, и Он сохранит тебя; храни заповеди Аллаха, и ты найдёшь Его перед собой; если просишь — проси у Аллаха, и если ищешь помощи — ищи помощи у Аллаха. И знай: если бы вся община собралась, чтобы принести тебе какую-то пользу, она принесла бы её тебе лишь в том, что уже предписал тебе Аллах, а если бы она собралась, чтобы причинить тебе какой-то вред, она причинила бы его тебе лишь в том, что уже предписал тебе Аллах. Подняты письменные трости, и высохли листы [книги предопределения]».',
+        kk:'Пайғамбар ﷺ: «Балақай! Мен саған бірнеше сөз үйретейін: Аллаһтың бұйрықтарын сақта, Ол сені сақтайды; Аллаһтың бұйрықтарын сақта, Оны алдыңнан табасың; сұрасаң — Аллаһтан сұра, көмек іздесең — Аллаһтан көмек ізде. Біл: егер бүкіл үмбет саған бір пайда келтіру үшін бас қосса да, Аллаһ саған жазбаған нәрседен пайда келтіре алмайды, ал егер саған зиян келтіру үшін бас қосса да, Аллаһ саған жазбаған нәрседен зиян келтіре алмайды. Қаламдар көтерілді, парақтар кепті [тағдыр кітабы жазылып бітті]», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'bukhari_3484', book:'bukhari', num:3484, srcLabel:'аль-Бухари 3484',
+        from:'От Абу Мас‘уда (р.а.)', fromKk:'Әбу Мәсғұдтан (р.а.)',
+        ar:'إِنَّ مِمَّا أَدْرَكَ النَّاسُ مِنْ كَلاَمِ النُّبُوَّةِ إِذَا لَمْ تَسْتَحِي فَاصْنَعْ مَا شِئْتَ',
+        ru:'Пророк ﷺ сказал: «Поистине, из того, что застали люди от слов первого пророчества: если не испытываешь стыда — делай, что хочешь».',
+        kk:'Пайғамбар ﷺ: «Шын мәнінде, алғашқы пайғамбарлықтан адамдарға жеткен сөздердің бірі: ұялмасаң, қалағаныңды істе», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'muslim_38', book:'muslim', num:38, srcLabel:'Муслим 38',
+        from:'От Суфьяна ибн Абдуллаха (р.а.)', fromKk:'Суфиян ибн Абдуллаhтан (р.а.)',
+        ar:'قُلْ آمَنْتُ بِاللَّهِ فَاسْتَقِمْ',
+        ru:'«Я сказал: „О посланник Аллаха, скажи мне об исламе такое слово, о котором я не смогу спросить никого, кроме тебя“. Он ответил: „Скажи: «Я уверовал в Аллаха», — а затем будь прям“».',
+        kk:'«Мен: „Уа, Аллаһтың елшісі, маған ислам туралы сенен басқа ешкімнен сұрамайтындай бір сөз айтып бер“, — дедім. Ол: „«Аллаһқа сендім» де, сосын тура жүр“, — деп жауап берді».',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'muslim_15', book:'muslim', num:15, srcLabel:'Муслим 15',
+        from:'От Джабира ибн Абдуллаха (р.а.)', fromKk:'Жәбір ибн Абдуллаhтан (р.а.)',
+        ar:'يَا رَسُولَ اللَّهِ أَرَأَيْتَ إِذَا صَلَّيْتُ الْمَكْتُوبَةَ وَحَرَّمْتُ الْحَرَامَ وَأَحْلَلْتُ الْحَلاَلَ أَأَدْخُلُ الْجَنَّةَ فَقَالَ النَّبِيُّ صلى الله عليه وسلم نَعَمْ',
+        ru:'один бедуин спросил Пророка ﷺ: «Скажи мне: если я буду совершать обязательные молитвы, поститься в Рамадан, считать дозволенное дозволенным, а запретное запретным, и не буду добавлять к этому ничего сверх того, — войду ли я в Рай?» Он ответил: «Да».',
+        kk:'бір бәдәуи Пайғамбардан ﷺ: «Айтшы: егер мен парыз намаздарды оқысам, Рамазанда ораза тұтсам, халалды халал, харамды харам деп есептесем, соған қоса ешнәрсе қоспасам, Жәннатқа кірер ме едім?» — деп сұрады. Ол: «Иә», — деп жауап берді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'muslim_2577', book:'muslim', num:2577, srcLabel:'Муслим 2577',
+        from:'Из «Сорока хадисов» ан-Навави', fromKk:'(қудси хадис) Әбу Зарттан (р.а.)',
+        ar:'يَا عِبَادِي إِنِّي حَرَّمْتُ الظُّلْمَ عَلَى نَفْسِي وَجَعَلْتُهُ بَيْنَكُمْ مُحَرَّمًا فَلاَ تَظَالَمُوا يَا عِبَادِي كُلُّكُمْ ضَالٌّ إِلاَّ مَنْ هَدَيْتُهُ فَاسْتَهْدُونِي أَهْدِكُمْ يَا عِبَادِي كُلُّكُمْ جَائِعٌ إِلاَّ مَنْ أَطْعَمْتُهُ فَاسْتَطْعِمُونِي أُطْعِمْكُمْ يَا عِبَادِي كُلُّكُمْ عَارٍ إِلاَّ مَنْ كَسَوْتُهُ فَاسْتَكْسُونِي أَكْسُكُمْ يَا عِبَادِي إِنَّكُمْ تُخْطِئُونَ بِاللَّيْلِ وَالنَّهَارِ وَأَنَا أَغْفِرُ الذُّنُوبَ جَمِيعًا فَاسْتَغْفِرُونِي أَغْفِرْ لَكُمْ يَا عِبَادِي إِنَّكُمْ لَنْ تَبْلُغُوا ضَرِّي فَتَضُرُّونِي وَلَنْ تَبْلُغُوا نَفْعِي فَتَنْفَعُونِي يَا عِبَادِي لَوْ أَنَّ أَوَّلَكُمْ وَآخِرَكُمْ وَإِنْسَكُمْ وَجِنَّكُمْ كَانُوا عَلَى أَتْقَى قَلْبِ رَجُلٍ وَاحِدٍ مِنْكُمْ مَا زَادَ ذَلِكَ فِي مُلْكِي شَيْئًا يَا عِبَادِي لَوْ أَنَّ أَوَّلَكُمْ وَآخِرَكُمْ وَإِنْسَكُمْ وَجِنَّكُمْ كَانُوا عَلَى أَفْجَرِ قَلْبِ رَجُلٍ وَاحِدٍ مَا نَقَصَ ذَلِكَ مِنْ مُلْكِي شَيْئًا يَا عِبَادِي لَوْ أَنَّ أَوَّلَكُمْ وَآخِرَكُمْ وَإِنْسَكُمْ وَجِنَّكُمْ قَامُوا فِي صَعِيدٍ وَاحِدٍ فَسَأَلُونِي فَأَعْطَيْتُ كُلَّ إِنْسَانٍ مَسْأَلَتَهُ مَا نَقَصَ ذَلِكَ مِمَّا عِنْدِي إِلاَّ كَمَا يَنْقُصُ الْمِخْيَطُ إِذَا أُدْخِلَ الْبَحْرَ يَا عِبَادِي إِنَّمَا هِيَ أَعْمَالُكُمْ أُحْصِيهَا لَكُمْ ثُمَّ أُوَفِّيكُمْ إِيَّاهَا فَمَنْ وَجَدَ خَيْرًا فَلْيَحْمَدِ اللَّهَ وَمَنْ وَجَدَ غَيْرَ ذَلِكَ فَلاَ يَلُومَنَّ إِلاَّ نَفْسَهُ',
+        ru:'От Абу Зарра (р.а.), священный хадис (хадис кудси): Пророк ﷺ передал слова Аллаха: «О рабы Мои! Я запретил несправедливость Себе и сделал её запретной между вами, так не проявляйте же несправедливости друг к другу. О рабы Мои! Все вы заблудшие, кроме тех, кого Я наставил на прямой путь, — так просите же у Меня наставления, и Я направлю вас. О рабы Мои! Все вы голодны, кроме тех, кого Я накормил, — так просите же у Меня пропитания, и Я накормлю вас. О рабы Мои! Все вы наги, кроме тех, кого Я одел, — так просите же у Меня одеяния, и Я одену вас. О рабы Мои! Поистине, вы грешите ночью и днём, а Я прощаю все грехи, — так просите же у Меня прощения, и Я прощу вас. О рабы Мои! Вы не сможете причинить Мне вреда, чтобы навредить Мне, и не сможете принести Мне пользы, чтобы принести Мне пользу. О рабы Мои! Если бы первые и последние из вас, люди и джинны, стали такими же богобоязненными, как сердце самого богобоязненного из вас, это ничего не прибавило бы к Моему царству. Если бы они стали такими же нечестивыми, как сердце самого нечестивого из вас, это ничего не убавило бы от него. О рабы Мои! Если бы все вы собрались на одной равнине и попросили Меня, и Я дал бы каждому то, что он просит, это уменьшило бы Моё богатство не более, чем игла уменьшает воду в море, если её окунуть туда. О рабы Мои! Это лишь ваши дела, которые Я подсчитываю для вас, а затем воздаю вам за них сполна: пусть тот, кто найдёт благо, восхваляет за это Аллаха, а тот, кто найдёт иное, пусть не порицает никого, кроме самого себя».',
+        kk:'Пайғамбар ﷺ Раббысының сөздерін жеткізіп: «Уа, құлдарым! Мен әділетсіздікті Өзіме харам еттім және оны араларыңда да харам еттім, сондықтан бір-біріңе әділетсіздік жасамаңдар. Уа, құлдарым! Мен тура жолға салғаннан басқаларың адасқансыңдар, сондықтан Менен тура жол сұраңдар, Мен сендерді тура жолға саламын. Уа, құлдарым! Мен тамақтандырғаннан басқаларың аштарсыңдар, сондықтан Менен тамақ сұраңдар, Мен сендерді тамақтандырамын. Уа, құлдарым! Мен киіндіргеннен басқаларың жалаңашсыңдар, сондықтан Менен киім сұраңдар, Мен сендерді киіндіремін. Уа, құлдарым! Сендер түні-күні күнә жасайсыңдар, ал Мен барлық күнәларды кешіремін, сондықтан Менен кешірім сұраңдар, Мен сендерді кешіремін. Уа, құлдарым! Сендер Маған зиян келтіре алмайсыңдар, Маған пайда да келтіре алмайсыңдар. Уа, құлдарым! Егер алғашқыларың мен соңғыларың, адамдарың мен жындарың араларыңдағы ең тақуа жүректі адамдай болса да, бұл Менің патшалығыма ешнәрсе қоспас еді. Уа, құлдарым! Егер олар араларыңдағы ең бұзық жүректі адамдай болса да, бұл Менің патшалығымнан ешнәрсе кемітпес еді. Уа, құлдарым! Егер алғашқыларың мен соңғыларың бір жазықта тұрып, Менен сұраса, әрі Мен әрқайсысына сұрағанын берсем, бұл Менің қорымнан теңізге инені малғанда кемитін судай ғана кемір еді. Уа, құлдарым! Бұл — тек сендердің амалдарың, Мен оларды сендер үшін есептеймін, содан кейін толық қайтарамын: кім жақсылық тапса, Аллаһқа шүкір етсін, ал кім басқаны тапса, тек өзін ғана айыптасын», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'abudawud_4607', book:'abudawud', num:4607, srcLabel:'Абу Дауд 4607; ат-Тирмизи 2676, хадис достоверный',
+        also:[{book:'tirmidhi', num:2676}],
+        from:'От аль-Ирбада ибн Сарии (р.а.)', fromKk:'Әл-Ирбад ибн Сарийядан (р.а.)',
+        ar:'أُوصِيكُمْ بِتَقْوَى اللَّهِ وَالسَّمْعِ وَالطَّاعَةِ وَإِنْ عَبْدًا حَبَشِيًّا فَإِنَّهُ مَنْ يَعِشْ مِنْكُمْ بَعْدِي فَسَيَرَى اخْتِلاَفًا كَثِيرًا فَعَلَيْكُمْ بِسُنَّتِي وَسُنَّةِ الْخُلَفَاءِ الْمَهْدِيِّينَ الرَّاشِدِينَ تَمَسَّكُوا بِهَا وَعَضُّوا عَلَيْهَا بِالنَّوَاجِذِ وَإِيَّاكُمْ وَمُحْدَثَاتِ الأُمُورِ فَإِنَّ كُلَّ مُحْدَثَةٍ بِدْعَةٌ وَكُلَّ بِدْعَةٍ ضَلاَلَةٌ',
+        ru:'однажды Посланник Аллаха ﷺ обратился к нам с проповедью, от которой наши сердца исполнились страха, а из глаз потекли слёзы. Мы сказали: «О посланник Аллаха, это похоже на прощальное наставление, так дай же нам завет». Он сказал: «Я заповедую вам богобоязненность, а также слушать и повиноваться, даже если во главе вас окажется эфиопский раб. Поистине, тот из вас, кто проживёт долго, увидит множество разногласий, так держитесь же моей Сунны и Сунны праведных, ведомых правильным путём халифов, крепко держитесь за неё, вцепитесь в неё зубами. И остерегайтесь нововведений, ибо всякое нововведение — заблуждение».',
+        kk:'бір күні Аллаһтың елшісі ﷺ бізге насихат айтты, оны естіп жүректеріміз үрейленіп, көзімізден жас ақты. Біз: «Уа, Аллаһтың елшісі, бұл қоштасу насихатына ұқсайды, бізге өсиет қалдыршы», — дедік. Ол: «Мен сендерге тақуалықты, тыңдау мен бағынуды өсиет етемін, тіпті бастарыңа хабаш құл қойылса да. Шын мәнінде, менен кейін ұзақ өмір сүрген адам көп келіспеушілік көреді, сондықтан менің сүннетімді және тура жолдағы халифалардың сүннетін ұстаныңдар, оны берік ұстаныңдар, тісіңмен қатты қыс. Жаңалықтардан сақ болыңдар, өйткені әрбір жаңалық — бидғат, әрбір бидғат — адасушылық», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'tirmidhi_2616', book:'tirmidhi', num:2616, srcLabel:'ат-Тирмизи 2616, хадис достоверный',
+        from:'От Му‘аза ибн Джабаля (р.а.)', fromKk:'Мұғаз ибн Жабалдан (р.а.)',
+        ar:'يَا رَسُولَ اللَّهِ أَخْبِرْنِي بِعَمَلٍ يُدْخِلُنِي الْجَنَّةَ وَيُبَاعِدُنِي مِنَ النَّارِ. قَالَ: لَقَدْ سَأَلْتَنِي عَنْ عَظِيمٍ وَإِنَّهُ لَيَسِيرٌ عَلَى مَنْ يَسَّرَهُ اللَّهُ عَلَيْهِ تَعْبُدُ اللَّهَ وَلاَ تُشْرِكُ بِهِ شَيْئًا وَتُقِيمُ الصَّلاَةَ وَتُؤْتِي الزَّكَاةَ وَتَصُومُ رَمَضَانَ وَتَحُجُّ الْبَيْتَ. ثُمَّ قَالَ: أَلاَ أَدُلُّكَ عَلَى أَبْوَابِ الْخَيْرِ الصَّوْمُ جُنَّةٌ وَالصَّدَقَةُ تُطْفِئُ الْخَطِيئَةَ كَمَا يُطْفِئُ الْمَاءُ النَّارَ وَصَلاَةُ الرَّجُلِ مِنْ جَوْفِ اللَّيْلِ. ثُمَّ تَلاَ: تَتَجَافَى جُنُوبُهُمْ عَنِ الْمَضَاجِعِ حَتَّى بَلَغَ: يَعْمَلُونَ. ثُمَّ قَالَ: أَلاَ أُخْبِرُكَ بِرَأْسِ الأَمْرِ كُلِّهِ وَعَمُودِهِ وَذِرْوَةِ سَنَامِهِ. قُلْتُ بَلَى يَا رَسُولَ اللَّهِ. قَالَ: رَأْسُ الأَمْرِ الإِسْلاَمُ وَعَمُودُهُ الصَّلاَةُ وَذِرْوَةُ سَنَامِهِ الْجِهَادُ. ثُمَّ قَالَ: أَلاَ أُخْبِرُكَ بِمَلاَكِ ذَلِكَ كُلِّهِ. قُلْتُ بَلَى يَا نَبِيَّ اللَّهِ. فَأَخَذَ بِلِسَانِهِ قَالَ: كُفَّ عَلَيْكَ هَذَا. فَقُلْتُ يَا نَبِيَّ اللَّهِ وَإِنَّا لَمُؤَاخَذُونَ بِمَا نَتَكَلَّمُ بِهِ فَقَالَ: ثَكِلَتْكَ أُمُّكَ يَا مُعَاذُ وَهَلْ يَكُبُّ النَّاسَ فِي النَّارِ عَلَى وُجُوهِهِمْ أَوْ عَلَى مَنَاخِرِهِمْ إِلاَّ حَصَائِدُ أَلْسِنَتِهِمْ',
+        ru:'«Я сказал: „О посланник Аллаха, укажи мне дело, которое введёт меня в Рай и удалит от Огня“. Он сказал: „Ты спросил о великом деле, но, поистине, оно легко для того, кому Аллах облегчил его: поклоняйся Аллаху, не приобщая к Нему сотоварищей, совершай намаз, выплачивай закят, постись в Рамадан и соверши хадж к Дому“. Затем он сказал: „Не указать ли тебе на врата блага? Пост — щит; милостыня стирает грехи, как вода гасит огонь; и молитва человека посреди ночи“. Потом он сказал: „Не сообщить ли тебе о главе этого дела, его столпе и вершине?“ Я ответил: „Да, о посланник Аллаха“. Он сказал: „Глава этого дела — ислам, столп его — молитва, а вершина его — джихад“. Потом он сказал: „Не сообщить ли тебе о том, что удерживает всё это?“ Я ответил: „Да“. Тогда он взял себя за язык и сказал: „Удержи вот это“. Я спросил: „О пророк Аллаха, неужели мы понесём наказание за то, что говорим?“ Он ответил: „Да лишится тебя твоя мать, о Му‘аз! Разве что иное ввергает людей в Огонь лицом вниз, кроме урожая их языков?“».',
+        kk:'«Мен: „Уа, Аллаһтың елшісі, маған Жәннатқа кіргізіп, Оттан алшақтататын іс көрсетші“, — дедім. Ол: „Сен үлкен нәрсе сұрадың, бірақ Аллаһ жеңілдеткен адамға бұл жеңіл: Аллаһқа серік қоспай құлшылық ет, намазды тұрақты орында, зекет бер, Рамазанда ораза тұт, Үйге қажылық жаса“, — деді. Содан кейін ол: „Саған игіліктің есіктерін көрсетейін бе? Ораза — қалқан; садақа су отты өшіргендей күнәні өшіреді; түннің ортасындағы адамның намазы“, — деді. Кейін ол: „Саған осы істің басын, тірегін, шыңын хабарлайын ба? Істің басы — ислам, тірегі — намаз, шыңы — жихад“, — деді. Содан соң ол: „Осының бәрін ұстап тұратын нәрсені саған айтайын ба?“ — деді. Мен: „Иә, уа, Аллаһтың елшісі“, — дедім. Сонда ол тілінен ұстап: „Мынаны тый“, — деді. Мен: „Уа, Аллаһтың пайғамбары, біз айтқанымыз үшін жауапқа тартыла ма?“ — деп сұрадым. Ол: „Анаң саған жоқтасын, уа, Мұғаз! Адамдарды бетімен Отқа құлатқан тек тілдерінің өнімі емес пе?“ — деп жауап берді», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'ibnmajah_4102', book:'ibnmajah', num:4102, srcLabel:'Ибн Маджа 4102, хадис хороший',
+        from:'От Сахля ибн Са‘да (р.а.)', fromKk:'Сахл ибн Сағдтан (р.а.)',
+        ar:'ازْهَدْ فِي الدُّنْيَا يُحِبَّكَ اللَّهُ وَازْهَدْ فِيمَا فِي أَيْدِي النَّاسِ يُحِبُّوكَ',
+        ru:'один человек пришёл к Пророку ﷺ и сказал: «О посланник Аллаха, укажи мне на дело, совершая которое, я обрету любовь Аллаха и любовь людей». Он ответил: «Будь равнодушен к мирскому — и полюбит тебя Аллах; будь равнодушен к тому, что имеют люди, — и полюбят тебя люди».',
+        kk:'бір адам Пайғамбарға ﷺ келіп: «Уа, Аллаһтың елшісі, маған істей отырып, Аллаһтың да, адамдардың да сүйіспеншілігіне бөленетін іс көрсетші», — деді. Ол: «Дүниеге бой алдырма — Аллаһ сені сүйеді; адамдардың қолындағы нәрсеге бой алдырма — адамдар сені сүйеді», — деп жауап берді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'muslim_49', book:'muslim', num:49, srcLabel:'Муслим 49',
+        from:'От Абу Са‘ида аль-Худри (р.а.)', fromKk:'Әбу Сағид әл-Худридан (р.а.)',
+        ar:'مَنْ رَأَى مِنْكُمْ مُنْكَرًا فَلْيُغَيِّرْهُ بِيَدِهِ فَإِنْ لَمْ يَسْتَطِعْ فَبِلِسَانِهِ فَإِنْ لَمْ يَسْتَطِعْ فَبِقَلْبِهِ وَذَلِكَ أَضْعَفُ الإِيمَانِ',
+        ru:'«Я слышал, как посланник Аллаха ﷺ сказал: „Тот из вас, кто увидит порицаемое, пусть изменит его своей рукой; если не сможет, то своим языком; а если не сможет и этого, то пусть возненавидит его своим сердцем, и это — самое слабое проявление веры“».',
+        kk:'«Аллаһтың елшісінің ﷺ мынаны айтқанын естідім: „Сендердің біреуің жаман нәрсені көрсе, оны қолымен өзгертсін; шамасы жетпесе — тілімен; оған да шамасы жетпесе — жүрегімен жек көрсін, ал бұл иманның ең әлсіз түрі“», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'bukhari_6491', book:'bukhari', num:6491, srcLabel:'аль-Бухари 6491; Муслим 131',
+        also:[{book:'muslim', num:131}],
+        from:'От Ибн Аббаса (р.а.)', fromKk:'Ибн Аббастан (р.а.)',
+        ar:'إِنَّ اللَّهَ كَتَبَ الْحَسَنَاتِ وَالسَّيِّئَاتِ، ثُمَّ بَيَّنَ ذَلِكَ فَمَنْ هَمَّ بِحَسَنَةٍ فَلَمْ يَعْمَلْهَا كَتَبَهَا اللَّهُ لَهُ عِنْدَهُ حَسَنَةً كَامِلَةً، فَإِنْ هُوَ هَمَّ بِهَا فَعَمِلَهَا كَتَبَهَا اللَّهُ لَهُ عِنْدَهُ عَشْرَ حَسَنَاتٍ إِلَى سَبْعِمِائَةِ ضِعْفٍ إِلَى أَضْعَافٍ كَثِيرَةٍ، وَمَنْ هَمَّ بِسَيِّئَةٍ فَلَمْ يَعْمَلْهَا كَتَبَهَا اللَّهُ لَهُ عِنْدَهُ حَسَنَةً كَامِلَةً، فَإِنْ هُوَ هَمَّ بِهَا فَعَمِلَهَا كَتَبَهَا اللَّهُ لَهُ سَيِّئَةً وَاحِدَةً',
+        ru:'Пророк ﷺ, передавая слова своего Господа, сказал: «Поистине, Аллах записал добрые и дурные дела, а затем разъяснил это: тот, кто вознамерился совершить доброе дело, но не совершил его, — Аллах запишет это у Себя как совершённое доброе дело. А если он вознамерился совершить его и совершил, то Аллах запишет ему за это от десяти до семисот раз, и даже намного больше. А тот, кто вознамерился совершить дурное дело, но не совершил его, — Аллах запишет это у Себя как совершённое доброе дело. А если он вознамерился совершить его и совершил, то Аллах запишет ему за это лишь одно дурное дело».',
+        kk:'Пайғамбар ﷺ Раббысының сөздерін жеткізіп: «Шын мәнінде, Аллаһ жақсы және жаман амалдарды жазды, содан кейін оны түсіндірді: кім жақсы амал жасауға ниет етіп, оны жасамаса, Аллаһ оны толық жақсы амал ретінде жазады. Ал егер ниет етіп, оны орындаса, Аллаһ оған он еседен жеті жүз есеге дейін, тіпті одан да көп жазады. Ал кім жаман амал жасауға ниет етіп, оны жасамаса, Аллаһ оны толық жақсы амал ретінде жазады. Ал егер ниет етіп, оны орындаса, Аллаһ оған тек бір ғана жаман амал жазады», — деді.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'bukhari_6416', book:'bukhari', num:6416, srcLabel:'аль-Бухари 6416',
+        from:'От Ибн Умара (р.а.)', fromKk:'Ибн Омардан (р.а.)',
+        ar:'كُنْ فِي الدُّنْيَا كَأَنَّكَ غَرِيبٌ، أَوْ عَابِرُ سَبِيلٍ',
+        ru:'Посланник Аллаха ﷺ взял меня за плечо и сказал: «Будь в этом мире как странник или путник». Ибн Умар говорил: «Если ты дожил до вечера, не жди утра, а если дожил до утра, не жди вечера. Бери от своего здоровья на случай своей болезни и от своей жизни на случай своей смерти».',
+        kk:'Аллаһтың елшісі ﷺ иығымнан ұстап: «Дүниеде бейтаныс жолаушы немесе өтпелі саяхатшы сияқты бол», — деді. Ибн Омар: «Кешке жетсең, таңды күтпе, ал таңға жетсең, кешті күтпе. Дендің сау кезде ауруыңа, өмір сүріп жатқанда өліміңе дайындал», — деп айтатын.',
+        topic:'Сорок хадисов ан-Навави' },
+      { key:'tirmidhi_3524', book:'tirmidhi', num:3524, srcLabel:'ат-Тирмизи 3524, хасан',
+        from:'От Анаса ибн Малика (р.а.)', fromKk:'Анас ибн Мәликтен (р.а.)',
+        ar:'كَانَ النَّبِيُّ صلى الله عليه وسلم إِذَا كَرَبَهُ أَمْرٌ قَالَ يَا حَىُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ وَقَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم أَلِظُّوا بِيَا ذَا الْجَلاَلِ وَالإِكْرَامِ',
+        ru:'Когда Пророка ﷺ постигало трудное дело, он говорил: «О Живой, о Вечносущий! Твоей милостью я прошу помощи». В том же хадисе он велел часто взывать: «О Обладатель величия и щедрости!»',
+        kk:'Пайғамбарға ﷺ қиын іс келгенде: «Ей, Тірі, ей, Мәңгі Тұрушы! Рақымың арқылы жәрдем сұраймын», — дейтін. Сол хадисте көп айтуды бұйырған: «Ей, ұлылық пен кәрім иесі!»',
+        topic:'Дуа · В трудности' },
+      { key:'muslim_564', book:'muslim', num:564, srcLabel:'Муслим 564',
+        from:'От Джабира ибн Абдуллаха (р.а.)', fromKk:'Жәбір ибн Абдуллаһтан (р.а.)',
+        ar:'كُلْ فَإِنِّي أُنَاجِي مَنْ لاَ تُنَاجِي',
+        ru:'Пророку ﷺ принесли блюдо с овощами с сильным запахом; он не стал его есть, но сказал сподвижнику: «Ешь, ведь я веду беседу с Тем, с Кем ты не беседуешь» (имея в виду ангела Джибриля).',
+        kk:'Пайғамбарға ﷺ иісі күшті көкөніс салынған тағам әкелінді; ол өзі жемеді, бірақ сахабаға: «Же, өйткені мен сен сөйлеспейтін затпен сөйлесемін», — деді (Жебірейіл періштені меңзеп).',
+        topic:'Этикет · Еда' },
+      { key:'bukhari_1551', book:'bukhari', num:1551, srcLabel:'аль-Бухари 1551',
+        ar:'ثُمَّ أَهَلَّ بِحَجٍّ وَعُمْرَةٍ، وَأَهَلَّ النَّاسُ بِهِمَا',
+        ru:'Анас (р.а.) сказал: «...затем Пророк ﷺ вошёл в ихрам для хаджа и умры вместе, и люди тоже вошли в ихрам для обоих».',
+        kk:'Әнәс (р.а.): «...сосын Пайғамбар ﷺ қажылық пен умраға бірге ихрамға кірді, адамдар да екеуіне бірге ихрамға кірді», — деді.',
+        topic:'Хадисы' },
+      { key:'bukhari_1840', book:'bukhari', num:1840, srcLabel:'аль-Бухари 1840',
+        ar:'فَأَرْسَلَنِي عَبْدُ اللَّهِ بْنُ الْعَبَّاسِ إِلَى أَبِي أَيُّوبَ الأَنْصَارِيِّ، فَوَجَدْتُهُ يَغْتَسِلُ بَيْنَ الْقَرْنَيْنِ، وَهُوَ يُسْتَرُ بِثَوْبٍ، فَسَلَّمْتُ عَلَيْهِ فَقَالَ مَنْ هَذَا فَقُلْتُ أَنَا عَبْدُ اللَّهِ بْنُ حُنَيْنٍ، أَرْسَلَنِي إِلَيْكَ عَبْدُ اللَّهِ بْنُ الْعَبَّاسِ، أَسْأَلُكَ كَيْفَ كَانَ رَسُولُ اللَّهِ صلى الله عليه وسلم يَغْسِلُ رَأْسَهُ، وَهُوَ مُحْرِمٌ، فَوَضَعَ أَبُو أَيُّوبَ يَدَهُ عَلَى الثَّوْبِ، فَطَأْطَأَهُ حَتَّى بَدَا لِي رَأْسُهُ ثُمَّ قَالَ لإِنْسَانٍ يَصُبُّ عَلَيْهِ اصْبُبْ. فَصَبَّ عَلَى رَأْسِهِ، ثُمَّ حَرَّكَ رَأْسَهُ بِيَدَيْهِ فَأَقْبَلَ بِهِمَا وَأَدْبَرَ وَقَالَ هَكَذَا رَأَيْتُهُ صلى الله عليه وسلم يَفْعَلُ',
+        ru:'Абдуллах ибн Аббас (р.а.) послал меня к Абу Аюбу аль-Ансари (р.а.), и я застал его моющимся между двумя столбами колодца, закрытым куском ткани. Я поприветствовал его, и он спросил: «Кто это?» Я сказал: «Я Абдуллах ибн Хунайн, меня послал к тебе Абдуллах ибн Аббас спросить, как Посланник Аллаха ﷺ мыл голову, находясь в ихраме». Абу Аюб положил руку на ткань и опустил её, пока не показалась его голова, затем сказал человеку, который поливал ему: «Лей!» Тот полил ему на голову, а он провёл по голове руками вперёд и назад и сказал: «Так я видел Пророка ﷺ делающим».',
+        kk:'Абдуллаһ ибн Аббас (р.а.) мені Әбу Әййүб әл-Ансариге (р.а.) жіберді. Мен оны құдықтың екі бағанасының арасында жуынып жатқан жерінен таптым, оны шүберекпен жауып тұрған екен. Мен сәлем бердім, ол: «Бұл кім?» — деді. Мен: «Мен Абдуллаһ ибн Хунайнмін, мені саған Абдуллаһ ибн Аббас жіберді, Аллаһтың елшісі ﷺ ихрамда басын қалай жуатынын сұрауға», — дедім. Әбу Әййүб қолын шүберекке қойып, басы көрінгенше төмен түсірді, сосын құйып тұрған адамға: «Құй!» — деді. Ол басына су құйды, ол басын екі қолымен алдынан артына және артынан алдына қарай уқалады да: «Мен Пайғамбардың ﷺ осылай істегенін көрдім», — деді.',
+        topic:'Хадисы' },
+      { key:'muslim_1205', book:'muslim', num:1205, srcLabel:'Муслим 1205',
+        from:'От Абу Аййуба аль-Ансари (р.а.)', fromKk:'Әбу Әйюб әл-Ансаридан (р.а.)',
+        ar:'هَكَذَا رَأَيْتُهُ صلى الله عليه وسلم يَفْعَلُ',
+        ru:'Абу Аййуб (р.а.) полил себе воды на голову и, двигая голову руками вперёд и назад, сказал: «Так я видел, как делал Посланник Аллаха ﷺ» — об омовении головы в состоянии ихрама.',
+        kk:'Әбу Әйюб (р.а.) басына су құйғызып, басын қолымен алға-артқа қозғай отырып: «Мен Аллаһтың елшісін ﷺ осылай істеп жатқанда көрдім», — деді (ихрамдағы бас жуу туралы).',
+        topic:'Хадж · Ихрам' },
+      { key:'bukhari_1121', book:'bukhari', num:1121, srcLabel:'аль-Бухари 1121',
+        from:'От Абдуллаха ибн Умара (р.а.)', fromKk:'Абдуллаһ ибн Омардан (р.а.)',
+        ar:'نِعْمَ الرَّجُلُ عَبْدُ اللَّهِ، لَوْ كَانَ يُصَلِّي مِنَ اللَّيْلِ',
+        ru:'Пророк ﷺ сказал: «Абдуллах — хороший человек; если бы он совершал ночной намаз…» После этого Абдуллах ибн Умар (р.а.) стал спать по ночам совсем немного.',
+        kk:'Пайғамбар ﷺ: «Абдуллаһ — жақсы адам; егер ол түнде намаз оқыса…», — деді. Содан кейін Абдуллаһ ибн Омар (р.а.) түнде өте аз ұйықтайтын болды.',
+        topic:'Сунны · Ночной намаз' },
+      { key:'tirmidhi_3747', book:'tirmidhi', num:3747, srcLabel:'ат-Тирмизи 3747',
+        from:'От Абдуррахмана ибн Ауфа (р.а.)', fromKk:'Абдуррахман ибн Ауфтан (р.а.)',
+        ar:'أَبُو بَكْرٍ فِي الْجَنَّةِ وَعُمَرُ فِي الْجَنَّةِ وَعُثْمَانُ فِي الْجَنَّةِ وَعَلِيٌّ فِي الْجَنَّةِ وَطَلْحَةُ فِي الْجَنَّةِ وَالزُّبَيْرُ فِي الْجَنَّةِ وَعَبْدُ الرَّحْمَنِ بْنُ عَوْفٍ فِي الْجَنَّةِ وَسَعْدٌ فِي الْجَنَّةِ وَسَعِيدٌ فِي الْجَنَّةِ وَأَبُو عُبَيْدَةَ بْنُ الْجَرَّاحِ فِي الْجَنَّةِ',
+        ru:'Пророк ﷺ сказал: «Абу Бакр — в Раю, Умар — в Раю, Усман — в Раю, Али — в Раю, Тальха — в Раю, аз-Зубайр — в Раю, Абдуррахман ибн Ауф — в Раю, Са‘д — в Раю, Са‘ид — в Раю и Абу Убайда ибн аль-Джаррах — в Раю».',
+        kk:'Пайғамбар ﷺ: «Әбу Бәкір — Жәннатта, Омар — Жәннатта, Ғұсман — Жәннатта, Әлі — Жәннатта, Талха — Жәннатта, әз-Зубәйр — Жәннатта, Абдуррахман ибн Ауф — Жәннатта, Сағд — Жәннатта, Сағид — Жәннатта және Әбу Убайда ибн әл-Жаррах — Жәннатта», — деді.',
+        topic:'Сподвижники' },
     ];
 
     
+    function _hadithBookKey(name) {
+      var k = String(name || '').toLowerCase().trim();
+      var m = {'бухари':'bukhari','бұхари':'bukhari','әл-бұхари':'bukhari','мұслім':'muslim','ибн мәжа':'ibnmajah','нәсәи':'nasai','аль-бухари':'bukhari','әл-бухари':'bukhari','bukhari':'bukhari','сахих аль-бухари':'bukhari','муслим':'muslim','мүслім':'muslim','muslim':'muslim','сахих муслим':'muslim','тирмизи':'tirmidhi','ат-тирмизи':'tirmidhi','әт-тирмизи':'tirmidhi','tirmidhi':'tirmidhi','tirmizi':'tirmidhi','абу дауд':'abudawud','абу давуд':'abudawud','әбу дәуіт':'abudawud','әбу дәуід':'abudawud','abudawud':'abudawud','ахмад':'ahmad','ahmad':'ahmad','ибн маджа':'ibnmajah','ибн мажа':'ibnmajah','ibnmajah':'ibnmajah','насаи':'nasai','ан-насаи':'nasai','ән-насаи':'nasai','nasai':'nasai','малик':'malik','malik':'malik'};
+      return m[k] || '';
+    }
     function findCitedHadith(bookOrKey, num) {
+      // build 6.29: если есть запись, у которой ЭТОТ номер — основной (а не «also» чужой записи), берём её
+      if (num != null && String(num) !== '') {
+        var bk0 = _hadithBookKey(bookOrKey), n0 = String(num).replace(/^№\s*/i, '');
+        if (bk0) {
+          var L0 = CITED_HADITHS || [];
+          for (var z = 0; z < L0.length; z++) { var e0 = L0[z]; if (e0 && e0.book === bk0 && String(e0.num) === n0 && e0.ar && e0.ar !== '…') return e0; }
+        }
+      }
+      var r0 = _findCitedHadithRaw(bookOrKey, num);
+      if (r0 && (!r0.ar || r0.ar === '…') && num != null) {
+        // build 6.29: «заглушка» не должна перекрывать настоящую запись с тем же номером
+        var list0 = CITED_HADITHS || [];
+        for (var q = 0; q < list0.length; q++) {
+          var h0 = list0[q]; if (!h0 || !h0.ar || h0.ar === '…' || h0 === r0) continue;
+          var same = (String(h0.num) === String(num) && (h0.book === r0.book)) || (h0.also || []).some(function (a) { return String(a.num) === String(num) && a.book === r0.book; });
+          if (same) return h0;
+        }
+      }
+      return r0;
+    }
+    function _findCitedHadithRaw(bookOrKey, num) {
       var list = CITED_HADITHS || [];
       if (!bookOrKey && num == null) return null;
       var key = String(bookOrKey || '').toLowerCase().trim();
       for (var i = 0; i < list.length; i++) { if (list[i].key === key || list[i].key === bookOrKey) return list[i]; }
       var n = String(num != null ? num : '').replace(/^№\s*/i, '');
-      var bookMap = {'бухари':'bukhari','аль-бухари':'bukhari','әл-бухари':'bukhari','bukhari':'bukhari','сахих аль-бухари':'bukhari','муслим':'muslim','мүслім':'muslim','muslim':'muslim','сахих муслим':'muslim','тирмизи':'tirmidhi','ат-тирмизи':'tirmidhi','әт-тирмизи':'tirmidhi','tirmidhi':'tirmidhi','tirmizi':'tirmidhi','абу дауд':'abudawud','абу давуд':'abudawud','әбу дәуіт':'abudawud','әбу дәуід':'abudawud','abu dawud':'abudawud','abudawud':'abudawud','ахмад':'ahmad','ahmad':'ahmad','ибн маджа':'ibnmajah','ибн мажа':'ibnmajah','ibn majah':'ibnmajah','ibnmajah':'ibnmajah','насаи':'nasai','ан-насаи':'nasai','ән-насаи':'nasai','an-nasai':'nasai','nasai':'nasai','малик':'malik','malik':'malik'};
+      var bookMap = {'бухари':'bukhari','бұхари':'bukhari','әл-бұхари':'bukhari','мұслім':'muslim','ибн мәжа':'ibnmajah','нәсәи':'nasai','аль-бухари':'bukhari','әл-бухари':'bukhari','bukhari':'bukhari','сахих аль-бухари':'bukhari','муслим':'muslim','мүслім':'muslim','muslim':'muslim','сахих муслим':'muslim','тирмизи':'tirmidhi','ат-тирмизи':'tirmidhi','әт-тирмизи':'tirmidhi','tirmidhi':'tirmidhi','tirmizi':'tirmidhi','абу дауд':'abudawud','абу давуд':'abudawud','әбу дәуіт':'abudawud','әбу дәуід':'abudawud','abu dawud':'abudawud','abudawud':'abudawud','ахмад':'ahmad','ahmad':'ahmad','ибн маджа':'ibnmajah','ибн мажа':'ibnmajah','ibn majah':'ibnmajah','ibnmajah':'ibnmajah','насаи':'nasai','ан-насаи':'nasai','ән-насаи':'nasai','an-nasai':'nasai','nasai':'nasai','малик':'malik','malik':'malik'};
       var b = bookMap[key] || key;
       for (var j = 0; j < list.length; j++) {
         var h = list[j];
@@ -25157,7 +25962,7 @@ function playArabicAudio(text, fallbackRu, opts) {
       if (ov) ov.classList.remove('open');
       _hadithPopupKey = null;
     }
-    function openHadithFullPopup(h) {
+    function openHadithFullPopup(h, quote) {
       if (!h) { try { toast('Полный текст этого хадиса пока не добавлен'); } catch(e) {} return; }
       _hadithPopupKey = h.key;
       var kk = false;
@@ -25169,21 +25974,76 @@ function playArabicAudio(text, fallbackRu, opts) {
       if (title) title.textContent = h.srcLabel || 'Хадис';
       var from = kk && h.fromKk ? h.fromKk : (h.from || '');
       var tr = kk && h.kk ? h.kk : h.ru;
-      body.innerHTML =
+      // build 6.27: «заглушки» базы (нет арабского текста, только краткая тема) раньше выглядели как полноценный хадис, хотя у части из них
+        // номер не соответствует теме. Теперь они подписаны честно: тема — «по каталогу», цитата из текста раздела и кнопка на sunnah.com.
+        if (!h.ar || h.ar === '…') {
+          var esc0 = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+          var url0 = (typeof hadithSunnahUrl === 'function') ? hadithSunnahUrl(h.book, h.num) : '';
+          // если рядом со ссылкой в тексте есть цитата и она вообще не пересекается с кратким описанием из каталога, описание скорее чужое — не показываем
+          var stem0 = function (s) { return String(s || '').toLowerCase().replace(/[^a-zа-яёәғқңөұүһі0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w.length >= 4; }).map(function (w) { return w.slice(0, 5); }); };
+          var showTopic0 = true;
+          if (quote && tr) { var qs0 = stem0(quote), ts0 = stem0(tr); showTopic0 = qs0.filter(function (x) { return ts0.indexOf(x) >= 0; }).length > 0; }
+          body.innerHTML =
+            '<div class="ayah-translation" style="line-height:1.55">' + (kk ? 'Бұл хадистің толық мәтіні қолданбаға әзірге қосылмаған.' : 'Полный текст этого хадиса в приложение пока не добавлен.') + '</div>' +
+            (quote ? '<div class="ayah-translation" style="margin-top:0.6rem;border-left:3px solid var(--accent);padding-left:0.6rem;line-height:1.5">' + (kk ? 'Мәтінде былай айтылған: ' : 'Как сказано в тексте: ') + '«' + esc0(quote) + '»</div>' : '') +
+            (tr && showTopic0 ? '<div style="margin-top:0.6rem;font-size:0.82rem;color:var(--text-muted)">' + (kk ? 'Каталогтағы қысқаша тақырып (нөмірмен сәйкестігін тексеріңіз): ' : 'Краткая тема по каталогу приложения (сверьте с номером): ') + '«' + esc0(tr) + '»</div>' : '') +
+            (url0 ? '<a class="btn btn-sm btn-primary" href="' + url0 + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:0.7rem;text-decoration:none">' + (kk ? 'sunnah.com сайтында ашу' : 'Открыть на sunnah.com') + '</a>' : '') +
+            '<div style="margin-top:0.55rem;font-size:0.82rem;color:var(--accent);font-weight:600">' + (h.srcLabel || '') + '</div>';
+          var gb0 = document.getElementById('hadith-full-goto'); if (gb0) gb0.style.display = 'none';
+          var cb0 = document.getElementById('hadith-full-close'); if (cb0) cb0.textContent = kk ? 'Жабу' : 'Закрыть';
+          ov.classList.add('open');
+          return;
+        }
+        body.innerHTML =
         (h.topic ? '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.35rem">'+(kk?'Тақырып: ':'Тема: ')+h.topic+'</div>' : '') +
         (from ? '<div style="font-size:0.88rem;font-weight:600;margin-bottom:0.45rem;color:var(--text)">'+from+'</div>' : '') +
         (h.ar ? '<div class="arabic" dir="rtl" style="font-size:calc(1.25rem * var(--ar-scale, 1));line-height:1.9;margin-bottom:0.65rem">'+h.ar+'</div>' : '') +
         '<div class="ayah-translation" style="line-height:1.55;white-space:pre-wrap">'+tr+'</div>' +
         '<div style="margin-top:0.55rem;font-size:0.82rem;color:var(--accent);font-weight:600">'+(h.srcLabel||'')+'</div>';
       var gotoBtn = document.getElementById('hadith-full-goto');
-      if (gotoBtn) gotoBtn.textContent = kk ? '«Хадистер» бөліміне' : 'В раздел «Хадисы»';
+      if (gotoBtn) { gotoBtn.textContent = kk ? '«Хадистер» бөліміне' : 'В раздел «Хадисы»'; gotoBtn.style.display = ''; }
       var closeBtn = document.getElementById('hadith-full-close');
       if (closeBtn) closeBtn.textContent = kk ? 'Жабу' : 'Закрыть';
       ov.classList.add('open');
     }
-    function openHadithRef(bookOrKey, num) {
+    // build 6.20: ссылка на хадис, которого пока нет в базе цитат приложения, давала лишь короткое «не найден». Теперь — то же окошко,
+    // что у остальных хадисов: пояснение и кнопка «Открыть на sunnah.com» по названному в тексте сборнику и номеру.
+    function hadithSunnahUrl(book, num) {
+      var k = String(book || '').toLowerCase().replace(/^(?:аль-|әл-|ат-|әт-|ан-|ән-|сахих\s+)+/, '').trim();
+      var map = { 'бухари': 'bukhari', 'бұхари': 'bukhari', 'әл-бұхари': 'bukhari', 'мұслім': 'muslim', 'ибн мәжа': 'ibnmajah', 'нәсәи': 'nasai', 'bukhari': 'bukhari', 'муслим': 'muslim', 'мүслім': 'muslim', 'muslim': 'muslim', 'тирмизи': 'tirmidhi', 'tirmidhi': 'tirmidhi',
+        'абу дауд': 'abudawud', 'абу давуд': 'abudawud', 'әбу дәуіт': 'abudawud', 'әбу дәуід': 'abudawud', 'abudawud': 'abudawud', 'abu dawud': 'abudawud',
+        'насаи': 'nasai', 'nasai': 'nasai', 'ибн маджа': 'ibnmajah', 'ибн мажа': 'ibnmajah', 'ibnmajah': 'ibnmajah', 'ахмад': 'ahmad', 'ahmad': 'ahmad',
+        'малик': 'malik', 'malik': 'malik', 'дарими': 'darimi' };
+      var slug = map[k], n = String(num || '').replace(/[^0-9a-z]/gi, '');
+      return (slug && n) ? 'https://sunnah.com/' + slug + ':' + n : '';
+    }
+    // Цитата, которая стоит прямо перед нажатой ссылкой («…» (Тирмизи 2315)) — её покажем в окошке, если полного текста хадиса в приложении нет.
+    function hadithQuoteBefore(chip) {
+      var s = '', n = chip && chip.previousSibling, guard = 0;
+      while (n && s.length < 700 && guard++ < 40) { s = (n.textContent || '') + s; n = n.previousSibling; }
+      var m = null, re = /«([^»]{12,})»/g, x;
+      while ((x = re.exec(s)) !== null) m = x;
+      return (m && (s.length - (m.index + m[0].length) <= 60)) ? m[1].trim() : '';
+    }
+    function openHadithMissingPopup(book, num, quote) {
+      var kk = false; try { kk = (typeof isKk === 'function') ? isKk() : false; } catch (e) {}
+      var title = document.getElementById('hadith-full-title'), body = document.getElementById('hadith-full-body'), ov = document.getElementById('hadith-full-overlay');
+      if (!ov || !body) { try { toast(kk ? 'Бұл хадис қолданбада әзірге жоқ' : 'Хадис пока не добавлен в приложение'); } catch (e) {} return; }
+      var label = (typeof srcHadith === 'function') ? srcHadith(book, num) : (book + ' ' + num);
+      var url = hadithSunnahUrl(book, num);
+      if (title) title.textContent = String(label).replace(/^Хадис:\s*/, '');
+      var esc = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+      body.innerHTML = '<div class="ayah-translation" style="line-height:1.55">' + (kk ? 'Бұл хадистің толық мәтіні қолданбаға әзірге қосылмаған. Нөмірі мәтінде аталған жинақ бойынша көрсетілген.' : 'Полный текст этого хадиса в приложение пока не добавлен. Номер указан по сборнику, названному в тексте.') + '</div>' +
+        (quote ? '<div class="ayah-translation" style="margin-top:0.6rem;border-left:3px solid var(--accent);padding-left:0.6rem;line-height:1.5">' + (kk ? 'Мәтінде былай айтылған: ' : 'Как сказано в тексте: ') + '«' + esc(quote) + '»</div>' : '') +
+        (url ? '<a class="btn btn-sm btn-primary" href="' + url + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:0.7rem;text-decoration:none">' + (kk ? 'sunnah.com сайтында ашу' : 'Открыть на sunnah.com') + '</a>' +
+          '<div class="ayah-translation" style="margin-top:0.4rem;font-size:0.8rem">' + (kk ? 'Интернет керек. Нөмірлеу басылымға қарай өзгеше болуы мүмкін — мазмұнын салыстырып тексеріңіз.' : 'Нужен интернет. Нумерация может отличаться в разных изданиях — сверьте содержание.') + '</div>' : '');
+      var gotoBtn = document.getElementById('hadith-full-goto'); if (gotoBtn) gotoBtn.style.display = 'none';
+      var closeBtn = document.getElementById('hadith-full-close'); if (closeBtn) closeBtn.textContent = kk ? 'Жабу' : 'Закрыть';
+      ov.classList.add('open');
+    }
+    function openHadithRef(bookOrKey, num, quote) {
       var h = findCitedHadith(bookOrKey, num);
-      if (!h) { try { toast('Хадис не найден в цитатах приложения'); } catch(e) {} return; }
+      if (!h) { try { openHadithMissingPopup(bookOrKey, num, quote); } catch(e) { try { toast('Хадис не найден в цитатах приложения'); } catch(e2) {} } return; }
       closeHadithFullPopup();
       try {
         window._hadithsNav = window._hadithsNav || { dl: { src: null, book: null }, nawawiOpen: {}, nawawiSharhOpen: {} };
@@ -25452,7 +26312,8 @@ function playArabicAudio(text, fallbackRu, opts) {
       if (s.indexOf('src-chip') >= 0) return s;
       var ctxAttr = ctx ? ' data-hadith-ctx="'+String(ctx).replace(/"/g,'')+'"' : '';
       // Аяты 2:255 / (2:255) / Коран 2:255
-      s = s.replace(/(?:Коран\s*)?\(?(\d{1,3})\s*:\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?\)?/g, function(full, a, b, c) {
+      s = s.replace(/(?:Коран\s*)?\(?(\d{1,3})\s*:\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?\)?/g, function(full, a, b, c, off, str) {
+        if (typeof _ayahRefOk === 'function' && !_ayahRefOk(a, b, c, str, off, full.length)) return full;
         // skip if looks like time 12:30 in middle of numbers context - keep simple
         var ref = a + ':' + b + (c ? '–' + c : '');
         return '<button type="button" class="src-chip ayah cross-ayah" data-ref="'+a+':'+b+'" style="cursor:pointer;border:1px solid #10b98155">'+srcAyah(a, b)+(c ? '–'+c : '')+'</button>';
@@ -25463,10 +26324,10 @@ function playArabicAudio(text, fallbackRu, opts) {
       //  «аль-Бухари 6021; Муслим 1005» подряд, т.к. и «аль-Бухари 6021», и
       //  «Муслим 1005» по отдельности резолвятся в одну и ту же запись)
       (function () {
-        var bookAlt = '(?:аль-|әл-)?Бухари|Муслим|Мүслім|Тирмизи|ат-Тирмизи|Абу\\s*Дауд|Абу\\s*Давуд|Әбу\\s*Дәуіт|Әбу\\s*Дәуід|Насаи|ан-Насаи|Ибн\\s*Маджа|Ибн\\s*Мажа|Ахмад|Малик|Хаким|ад-Дарими';
-        var reOne = '(?:' + bookAlt + ')\\s*,?\\s*(?:№\\s*)?\\d{1,5}[a-z]?';
+        var bookAlt = '(?:аль-|әл-)?Бухари|(?:аль-|әл-)?Бұхари|Муслим|Мүслім|Мұслім|Тирмизи|ат-Тирмизи|Абу\\s*Дауд|Абу\\s*Давуд|Әбу\\s*Дәуіт|Әбу\\s*Дәуід|Насаи|ан-Насаи|Ибн\\s*Маджа|Ибн\\s*Мажа|Ибн\\s*Мәжа|Нәсәи|Ахмад|Малик|Хаким|ад-Дарими';
+        var reOne = '(?:' + bookAlt + ')\\s*,?\\s*(?:№\\s*)?\\d{1,5}[a-z]?(?![\\/\\d])';
         var reHadith = new RegExp('\\(?(' + reOne + '(?:\\s*[;,]\\s*' + reOne + ')*)\\)?', 'gi');
-        var reFirst = new RegExp('((?:' + bookAlt + '))\\s*,?\\s*(?:№\\s*)?(\\d{1,5}[a-z]?)', 'i');
+        var reFirst = new RegExp('((?:' + bookAlt + '))\\s*,?\\s*(?:№\\s*)?(\\d{1,5}[a-z]?)(?![\\/\\d])', 'i');
         s = s.replace(reHadith, function (full, group) {
           var fm = group.match(reFirst);
           var book = fm ? fm[1] : '';
@@ -25475,6 +26336,16 @@ function playArabicAudio(text, fallbackRu, opts) {
           var keyAttr = found ? ' data-hadith-key="'+found.key+'"' : '';
           var bAttr = ' data-hadith-book="'+String(book).replace(/"/g,'')+'" data-hadith-num="'+String(num).replace(/"/g,'')+'"';
           var label = (found && found.srcLabel) ? found.srcLabel : group;
+          // build 6.19: если автор указал несколько источников — «(аль-Бухари 3719, Муслим 2415)», а в найденной записи
+          // подпись только одна («аль-Бухари 3719»), второй источник пропадал из текста и оставался только в подвале.
+          // Теперь, если хоть один номер из написанного не входит в подпись записи, показываем то, что написал автор.
+          if (found && found.srcLabel) {
+            var nums = []; var reN = new RegExp('(?:' + bookAlt + ')\\s*,?\\s*(?:№\\s*)?(\\d{1,5})', 'gi'); var mn;
+            while ((mn = reN.exec(group)) !== null) nums.push(mn[1]);
+            var miss = nums.some(function (n) { return !new RegExp('(?:^|[^0-9])' + n + '(?:[^0-9]|$)').test(found.srcLabel); });
+            if (miss) label = group.replace(/^\(|\)$/g, '').replace(/\s*;\s*/g, '; ').replace(/\s*,\s*(?=[^\d№\s])/g, '; ');
+          }
+          if (typeof srcIsKk === 'function' && srcIsKk()) { label = String(label).replace(/аль-Бухари/g, 'әл-Бухари').replace(/Муслим(?![а-яёА-ЯЁ])/g, 'Мүслім').replace(/Абу Дауд/g, 'Әбу Дәуіт').replace(/ан-Насаи/g, 'ән-Насаи'); } // build 6.35: в казахском режиме названия в ссылке по-казахски
           return '<button type="button" class="src-chip hadith"'+keyAttr+bAttr+ctxAttr+' style="cursor:pointer">'+label+'</button>';
         });
       })();
@@ -27702,15 +28573,15 @@ async function renderRegistrationSection() {
       { title: 'Правая рука', titleKk: 'Оң қол', ru: 'Есть и пить правой рукой.', kk: 'Тамақты да, сусынды да оң қолмен ішу.', proof: 'Муслим 2020', benefit: 'Следование сунне.', how: 'Всегда начинать с правой руки.', fullHadith: 'От Умара ибн Аби Салямы (р.а.): Пророк ﷺ сказал мне: «Произнеси имя Аллаха, ешь правой рукой и бери то, что рядом с тобой.» (Бухари 5376, Муслим 2022). От Ибн Умара: «Когда кто-то из вас ест, пусть ест правой рукой…» (Муслим 2020).' },
       { title: 'Салам', titleKk: 'Сәлем', ru: 'Распространять приветствие мира.', kk: 'Сәлем беруді (сәлемдесуді) кеңінен таратыңыз.', proof: 'Муслим 54', benefit: 'Любовь между верующими.', how: '«Ассаламу алейкум» знакомым и незнакомым.', fullHadith: 'От Абу Хурайры (р.а.): Пророк ﷺ сказал: «Вы не войдёте в Рай, пока не уверуете, и не уверуете, пока не возлюбите друг друга. Не указать ли вам на то, что, если вы будете делать это, то полюбите друг друга? Распространяйте приветствие (салам) между собой.» (Муслим 54).' },
       { title: 'Сон на правом боку', titleKk: 'Оң жамбасқа жатып ұйықтау', ru: 'Ложиться на правом боку с азкарами.', kk: 'Азкарларды айтып, оң жамбасқа жатып ұйықтау.', proof: 'Аль-Бухари 6311', benefit: 'Защита и зикр.', how: 'Аятуль-Курси, три «Куль».', fullHadith: 'От аль-Бары ибн Азиба (р.а.): Пророк ﷺ сказал: «Когда ты ляжешь в постель, соверши омовение как для намаза, затем ляг на правый бок и скажи: „Аллахумма асламту нафси иляйка…“» (Бухари 6311, Муслим). Перед сном читают Аятуль-Курси, последние аяты Бакары, муаввизат.' },
-      { title: 'Сухур', titleKk: 'Сахарлық', ru: 'Принимать предрассветную еду при посте.', kk: 'Ораза кезінде таң алдында сахарлық тамақ ішу.', proof: 'Аль-Бухари 1923', benefit: 'Баракат.', how: 'Даже глоток воды перед фаджром.', fullHadith: 'От Анаса (р.а.): Пророк ﷺ сказал: «Принимайте сухур: поистине, в сухуре — баракат.» (Бухари 1923, Муслим). От Абу Хурайры: «Отличие нашего поста от поста людей Писания — сухур.» (Муслим).' },
-      { title: 'Ифтар без промедления', titleKk: 'Кешіктірмей ауыз ашу', ru: 'Разговляться сразу после заката.', kk: 'Күн батысымен-ақ, кешіктірмей ауыз ашу.', proof: 'Аль-Бухари 1957', benefit: 'Сунна и сила.', how: 'Финики и вода, затем намаз.', fullHadith: 'От Сахля ибн Са‘да (р.а.): Пророк ﷺ сказал: «Люди будут в благе, пока будут спешить с разговением.» (Бухари 1957, Муслим). Разговение финиками или водой — сунна (Абу Дауд, Тирмизи).' },
+      { title: 'Сухур', titleKk: 'Сахарлық', ru: 'Принимать предрассветную еду при посте.', kk: 'Ораза кезінде таң алдында сахарлық тамақ ішу.', proof: 'Аль-Бухари 1923', benefit: 'Баракат.', how: 'Даже глоток воды перед фаджром.', fullHadith: 'От Анаса (р.а.): Пророк ﷺ сказал: «Принимайте сухур: поистине, в сухуре — баракат.» (Бухари 1923, Муслим). От Абу Хурайры: «Отличие нашего поста от поста людей Писания — сухур.» (Муслим 1096).' },
+      { title: 'Ифтар без промедления', titleKk: 'Кешіктірмей ауыз ашу', ru: 'Разговляться сразу после заката.', kk: 'Күн батысымен-ақ, кешіктірмей ауыз ашу.', proof: 'Аль-Бухари 1957', benefit: 'Сунна и сила.', how: 'Финики и вода, затем намаз.', fullHadith: 'От Сахля ибн Са‘да (р.а.): Пророк ﷺ сказал: «Люди будут в благе, пока будут спешить с разговением.» (Бухари 1957, Муслим). Разговение финиками или водой — сунна (Абу Дауд 2356, Тирмизи 696).' },
       { title: 'Улыбка', titleKk: 'Жымию', ru: 'Улыбка брату — садака.', kk: 'Бауырыңа жымиып қарау — садақа.', proof: 'Тирмизи 1956', benefit: 'Награда и мягкость сердца.', how: 'Улыбаться при встрече.', fullHadith: 'От Абу Зарра (р.а.): Пророк ﷺ сказал: «Не пренебрегай никаким добрым делом, даже если это будет улыбка в лицо твоему брату.» (Муслим 2626). Тирмизи 1956: «Улыбка в лицо брату — садака.»' },
       { title: 'Хорошее слово', titleKk: 'Жақсы сөз', ru: 'Доброе слово — садака.', kk: 'Жақсы сөз — садақа.', proof: 'Аль-Бухари 2989', benefit: 'Награда без затрат.', how: 'Дуа, зикр, благодарность.', fullHadith: 'От Абу Хурайры (р.а.): «Каждое хорошее слово — садака.» (Бухари 2989, Муслим). «Слово, которое произносит человек, не придавая значения, может низвергнуть его в Огонь» — остерегайтесь языка.' },
       { title: 'Снятие вреда с дороги', titleKk: 'Жолдан кедергіні алып тастау', ru: 'Убрать препятствие с пути — ветвь имана.', kk: 'Жолдан кедергіні алып тастау — иманның бір тармағы.', proof: 'Муслим 35', benefit: 'Польза людям.', how: 'Камень, мусор с дороги.', fullHadith: 'От Абу Хурайры (р.а.): Пророк ﷺ сказал: «Иман — более семидесяти (или шестидесяти) ветвей; высшая — ля иляха илляллах, низшая — убрать с дороги то, что мешает; и стыдливость — из имана.» (Муслим 35).' },
-      { title: 'Посещение больного', titleKk: 'Науқасты көру', ru: 'Навещать больных.', kk: 'Науқастарды зиярат ету (көру).', proof: 'Аль-Бухари 5653', benefit: 'Милость и дуа ангелов.', how: 'Короткий визит, дуа о здравии.', fullHadith: 'От аль-Бары (р.а.): Пророк ﷺ повелел нам семь дел, в том числе: навещать больного, следовать за погребальными носилками… (Бухари 5650). «Когда мусульманин навещает больного утром, семьдесят тысяч ангелов молятся за него до вечера…» (Тирмизи).' },
+      { title: 'Посещение больного', titleKk: 'Науқасты көру', ru: 'Навещать больных.', kk: 'Науқастарды зиярат ету (көру).', proof: 'Аль-Бухари 5653', benefit: 'Милость и дуа ангелов.', how: 'Короткий визит, дуа о здравии.', fullHadith: 'От аль-Бары (р.а.): Пророк ﷺ повелел нам семь дел, в том числе: навещать больного, следовать за погребальными носилками… (Бухари 5650). «Когда мусульманин навещает больного утром, семьдесят тысяч ангелов молятся за него до вечера…» (Тирмизи 969).' },
       { title: 'Вход с правой ноги', titleKk: 'Оң аяқпен кіру', ru: 'В мечеть — с правой, из мечети — с левой.', kk: 'Мешітке оң аяқпен кіру, шыққанда сол аяқпен шығу.', proof: 'аль-Бухари 168; Муслим 268', benefit: 'Сунна входа.', how: 'Дуа входа в мечеть.', fullHadith: 'Прямого хадиса именно про «входи в мечеть с правой ноги» нет — это вывод учёных из общего правила. От Аиши (р.а.) передаётся: «Пророку ﷺ нравилось начинать с правой стороны во всех своих делах, где это было возможно, — при омовении, надевании обуви и расчёсывании волос» (согласовано, аль-Бухари 168, Муслим 268). Именно из этого общего принципа имам аль-Бухари вывел желательность входить в мечеть с правой ноги, отведя этому отдельную главу в своём сборнике. Дуа входа: «Аллахумма-фтах ли абваба рахматика».' },
-      { title: 'Басмала перед едой', titleKk: 'Тамақ алдында бісмілля', ru: 'Начинать еду с имени Аллаха.', kk: 'Тамақты Аллаһтың есімімен бастау.', proof: 'Аль-Бухари 5376', benefit: 'Баракат, защита.', how: 'Бисмиллях. Если забыл — «Бисмилляхи фи аввалихи ва ахирихи».', fullHadith: 'От Умара ибн Аби Салямы: «Произнеси имя Аллаха…» (Бухари 5376). Если забыл в начале: «Бисмилляхи фи аввалихи ва ахирихи» (Абу Дауд, Тирмизи).' },
-      { title: 'Три глотка при питье', titleKk: 'Үш ұрттап ішу', ru: 'Пить сидя, тремя глотками, не дуть в сосуд.', kk: 'Отырып, үш ұрттап ішу, ыдысқа үрлемеу.', proof: 'Муслим 2028', benefit: 'Сунна питья.', how: 'Сидя, три глотка, справа.', fullHadith: 'От Анаса (р.а.): Пророк ﷺ пил за три глотка (Муслим 2028). Запрет дуть в сосуд (Бухари). Желательно пить сидя (Муслим).' },
+      { title: 'Басмала перед едой', titleKk: 'Тамақ алдында бісмілля', ru: 'Начинать еду с имени Аллаха.', kk: 'Тамақты Аллаһтың есімімен бастау.', proof: 'Аль-Бухари 5376', benefit: 'Баракат, защита.', how: 'Бисмиллях. Если забыл — «Бисмилляхи фи аввалихи ва ахирихи».', fullHadith: 'От Умара ибн Аби Салямы: «Произнеси имя Аллаха…» (Бухари 5376). Если забыл в начале: «Бисмилляхи фи аввалихи ва ахирихи» (Абу Дауд 3767, Тирмизи 1858).' },
+      { title: 'Три глотка при питье', titleKk: 'Үш ұрттап ішу', ru: 'Пить сидя, тремя глотками, не дуть в сосуд.', kk: 'Отырып, үш ұрттап ішу, ыдысқа үрлемеу.', proof: 'Муслим 2028', benefit: 'Сунна питья.', how: 'Сидя, три глотка, справа.', fullHadith: 'От Анаса (р.а.): Пророк ﷺ пил за три глотка (Муслим 2028). Запрет дуть в сосуд (Бухари 5630, Муслим 267). Желательно пить сидя (Муслим 2024).' },
       { title: 'Дуа после еды', titleKk: 'Тамақтан кейінгі дұға', ru: 'Благодарить Аллаха словами дуа сразу после трапезы.', kk: 'Тамақтан кейін бірден дұға сөздерімен Аллаһқа шүкір ету.', proof: 'Абу Дауд 4023; Тирмизи 3458', benefit: 'Прощение прежних грехов (по тексту хадиса).', how: 'После еды сказать: «Альхамду лиллахиллязи ат‘амани хаза ва разаканихи мин гайри хаулин минни ва ля кувва».',
         fullHadith: 'От Му‘аза ибн Анаса (р.а.) передаётся, что Посланник Аллаха ﷺ сказал: «Кто поел пищу, а затем сказал: „Альхамду лиллахиллязи ат‘амани хаза ва разаканихи мин гайри хаулин минни ва ля кувва“ (Хвала Аллаху, Который накормил меня этим и наделил меня этим без силы и мощи с моей стороны), — тому прощаются его прежние грехи» (Абу Дауд 4023, Тирмизи 3458 — хадис хасан).' },
       { title: 'Ответ на призыв азана', titleKk: 'Азанға жауап беру', ru: 'Повторять за муаззином слова азана и произнести дуа «Василя» после его завершения.', kk: 'Азан сөздерін муаззиннен қайталап, аяқталған соң «Уәсиля» дұғасын айту.', proof: 'Аль-Бухари 614, 4719', benefit: 'Право на заступничество (шафа‘ат) Пророка ﷺ в Судный день.', how: 'Повторяйте каждую фразу азана вслед за муаззином (кроме «Хайя ‘аляс-салях/фалях», где говорят «Ля хауля ва ля куввата илля биллях»), а после завершения азана скажите дуа «Аллахумма Раббa хазихид-да‘вати-т-тамма…».',
@@ -28211,7 +29082,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         widgetOrder.filter(function(id){ return hiddenDh.indexOf(id) < 0; })
           .map(function(id){
             var isCollapsed = collapsedDh.indexOf(id) >= 0;
-            var lbl = DAILY_WIDGET_LABELS[id] || id;
+            var lbl = dwLabel(id);
             // build 6.10: кнопка сворачивания была слишком мелкой (жалоба) —
             // теперь вся полоска-заголовок кликабельна (не только сама
             // кнопка), плюс сама кнопка увеличена до нормального размера
@@ -28522,7 +29393,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       const orig = btn ? btn.textContent : '';
       const step = () => {
         if (a > a2) { if (btn) btn.textContent = orig; return; }
-        if (btn) btn.textContent = '⏸ ' + (a1 === a2 ? '' : (a + '/' + a2 + ' ')) + 'Стоп';
+        if (btn) btn.textContent = '⏸ ' + (a1 === a2 ? '' : (a + '/' + a2 + ' ')) + tLabel('Стоп');
         const audio = new Audio(ayahAudioUrl(s, a));
         window._quranDuaAudio = audio;
         audio.addEventListener('ended', () => { a++; step(); });
@@ -28551,22 +29422,21 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         const filter = state.quranDuaFilter;
         const visibleThemes = filter === 'other' ? singleThemes : multiThemes;
         const chips = '<div class="card" style="padding:0.5rem 0.6rem;display:flex;gap:0.35rem;flex-wrap:wrap">' +
-          '<button type="button" class="btn btn-sm ' + (filter === 'all' ? 'btn-primary' : '') + '" data-qd-filter="all">Темы</button>' +
-          '<button type="button" class="btn btn-sm ' + (filter === 'other' ? 'btn-primary' : '') + '" data-qd-filter="other">Другое</button>' +
+          '<button type="button" class="btn btn-sm ' + (filter === 'all' ? 'btn-primary' : '') + '" data-qd-filter="all">'+tLabel('Темы')+'</button>' +
+          '<button type="button" class="btn btn-sm ' + (filter === 'other' ? 'btn-primary' : '') + '" data-qd-filter="other">'+tLabel('Другое')+'</button>' +
           '</div>';
         el.innerHTML =
           '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">' +
-          '28 мольбы (дуа), которые есть прямо в тексте Корана — от пророков и праведников. ' +
-          'Текст и перевод подгружаются с сервера Корана, озвучка — настоящий чтец (тот же, что в разделе «Суры»).</p>' +
+          tLabel('28 мольбы (дуа), которые есть прямо в тексте Корана — от пророков и праведников. Текст и перевод подгружаются с сервера Корана, озвучка — настоящий чтец (тот же, что в разделе «Суры»).') + '</p>' +
           chips +
           visibleThemes.map(theme => {
             const items = QURAN_DUAS.filter(d => d.theme === theme);
-            return '<div style="margin:0.9rem 0 0.4rem;font-weight:600;color:var(--accent);font-size:0.85rem">' + theme + '</div>' +
+            return '<div style="margin:0.9rem 0 0.4rem;font-weight:600;color:var(--accent);font-size:0.85rem">' + tLabel(theme) + '</div>' +
               items.map(d => {
                 const ref = d.s + ':' + d.a1 + (d.a2 && d.a2 !== d.a1 ? '-' + d.a2 : '');
                 return '<div class="card surah-item" data-qd="' + d.id + '">' +
                   '<div class="surah-info">' +
-                  '<div class="surah-name">' + (d.who || ('Дуа ' + ref)) + '</div>' +
+                  '<div class="surah-name">' + (d.who ? tLabel(d.who) : (tLabel('Дуа') + ' ' + ref)) + '</div>' +
                   '<div class="surah-meta">' + ref + '</div>' +
                   '</div></div>';
               }).join('');
@@ -28586,20 +29456,20 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         const d = QURAN_DUAS.find(x => x.id === id);
         if (!d) { showList(); return; }
         const a2 = d.a2 || d.a1;
-        el.innerHTML = '<div class="card"><button type="button" class="btn btn-sm" id="qd-back">← Назад</button></div>' +
-          '<div class="card"><div class="empty-state">Загрузка…</div></div>';
+        el.innerHTML = '<div class="card"><button type="button" class="btn btn-sm" id="qd-back">'+tLabel('← Назад')+'</button></div>' +
+          '<div class="card"><div class="empty-state">'+tLabel('Загрузка…')+'</div></div>';
         document.getElementById('qd-back')?.addEventListener('click', showList);
         const ayahNums = [];
         for (let a = d.a1; a <= a2; a++) ayahNums.push(a);
         Promise.all(ayahNums.map(a => fetchQuranDuaAyah(d.s, a))).then(items => {
           const ref = d.s + ':' + d.a1 + (a2 !== d.a1 ? '-' + a2 : '');
-          el.innerHTML = '<div class="card"><button type="button" class="btn btn-sm" id="qd-back">← Назад</button></div>' +
+          el.innerHTML = '<div class="card"><button type="button" class="btn btn-sm" id="qd-back">'+tLabel('← Назад')+'</button></div>' +
             '<div class="card">' +
-            (d.who ? '<div class="surah-meta" style="margin-bottom:0.5rem">' + d.who + '</div>' : '') +
+            (d.who ? '<div class="surah-meta" style="margin-bottom:0.5rem">' + tLabel(d.who) + '</div>' : '') +
             items.map(it => '<div class="arabic" dir="rtl" style="margin-bottom:0.6rem">' + it.ar + '</div>').join('') +
             '<div class="ayah-translation">' + items.map(it => it.ru).join(' ') + '</div>' +
-            '<div class="surah-meta" style="margin-top:0.5rem">Коран, ' + ref + '</div>' +
-            '<div style="margin-top:0.75rem"><button type="button" class="btn btn-primary btn-sm" id="qd-play">🔊 Слушать</button></div>' +
+            '<div class="surah-meta" style="margin-top:0.5rem">' + tLabel('Коран') + ', ' + ref + '</div>' +
+            '<div style="margin-top:0.75rem"><button type="button" class="btn btn-primary btn-sm" id="qd-play">'+tLabel('🔊 Слушать')+'</button></div>' +
             '</div>';
           document.getElementById('qd-back')?.addEventListener('click', showList);
           document.getElementById('qd-play')?.addEventListener('click', (e) => {
@@ -28607,8 +29477,8 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
             playQuranDuaRange(d.s, d.a1, a2, e.currentTarget);
           });
         }).catch(() => {
-          el.innerHTML = '<div class="card"><button type="button" class="btn btn-sm" id="qd-back">← Назад</button></div>' +
-            '<div class="card"><div class="empty-state">Не удалось загрузить текст. Проверьте связь и попробуйте снова.</div></div>';
+          el.innerHTML = '<div class="card"><button type="button" class="btn btn-sm" id="qd-back">'+tLabel('← Назад')+'</button></div>' +
+            '<div class="card"><div class="empty-state">'+tLabel('Не удалось загрузить текст. Проверьте связь и попробуйте снова.')+'</div></div>';
           document.getElementById('qd-back')?.addEventListener('click', showList);
         });
       };
@@ -28631,20 +29501,20 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       const ordered = order.map(id => byId[id]).filter(Boolean);
 
       const speakDua = (ar, ru) => {
-        if (!ar) { toast('Нет текста'); return; }
+        if (!ar) { toast(tLabel('Нет текста')); return; }
         if (typeof speakArText === 'function') { speakArText(ar, 0.85); return; }
         try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
         var chunk = String(ar).length > 180 ? String(ar).slice(0, 180) : String(ar);
         var url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + encodeURIComponent(chunk);
-        if (typeof playAudio === 'function') { try { playAudio(url, 'Дуа', { mode: 'single', repeat: 1 }); return; } catch(e) {} }
-        try { var a = new Audio(url); a.play().catch(function() { toast('Не удалось воспроизвести'); }); }
-        catch(e) { toast('Озвучка недоступна'); }
+        if (typeof playAudio === 'function') { try { playAudio(url, tLabel('Дуа'), { mode: 'single', repeat: 1 }); return; } catch(e) {} }
+        try { var a = new Audio(url); a.play().catch(function() { toast(tLabel('Не удалось воспроизвести')); }); }
+        catch(e) { toast(tLabel('Озвучка недоступна')); }
       };
 
       // Плеер очереди для списка дуа (тема-дуа-конструктор / «моё дуа»):
       // как в сурах — 🔊 запускает эту дуа и продолжает по списку, доступны ⏮ ⏯ ⏭ и режимы повтора.
       const playDuaListQueue = (duas, startIdx, mode, titlePrefix, containerSel) => {
-        if (!duas || !duas.length) { toast('Нет текста'); return; }
+        if (!duas || !duas.length) { toast(tLabel('Нет текста')); return; }
         let queue = [];
         duas.forEach((d, i) => {
           const entries = (typeof buildSpeechQueueForItem === 'function')
@@ -28657,7 +29527,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           entries.forEach(e => { e.duaIdx = i; e.dua = true; });
           queue = queue.concat(entries);
         });
-        if (!queue.length) { toast('Нет текста'); return; }
+        if (!queue.length) { toast(tLabel('Нет текста')); return; }
         mode = mode || 'surah';
         audioQueue = queue;
         audioPlayMode = mode;
@@ -29734,7 +30604,7 @@ const HADITH_EXPAND = {
         }).join('');
       };
       if (st.item) {
-        el.innerHTML = '<button type="button" class="btn btn-sm" id="ih-back">← К списку</button><div class="card" style="margin-top:0.5rem"><div class="ayah-translation">Загрузка…</div></div>';
+        el.innerHTML = '<button type="button" class="btn btn-sm" id="ih-back">← К списку</button><div class="card" style="margin-top:0.5rem"><div class="ayah-translation">'+tLabel('Загрузка…')+'</div></div>';
         document.getElementById('ih-back')?.addEventListener('click', function () { st.item = null; window._ihouse = st; renderIHouse(); });
         ihFetch('/main/get-item/' + encodeURIComponent(st.item) + '/ru/json').then(function (item) {
           const it = item && (item.data || item);
@@ -29762,7 +30632,7 @@ const HADITH_EXPAND = {
         });
         return;
       }
-      el.innerHTML = '<p class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-bottom:0.5rem">' + IHOUSE_ATTR + '</p><div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-bottom:0.5rem">' + tabsHtml() + '</div><div class="card"><div class="ayah-translation">Загрузка…</div></div>';
+      el.innerHTML = '<p class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-bottom:0.5rem">' + IHOUSE_ATTR + '</p><div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-bottom:0.5rem">' + tabsHtml() + '</div><div class="card"><div class="ayah-translation">'+tLabel('Загрузка…')+'</div></div>';
       el.querySelectorAll('[data-ih-type]').forEach(function (btn) {
         btn.addEventListener('click', function () { st.type = btn.getAttribute('data-ih-type'); st.page = 1; window._ihouse = st; renderIHouse(); });
       });
@@ -29790,7 +30660,7 @@ const HADITH_EXPAND = {
           card.addEventListener('click', function () { st.item = card.getAttribute('data-ih-id'); window._ihouse = st; renderIHouse(); });
         });
       }).catch(function (err) {
-        el.innerHTML = '<p class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1))">' + IHOUSE_ATTR + '</p><div style="display:flex;flex-wrap:wrap">' + tabsHtml() + '</div><div class="card"><b>Не удалось загрузить</b><div class="ayah-translation">Нужен интернет. ' + ihEsc(err.message) + '</div></div>';
+        el.innerHTML = '<p class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1))">' + IHOUSE_ATTR + '</p><div style="display:flex;flex-wrap:wrap">' + tabsHtml() + '</div><div class="card"><b>'+tLabel('Не удалось загрузить')+'</b><div class="ayah-translation">Нужен интернет. ' + ihEsc(err.message) + '</div></div>';
         el.querySelectorAll('[data-ih-type]').forEach(function (btn) {
           btn.addEventListener('click', function () { st.type = btn.getAttribute('data-ih-type'); st.page = 1; window._ihouse = st; renderIHouse(); });
         });
@@ -29978,7 +30848,7 @@ function renderHadiths() {
             });
           }).catch(function (err) {
             el.innerHTML = '<button type="button" class="btn btn-sm" id="he-back">← Назад</button>' +
-              '<div class="card" style="margin-top:0.5rem"><b>Не удалось загрузить</b>' +
+              '<div class="card" style="margin-top:0.5rem"><b>'+tLabel('Не удалось загрузить')+'</b>' +
               '<div class="ayah-translation">Нужен интернет. ' + heEsc(err.message) + '</div></div>';
             document.getElementById('he-back')?.addEventListener('click', () => { step = 'home'; paint(); });
           });
@@ -29989,7 +30859,7 @@ function renderHadiths() {
           const page = enc.page || 1;
           el.innerHTML = '<button type="button" class="btn btn-sm" id="he-back">← Категории</button>' +
             '<h3 style="margin:0.6rem 0">' + heEsc(enc.catTitle || 'Хадисы') + '</h3>' +
-            '<div class="card"><div class="ayah-translation">Загрузка…</div></div>';
+            '<div class="card"><div class="ayah-translation">'+tLabel('Загрузка…')+'</div></div>';
           document.getElementById('he-back')?.addEventListener('click', () => { step = 'enc_cats'; paint(); });
           heFetch('/hadeeths/list/?language=ru&category_id=' + encodeURIComponent(cid) + '&page=' + page + '&per_page=20').then(function (res) {
             const rows = (res && res.data) ? res.data : (Array.isArray(res) ? res : []);
@@ -30074,11 +30944,11 @@ function renderHadiths() {
           });
           el.innerHTML =
             '<div class="card" style="margin-bottom:0.6rem"><input type="search" id="hadith-section-search" placeholder="Поиск внутри хадисов…" value="'+(window._hadithSectionQ||'').replace(/"/g,'')+'" style="width:100%;padding:0.5rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"/></div>' +
-            '<button type="button" class="btn btn-primary" id="h-dl" style="width:100%;margin-bottom:0.75rem">⬇ Скачать хадисы</button>' +
-            '<button type="button" class="btn" id="h-enc" style="width:100%;margin-bottom:0.75rem;border:1px solid var(--accent)">📖 Энциклопедия хадисов (HadeethEnc · RU)</button>' +
+            '<button type="button" class="btn btn-primary" id="h-dl" style="width:100%;margin-bottom:0.75rem">'+tLabel('⬇ Скачать хадисы')+'</button>' +
+            '<button type="button" class="btn" id="h-enc" style="width:100%;margin-bottom:0.75rem;border:1px solid var(--accent)">'+tLabel('📖 Энциклопедия хадисов (HadeethEnc · RU)')+'</button>' +
             '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem">Онлайн-корпус на русском с пояснениями. ' + HADEETHENC_ATTR + '. Скачанные — ниже; образцы — в конце.</p>' +
-            (dlCards ? '<h3 style="margin:0.5rem 0">Скачанные</h3>' + dlCards : '<div class="card"><div class="ayah-translation">Пока ничего не скачано. Нажмите «Скачать хадисы».</div></div>') +
-            '<h3 style="margin:1rem 0 0.5rem">Каталог (образцы)</h3>' +
+            (dlCards ? '<h3 style="margin:0.5rem 0">Скачанные</h3>' + dlCards : '<div class="card"><div class="ayah-translation">'+tLabel('Пока ничего не скачано. Нажмите «Скачать хадисы».')+'</div></div>') +
+            '<h3 style="margin:1rem 0 0.5rem">'+tLabel('Каталог (образцы)')+'</h3>' +
             HADITH_SOURCES.map(s =>
               '<div class="card" style="cursor:pointer" data-open-src="'+s.id+'"><b>'+s.name+'</b><div class="ayah-translation">'+(s.books?s.books.length:0)+' книг(и) в каталоге</div></div>'
             ).join('');
@@ -30850,14 +31720,14 @@ c.addEventListener('click', () => {
           '• Санақ (бейджик) картада — сол бөлімде жаңа/оқылмаған нәрсе бар дегенді білдіреді.<br>' +
           '• Тор/тізім — жоғарыдағы орналасу түймелері; «Реті» — карточкаларды ↑↓←→ жылжыту.'
         : 'Здесь — все «онлайновые» разделы сайта (нужна регистрация):<br>' +
-          '• 💭 <b>Общий чат</b> — единый чат для всех пользователей.<br>' +
-          '• ✉️ <b>Личные сообщения</b> — переписка один на один (ЛС).<br>' +
+          '• 💭 <b>'+tLabel('Общий чат')+'</b> — единый чат для всех пользователей.<br>' +
+          '• ✉️ <b>'+tLabel('Личные сообщения')+'</b> — переписка один на один (ЛС).<br>' +
           '• 👥 <b>Групповые чаты</b> — создать/вступить в группу, список открытых групп.<br>' +
           '• 🧑‍🤝‍🧑 <b>Друзья</b> — список друзей, добавление/удаление, поиск.<br>' +
           '• 💬 <b>Форум</b> — задать вопрос, обсуждение по категориям.<br>' +
-          '• ❓ <b>Мои вопросы/ответы</b> — вопросы знающему и полученные ответы.<br>' +
-          '• 🏅 <b>Достижения</b> / 📊 <b>Статистика</b> — значки прогресса и статистика использования.<br>' +
-          '• 🔔 <b>Уведомления</b> — оповещения о новых сообщениях, ответах и т.п.<br>' +
+          '• ❓ <b>'+tLabel('Мои вопросы/ответы')+'</b> — вопросы знающему и полученные ответы.<br>' +
+          '• 🏅 <b>'+tLabel('Достижения')+'</b> / 📊 <b>Статистика</b> — значки прогресса и статистика использования.<br>' +
+          '• 🔔 <b>'+tLabel('Уведомления')+'</b> — оповещения о новых сообщениях, ответах и т.п.<br>' +
           '• Значок с числом на карточке — есть что-то новое/непрочитанное в этом разделе.<br>' +
           '• Сетка/список — кнопки раскладки сверху; «Порядок» — двигать карточки ↑↓←→.');
 
@@ -44562,58 +45432,58 @@ c.addEventListener('click', () => {
       const list = (typeof KABAIR_55 !== 'undefined' && KABAIR_55.length) ? KABAIR_55 : [];
       const modern = [
         { n: 'М1', title: 'Музыка и песни с харам-содержанием', titleKk: 'Харам мазмұнды музыка және әндер', text: 'Многие современные учёные относят к запретному или крайне нежелательному музыку с инструментами и тексты, побуждающие к страстям, ширку, распутству. Даже «нейтральная» музыка часто отвлекает от зикра и намаза. Опираются на аяты о «ляхве праздных речей» (31:6) и хадисы о маʿазиф (музыкальных инструментах): в Сахих аль-Бухари приведён му‘алляк (без полного иснада); связанные риваяты у части учёных спорны/слабы, у других — принимаются. Многие современные учёные всё же считают музыку с инструментами и тексты, побуждающие к страстям, запретной или крайне нежелательной.\n\nНе «культура ради культуры», а то, что занимает сердце вместо поминания Аллаха.\n\nТауба: уменьшить/убрать, заменить Кораном, насхидами без инструментов (по мнению допускающих), полезными знаниями.', textKk: 'Көптеген қазіргі ғалымдар аспаптармен ойналатын музыканы және құмарлыққа, ширкке, азғындыққа итермелейтін мәтіндерді харамға немесе қатты жағымсызға жатқызады. «Бейтарап» музыка да көбіне зікір мен намаздан алаңдатады. Бұл «бос сөзден ләхуи» туралы аяттарға (31:6) және Бухаридің т.б. хадистеріндегі мағазифке (музыкалық аспаптарға) тыйым салуға негізделген.\n\nБұл «мәдениет үшін мәдениет» емес, жүректі Аллаһты еске алудың орнына алып тұрған нәрсе.\n\nТәубе: азайту/алып тастау, Құранмен, аспапсыз насхидтермен (рұқсат ететін пікір бойынша), пайдалы біліммен алмастыру.' },
-        { n: 'М2', title: 'Бесконечный скроллинг и пустые соцсети', titleKk: 'Шексіз скроллинг және бос әлеуметтік желілер', text: 'Трата часов на ленту без пользы — излишнее, часто с гибой, завистью, картинками аурата. Коран (23:3; 31:6) предупреждает о «лягве» (пустой болтовне) и о тех, кто «играет и забавляется».\n\nНе каждый интернет — харам, но привычка, которая крадёт намаз, сон и семейное время — грех по смыслу растраты жизни. Замена: таймер, полезный контент, зикр, чтение.', textKk: 'Пайдасыз лентаға сағаттарды жұмсау — артық нәрсе, көбіне ғайбат, қызғаныш, ауратты көрсететін суреттермен қоса келеді. Құран «ләғу» (бос сөз) туралы және «ойнап-күлетіндер» туралы ескертеді.\n\nИнтернеттің бәрі харам емес, бірақ намазды, ұйқыны және отбасы уақытын ұрлайтын әдет — өмірді ысырап ету мағынасында күнә. Алмастыру: таймер, пайдалы мазмұн, зікір, оқу.' },
+        { n: 'М2', title: 'Бесконечный скроллинг и пустые соцсети', titleKk: 'Шексіз скроллинг және бос әлеуметтік желілер', text: 'Трата часов на ленту без пользы — излишнее, часто с гибой, завистью, картинками аурата. Коран (23:3; 31:6) предупреждает о «лягве» (пустой болтовне) и о тех, кто «играет и забавляется».\n\nНе каждый интернет — харам, но привычка, которая крадёт намаз, сон и семейное время — грех по смыслу растраты жизни. Замена: таймер, полезный контент, зикр, чтение.', textKk: 'Пайдасыз лентаға сағаттарды жұмсау — артық нәрсе, көбіне ғайбат, қызғаныш, ауратты көрсететін суреттермен қоса келеді. Құран «ләғу» (бос сөз) туралы және «ойнап-күлетіндер» туралы ескертеді.\n\nИнтернеттің бәрі харам емес, бірақ намазды, ұйқыны және отбасы уақытын ұрлайтын әдет — өмірді ысырап ету мағынасында күнә. Алмастыру: таймер, пайдалы мазмұн, зікір, оқу.\n\n(Дереккөздер — Аяттар: 23:3; 31:6)' },
         { n: 'М3', title: 'Сериалы, фильмы и аниме с запретным', titleKk: 'Харам мазмұнды сериалдар, фильмдер және аниме', text: 'Сцены наготы, зины, колдовства, насмешки над религией, романтизация греха. «Мы просто смотрим» не снимает ответственности: глаз и сердце принимают харам. Хадис о том, что взгляд — стрела из стрел шайтана.\n\nВыбор: избегать, перематывать, отключать; лучше — полезные документальные и исламские материалы.', textKk: 'Жалаңаштық, зина, сиқыр көрінетін көріністер, дінге күлкі ету, күнәні әсемдеп көрсету. «Біз жай көреміз» деу жауапкершіліктен босатпайды: көз пен жүрек харамды қабылдайды. Хадисте көз қарауы — шайтанның жебелерінің бірі делінген.\n\nТаңдау: аулақ болу, айналдырып жіберу, өшіру; одан да жақсысы — пайдалы деректі және исламдық материалдар.' },
         { n: 'М4', title: 'Смешанное общение без нужды (чаты, «друзья» противоположного пола)', titleKk: 'Қажетсіз аралас қарым-қатынас (чаттар, қарама-қарсы жыныстағы «достар»)', text: 'Хадис: «Не оставайся наедине с женщиной…» Расширяется на длительные личные переписки, флирт, «просто друзья». Приводит к фитне, зависти супругов, иногда к зина.\n\nНужда (работа, учёба) — с границами; развлечение и душевные излияния — нет.', textKk: 'Хадис: «Нәзік жандымен жалғыз қалма…» Бұл ұзақ жеке хат-хабарлар, флирт, «жай ғана достар» дегенге дейін кеңейеді. Фитнаға, жұбайлардың қызғанышына, кейде зинаға әкеледі.\n\nҚажеттілік (жұмыс, оқу) — шектеулермен; көңіл көтеру және жан төгу — жоқ.' },
         { n: 'М5', title: 'Риба через кредиты, карты, «рассрочки» банков', titleKk: 'Несиелер, карталар, банктердің «бөліп төлеуі» арқылы риба', text: 'Процент — риба, один из кабаир. Современные потребительские кредиты, кэшбек «за долг», микрозаймы — часто содержат явный процент. Коран 2:275–279.\n\nИскать халяль-альтернативы, избегать долга без крайней нужды, консультироваться с знающим.', textKk: 'Пайыз — риба, кабаирдің біреуі. Қазіргі тұтыну несиелері, «қарызға» кэшбек, микронесиелер — көбіне анық пайыз қамтиды. Құран 2:275–279.\n\nХалал баламаларды іздеу, аса қажеттіліксіз қарызға бармау, білетін адаммен ақылдасу.' },
         { n: 'М6', title: 'Ставки, «прогнозы», лутбоксы, крипто-казино', titleKk: 'Ставкалар, «болжамдар», лутбокстар, крипто-казино', text: 'Майсир (азарт) запрещён (5:90). Формы изменились: спортпрогнозы, кейсы в играх, нард с деньгами, бинарные опционы. Суть — риск имущества ради случая.\n\nУдалить приложения, садака с суммы, что ушла на ставки.', textKk: 'Майсир (құмар ойын) харам (5:90). Түрлері өзгерді: спорттық болжамдар, ойындағы кейстер, ақшаға ойналатын нәрд, бинарлық опциондар. Мәні — кездейсоқтық үшін мүлікті тәуекелге салу.\n\nҮрдістерді өшіру, ставкаға кеткен соманың есебінен садақа беру.' },
         { n: 'М7', title: 'Тату, изменение облика без нужды, подражание фасикам', titleKk: 'Тату салу, қажетсіз сырт келбетті өзгерту, фасиктерге еліктеу', text: 'Хадис о проклятии набивающих татуировки; изменение творения Аллаха без медицинской нужды. Мода на имитацию неверных в одежде и поведении — предостережение хадисов о подражании.\n\nКрасота — в рамках шариата и фитры.', textKk: 'Тату салғандарды қарғау туралы хадис бар; медициналық қажеттіліксіз Аллаһтың жаратылысын өзгерту. Киім мен әдепте кәпірлерге еліктеу сәні — еліктеу туралы хадистердің ескертуі.\n\nСұлулық — шариат пен фитра шеңберінде.' },
-        { n: 'М8', title: 'Нумейма и гиба в мессенджерах и «сторис»', titleKk: 'Мессенджерлер мен «сторис» арқылы намима және ғайбат', text: 'Пересылать чужой скандал, обсуждать брата так, что ему неприятно — гиба (Муслим 2589). Переносить слова, чтобы поссорить — нумейма (Бухари 6056, Муслим 105). Скриншоты чатов, «разоблачения» без права — современные формы.\n\nЗамена: дуа за человека, замалчивание, насиха наедине.', textKk: 'Біреудің дауын жіберу, бауырыңды оған жағымсыз түрде талқылау — ғайбат. Ренжістіру үшін сөзді жеткізу — намима. Чат скриншоттары, құқықсыз «әшкерелеу» — қазіргі түрлері.\n\nАлмастыру: сол адамға дұға ету, үндемеу, жеке насихат беру.' },
+        { n: 'М8', title: 'Нумейма и гиба в мессенджерах и «сторис»', titleKk: 'Мессенджерлер мен «сторис» арқылы намима және ғайбат', text: 'Пересылать чужой скандал, обсуждать брата так, что ему неприятно — гиба (Муслим 2589). Переносить слова, чтобы поссорить — нумейма (Бухари 6056, Муслим 105). Скриншоты чатов, «разоблачения» без права — современные формы.\n\nЗамена: дуа за человека, замалчивание, насиха наедине.', textKk: 'Біреудің дауын жіберу, бауырыңды оған жағымсыз түрде талқылау — ғайбат. Ренжістіру үшін сөзді жеткізу — намима. Чат скриншоттары, құқықсыз «әшкерелеу» — қазіргі түрлері.\n\nАлмастыру: сол адамға дұға ету, үндемеу, жеке насихат беру.\n\n(Дереккөздер — Хадистер: Мүслім 2589; әл-Бухари 6056; Мүслім 105)' },
         { n: 'М9', title: 'Показуха (рия) в соцсетях: намаз, садака, «исламский» имидж', titleKk: 'Әлеуметтік желілердегі көрсетпек (рия): намаз, садақа, «исламдық» имидж', text: 'Рия — малый ширк. Выкладывать каждый намаз, каждую садаку ради лайков; строить образ «религиозного», пока сердце ищет похвалу людей.\n\nИхляс: скрывать добро, когда можно; нить — ради Аллаха.', textKk: 'Рия — кішкентай ширк. Лайк үшін әр намазды, әр садақаны жариялау; жүрек адамдардың мақтауын іздеп жатқанда «діндар» бейнесін құру.\n\nИхлас: мүмкін болғанда жақсылықты жасыру; ниет — Аллаһ үшін болу.' },
         { n: 'М10', title: 'Оправдание греха: «сейчас все так», «это не жёсткий харам»', titleKk: 'Күнәні ақтау: «қазір бәрі солай», «бұл қатаң харам емес»', text: 'Нормализация харама — отдельная болезнь эпохи. Когда музыка, смешение, риба, просмотр аурата называют «нормой», слабеет богобоязненность. Коран о тех, кто «следует за своими страстями».\n\nИстина не меняется от числа людей. Учиться у учёных, а не у ленты.', textKk: 'Харамды қалыпты деп санау — заманның жеке дерті. Музыка, аралас қатынас, риба, ауратты көру «норма» деп аталғанда, тақуалық әлсірейді. Құран «құмарлықтарына еруші» адамдар туралы айтады.\n\nШындық адамдардың санына қарай өзгермейді. Ғалымдардан үйрену керек, лентадан емес.' },
-        { n: 'М11', title: 'Откладывание намаза «на потом» из‑за работы и телефона', titleKk: 'Жұмыс пен телефон себебінен намазды «кейінге» қалдыру', text: 'Намеренно выносить намаз из времени без уважительной причины — тяжкий грех (связан с кабаир об оставлении намаза: Муслим 82). «Досмотрю серию», «отвечу на сообщения» — не оправдание.\n\nСтавить намаз в центр дня; будильники; молитвенная комната.', textKk: 'Дәлелсіз себепсіз намазды әдейі уақытынан шығару — ауыр күнә. «Сериалды көріп аламын», «хабарламаларға жауап беремін» дегендер ақталу болмайды.\n\nНамазды күннің ортасына қою; оятқыштар; намазханадай бөлме.' },
+        { n: 'М11', title: 'Откладывание намаза «на потом» из‑за работы и телефона', titleKk: 'Жұмыс пен телефон себебінен намазды «кейінге» қалдыру', text: 'Намеренно выносить намаз из времени без уважительной причины — тяжкий грех (связан с кабаир об оставлении намаза: Муслим 82). «Досмотрю серию», «отвечу на сообщения» — не оправдание.\n\nСтавить намаз в центр дня; будильники; молитвенная комната.', textKk: 'Дәлелсіз себепсіз намазды әдейі уақытынан шығару — ауыр күнә. «Сериалды көріп аламын», «хабарламаларға жауап беремін» дегендер ақталу болмайды.\n\nНамазды күннің ортасына қою; оятқыштар; намазханадай бөлме.\n\n(Дереккөздер — Хадистер: Мүслім 82)' },
         { n: 'М12', title: 'Неблагодарность родителям при «личной свободе»', titleKk: '«Жеке еркіндік» аясында ата-анаға ризашылықсыздық', text: 'Современный индивидуализм часто ломает би́рр: редкие звонки, грубость, игнор нужд родителей. Коран 17:23–24.\n\nДаже при сложных отношениях — уважение, помощь, дуа; не покорность в хараме, но и не разрыв.', textKk: 'Қазіргі жекешелдік көбіне бирр (ата-анаға жақсылық) сынады: сирек қоңырау шалу, дөрекілік, ата-ана қажеттіліктерін елемеу. Құран 17:23–24.\n\nҚиын қарым-қатынаста да — құрмет, көмек, дұға; харамда бағыну емес, бірақ үзу де емес.' },
         { title: 'Кибербуллинг и травля онлайн', titleKk: 'Интернеттегі кибербуллинг және қорлау', text: 'Организованное или массовое унижение, оскорбление, доксинг (публикация личных данных) человека в сети — усиленная форма насмешек и злословия, где к обычному греху добавляется масштаб и анонимность.\n\nКоран 49:11 о запрете насмешек актуален вдвойне, когда травля становится публичной и коллективной.', textKk: 'Интернетте адамды ұйымдасқан немесе жаппай қорлау, балағаттау, доксинг (жеке деректерін жариялау) — мазақ пен ғайбаттың күшейтілген түрі, оған көлем мен анонимдік қосылады.\n\nМазақтауға тыйым салатын 49:11 аяты қорлау көпшілік алдында әрі топтасып жасалғанда екі есе өзекті.' },
-        { title: 'Мошенничество и фишинг онлайн', titleKk: 'Интернеттегі алаяқтық және фишинг', text: 'Обман людей через поддельные сайты, звонки от «банка», финансовые пирамиды, фальшивые благотворительные сборы — современная форма классического запрета на обман и присвоение чужого имущества обманным путём.\n\n«Кто обманывает — не из нас» (Муслим 101) — актуально и для цифрового обмана.', textKk: 'Жалған сайттар, «банктен» қоңырау шалу, қаржы пирамидалары, жалған қайырымдылық жинау арқылы адамдарды алдау — біреудің мүлкін алдау жолымен иемденуге тыйым салудың заманауи түрі.\n\n«Кім алдайса, ол бізден емес» (Мүслім) — цифрлық алдау үшін де өзекті.' },
-        { title: 'Порнография и зависимость от неё', titleKk: 'Порнография және оған тәуелділік', text: 'Просмотр порнографии — прямое участие взгляда и сердца в харам-образах, отдельно от общего запрета на смотрение аурата. Пророк ﷺ назвал взгляд «прелюбодеянием глаз» (Бухари 6243, Муслим 2657), а постоянное обращение к такому контенту формирует зависимость, разрушает восприятие брака и интимной близости.\n\nЭто не «личное дело», раз затрагивает сердце и дальнейшие отношения.\n\nТауба: блокировка доступа, замена привычки, честность с собой о масштабе проблемы, при необходимости — помощь специалиста.', textKk: 'Порнография көру — жалпы ауыз бекітілген аурат көруге тыйымнан бөлек, көз бен жүректің харам бейнелерге тікелей қатысуы. Пайғамбар ﷺ көз қарауын «көздің зинасы» деп атаған (Бухари, Мүслім), ал мұндай мазмұнға үнемі жүгіну тәуелділік қалыптастырып, неке мен жақындықты қабылдауды бұзады.\n\nБұл жүрек пен қарым-қатынасқа әсер ететіндіктен «жеке іс» емес.\n\nТәубе: қолжетімділікті бөгеу, әдетті алмастыру, мәселенің көлемі туралы өзіңе адал болу, қажет болса — маман көмегіне жүгіну.' },
+        { title: 'Мошенничество и фишинг онлайн', titleKk: 'Интернеттегі алаяқтық және фишинг', text: 'Обман людей через поддельные сайты, звонки от «банка», финансовые пирамиды, фальшивые благотворительные сборы — современная форма классического запрета на обман и присвоение чужого имущества обманным путём.\n\n«Кто обманывает — не из нас» (Муслим 101) — актуально и для цифрового обмана.', textKk: 'Жалған сайттар, «банктен» қоңырау шалу, қаржы пирамидалары, жалған қайырымдылық жинау арқылы адамдарды алдау — біреудің мүлкін алдау жолымен иемденуге тыйым салудың заманауи түрі.\n\n«Кім алдайса, ол бізден емес» (Мүслім 101; Мүслім 102) — цифрлық алдау үшін де өзекті.' },
+        { title: 'Порнография и зависимость от неё', titleKk: 'Порнография және оған тәуелділік', text: 'Просмотр порнографии — прямое участие взгляда и сердца в харам-образах, отдельно от общего запрета на смотрение аурата. Пророк ﷺ назвал взгляд «прелюбодеянием глаз» (Бухари 6243, Муслим 2657), а постоянное обращение к такому контенту формирует зависимость, разрушает восприятие брака и интимной близости.\n\nЭто не «личное дело», раз затрагивает сердце и дальнейшие отношения.\n\nТауба: блокировка доступа, замена привычки, честность с собой о масштабе проблемы, при необходимости — помощь специалиста.', textKk: 'Порнография көру — жалпы ауыз бекітілген аурат көруге тыйымнан бөлек, көз бен жүректің харам бейнелерге тікелей қатысуы. Пайғамбар ﷺ көз қарауын «көздің зинасы» деп атаған (Бухари 6243, Мүслім 2657), ал мұндай мазмұнға үнемі жүгіну тәуелділік қалыптастырып, неке мен жақындықты қабылдауды бұзады.\n\nБұл жүрек пен қарым-қатынасқа әсер ететіндіктен «жеке іс» емес.\n\nТәубе: қолжетімділікті бөгеу, әдетті алмастыру, мәселенің көлемі туралы өзіңе адал болу, қажет болса — маман көмегіне жүгіну.' },
         { title: 'Накрутка отзывов и обман в онлайн-торговле', titleKk: 'Пікірлерді жасанды көбейту және онлайн-саудада алдау', text: 'Покупка фальшивых положительных отзывов, накрутка рейтинга магазина или товара, публикация заказных негативных отзывов конкурентам — форма обмана покупателя (тадлис), продолжающая классический запрет скрывать истинное качество товара.\n\nПродавец, вводящий людей в заблуждение ложным впечатлением о товаре, лишает сделку баракята.\n\nТауба: удалить фальшивые отзывы, быть честным в описании товара, извиниться перед введёнными в заблуждение покупателями по возможности.', textKk: 'Дүкен немесе тауар үшін жалған оң пікірлер сатып алу, рейтингті жасанды көтеру, бәсекелестерге тапсырыспен теріс пікір жариялау — сатып алушыны алдаудың (тадлис) бір түрі, тауардың нақты сапасын жасыруға тыйым салудың заманауи жалғасы.\n\nАдамдарды тауар туралы жалған әсермен адастырған сатушы мәмілеге баракатты жоғалтады.\n\nТәубе: жалған пікірлерді өшіру, тауар сипаттамасында адал болу, мүмкіндігінше адасқан сатып алушылардан кешірім сұрау.' },
         { title: 'Дипфейки, поддельные голоса и ИИ-обман', titleKk: 'Дипфейктер, жалған дауыстар және ЖИ арқылы алдау', text: 'Использование технологий искусственного интеллекта для создания поддельных видео, голосовых сообщений или изображений человека без его согласия — ради розыгрыша, клеветы, вымогательства или дискредитации — соединяет в себе ложь, клевету (бухтан) и, нередко, покушение на честь и имущество жертвы.\n\nНовизна инструмента не меняет старого хукма: обман и очернение человека остаются запретными, даже если жертва «не пострадала физически».\n\nТауба: удалить созданный контент, признать содеянное перед пострадавшим, если это не причинит ему большего вреда.', textKk: 'Жасанды интеллект технологияларын адамның келісімінсіз жалған бейне, дауыстық хабарлама немесе сурет жасау үшін — әзіл, жала жабу, қорқытып ақша талап ету немесе беделін түсіру мақсатында — қолдану өтірікті, бухтанды (жалған жала) және көбіне құрбанның ар-намысы мен мүлкіне қол сұғуды біріктіреді.\n\nҚұралдың жаңалығы ескі үкімді өзгертпейді: адамды алдау мен бедел түсіру харам болып қалады, тіпті құрбан «дене жағынан зардап шекпесе де».\n\nТәубе: жасалған мазмұнды өшіру, зардап шеккенге көбірек зиян келтірмесе, жасаған ісін мойындау.' }
       ];
       const tongueSins = [
-        { title: 'Гыба (злословие)', titleKk: 'Ғайбат (сыртынан жамандау)', text: 'Хадис (Муслим): гыба — упомянуть брата так, как ему неприятно. Если в нём есть это — гыба; если нет — клевета (бухтан).\n\nКоран 49:12 сравнивает с едой мяса мёртвого брата.\n\nТауба: остановить язык, пожалеть, хвалить обиженного, дуа за него; если узнал — попросить прощения. Связано с кабаир о языке в списке 55.', textKk: 'Хадис (Мүслім): ғайбат — бауырыңды оған жағымсыз түрде айту. Егер сол қасиет онда бар болса — ғайбат; жоқ болса — өтірік жала (бухтан).\n\nҚұран 49:12 мұны өлген бауырдың етін жеумен теңейді.\n\nТәубе: тілді тоқтату, өкіну, ренжіткен адамды мақтау, оған дұға ету; білсе — кешірім сұрау. 55 тізіміндегі тіл күнәсімен байланысты.' },
-        { title: 'Намима (сеяние вражды)', titleKk: 'Намима (араздық тұқымын сеу)', text: 'Перенос слов между людьми с целью испортить отношения. Хадис: намим не войдёт в рай (Муслим).\n\nЧасто сочетается с гыба. Лечение: молчать, проверять намерение, мирить (ислах), не «пересказывать ради интереса».', textKk: 'Қарым-қатынасты бұзу мақсатында адамдар арасында сөз жеткізу. Хадис: намим жасаушы жұмаққа кірмейді (Мүслім).\n\nКөбіне ғайбатпен қатар жүреді. Емі: үндемеу, ниетті тексеру, ислах (татуластыру), «қызық үшін айтпау».' },
+        { title: 'Гыба (злословие)', titleKk: 'Ғайбат (сыртынан жамандау)', text: 'Хадис (Муслим 2589): гыба — упомянуть брата так, как ему неприятно. Если в нём есть это — гыба; если нет — клевета (бухтан).\n\nКоран 49:12 сравнивает с едой мяса мёртвого брата.\n\nТауба: остановить язык, пожалеть, хвалить обиженного, дуа за него; если узнал — попросить прощения. Связано с кабаир о языке в списке 55.', textKk: 'Хадис (Мүслім 2589): ғайбат — бауырыңды оған жағымсыз түрде айту. Егер сол қасиет онда бар болса — ғайбат; жоқ болса — өтірік жала (бухтан).\n\nҚұран 49:12 мұны өлген бауырдың етін жеумен теңейді.\n\nТәубе: тілді тоқтату, өкіну, ренжіткен адамды мақтау, оған дұға ету; білсе — кешірім сұрау. 55 тізіміндегі тіл күнәсімен байланысты.' },
+        { title: 'Намима (сеяние вражды)', titleKk: 'Намима (араздық тұқымын сеу)', text: 'Перенос слов между людьми с целью испортить отношения. Хадис: намим не войдёт в рай (Муслим 105).\n\nЧасто сочетается с гыба. Лечение: молчать, проверять намерение, мирить (ислах), не «пересказывать ради интереса».', textKk: 'Қарым-қатынасты бұзу мақсатында адамдар арасында сөз жеткізу. Хадис: намим жасаушы жұмаққа кірмейді (Мүслім 105).\n\nКөбіне ғайбатпен қатар жүреді. Емі: үндемеу, ниетті тексеру, ислах (татуластыру), «қызық үшін айтпау».' },
         { title: 'Ложь', titleKk: 'Өтірік', text: 'Ложь — из признаков лицемерия (хадис). Исключения в сунне узкие: война, примирение людей, слова супругов для мира — без несправедливого вреда.\n\nПривычка «маленькой лжи» размывает доверие и иман.\n\nТауба: признать, исправить сказанное, держать слово.', textKk: 'Өтірік — мунафиктіктің белгілерінен (хадис). Сүннеттегі ерекшеліктер тар: соғыс, адамдарды татуластыру, жұбайлардың бейбітшілік үшін сөзі — әділетсіз зиянсыз.\n\n«Кішкентай өтірік» әдеті сенім мен иманды бұзады.\n\nТәубе: мойындау, айтылғанды түзету, сөзінде тұру.' },
-        { title: 'Сквернословие и проклятия', titleKk: 'Боқтық сөз және қарғыс айту', text: 'Мусульманин не поносит и не сквернословит (Муслим 2597: «Не подобает правдивому быть проклинателем»). Ругань верующего — фисук (Бухари 48, Муслим 64). Проклятие верующего возвращается; лучше дуа о руководстве.\n\nВ списке кабаир — ругань и злословие. Замена: зикр, мягкая речь, уход из спора.', textKk: 'Мұсылман боқтамайды, сөгіспейді (хадис). Мүміннің қарғысы өзіне қайтады; тура жолға салу үшін дұға ету жақсырақ.\n\nКабаир тізімінде — боқтық және жамандау бар. Алмастыру: зікір, жұмсақ сөз, дауласудан бас тарту.' },
-        { title: 'Насмешки и клички (49:11)', titleKk: 'Мазақтау және ат қою (49:11)', text: 'Коран (49:11): не насмехайтесь над другими — может быть, они лучше вас; не давайте обидных кличек.\n\nУнижение нацией, внешностью, прошлым грехом — зульм.\n\nТауба: извиниться, уважать честь брата.', textKk: 'Құран: басқаларды мазақтамаңдар — мүмкін олар сендерден жақсы; жәбірлейтін ат қоймаңдар.\n\nҮлт, сырт келбет, бұрынғы күнәмен кемсіту — зулым.\n\nТәубе: кешірім сұрау, бауырдың құрметін сақтау.' },
-        { title: 'Ложная клятва (ямин гамус)', titleKk: 'Жалған ант (ямин ғамус)', text: 'Клятва именем Аллаха о заведомой лжи с целью присвоить чужое право или обмануть — названа «потопляющей» (гамус; Бухари 6675, Муслим 126), так как погружает клянущегося в грех, из которого нет выхода через искупление (каффару), в отличие от обычной нарушенной клятвы.\n\nОдин из немногих грехов, за который нет каффары — только искреннее раскаяние.', textKk: 'Біреудің құқығын иемдену немесе алдау мақсатымен білетін өтірікке Аллаһ атымен ант ету — «ғамус» (батырушы) деп аталады, өйткені ант етушіні каффарамен (өтеумен) шыға алмайтын күнәға батырады, әдеттегі бұзылған анттан айырмашылығы.\n\nКаффарасы жоқ бірнеше күнәнің бірі — тек шынайы тәубе.' },
+        { title: 'Сквернословие и проклятия', titleKk: 'Боқтық сөз және қарғыс айту', text: 'Мусульманин не поносит и не сквернословит (Муслим 2597: «Не подобает правдивому быть проклинателем»). Ругань верующего — фисук (Бухари 48, Муслим 64). Проклятие верующего возвращается; лучше дуа о руководстве.\n\nВ списке кабаир — ругань и злословие. Замена: зикр, мягкая речь, уход из спора.', textKk: 'Мұсылман боқтамайды, сөгіспейді (хадис). Мүміннің қарғысы өзіне қайтады; тура жолға салу үшін дұға ету жақсырақ.\n\nКабаир тізімінде — боқтық және жамандау бар. Алмастыру: зікір, жұмсақ сөз, дауласудан бас тарту.\n\n(Дереккөздер — Хадистер: Мүслім 2597; әл-Бухари 48; Мүслім 64)' },
+        { title: 'Насмешки и клички (49:11)', titleKk: 'Мазақтау және ат қою (49:11)', text: 'Коран (49:11): не насмехайтесь над другими — может быть, они лучше вас; не давайте обидных кличек.\n\nУнижение нацией, внешностью, прошлым грехом — зульм.\n\nТауба: извиниться, уважать честь брата.', textKk: 'Құран: басқаларды мазақтамаңдар — мүмкін олар сендерден жақсы; жәбірлейтін ат қоймаңдар.\n\nҮлт, сырт келбет, бұрынғы күнәмен кемсіту — зулым.\n\nТәубе: кешірім сұрау, бауырдың құрметін сақтау.\n\n(Дереккөздер — Аяттар: 49:11)' },
+        { title: 'Ложная клятва (ямин гамус)', titleKk: 'Жалған ант (ямин ғамус)', text: 'Клятва именем Аллаха о заведомой лжи с целью присвоить чужое право или обмануть — названа «потопляющей» (гамус; Бухари 6675, Муслим 126), так как погружает клянущегося в грех, из которого нет выхода через искупление (каффару), в отличие от обычной нарушенной клятвы.\n\nОдин из немногих грехов, за который нет каффары — только искреннее раскаяние.', textKk: 'Біреудің құқығын иемдену немесе алдау мақсатымен білетін өтірікке Аллаһ атымен ант ету — «ғамус» (батырушы) деп аталады, өйткені ант етушіні каффарамен (өтеумен) шыға алмайтын күнәға батырады, әдеттегі бұзылған анттан айырмашылығы.\n\nКаффарасы жоқ бірнеше күнәнің бірі — тек шынайы тәубе.\n\n(Дереккөздер — Хадистер: әл-Бухари 6675; Мүслім 126)' },
         { title: 'Излишние и пустые клятвы', titleKk: 'Артық және бос анттар', text: 'Привычка клясться именем Аллаха по любому поводу в обычной речи («клянусь Аллахом, я не ел» и т.п.) — обесценивает величие имени Аллаха и указывает на слабость доверия к собственному слову.\n\n«Не делайте Аллаха предметом ваших клятв» (2:224) — предостережение от превращения клятвы в речевую привычку.', textKk: 'Кез келген себеппен күнделікті сөзде Аллаһ атымен ант ету әдеті («Аллаһпен ант етемін, жемедім» т.б.) — Аллаһтың есімінің ұлылығын арзандатады және өз сөзіне сенімнің әлсіздігін көрсетеді.\n\n«Аллаһты анттарыңның нысанасы етпеңдер» (2:224) — антты сөз әдетіне айналдырудан сақтандыру.' },
-        { title: 'Разглашение супружеских тайн', titleKk: 'Жұбайлар арасындағы құпияларды жария ету', text: 'Рассказ посторонним об интимных подробностях отношений с супругом(ой) — прямой запрет, даже в шутку и даже среди друзей того же пола.\n\n«Худший из людей перед Аллахом в День воскресения — мужчина, который вступает в близость с женой, а затем разглашает её тайну» (Муслим).', textKk: 'Жұбайыңмен қарым-қатынастың жеке-интимдік бөлшектерін бөгде адамдарға айту — тіпті әзілмен, тіпті бір жыныстағы достар арасында да тікелей харам.\n\n«Аллаһ алдында Қиямет күні ең жаман адам — әйелімен жақындасып, содан кейін оның құпиясын жария еткен ер адам» (Мүслім).' },
+        { title: 'Разглашение супружеских тайн', titleKk: 'Жұбайлар арасындағы құпияларды жария ету', text: 'Рассказ посторонним об интимных подробностях отношений с супругом(ой) — прямой запрет, даже в шутку и даже среди друзей того же пола.\n\n«Худший из людей перед Аллахом в День воскресения — мужчина, который вступает в близость с женой, а затем разглашает её тайну» (Муслим 1437).', textKk: 'Жұбайыңмен қарым-қатынастың жеке-интимдік бөлшектерін бөгде адамдарға айту — тіпті әзілмен, тіпті бір жыныстағы достар арасында да тікелей харам.\n\n«Аллаһ алдында Қиямет күні ең жаман адам — әйелімен жақындасып, содан кейін оның құпиясын жария еткен ер адам» (Мүслім 1437).' },
         { title: 'Жадаль (спор ради победы, а не истины)', titleKk: 'Жәдаль (шындық үшін емес, жеңу үшін дауласу)', text: 'От Абу Умамы аль-Бахили (р.а.): Пророк ﷺ обещал дом в предместье Рая тому, кто оставит спор, даже будучи правым (Абу Дауд 4800, хадис хороший, хасан по аль-Албани). Упрямое препирательство ради того, чтобы «переспорить», унизить оппонента или покрасоваться красноречием, а не ради прояснения истины — порицаемая черта.\n\nЭто не запрет на дискуссию или отстаивание правды с адабом.\n\nТауба: спрашивать себя о цели спора, уступать, когда истина ясна, уходить от бессмысленных перепалок.', textKk: 'Әбу Умама әл-Бахилиден (р.а.): Пайғамбар ﷺ дұрыс болса да дауласуды тастаған адамға жәннат жиегінде үй уәде еткен (Әбу Дәуіт 4800, хадис хасан, әл-Албанидің бағалауы бойынша). Шындықты анықтау үшін емес, «жеңу», қарсыласты кемсіту немесе шешендікпен көзге түсу үшін қасарысып дауласу — жаман қасиет.\n\nБұл әдеппен пікірталас жүргізуге немесе шындықты қорғауға тыйым емес.\n\nТәубе: дау мақсатын өзіңнен сұрау, шындық анық болғанда бас тарту, мағынасыз айтысудан аулақ болу.' },
         { title: 'Проклятие (лаана) людей, животных или предметов', titleKk: 'Адамдарды, жануарларды немесе заттарды қарғау (лағнет)', text: 'От Ибн Мас‘уда (р.а.): Пророк ﷺ сказал: «Верующий не бывает ни бранящимся, ни проклинающим, ни грубым, ни бесстыжим» (ат-Тирмизи 1977). Проклятие — мольба об удалении от милости Аллаха — не должно произноситься легкомысленно в адрес людей, животных, погоды или вещей в гневе.\n\nЕсли проклятие незаслуженно, оно возвращается к сказавшему.\n\nТауба: заменить проклятие истигфаром или молчанием, следить за языком в гневе.', textKk: 'Ибн Мас‘удтан (р.а.): Пайғамбар ﷺ: «Мүмін ұрысқақ та, қарғаушы да, дөрекі де, ұятсыз да болмайды», — деген (ат-Тирмизи 1977). Лағнет — Аллаһтың мейірімінен аластауды тілеу — ашу үстінде адамдарға, жануарларға, ауа-райына немесе заттарға жеңіл-желпі айтылмауы керек.\n\nЛағнет негізсіз болса, айтушыға өзіне қайтады.\n\nТәубе: лағнетті истиғфармен немесе үндемеумен алмастыру, ашу үстінде тілге бақылау жасау.' },
         { title: 'Пустословие (лягв) и бесполезная болтовня', titleKk: 'Бос сөз (ләғу) және пайдасыз әңгіме', text: 'Коран описывает успешных верующих как тех, кто «отворачивается от пустословия» (23:3). Часы разговоров ни о чём, пересуды, шутки без меры — не всегда грех сами по себе, но крадут время, которое можно направить на зикр, пользу, семью.\n\nЭто отличается от дозволенного отдыха и лёгкой беседы с добрым намерением.\n\nТауба: направлять речь к пользе, ограничивать пустые разговоры.', textKk: 'Құран табысты мүміндерді «бос сөзден бет бұратындар» деп сипаттайды (23:3). Ешнәрсе туралы емес әңгімеге сағаттап уақыт жұмсау, өсек, шектен тыс әзіл — өздігінен әрқашан күнә емес, бірақ зікірге, пайдаға, отбасына бағыттауға болатын уақытты ұрлайды.\n\nБұл ізгі ниетпен рұқсат етілген демалыс пен жеңіл әңгімеден өзгеше.\n\nТәубе: сөзді пайдаға бағыттау, бос әңгімені шектеу.' }
       ];
       const heartSins = [
-        { title: 'Кибр (гордыня) и уджб', titleKk: 'Кибр (тәкаппарлық) және ужб', text: 'Кибр — отвергать истину и презирать людей (Муслим 91). Даже зёрнышко кибра мешает раю.\n\nУджб — видеть свои дела великими. Лечение: помнить, что всё от Аллаха; смотреть на тех, кто выше в поклонении; служить людям.', textKk: 'Кибр — шындықты жоққа шығару және адамдарды кемсіту (хадис). Кибрдің дәні де жұмаққа кедергі болады.\n\nУжб — өз істерін ұлы санау. Емі: бәрі Аллаһтан екенін есте ұстау; ғибадатта жоғары тұрғандарға қарау; адамдарға қызмет ету.' },
-        { title: 'Хасад (зависть)', titleKk: 'Хасад (қызғаныш)', text: 'Желать исчезновения ни‘мы у другого. Допускается гибта — желать себе подобного блага без вреда.\n\nХадис (Абу Дауд 4903, хасан): «Остерегайтесь зависти: она съедает добрые дела, как огонь съедает дрова». Лечение: дуа за того, кому завидуешь; благодарить Аллаха за своё.', textKk: 'Басқадағы игілікті жоғалуын тілеу. Гибта рұқсат етіледі — зияны жоқ ұқсас игілікті өзіне тілеу.\n\nХасад жақсы істерді жеп қояды. Емі: қызғанған адамға дұға ету; өз игілігі үшін Аллаһқа шүкір ету.' },
-        { title: 'Подозрительность (49:12)', titleKk: 'Күдіктену (49:12)', text: 'Коран (49:12): избегайте многих подозрений — часть подозрений грех.\n\nПроверять факты, закрывать ауру брата, не строить обвинения на «слышали». Связано с гыба и намима.', textKk: 'Құран: көп күдіктенуден аулақ болыңдар — күдіктің бір бөлігі күнә.\n\nФактілерді тексеру, бауырдың ауыбын жабу, «естідім» деп айыптамау. Ғайбат және намимамен байланысты.' },
-        { title: 'Любовь к дунье выше Аллаха', titleKk: 'Дүниені Аллаһтан жоғары көру', text: 'Когда мир становится целью, а дин — средством. Проверка: что жертвуешь первым при конфликте интересов.\n\nНе запрет на имущество — запрет на рабство сердца дунье (см. 9:24; хадис «любовь к дунье — корень каждого греха» — слабый/спорный у части учёных). Зикр, закят, напоминание о смерти.', textKk: 'Дүние мақсатқа, дін құралға айналғанда. Тексеру: мүдде қайшылығында бірінші нені құрбан етесің.\n\nБұл мүлікке тыйым емес — жүректің дүниеге құлдығына тыйым. Зікір, зекет, өлімді еске алу.' },
-        { title: 'Нифак (лицемерие)', titleKk: 'Нифақ (мұнафықтық)', text: 'Расхождение между тем, что показывает язык/дела, и тем, что в сердце — вера напоказ без искренности. Пророк ﷺ назвал признаки: лживость в речи, нарушение обещания, предательство доверия, злоба в споре (Бухари, Муслим).\n\nБольшой нифак (в акыде) выводит из ислама; малый (в делах) — тяжкий грех, разъедающий искренность верующего изнутри.', textKk: 'Тілде/істе көрсеткен мен жүректегінің арасындағы алшақтық — ықылассыз сырттай сенім. Пайғамбар ﷺ белгілерін атады: сөзде өтірік, уәдені бұзу, аманатқа қиянат, дауда зұлымдық (Бухари, Мүслім).\n\nАкидадағы үлкен нифақ исламнан шығарады; істегі кіші нифақ — ауыр күнә, мүміннің ықыласын ішінен бұзады.' },
-        { title: 'Сум‘а (жажда похвалы и славы)', titleKk: 'Сумʻа (мадақ пен даңқ іздеу)', text: 'В отличие от рия (показуха ради людей во время действия), сум‘а — стремление, чтобы о твоём добром деле узнали и заговорили уже после того, как оно совершено втайне.\n\nХадис (Ахмад 8002; похожий смысл у Муслима 2986 о рия): кто прославляет свои дела перед людьми, тому Аллах прославит его [пороки] в День суда.', textKk: 'Рияға (әрекет кезінде адамдар үшін көрсетпек) қарағанда, сумʻа — жасырын жасалған жақсы ісің туралы кейін адамдар білуін, сөз болуын қалау.\n\nПайғамбар ﷺ ескерткен: кім өз істерін адамдарға паш етсе, Аллаһ Қиямет күні оның [кемшіліктерін] әшкерелейді.' },
-        { title: 'Чёрствость сердца (каса аль-кальб)', titleKk: 'Жүректің қасаттануы (қасуат әл-қальб)', text: 'Утрата чувствительности к напоминаниям, Корану, положению других людей — сердце, которое не трогается ни Кораном, ни бедой ближнего, ни страхом перед Аллахом.\n\nКоран (2:74) сравнивает такие сердца с камнем и даже суровее: камень хотя бы даёт трещины и источает воду.', textKk: 'Еске салуларға, Құранға, басқа адамдардың жағдайына сезімталдықты жоғалту — не Құраннан, не жақынның бақытсыздығынан, не Аллаһтан қорқудан тебіренбейтін жүрек.\n\nҚұран мұндай жүректерді тасқа теңейді, тіпті одан да қатал сипаттайды: тас болса да жарылып, су ағызады.' },
-        { title: 'Несдержанный гнев (гадаб)', titleKk: 'Ұстамсыз ашу-ыза (ғадаб)', text: 'Гнев сам по себе — естественное чувство, но грехом становится потеря контроля над языком и руками в гневе: оскорбления, побои, развод в состоянии ярости, разрыв отношений.\n\n«Не тот силён, кто побеждает в борьбе, а тот, кто удерживает себя в гневе» (Бухари, Муслим).', textKk: 'Ашу-ыза өзі — табиғи сезім, бірақ ашу үстінде тілі мен қолын ұстай алмау — қорлау, ұру, ашу үстінде талақ беру, қарым-қатынасты үзу — күнәға айналады.\n\n«Күшті адам — күресте жеңуші емес, ашу үстінде өзін-өзі ұстай алушы» (Бухари, Мүслім).' },
+        { title: 'Кибр (гордыня) и уджб', titleKk: 'Кибр (тәкаппарлық) және ужб', text: 'Кибр — отвергать истину и презирать людей (Муслим 91). Даже зёрнышко кибра мешает раю.\n\nУджб — видеть свои дела великими. Лечение: помнить, что всё от Аллаха; смотреть на тех, кто выше в поклонении; служить людям.', textKk: 'Кибр — шындықты жоққа шығару және адамдарды кемсіту (хадис). Кибрдің дәні де жұмаққа кедергі болады.\n\nУжб — өз істерін ұлы санау. Емі: бәрі Аллаһтан екенін есте ұстау; ғибадатта жоғары тұрғандарға қарау; адамдарға қызмет ету.\n\n(Дереккөздер — Хадистер: Мүслім 91)' },
+        { title: 'Хасад (зависть)', titleKk: 'Хасад (қызғаныш)', text: 'Желать исчезновения ни‘мы у другого. Допускается гибта — желать себе подобного блага без вреда.\n\nХадис (Абу Дауд 4903, хасан): «Остерегайтесь зависти: она съедает добрые дела, как огонь съедает дрова». Лечение: дуа за того, кому завидуешь; благодарить Аллаха за своё.', textKk: 'Басқадағы игілікті жоғалуын тілеу. Гибта рұқсат етіледі — зияны жоқ ұқсас игілікті өзіне тілеу.\n\nХасад жақсы істерді жеп қояды. Емі: қызғанған адамға дұға ету; өз игілігі үшін Аллаһқа шүкір ету.\n\n(Дереккөздер — Хадистер: Әбу Дәуіт 4903)' },
+        { title: 'Подозрительность (49:12)', titleKk: 'Күдіктену (49:12)', text: 'Коран (49:12): избегайте многих подозрений — часть подозрений грех.\n\nПроверять факты, закрывать ауру брата, не строить обвинения на «слышали». Связано с гыба и намима.', textKk: 'Құран: көп күдіктенуден аулақ болыңдар — күдіктің бір бөлігі күнә.\n\nФактілерді тексеру, бауырдың ауыбын жабу, «естідім» деп айыптамау. Ғайбат және намимамен байланысты.\n\n(Дереккөздер — Аяттар: 49:12)' },
+        { title: 'Любовь к дунье выше Аллаха', titleKk: 'Дүниені Аллаһтан жоғары көру', text: 'Когда мир становится целью, а дин — средством. Проверка: что жертвуешь первым при конфликте интересов.\n\nНе запрет на имущество — запрет на рабство сердца дунье (см. 9:24; хадис «любовь к дунье — корень каждого греха» — слабый/спорный у части учёных). Зикр, закят, напоминание о смерти.', textKk: 'Дүние мақсатқа, дін құралға айналғанда. Тексеру: мүдде қайшылығында бірінші нені құрбан етесің.\n\nБұл мүлікке тыйым емес — жүректің дүниеге құлдығына тыйым. Зікір, зекет, өлімді еске алу.\n\n(Дереккөздер — Аяттар: 9:24)' },
+        { title: 'Нифак (лицемерие)', titleKk: 'Нифақ (мұнафықтық)', text: 'Расхождение между тем, что показывает язык/дела, и тем, что в сердце — вера напоказ без искренности. Пророк ﷺ назвал признаки: лживость в речи, нарушение обещания, предательство доверия, злоба в споре (Бухари 33, Муслим 59).\n\nБольшой нифак (в акыде) выводит из ислама; малый (в делах) — тяжкий грех, разъедающий искренность верующего изнутри.', textKk: 'Тілде/істе көрсеткен мен жүректегінің арасындағы алшақтық — ықылассыз сырттай сенім. Пайғамбар ﷺ белгілерін атады: сөзде өтірік, уәдені бұзу, аманатқа қиянат, дауда зұлымдық (Бухари 33, Мүслім 59).\n\nАкидадағы үлкен нифақ исламнан шығарады; істегі кіші нифақ — ауыр күнә, мүміннің ықыласын ішінен бұзады.' },
+        { title: 'Сум‘а (жажда похвалы и славы)', titleKk: 'Сумʻа (мадақ пен даңқ іздеу)', text: 'В отличие от рия (показуха ради людей во время действия), сум‘а — стремление, чтобы о твоём добром деле узнали и заговорили уже после того, как оно совершено втайне.\n\nХадис (Муслим 2986): кто прославляет свои дела перед людьми, тому Аллах прославит его [пороки] в День суда.', textKk: 'Рияға (әрекет кезінде адамдар үшін көрсетпек) қарағанда, сумʻа — жасырын жасалған жақсы ісің туралы кейін адамдар білуін, сөз болуын қалау.\n\nПайғамбар ﷺ ескерткен: кім өз істерін адамдарға паш етсе, Аллаһ Қиямет күні оның [кемшіліктерін] әшкерелейді.\n\n(Дереккөздер — Хадистер: Мүслім 2986)' },
+        { title: 'Чёрствость сердца (каса аль-кальб)', titleKk: 'Жүректің қасаттануы (қасуат әл-қальб)', text: 'Утрата чувствительности к напоминаниям, Корану, положению других людей — сердце, которое не трогается ни Кораном, ни бедой ближнего, ни страхом перед Аллахом.\n\nКоран (2:74) сравнивает такие сердца с камнем и даже суровее: камень хотя бы даёт трещины и источает воду.', textKk: 'Еске салуларға, Құранға, басқа адамдардың жағдайына сезімталдықты жоғалту — не Құраннан, не жақынның бақытсыздығынан, не Аллаһтан қорқудан тебіренбейтін жүрек.\n\nҚұран мұндай жүректерді тасқа теңейді, тіпті одан да қатал сипаттайды: тас болса да жарылып, су ағызады.\n\n(Дереккөздер — Аяттар: 2:74)' },
+        { title: 'Несдержанный гнев (гадаб)', titleKk: 'Ұстамсыз ашу-ыза (ғадаб)', text: 'Гнев сам по себе — естественное чувство, но грехом становится потеря контроля над языком и руками в гневе: оскорбления, побои, развод в состоянии ярости, разрыв отношений.\n\n«Не тот силён, кто побеждает в борьбе, а тот, кто удерживает себя в гневе» (Бухари 6114, Муслим 2609).', textKk: 'Ашу-ыза өзі — табиғи сезім, бірақ ашу үстінде тілі мен қолын ұстай алмау — қорлау, ұру, ашу үстінде талақ беру, қарым-қатынасты үзу — күнәға айналады.\n\n«Күшті адам — күресте жеңуші емес, ашу үстінде өзін-өзі ұстай алушы» (Бухари 6114, Мүслім 2609).' },
         { title: 'Отчаяние в милости Аллаха (кунут)', titleKk: 'Аллаһтың мейіріміне күдер үзу (қунут)', text: 'Коран называет отчаяние в милости Аллаха уделом заблудших: «Не отчаивайтесь в милости Аллаха, ведь в Его милости отчаиваются только неверующие люди» (12:87). Постоянное чувство «мне уже не простят», парализующее любое покаяние и старание, — болезнь сердца, а не смирение.\n\nСатана заинтересован именно в этом отчаянии, а не только в самом грехе.\n\nТауба: помнить о безграничности прощения Аллаха, возвращаться к нему снова и снова.', textKk: 'Құран Аллаһтың мейіріміне күдер үзуді адасқандардың үлесі деп атайды: «Аллаһтың мейірімінен күдер үзбеңдер, шын мәнінде, Оның мейірімінен тек кәпір адамдар ғана күдер үзеді» (12:87). «Мені енді кешірмейді» деген тұрақты сезім кез келген тәубе мен талпынысты тұмшалайды — бұл момындық емес, жүрек дерті.\n\nШайтан дәл осы күдер үзуге мүдделі, тек күнәнің өзіне ғана емес.\n\nТәубе: Аллаһтың кешірімінің шексіздігін есте ұстау, қайта-қайта Оған қайту.' },
         { title: 'Ложная уверенность в безопасности от наказания Аллаха (амн)', titleKk: 'Аллаһтың жазасынан аман деген жалған сенімділік (әмн)', text: 'Противоположная крайность отчаянию — беспечная уверенность, что грехи не повлекут последствий, что прощение уже гарантировано без изменения себя. Коран предупреждает: «Неужели они находятся в безопасности от хитрости [плана] Аллаха? В безопасности от хитрости Аллаха находятся только люди, терпящие убыток» (7:99).\n\nВерующий живёт между страхом и надеждой, не впадая ни в одну крайность.\n\nТауба: сочетать упование на милость с искренним трудом и осторожностью.', textKk: 'Күдер үзуге қарама-қарсы шектен шығу — күнәлардың салдары болмайды, кешірім өзгермей-ақ кепілденген деген немқұрайлы сенімділік. Құран ескертеді: «Олар Аллаһтың айла-шарғысынан аман ба? Аллаһтың айла-шарғысынан тек зиян шегуші адамдар ғана аман деп есептейді» (7:99).\n\nМүмін қорқыныш пен үміт арасында өмір сүреді, ешбір шектен шықпайды.\n\nТәубе: мейірімге сенуді шынайы еңбек пен сақтықпен ұштастыру.' },
-        { title: 'Злорадство над бедой другого (шаматат)', titleKk: 'Бөгденің бақытсыздығына қуану (шаматат)', text: 'Радость от чужого несчастья, особенно если ты причастен к вражде с этим человеком, — болезнь сердца, противоречащая братству верующих. Пророк ﷺ предупреждал: «Не радуйся открыто несчастью, постигшему твоего брата, иначе Аллах окажет милость ему и подвергнет испытанию тебя» (ат-Тирмизи 2506, хадис хороший).\n\nЖелание, чтобы врагу или обидчику стало хуже, отравляет сердце сильнее, чем сама обида.\n\nТауба: дуа даже за того, кто причинил боль, замена злорадства состраданием.', textKk: 'Біреудің бақытсыздығына, әсіресе сол адаммен араздықта болсаң, қуану — мүміндер бауырластығына қайшы келетін жүрек дерті. Пайғамбар ﷺ ескерткен: «Бауырыңа келген бақытсыздыққа ашық қуанба, әйтпесе Аллаһ оған рақым етіп, сені сынға салады» (ат-Тирмизи 2506, хадис хасан).\n\nЖауыңның немесе ренжіткен адамның жағдайы нашарлауын қалау өкпеден де қатты жүректі улайды.\n\nТәубе: зиян тигізген адамға да дұға ету, қуануды аяушылықпен алмастыру.' }
+        { title: 'Злорадство над бедой другого (шаматат)', titleKk: 'Бөгденің бақытсыздығына қуану (шаматат)', text: 'Радость от чужого несчастья, особенно если ты причастен к вражде с этим человеком, — болезнь сердца, противоречащая братству верующих.\n\nЖелание, чтобы врагу или обидчику стало хуже, отравляет сердце сильнее, чем сама обида.\n\nТауба: дуа даже за того, кто причинил боль, замена злорадства состраданием.', textKk: 'Біреудің бақытсыздығына, әсіресе сол адаммен араздықта болсаң, қуану — мүміндер бауырластығына қайшы келетін жүрек дерті.\n\nЖауыңның немесе ренжіткен адамның жағдайы нашарлауын қалау өкпеден де қатты жүректі улайды.\n\nТәубе: зиян тигізген адамға да дұға ету, қуануды аяушылықпен алмастыру.' }
       ];
       const moneySins = [
         { title: 'Риба (проценты)', titleKk: 'Риба (пайыздар)', text: 'Коран 2:275–279: Аллах объявил войну поедающим рибу. Явный процент и многие скрытые формы.\n\nБанковские проценты, «рассрочка» с процентной сутью — уточнять у знающего.\n\nТауба: выйти из договора, вернуть лишнее по возможности. Есть в кабаир.', textKk: 'Құран 2:275–279: Аллаһ рибаны жегендерге соғыс жариялады. Анық пайыз және көптеген жасырын түрлері.\n\nБанк пайыздары, пайыздық мәні бар «бөліп төлеу» — білетін адамнан анықтау керек.\n\nТәубе: келісімшарттан шығу, мүмкіндігінше артығын қайтару. Кабаирде бар.' },
-        { title: 'Обман в торговле', titleKk: 'Саудада алдау', text: 'Хадис: «Кто обманывает — не из нас» (Муслим 102). Скрывать дефект, обвешивать, ложная реклама.\n\nЧестность — часть дина.\n\nТауба: вернуть разницу, предупредить покупателя.', textKk: 'Хадис: «Кім алдайса, ол бізден емес» (Мүслім). Кемшілікті жасыру, өлшемде алдау, жалған жарнама.\n\nАдалдық — діннің бөлігі.\n\nТәубе: айырмашылықты қайтару, сатып алушыны ескерту.' },
-        { title: 'Хияна (предательство аманы)', titleKk: 'Хияна (аманатты сатып кету)', text: 'Не возвращать долг, вклад, секреты работы. Амана — признак имана (Ахмад 12383, хасан: «Нет имана у того, у кого нет аманы»).\n\nВ кабаир — хияна и гулюль.\n\nТауба: вернуть право, извиниться.', textKk: 'Қарызды, салымды, жұмыс құпияларын қайтармау. Аманат — иманның белгісі.\n\nКабаирде — хияна және ғұлюль бар.\n\nТәубе: құқықты қайтару, кешірім сұрау.' },
-        { title: 'Исраф и скупость', titleKk: 'Исраф және сараңдық', text: 'Растрата на харам/без меры и скупость в обязательном (нафака, закят) — оба порицаемы.\n\nКоран (7:31; 17:26–27; 25:67) о расточителях и о тех, кто скупится. Баланс: умеренность и права людей.', textKk: 'Харамға/шектен тыс ысырап ету және парыздағы (нафака, зекет) сараңдық — екеуі де жаман көрінеді.\n\nҚұран ысырапшылдар және сараңдар туралы айтады. Тепе-теңдік: орташалық және адамдардың құқығы.' },
-        { title: 'Взятка (рашва)', titleKk: 'Пара (ришуа)', text: 'Передача денег или подарка должностному лицу для получения незаконного преимущества или искажения справедливого решения — как дающий, так и берущий прокляты одинаково (Абу Дауд 3580, Тирмизи 1337).\n\nОтличается от дозволенного подарка тем, что связана с исходом дела в чью-то пользу за счёт прав других.', textKk: 'Заңсыз артықшылық алу немесе әділ шешімді бұрмалау үшін лауазымды тұлғаға ақша не сыйлық беру — беруші де, алушы да бірдей қарғысқа ұшыраған.\n\nРұқсат етілген сыйлықтан айырмашылығы — істің нәтижесін басқалардың құқығы есебінен біреудің пайдасына бұру.' },
-        { title: 'Гарар (чрезмерная неопределённость сделки)', titleKk: 'Ғарар (мәміледегі шектен тыс белгісіздік)', text: 'Продажа или сделка с неясным предметом, ценой или условиями, где одна сторона рискует потерять деньги из-за неопределённости, а не честного риска предпринимательства.\n\nПророк ﷺ запретил продажу с гараром (Муслим 1513; Абу Дауд 3376). Запретил продажу «камня» (гадание по броску камня, что достанется) и продажу «того, что в утробе, но ещё не родилось» — классические примеры гарара.', textKk: 'Заты, бағасы немесе шарттары түсініксіз сату не мәміле, мұнда бір тарап адал кәсіпкерлік тәуекелі емес, белгісіздіктен ақшадан айырылу қаупіне ұшырайды.\n\nПайғамбар ﷺ «тас лақтыру» саудасын (не тиетінін тас лақтырып анықтау) және «құрсақтағы, әлі туылмаған нәрсені» сатуды тыйған — ғарардың классикалық мысалдары.' },
-        { title: 'Ихтикар (искусственный дефицит и спекуляция)', titleKk: 'Ихтикар (жасанды тапшылық жасау және спекуляция)', text: 'Скупка товаров первой необходимости (еда, лекарства) с целью придержать их до роста цен на фоне дефицита и продать втридорога, наживаясь на нужде людей.\n\n«Не придерживает [товар] иначе как грешник» (Муслим 1605) — сказано о торговце, скупающем еду в ожидании подорожания.', textKk: 'Тапшылық жағдайында бағаны көтеру мақсатымен өмірлік маңызды тауарларды (тамақ, дәрі) сатып алып, кейін қымбат бағамен сату арқылы адамдардың мұқтаждығынан пайда табу.\n\n«Тек күнәкар ғана [тауарды] ұстап тұрады» (Мүслім) — қымбаттауды күтіп тамақ сатып алушы туралы айтылған.' },
-        { title: 'Гасб (незаконный захват чужого имущества)', titleKk: 'Ғасб (біреудің мүлкін заңсыз иемдену)', text: 'Присвоение чужой земли, дома, вещи силой, обманом или без права — включая захват общей/соседской земли на сантиметры при строительстве.\n\n«Кто присвоит пядь земли несправедливо, тому в День воскресения наденут это в виде семи земель на шею» (Бухари 3198, Муслим 1610).', textKk: 'Күшпен, алдаумен немесе құқықсыз біреудің жерін, үйін, затын иемдену — құрылыс кезінде көрші жерінің бір бөлігін заңсыз алып қоюды да қамтиды.\n\n«Кім әділетсіз бір қарыс жерді иемденсе, оған Қиямет күні жеті қабат жер мойнына кигізіледі» (Бухари, Мүслім).' },
+        { title: 'Обман в торговле', titleKk: 'Саудада алдау', text: 'Хадис: «Кто обманывает — не из нас» (Муслим 102). Скрывать дефект, обвешивать, ложная реклама.\n\nЧестность — часть дина.\n\nТауба: вернуть разницу, предупредить покупателя.', textKk: 'Хадис: «Кім алдайса, ол бізден емес» (Мүслім 101; Мүслім 102). Кемшілікті жасыру, өлшемде алдау, жалған жарнама.\n\nАдалдық — діннің бөлігі.\n\nТәубе: айырмашылықты қайтару, сатып алушыны ескерту.' },
+        { title: 'Хияна (предательство аманы)', titleKk: 'Хияна (аманатты сатып кету)', text: 'Не возвращать долг, вклад, секреты работы. Амана — признак имана (Ахмад 12383, хасан: «Нет имана у того, у кого нет аманы»).\n\nВ кабаир — хияна и гулюль.\n\nТауба: вернуть право, извиниться.', textKk: 'Қарызды, салымды, жұмыс құпияларын қайтармау. Аманат — иманның белгісі.\n\nКабаирде — хияна және ғұлюль бар.\n\nТәубе: құқықты қайтару, кешірім сұрау.\n\n(Дереккөздер — Хадистер: Ахмад 12383)' },
+        { title: 'Исраф и скупость', titleKk: 'Исраф және сараңдық', text: 'Растрата на харам/без меры и скупость в обязательном (нафака, закят) — оба порицаемы.\n\nКоран (7:31; 17:26–27; 25:67) о расточителях и о тех, кто скупится. Баланс: умеренность и права людей.', textKk: 'Харамға/шектен тыс ысырап ету және парыздағы (нафака, зекет) сараңдық — екеуі де жаман көрінеді.\n\nҚұран ысырапшылдар және сараңдар туралы айтады. Тепе-теңдік: орташалық және адамдардың құқығы.\n\n(Дереккөздер — Аяттар: 7:31; 17:26–27; 25:67)' },
+        { title: 'Взятка (рашва)', titleKk: 'Пара (ришуа)', text: 'Передача денег или подарка должностному лицу для получения незаконного преимущества или искажения справедливого решения — как дающий, так и берущий прокляты одинаково (Абу Дауд 3580, Тирмизи 1337).\n\nОтличается от дозволенного подарка тем, что связана с исходом дела в чью-то пользу за счёт прав других.', textKk: 'Заңсыз артықшылық алу немесе әділ шешімді бұрмалау үшін лауазымды тұлғаға ақша не сыйлық беру — беруші де, алушы да бірдей қарғысқа ұшыраған.\n\nРұқсат етілген сыйлықтан айырмашылығы — істің нәтижесін басқалардың құқығы есебінен біреудің пайдасына бұру.\n\n(Дереккөздер — Хадистер: Әбу Дәуіт 3580; ат-Тирмизи 1337)' },
+        { title: 'Гарар (чрезмерная неопределённость сделки)', titleKk: 'Ғарар (мәміледегі шектен тыс белгісіздік)', text: 'Продажа или сделка с неясным предметом, ценой или условиями, где одна сторона рискует потерять деньги из-за неопределённости, а не честного риска предпринимательства.\n\nПророк ﷺ запретил продажу с гараром (Муслим 1513; Абу Дауд 3376). Запретил продажу «камня» (гадание по броску камня, что достанется) и продажу «того, что в утробе, но ещё не родилось» — классические примеры гарара.', textKk: 'Заты, бағасы немесе шарттары түсініксіз сату не мәміле, мұнда бір тарап адал кәсіпкерлік тәуекелі емес, белгісіздіктен ақшадан айырылу қаупіне ұшырайды.\n\nПайғамбар ﷺ «тас лақтыру» саудасын (не тиетінін тас лақтырып анықтау) және «құрсақтағы, әлі туылмаған нәрсені» сатуды тыйған — ғарардың классикалық мысалдары.\n\n(Дереккөздер — Хадистер: Мүслім 1513; Әбу Дәуіт 3376)' },
+        { title: 'Ихтикар (искусственный дефицит и спекуляция)', titleKk: 'Ихтикар (жасанды тапшылық жасау және спекуляция)', text: 'Скупка товаров первой необходимости (еда, лекарства) с целью придержать их до роста цен на фоне дефицита и продать втридорога, наживаясь на нужде людей.\n\n«Не придерживает [товар] иначе как грешник» (Муслим 1605) — сказано о торговце, скупающем еду в ожидании подорожания.', textKk: 'Тапшылық жағдайында бағаны көтеру мақсатымен өмірлік маңызды тауарларды (тамақ, дәрі) сатып алып, кейін қымбат бағамен сату арқылы адамдардың мұқтаждығынан пайда табу.\n\n«Тек күнәкар ғана [тауарды] ұстап тұрады» (Мүслім 1605) — қымбаттауды күтіп тамақ сатып алушы туралы айтылған.' },
+        { title: 'Гасб (незаконный захват чужого имущества)', titleKk: 'Ғасб (біреудің мүлкін заңсыз иемдену)', text: 'Присвоение чужой земли, дома, вещи силой, обманом или без права — включая захват общей/соседской земли на сантиметры при строительстве.\n\n«Кто присвоит пядь земли несправедливо, тому в День воскресения наденут это в виде семи земель на шею» (Бухари 3198, Муслим 1610).', textKk: 'Күшпен, алдаумен немесе құқықсыз біреудің жерін, үйін, затын иемдену — құрылыс кезінде көрші жерінің бір бөлігін заңсыз алып қоюды да қамтиды.\n\n«Кім әділетсіз бір қарыс жерді иемденсе, оған Қиямет күні жеті қабат жер мойнына кигізіледі» (Бухари 3198, Мүслім 1610).' },
         { title: 'Невыплата закята', titleKk: 'Зекет бермеу', text: 'Закят — третий столп ислама, обязательный при достижении нисаба. Отказ его выплачивать — тяжкий грех: «Пусть не думают те, кто скупится на то, что даровал им Аллах из Своей милости, что это лучше для них» (3:180); хадис описывает муки того, кто не платил закят, в Судный день (аль-Бухари 1403).\n\nСкрытая экономия на закяте под видом «сложных расчётов» не освобождает от обязанности.\n\nТауба: рассчитать и выплатить закят за прошедшие годы, если он не платился.', textKk: 'Зекет — ниса шегіне жеткенде міндетті исламның үшінші тірегі. Оны бермеуден бас тарту — ауыр күнә: «Аллаһ өз мейірімінен бергенге сараң болғандар мұны өздері үшін жақсы деп ойламасын» (3:180); хадисте зекет бермеген адамның Қиямет күні азабы сипатталады (әл-Бухари 1403).\n\n«Күрделі есептеу» сылтауымен зекеттен жасырын үнемдеу міндеттен босатпайды.\n\nТәубе: төленбеген жылдар үшін зекетті есептеп төлеу.' },
         { title: 'Азартные игры (майсир)', titleKk: 'Құмар ойындар (майсир)', text: 'Коран прямо запрещает майсир наряду с вином и идолами, называя их «мерзостью из деяний сатаны» (5:90). Любая игра, где имущество переходит от одной стороны к другой по случайности, без реального труда или обмена ценностью, попадает под этот запрет — от карт на деньги до лотерей.\n\nАргумент «это же просто развлечение» не снимает хукма.\n\nТауба: выйти из игры, отказаться от выигранного харам-путём имущества, садака взамен.', textKk: 'Құран майсирге шарап пен пұттармен қатар тікелей тыйым салып, оларды «шайтан ісінің жиіркеніштісі» деп атайды (5:90). Мүлік бір тараптан екіншісіне нақты еңбексіз немесе құндылық алмасусыз, кездейсоқтық арқылы өтетін кез келген ойын — ақшаға ойналатын карталардан лотереяға дейін — осы тыйымға түседі.\n\n«Бұл жай ғана көңіл көтеру» деген дәлел үкімді алып тастамайды.\n\nТәубе: ойыннан бас тарту, харам жолмен ұтылған мүліктен бас тарту, орнына садақа беру.' },
         { title: 'Воровство (сарика)', titleKk: 'Ұрлық (сарика)', text: 'Один из ясно текстово запрещённых грехов с установленным в шариате наказанием при строгих условиях доказательства (5:38). Даже мелкое, «незаметное» воровство — на работе, у родственников, в магазине — остаётся присвоением чужого права без согласия владельца.\n\nПривычка «немного взять без спроса» разрушает доверие и барака имущества.\n\nТауба: вернуть украденное владельцу лично или анонимно, если прямой возврат невозможен или навредит.', textKk: 'Бұл қатаң дәлелдеу шарттарымен шариғатта белгіленген жазасы бар, мәтінде анық тыйым салынған күнәлардың бірі (5:38). Тіпті жұмыста, туыстарда, дүкенде «байқалмайтын» кішкентай ұрлық та иесінің келісімінсіз бөгде құқықты иемдену болып қала береді.\n\n«Сұрамай сәл алу» әдеті сенім мен мүліктің баракатын бұзады.\n\nТәубе: тікелей қайтару мүмкін болмаса немесе зиян келтірсе, ұрланғанды иесіне жеке немесе анонимді түрде қайтару.' }
@@ -44622,38 +45492,38 @@ c.addEventListener('click', () => {
         { title: 'Ослушание родителей (в дозволенном)', titleKk: 'Ата-анаға бағынбау (халал нәрседе)', text: 'Коран 17:23–24: не говори «уф», обращайся благородно. Довольство Аллаха связано с довольством родителей (хадис).\n\nПокорность — пока не велят харам. Есть в кабаир (укук аль-валидайн).\n\nТауба: звонки, помощь, дуа, извинения.', textKk: 'Құран 17:23–24: «уф» демеу, құрметпен қарау. Аллаһтың ризашылығы ата-ананың ризашылығымен байланысты (хадис).\n\nБағыну — харам бұйырмағанша. Кабаирде бар (ата-ана құқығы).\n\nТәубе: қоңырау шалу, көмек, дұға, кешірім сұрау.' },
         { title: 'Зульм супругу', titleKk: 'Жұбайға зулым ету', text: 'Побои, унижение, лишение нафаки/прав, измены. «Лучшие из вас — лучшие к своим жёнам».\n\nКоран 4:19 — жить с ними по справедливости.\n\nТауба: прекратить зульм, восстановить права, мягкость.', textKk: 'Ұру, кемсіту, нафака/құқықтан айыру, опасыздық. «Ең жақсыларың — нәзік жандыларына жақсы болғандар».\n\nҚұран 4:19 — олармен әділетті өмір сүру.\n\nТәубе: зулымды тоқтату, құқықтарды қалпына келтіру, жұмсақтық.' },
         { title: 'Лишение наследства', titleKk: 'Мұрадан айыру', text: 'Доли в Коране 4:7–12, 176. Нельзя произвольно лишать наследников.\n\nСначала долги и завещание (до 1/3), затем фард.\n\nТауба: вернуть право.', textKk: 'Үлестер Құранда 4:7–12, 176. Мұрагерлерді өз бетінше айыруға болмайды.\n\nАлдымен қарыздар мен өсиет (1/3-ке дейін), содан кейін парыз үлестер.\n\nТәубе: құқықты қайтару.' },
-        { title: 'Разрыв родства (рахим)', titleKk: 'Туыстық қатынасты үзу (рахим)', text: 'Хадис (Бухари 5984, Муслим 2556): не войдёт в рай порывающий родство. Соединять — даже если другая сторона рвёт.\n\nЗвонки, визиты, подарки, дуа, помощь. Связано с кабаир о рахим.', textKk: 'Хадис: туыстықты үзуші жұмаққа кірмейді. Екінші тарап үзсе де, байланысты жалғастыру керек.\n\nҚоңырау шалу, барып тұру, сый-сияпат, дұға, көмек. Рахим туралы кабаирмен байланысты.' },
-        { title: 'Несправедливость между детьми', titleKk: 'Балалар арасында әділетсіздік жасау', text: 'Явное предпочтение одного ребёнка другому в подарках, внимании или наследстве без объективной причины (напр. особая нужда одного из-за болезни).\n\n«Бойтесь Аллаха и будьте справедливы между вашими детьми» (Бухари, Муслим) — сказано отцу, подарившему одному сыну то, что не подарил остальным.', textKk: 'Себепсіз (мысалы, аурудан ерекше мұқтаждық сияқты нысаналы себепсіз) бір баланы екіншісінен сыйлықта, көңіл бөлуде немесе мұрада ерекшелеп артық көру.\n\n«Аллаһтан қорқыңдар және балаларың арасында әділ болыңдар» (Бухари, Мүслім) — бір ұлына басқаларына бермеген сыйды берген әкеге айтылған.' },
-        { title: 'Небрежение воспитанием детей', titleKk: 'Балаларды тәрбиелеуде немқұрайлылық', text: 'Оставление детей без религиозного и нравственного воспитания, обучения намазу, основам акыды, адабу — под предлогом занятости или «вырастут сами разберутся».\n\n«Каждый из вас — пастырь, и каждый в ответе за свою паству» (Бухари, Муслим), включая ответственность родителя за детей.', textKk: 'Балаларды діни және адамгершілік тәрбиесіз, намазды, ақида негіздерін, әдепті үйретусіз қалдыру — «уақыт жоқ» немесе «өздері өсіп түсінеді» деген сылтаумен.\n\n«Әрқайсың бақташысыз, әрқайсың өз бақташылығыңа жауаптысың» (Бухари, Мүслім) — ата-ананың балалары үшін жауапкершілігін де қамтиды.' },
+        { title: 'Разрыв родства (рахим)', titleKk: 'Туыстық қатынасты үзу (рахим)', text: 'Хадис (Бухари 5984, Муслим 2556): не войдёт в рай порывающий родство. Соединять — даже если другая сторона рвёт.\n\nЗвонки, визиты, подарки, дуа, помощь. Связано с кабаир о рахим.', textKk: 'Хадис: туыстықты үзуші жұмаққа кірмейді. Екінші тарап үзсе де, байланысты жалғастыру керек.\n\nҚоңырау шалу, барып тұру, сый-сияпат, дұға, көмек. Рахим туралы кабаирмен байланысты.\n\n(Дереккөздер — Хадистер: әл-Бухари 5984; Мүслім 2556)' },
+        { title: 'Несправедливость между детьми', titleKk: 'Балалар арасында әділетсіздік жасау', text: 'Явное предпочтение одного ребёнка другому в подарках, внимании или наследстве без объективной причины (напр. особая нужда одного из-за болезни).\n\n«Бойтесь Аллаха и будьте справедливы между вашими детьми» (Бухари 2587, Муслим 1623) — сказано отцу, подарившему одному сыну то, что не подарил остальным.', textKk: 'Себепсіз (мысалы, аурудан ерекше мұқтаждық сияқты нысаналы себепсіз) бір баланы екіншісінен сыйлықта, көңіл бөлуде немесе мұрада ерекшелеп артық көру.\n\n«Аллаһтан қорқыңдар және балаларың арасында әділ болыңдар» (Бухари 2587, Мүслім 1623) — бір ұлына басқаларына бермеген сыйды берген әкеге айтылған.' },
+        { title: 'Небрежение воспитанием детей', titleKk: 'Балаларды тәрбиелеуде немқұрайлылық', text: 'Оставление детей без религиозного и нравственного воспитания, обучения намазу, основам акыды, адабу — под предлогом занятости или «вырастут сами разберутся».\n\n«Каждый из вас — пастырь, и каждый в ответе за свою паству» (Бухари 893, Муслим 1829), включая ответственность родителя за детей.', textKk: 'Балаларды діни және адамгершілік тәрбиесіз, намазды, ақида негіздерін, әдепті үйретусіз қалдыру — «уақыт жоқ» немесе «өздері өсіп түсінеді» деген сылтаумен.\n\n«Әрқайсың бақташысыз, әрқайсың өз бақташылығыңа жауаптысың» (Бухари 893, Мүслім 1829) — ата-ананың балалары үшін жауапкершілігін де қамтиды.' },
         { title: 'Несправедливость между жёнами (при многожёнстве)', titleKk: 'Көп әйел алғанда әйелдер арасында әділетсіздік', text: 'Явное предпочтение одной жены другой во времени, содержании, ночлеге без уважительной причины — при том что полное равенство в чувствах не требуется, но обязательна справедливость в правах.\n\n«Если боитесь, что не будете справедливы, то [довольствуйтесь] одной» (Коран 4:3).', textKk: 'Себепсіз бір әйелді уақытта, күтуде, түнде қалуда екіншісінен артық көру — сезімде толық теңдік талап етілмесе де, құқықтарда әділеттілік міндетті.\n\n«Егер әділ бола алмаймын деп қорықсаңдар, бір [әйелмен шектеліңдер]» (Құран 4:3).' },
         { title: 'Причинение вреда после развода', titleKk: 'Ажырасқаннан кейін зиян келтіру', text: 'Использование развода как повода для мести: удержание детей от общения с другим родителем без причины, отказ от алиментов/нафаки, распространение личных тайн бывшего супруга, затягивание процедуры назло.\n\n«Либо удержание на достойных условиях, либо отпускание с благочестием» (Коран 2:229) — Коран требует достоинства даже при разводе.', textKk: 'Ажырасуды кек алу сылтауы ретінде пайдалану: балаларды екінші ата-анамен себепсіз қарым-қатынастан айыру, алимент/нафақадан бас тарту, бұрынғы жұбайдың жеке құпияларын тарату, іске әдейі кедергі жасау.\n\n«Не лайықты түрде ұстау, не ізгілікпен жіберу» (Құран 2:229) — Құран тіпті ажырасуда да ар-намысты талап етеді.' },
         { title: 'Иля (затяжная клятва не приближаться к жене)', titleKk: 'Иля (әйелге жақындамауға ұзаққа созылған ант)', text: 'Клятва не вступать в близость с женой как способ наказать её или затянуть развод в подвешенном состоянии — шариат ограничивает такую клятву четырьмя месяцами (Коран 2:226–227), после чего муж обязан либо вернуться к жене, либо дать развод.\n\nИспользование иля бессрочно, чтобы держать жену «ни женой, ни разведённой», — форма скрытого зульма.\n\nТауба: определиться в установленный срок, не затягивать неопределённость.', textKk: 'Әйелді жазалау немесе ажырасуды белгісіздікте ұстау тәсілі ретінде онымен жақындаспауға ант ету — шариғат мұндай антты төрт аймен шектейді (Құран 2:226–227), одан кейін күйеу не әйеліне қайту, не ажырасу керек.\n\nИляны әйелді «не әйел, не ажырасқан» күйде ұстау үшін мерзімсіз пайдалану — жасырын зулымның бір түрі.\n\nТәубе: белгіленген мерзімде шешім қабылдау, белгісіздікті созбау.' },
-        { title: 'Принуждение к браку без согласия стороны', titleKk: 'Тараптың келісімінсіз некеге мәжбүрлеу', text: 'Пророк ﷺ постановил, что брак девственницы и вдовы/разведённой недействителен без их согласия, а девственницу опекун обязан спросить, даже если её молчание засчитывается за согласие (аль-Бухари, Муслим). Принуждение сына или дочери к браку против воли — нарушение прямого текста, даже из благих побуждений родителей.\n\nЭто не отменяет права родителей советовать и заботиться о выборе.\n\nТауба: аннулировать принуждение там, где оно было, восстановить право выбора.', textKk: 'Пайғамбар ﷺ пәк қыздың және жесір/ажырасқан әйелдің некесі олардың келісімінсіз жарамсыз екенін бекіткен, ал пәк қыздан қамқоршы сұрауы міндетті, тіпті оның үндемеуі келісім деп саналса да (әл-Бухари, Мүслім). Ұлды немесе қызды өз еркінен тыс некеге мәжбүрлеу — ата-ананың жақсы ниетінен болса да, анық мәтінді бұзу.\n\nБұл ата-ананың кеңес беру және таңдауға қамқорлық жасау құқығын жоймайды.\n\nТәубе: мәжбүрлеу болған жерде оны жою, таңдау құқығын қалпына келтіру.' },
+        { title: 'Принуждение к браку без согласия стороны', titleKk: 'Тараптың келісімінсіз некеге мәжбүрлеу', text: 'Пророк ﷺ постановил, что брак девственницы и вдовы/разведённой недействителен без их согласия, а девственницу опекун обязан спросить, даже если её молчание засчитывается за согласие (аль-Бухари 5136, Муслим 1419). Принуждение сына или дочери к браку против воли — нарушение прямого текста, даже из благих побуждений родителей.\n\nЭто не отменяет права родителей советовать и заботиться о выборе.\n\nТауба: аннулировать принуждение там, где оно было, восстановить право выбора.', textKk: 'Пайғамбар ﷺ пәк қыздың және жесір/ажырасқан әйелдің некесі олардың келісімінсіз жарамсыз екенін бекіткен, ал пәк қыздан қамқоршы сұрауы міндетті, тіпті оның үндемеуі келісім деп саналса да (әл-Бухари 5136, Мүслім 1419). Ұлды немесе қызды өз еркінен тыс некеге мәжбүрлеу — ата-ананың жақсы ниетінен болса да, анық мәтінді бұзу.\n\nБұл ата-ананың кеңес беру және таңдауға қамқорлық жасау құқығын жоймайды.\n\nТәубе: мәжбүрлеу болған жерде оны жою, таңдау құқығын қалпына келтіру.' },
         { title: 'Присвоение или растрата имущества сироты', titleKk: 'Жетімнің мүлкін иемдену немесе ысырап ету', text: 'Коран называет поедание имущества сироты одним из семи губительных грехов и предупреждает: «Те, кто несправедливо пожирает имущество сирот, наполняют свои животы огнём» (4:10). Родственник-опекун, тратящий наследство ребёнка на себя вместо сохранения и приумножения, совершает один из тяжелейших грехов против слабого.\n\nЭто касается и небрежного хранения, не только прямого воровства.\n\nТауба: вернуть присвоенное, отчитаться перед ребёнком по достижении зрелости.', textKk: 'Құран жетімнің мүлкін жеуді жеті құртушы күнәнің бірі деп атайды және ескертеді: «Жетімдердің мүлкін әділетсіз жегендер қарындарына от толтырады» (4:10). Баланың мұрасын сақтап, көбейтудің орнына өзіне жұмсайтын туыс-қамқоршы әлсізге қарсы ең ауыр күнәлардың бірін жасайды.\n\nБұл тек тікелей ұрлыққа емес, немқұрайлы сақтауға да қатысты.\n\nТәубе: иемденгенді қайтару, бала кәмелетке жеткенде оған есеп беру.' }
       ];
       const manSins = [
         { title: 'Пренебрежение кавамой (заботой о семье)', titleKk: 'Қауама (отбасын асырау) міндетін елемеу', text: 'Мужчина назначен опекуном и обеспечивающим семью: «Мужчины являются опекунами (каввамун) над женщинами, потому что Аллах дал одним преимущество над другими, и потому что они расходуют из своего имущества» (Коран 4:34). Отказ обеспечивать нафаку без уважительной причины, безответственность в решениях, устранение от воспитания детей — грех против доверенной обязанности.\n\nЭто не превосходство ради власти, а обязанность заботы.\n\nТауба: вернуться к содержанию семьи, разделить нагрузку по совести, не перекладывать всё на жену.', textKk: 'Ер адам отбасын асырайтын қауама (қамқоршы) болып тағайындалған: «Ерлер әйелдерге қамқоршы, себебі Аллаһ бірін біріне артық қылды және олар мал-мүліктерінен жұмсайды» (Құран 4:34). Себепсіз нафақаны бермеу, шешімдерде жауапкершіліксіздік, балаларды тәрбиелеуден бас тарту — сеніп тапсырылған міндетке қарсы күнә.\n\nБұл билік үшін артықшылық емес, қамқорлық міндеті.\n\nТәубе: отбасын асырауға қайту, ауыртпалықты ар-ұждан бойынша бөлісу, бәрін әйеліне артпау.' },
-        { title: 'Дайюс (безразличие к безнравственности в семье)', titleKk: 'Дайюс (отбасындағы азғындыққа немқұрайлылық)', text: 'Пророк ﷺ сказал, что три категории людей не войдут в Рай, среди них — дайюс: тот, кто спокойно относится к безнравственности в своей семье (Насаи 2562, Ахмад; хасан-сахих у аль-Альбани). Это касается мужчины, знающего о непристойном поведении жены, дочери или другой подопечной и не предпринимающего ничего из равнодушия или ради собственного удобства.\n\nРечь не о слежке и подозрительности, а о минимальной ответственности за нравственную безопасность семьи.\n\nТауба: проявить заботу без тирании, обеспечить исламское воспитание и здоровую атмосферу дома.', textKk: 'Пайғамбар ﷺ Жәннатқа кірмейтін үш топ туралы айтқанда, солардың бірі — дайюс: өз отбасындағы азғындыққа немқұрайлы қарайтын адам (Ахмад, ән-Насаи). Бұл әйелінің, қызының немесе қамқорлығындағы адамның ұятсыз мінез-құлқын біле тұра, немқұрайлылықтан немесе өз ыңғайлылығы үшін ешнәрсе істемейтін ер адамға қатысты.\n\nСөз аңдумен күдіктенуде емес, отбасының адамгершілік қауіпсіздігі үшін ең аз жауапкершілікте.\n\nТәубе: озбырлықсыз қамқорлық көрсету, исламдық тәрбие мен үйде сау ахуал орнату.' },
-        { title: 'Исбаль (одежда ниже щиколоток из гордости)', titleKk: 'Исбаль (тәкаппарлықтан киімді тобыққа дейін түсіру)', text: 'Пророк ﷺ предупредил: часть одежды мужчины ниже щиколоток окажется в Огне (аль-Бухари 5787). В другом хадисе уточняется, что грех — именно в намерении высокомерия (хуяля), присущем такой манере одеваться в культуре, где это было признаком гордыни.\n\nСовременные учёные расходятся в степени строгости, но сходятся, что элемент гордости в одежде и подражании ради статуса остаётся порицаемым.\n\nТауба: скромность в одежде, проверка намерения.', textKk: 'Пайғамбар ﷺ ескерткен: ер адамның тобықтан төмен түскен киім бөлігі Отта болады (әл-Бухари). Басқа хадисте нақтыланғандай, күнә дәл сол мәдениетте тәкаппарлықтың белгісі болған осылай киінудегі менмендік (хуяла) ниетінде.\n\nҚазіргі ғалымдар қаталдық дәрежесінде әр түрлі пікірде, бірақ киімдегі мақтаныш пен мәртебе үшін еліктеу элементі жаман көрінетінін мойындайды.\n\nТәубе: киімде қарапайымдылық, ниетті тексеру.' },
-        { title: 'Золото и шёлк, запретные мужчинам', titleKk: 'Ер адамдарға харам алтын мен жібек', text: 'Пророк ﷺ взял в одну руку шёлк, в другую золото и сказал: «Это два запретных для мужчин моей общины» (Абу Дауд 4057; также Ибн Маджа, Насаи; хадис хороший). Женщинам ношение золота и шёлка разрешено, мужчинам — нет, кроме отдельных послаблений (например, серебряное кольцо, протез из золота при нужде по мнению части учёных).\n\nЭто не мелочь моды, а ясный текстовый запрет.\n\nТауба: снять, заменить дозволенным материалом.', textKk: 'Пайғамбар ﷺ бір қолына жібек, екінші қолына алтын алып: «Бұл екеуі үмметімнің еркектеріне харам», — деді (Әбу Дәуіт, ән-Насаи; хадис хасан). Әйелдерге алтын мен жібек кию рұқсат етілген, ерлерге — жоқ, кейбір жеңілдіктерден басқа (мысалы, күміс сақина, қажеттілікте алтын протез — кейбір ғалымдардың пікірінше).\n\nБұл сәннің ұсақ мәселесі емес, анық мәтіндік тыйым.\n\nТәубе: шешіп тастау, рұқсат етілген материалмен алмастыру.' },
+        { title: 'Дайюс (безразличие к безнравственности в семье)', titleKk: 'Дайюс (отбасындағы азғындыққа немқұрайлылық)', text: 'Пророк ﷺ сказал, что три категории людей не войдут в Рай, среди них — дайюс: тот, кто спокойно относится к безнравственности в своей семье (Насаи 2562, Ахмад; хасан-сахих у аль-Альбани). Это касается мужчины, знающего о непристойном поведении жены, дочери или другой подопечной и не предпринимающего ничего из равнодушия или ради собственного удобства.\n\nРечь не о слежке и подозрительности, а о минимальной ответственности за нравственную безопасность семьи.\n\nТауба: проявить заботу без тирании, обеспечить исламское воспитание и здоровую атмосферу дома.', textKk: 'Пайғамбар ﷺ Жәннатқа кірмейтін үш топ туралы айтқанда, солардың бірі — дайюс: өз отбасындағы азғындыққа немқұрайлы қарайтын адам (Ахмад, ән-Насаи 2562). Бұл әйелінің, қызының немесе қамқорлығындағы адамның ұятсыз мінез-құлқын біле тұра, немқұрайлылықтан немесе өз ыңғайлылығы үшін ешнәрсе істемейтін ер адамға қатысты.\n\nСөз аңдумен күдіктенуде емес, отбасының адамгершілік қауіпсіздігі үшін ең аз жауапкершілікте.\n\nТәубе: озбырлықсыз қамқорлық көрсету, исламдық тәрбие мен үйде сау ахуал орнату.' },
+        { title: 'Исбаль (одежда ниже щиколоток из гордости)', titleKk: 'Исбаль (тәкаппарлықтан киімді тобыққа дейін түсіру)', text: 'Пророк ﷺ предупредил: часть одежды мужчины ниже щиколоток окажется в Огне (аль-Бухари 5787). В другом хадисе уточняется, что грех — именно в намерении высокомерия (хуяля), присущем такой манере одеваться в культуре, где это было признаком гордыни.\n\nСовременные учёные расходятся в степени строгости, но сходятся, что элемент гордости в одежде и подражании ради статуса остаётся порицаемым.\n\nТауба: скромность в одежде, проверка намерения.', textKk: 'Пайғамбар ﷺ ескерткен: ер адамның тобықтан төмен түскен киім бөлігі Отта болады (әл-Бухари 5787). Басқа хадисте нақтыланғандай, күнә дәл сол мәдениетте тәкаппарлықтың белгісі болған осылай киінудегі менмендік (хуяла) ниетінде.\n\nҚазіргі ғалымдар қаталдық дәрежесінде әр түрлі пікірде, бірақ киімдегі мақтаныш пен мәртебе үшін еліктеу элементі жаман көрінетінін мойындайды.\n\nТәубе: киімде қарапайымдылық, ниетті тексеру.' },
+        { title: 'Золото и шёлк, запретные мужчинам', titleKk: 'Ер адамдарға харам алтын мен жібек', text: 'Пророк ﷺ взял в одну руку шёлк, в другую золото и сказал: «Это два запретных для мужчин моей общины» (Абу Дауд 4057; также Ибн Маджа, Насаи; хадис хороший). Женщинам ношение золота и шёлка разрешено, мужчинам — нет, кроме отдельных послаблений (например, серебряное кольцо, протез из золота при нужде по мнению части учёных).\n\nЭто не мелочь моды, а ясный текстовый запрет.\n\nТауба: снять, заменить дозволенным материалом.', textKk: 'Пайғамбар ﷺ бір қолына жібек, екінші қолына алтын алып: «Бұл екеуі үмметімнің еркектеріне харам», — деді (Әбу Дәуіт 4057, ән-Насаи; хадис хасан). Әйелдерге алтын мен жібек кию рұқсат етілген, ерлерге — жоқ, кейбір жеңілдіктерден басқа (мысалы, күміс сақина, қажеттілікте алтын протез — кейбір ғалымдардың пікірінше).\n\nБұл сәннің ұсақ мәселесі емес, анық мәтіндік тыйым.\n\nТәубе: шешіп тастау, рұқсат етілген материалмен алмастыру.' },
         { title: 'Оставление пятничной и коллективной молитвы', titleKk: 'Жұма және жамағат намазын тастау', text: 'Пятничная молитва (джума) — индивидуальная обязанность (фард айн) для мужчин без уважительной причины, а совершение обязательных молитв в мечети — сильно подчёркнутая сунна или обязанность по мнению многих учёных. Пророк ﷺ предупреждал о том, что сердца тех, кто оставляет джуму без причины трижды подряд, будут запечатаны (Абу Дауд 1052; также Тирмизи 500, Насаи, Ибн Маджа — хасан, не у Муслима).\n\nРабота, сон, лень — не оправдание.\n\nТауба: вернуться к джума и, по возможности, к общей молитве в мечети.', textKk: 'Жұма намазы (джума) — себепсіз ерлерге жеке міндет (фард айын), ал міндетті намаздарды мешітте оқу — көптеген ғалымдардың пікірінше қатты баса айтылған сүннет немесе міндет. Пайғамбар ﷺ себепсіз жұманы қатарынан үш рет тастағандардың жүрегі мөрленетінін ескерткен (Әбу Дәуіт 1052; сондай-ақ Тирмизи 500, Насаи, Ибн Мажа — хасан, Мүслімде жоқ).\n\nЖұмыс, ұйқы, жалқаулық — ақталу емес.\n\nТәубе: жұмаға және мүмкіндігінше мешіттегі жамағат намазына қайту.' },
-        { title: 'Жёсткость и рукоприкладство к жене', titleKk: 'Жұбайына қаталдық және қол жұмсау', text: 'Пророк ﷺ никогда не бил ни жену, ни слугу (Муслим 2328), и сказал: «Лучшие из вас — лучшие к своим жёнам» (ат-Тирмизи). Грубость, крик, унижение, применение силы против жены без крайних, чётко оговорённых в фикхе рамок — прямое противоречие сунне, даже там, где отдельные тексты формально допускают символическую меру в редчайших случаях непокорности.\n\nТауба: остановить насилие, извиниться, обратиться за помощью, если гнев неуправляем.', textKk: 'Пайғамбар ﷺ ешқашан әйелін де, қызметшісін де ұрған емес (Мүслім) және: «Ең жақсыларың — әйелдеріне жақсы болғандар», — деген (ат-Тирмизи). Дөрекілік, айқай, кемсіту, фиқһта нақты шектелген өте сирек жағдайлардан тыс күш қолдану — сүннетке тікелей қайшы, тіпті кейбір мәтіндер бағынбаудың сирек жағдайында символдық шараны формальды түрде рұқсат етсе де.\n\nТәубе: зорлықты тоқтату, кешірім сұрау, ашу басқарылмаса көмекке жүгіну.' },
-        { title: 'Избегание ответственности и обязательств', titleKk: 'Жауапкершілік пен міндеттемеден қашу', text: 'Некоторые сподвижники решили превзойти набожность Пророка ﷺ, поклявшись не жениться и постоянно поститься; он поправил их: «Я женюсь на женщинах, и кто отвратится от моей сунны, тот не имеет ко мне отношения» (аль-Бухари 5063, Муслим 1401). Современная тенденция откладывать брак и отцовство «на потом» без нужды, годами держать отношения в подвешенном статусе, избегать оформления обязательств при полной готовности и возможности — форма ухода от предписанной зрелости и ответственности.\n\nЭто не осуждение тех, у кого есть реальные препятствия (учёба, средства, здоровье).\n\nТауба: честно оценить свою готовность, не превращать страх обязательств в образ жизни.', textKk: 'Кейбір сахабалар Пайғамбардың ﷺ тақуалығынан асып түсуге бел байлап, үйленбеуге және үздіксіз ораза тұтуға ант еткен; ол оларды түзеп: «Мен әйелдерге үйленемін, ал кім менің сүннетімнен бас тартса, оның маған қатысы жоқ», — деген (әл-Бухари, Мүслім). Қазіргі заманда некені, әкелікті себепсіз «кейінге» шегеру, қарым-қатынасты жылдар бойы белгісіздікте ұстау, толық дайын әрі мүмкіндік болса да міндеттемені ресімдеуден қашу — белгіленген есеюден және жауапкершіліктен бас тартудың бір түрі.\n\nБұл нақты кедергісі барларды (оқу, қаражат, денсаулық) айыптау емес.\n\nТәубе: өз дайындығын шынайы бағалау, міндеттемеден қорқуды өмір салтына айналдырмау.' },
+        { title: 'Жёсткость и рукоприкладство к жене', titleKk: 'Жұбайына қаталдық және қол жұмсау', text: 'Пророк ﷺ никогда не бил ни жену, ни слугу (Муслим 2328), и сказал: «Лучшие из вас — лучшие к своим жёнам» (ат-Тирмизи 3895). Грубость, крик, унижение, применение силы против жены без крайних, чётко оговорённых в фикхе рамок — прямое противоречие сунне, даже там, где отдельные тексты формально допускают символическую меру в редчайших случаях непокорности.\n\nТауба: остановить насилие, извиниться, обратиться за помощью, если гнев неуправляем.', textKk: 'Пайғамбар ﷺ ешқашан әйелін де, қызметшісін де ұрған емес (Мүслім 2328) және: «Ең жақсыларың — әйелдеріне жақсы болғандар», — деген (ат-Тирмизи 3895). Дөрекілік, айқай, кемсіту, фиқһта нақты шектелген өте сирек жағдайлардан тыс күш қолдану — сүннетке тікелей қайшы, тіпті кейбір мәтіндер бағынбаудың сирек жағдайында символдық шараны формальды түрде рұқсат етсе де.\n\nТәубе: зорлықты тоқтату, кешірім сұрау, ашу басқарылмаса көмекке жүгіну.' },
+        { title: 'Избегание ответственности и обязательств', titleKk: 'Жауапкершілік пен міндеттемеден қашу', text: 'Некоторые сподвижники решили превзойти набожность Пророка ﷺ, поклявшись не жениться и постоянно поститься; он поправил их: «Я женюсь на женщинах, и кто отвратится от моей сунны, тот не имеет ко мне отношения» (аль-Бухари 5063, Муслим 1401). Современная тенденция откладывать брак и отцовство «на потом» без нужды, годами держать отношения в подвешенном статусе, избегать оформления обязательств при полной готовности и возможности — форма ухода от предписанной зрелости и ответственности.\n\nЭто не осуждение тех, у кого есть реальные препятствия (учёба, средства, здоровье).\n\nТауба: честно оценить свою готовность, не превращать страх обязательств в образ жизни.', textKk: 'Кейбір сахабалар Пайғамбардың ﷺ тақуалығынан асып түсуге бел байлап, үйленбеуге және үздіксіз ораза тұтуға ант еткен; ол оларды түзеп: «Мен әйелдерге үйленемін, ал кім менің сүннетімнен бас тартса, оның маған қатысы жоқ», — деген (әл-Бухари 5063, Мүслім 1401). Қазіргі заманда некені, әкелікті себепсіз «кейінге» шегеру, қарым-қатынасты жылдар бойы белгісіздікте ұстау, толық дайын әрі мүмкіндік болса да міндеттемені ресімдеуден қашу — белгіленген есеюден және жауапкершіліктен бас тартудың бір түрі.\n\nБұл нақты кедергісі барларды (оқу, қаражат, денсаулық) айыптау емес.\n\nТәубе: өз дайындығын шынайы бағалау, міндеттемеден қорқуды өмір салтына айналдырмау.' },
         { title: 'Выставление достатка и статуса напоказ', titleKk: 'Байлық пен мәртебені жария көрсету', text: 'Коран описывает Каруна, который «вышел к своему народу во всём своём убранстве», и тех, кто пожелал такой же роскоши, увидев его (28:79) — эпизод, порицающий именно демонстративность богатства ради зависти и восхищения окружающих. Дорогие машины, часы, отдых напоказ в соцсетях ради статуса, а не по нужде или благодарности — питает гордыню и чужую зависть.\n\nБлагодарность за достаток проявляется в закяте, скромности и пользе для других, а не в витрине успеха.\n\nТауба: сместить намерение с показухи на благодарность и скрытую щедрость.', textKk: 'Құран Қарунды «өз халқына толық сәнмен шыққанын» және оны көріп, сондай сән-салтанатты армандағандарды сипаттайды (28:79) — бұл эпизод дәл байлықты бөгделердің қызғанышы мен таңданысы үшін көрсетпекті айыптайды. Қымбат көліктер, сағаттар, мәртебе үшін әлеуметтік желіде көрсетілген демалыс — қажеттіліктен немесе шүкірден емес — тәкаппарлық пен бөгденің қызғанышын қоздырады.\n\nБайлыққа шүкір ету зекетте, қарапайымдылықта және басқаларға пайдада көрінеді, жетістік көрмесінде емес.\n\nТәубе: ниетті көрсетпектен шүкір мен жасырын жомарттыққа ауыстыру.' },
         { title: 'Легкомысленное произнесение развода (талак) как угроза', titleKk: 'Ажырасуды (талақ) қорқыту құралы ретінде жеңіл-желпі айту', text: 'Хадис «Развод — самое ненавистное Аллаху из дозволенного» (Абу Дауд 2178, от Ибн Умара) передан с прерванным иснадом (мурсаль), поэтому часть мухаддисов, включая ад-Даракутни, считает его слабым, тогда как Ибн ас-Салях, аль-Хаким и аль-Альбани принимали его в силу похожих преданий. Смысл при этом опирается и на более широкий принцип фикха «нет вреда и нанесения вреда» (хадис Ибн Маджа 2340, Ахмад 5/326): необоснованный развод причиняет вред жене. Учёные подчёркивают, что произносить развод многократно в ссоре, как инструмент запугивания, а не как реальное намерение расторгнуть брак, — безответственность с серьёзными шариатскими последствиями.\n\nМногие мужчины не осознают, что троекратный талак в разных формулировках может иметь необратимые последствия.\n\nТауба: не бросаться этим словом, обращаться к знающему при семейном кризисе, а не решать его угрозами.', textKk: 'Ажырасу — Аллаһқа рұқсат етілгеннің ішінде ең жек көрінішісі туралы хадис (Әбу Дәуіт 2178, Ибн Омардан) үзілген иснадпен (мурсаль) жеткен, сондықтан хадис ғалымдарының бір бөлігі, соның ішінде ад-Даракутни, оны әлсіз деп есептейді, ал Ибн ас-Салях, әл-Хаким және әл-Албани оны ұқсас риуаяттар негізінде қабылдаған. Мағынасы фикхтың кеңірек қағидасына да сүйенеді — «зиян да, зиян келтіру де жоқ» (Ибн Мажа 2340, Ахмад 5/326 хадисі): негізсіз ажырасу әйелге зиян келтіреді. Ғалымдар оны нақты некені бұзу ниетімен емес, әйелді қорқыту құралы ретінде дау-жанжалда қайта-қайта айтуды — салдары ауыр жауапкершіліксіздік деп атайды.\n\nКөптеген ерлер әр түрлі тұжырымдамада үш рет айтылған талақтың қайтымсыз салдары болуы мүмкін екенін түсінбейді.\n\nТәубе: бұл сөзді ойланбай айтпау, отбасылық дағдарысты қорқытумен емес, білетін адаммен шешу.' },
-        { title: 'Чрезмерная, тираническая ревность (гайра без меры)', titleKk: 'Шектен тыс, озбыр қызғаныш (себепсіз ғайра)', text: 'Здоровая ревность (гайра) за честь семьи одобряется в сунне, но Пророк ﷺ предостерёг от ревности, не имеющей основания — «есть ревность, которую любит Аллах, и ревность, которую Он ненавидит: ревность без подозрения» (Абу Дауд). Слежка, запрет на общение с родными без причины, обвинения на пустом месте разрушают доверие.\n\nЭто не призыв к беспечности, а к балансу.\n\nТауба: опираться на факты, а не подозрения, обсуждать тревоги открыто.', textKk: 'Отбасы намысы үшін сау қызғаныш (ғайра) сүннетте мақталады, бірақ Пайғамбар ﷺ негізсіз қызғаныштан сақтандырған — «Аллаһ жақсы көретін қызғаныш пен жек көретін қызғаныш бар: күдіксіз қызғаныш» (Әбу Дәуіт). Аңду, себепсіз туыстарымен қарым-қатынасқа тыйым салу, негізсіз айыптау сенімді бұзады.\n\nБұл немқұрайлылыққа шақыру емес, тепе-теңдікке шақыру.\n\nТәубе: күдікке емес, фактіге сүйену, алаңдаушылықты ашық талқылау.' },
+        { title: 'Чрезмерная, тираническая ревность (гайра без меры)', titleKk: 'Шектен тыс, озбыр қызғаныш (себепсіз ғайра)', text: 'Здоровая ревность (гайра) за честь семьи одобряется в сунне, но Пророк ﷺ предостерёг от ревности, не имеющей основания — «есть ревность, которую любит Аллах, и ревность, которую Он ненавидит: ревность без подозрения» (Абу Дауд 2659). Слежка, запрет на общение с родными без причины, обвинения на пустом месте разрушают доверие.\n\nЭто не призыв к беспечности, а к балансу.\n\nТауба: опираться на факты, а не подозрения, обсуждать тревоги открыто.', textKk: 'Отбасы намысы үшін сау қызғаныш (ғайра) сүннетте мақталады, бірақ Пайғамбар ﷺ негізсіз қызғаныштан сақтандырған — «Аллаһ жақсы көретін қызғаныш пен жек көретін қызғаныш бар: күдіксіз қызғаныш» (Әбу Дәуіт 2659). Аңду, себепсіз туыстарымен қарым-қатынасқа тыйым салу, негізсіз айыптау сенімді бұзады.\n\nБұл немқұрайлылыққа шақыру емес, тепе-теңдікке шақыру.\n\nТәубе: күдікке емес, фактіге сүйену, алаңдаушылықты ашық талқылау.' },
         { title: 'Двойные стандарты: требовательность к жене при небрежности к себе', titleKk: 'Қосарлы стандарт: өзіне немқұрайлы, әйеліне талапшыл болу', text: 'Требовать от жены безупречного внешнего вида, при этом не заботясь о собственной опрятности, запахе, одежде — противоречит сунне взаимности: «Они (жёны) — одеяние для вас, а вы — одеяние для них» (2:187). Ибн Аббас говорил: я люблю украшать себя для жены, как люблю, чтобы она украшала себя для меня.\n\nСправедливость в браке касается и заботы о себе.\n\nТауба: пересмотреть требования к супруге через призму собственных обязанностей.', textKk: 'Өз тазалығына, иісіне, киіміне мән бермей, әйелінен мінсіз сырт келбет талап ету — өзара үйлесімділік сүннетіне қайшы: «Олар (жұбайлар) сендерге киім, ал сендер оларға киімсіңдер» (2:187). Ибн Аббас: мен әйелім үшін сәнденуді, ол мен үшін сәнденгенді жақсы көргендей жақсы көремін, — деген.\n\nНекедегі әділеттілік өзіне қамқорлықты да қамтиды.\n\nТәубе: жұбайыңа қойылатын талаптарды өз міндеттерің тұрғысынан қайта қарау.' }
       ];
       const womanSins = [
         { title: 'Табаррудж (выставление украшений на публике)', titleKk: 'Табаррудж (жария жерде әсемдікті көрсету)', text: 'Коран запрещает женщинам «выставлять напоказ свои прикрасы, как во времена первого невежества» (33:33) и предписывает опускать покрывала на грудь, не привлекая внимания украшениями (24:31). Речь о показном выставлении красоты перед посторонними мужчинами — ярком макияже, облегающей или прозрачной одежде на публике, духах, слышимых украшениях.\n\nЭто не запрет на красоту вообще — дома и перед мужем украшение поощряется.\n\nТауба: скромность вне дома, сохранение красоты в дозволенных границах.', textKk: 'Құран әйелдерге «алғашқы надандық заманындағыдай әсемдіктерін жария етуге» тыйым салады (33:33) және назар аудармай, жамылғыны кеудеге дейін түсіруді бұйырады (24:31). Сөз бөгде ерлер алдында сұлулықты көрсетпек мақсатпен көрсету — ашық макияж, тар немесе мөлдір киім, иіс су, дыбысталатын әшекейлер туралы.\n\nБұл жалпы сұлулыққа тыйым емес — үйде және күйеуінің алдында сәндену қуатталады.\n\nТәубе: үйден тыс қарапайымдылық, сұлулықты рұқсат етілген шекте сақтау.' },
         { title: 'Нушуз (своевольное непослушание мужу)', titleKk: 'Нушуз (күйеуге өз бетінше бағынбау)', text: 'В дозволенных, не противоречащих шариату вопросах Пророк ﷺ указал на право мужа на послушание жены и предупредил о тяжести намеренного, упрямого неповиновения без причины (Коран 4:34; хадис Бухари 3237, Муслим 1436 о недовольстве ангелов отказавшей мужу жены). Это не отменяет прав жены — на нафаку, доброе отношение, защиту — и не требует покорности в грехе.\n\nРечь о капризном игнорировании законных просьб без основания.\n\nТауба: диалог, исправление отношения, обращение к посреднику при конфликте.', textKk: 'Рұқсат етілген, шариатқа қайшы келмейтін мәселелерде Пайғамбар ﷺ күйеудің әйелінің бағынуына құқығын көрсеткен және себепсіз әдейі, қасарысқан бағынбаудың ауырлығын ескерткен (Құран 4:34; Бухари мен Мүсліммен келтірілген періштелердің әйелге ризашылығы туралы хадистер). Бұл әйелдің құқықтарын — нафақа, жақсы қарым-қатынас, қорғау — жоймайды және күнәда бағынуды талап етпейді.\n\nСөз негізсіз заңды өтінімдерді әдейі елемеу туралы.\n\nТәубе: диалог, қарым-қатынасты түзету, дау кезінде делдалға жүгіну.' },
-        { title: 'Нияха (громкие причитания на похоронах)', titleKk: 'Нияха (жерлеу рәсімінде дауыстап зар қағу)', text: 'Пророк ﷺ предостерёг от нияхи — громких причитаний, рвания одежды, ударов по лицу при трауре, называя это одним из проявлений доисламского невежества (аль-Бухари 1294, Муслим 103). Скорбь и слёзы естественны и дозволены, но демонстративное, театральное оплакивание с криком считалось грехом, который классические учёные особо связывали с женскими собраниями скорби.\n\nТауба: сдержанная скорбь, дуа за умершего, терпение (сабр).', textKk: 'Пайғамбар ﷺ нияхадан — жоқтауда дауыстап зар қағудан, киімді жыртудан, бетке соғудан сақтандырды, мұны исламға дейінгі надандықтың бір көрінісі деп атады (әл-Бухари, Мүслім). Қайғыру мен көз жасы табиғи әрі рұқсат етілген, бірақ айқаймен көрсетпек, театрлық жоқтау классикалық ғалымдар ерекше әйелдер жиналған қайғы жиындарымен байланыстырған күнә саналған.\n\nТәубе: ұстамды қайғыру, марқұмға дұға ету, сабыр.' },
+        { title: 'Нияха (громкие причитания на похоронах)', titleKk: 'Нияха (жерлеу рәсімінде дауыстап зар қағу)', text: 'Пророк ﷺ предостерёг от нияхи — громких причитаний, рвания одежды, ударов по лицу при трауре, называя это одним из проявлений доисламского невежества (аль-Бухари 1294, Муслим 103). Скорбь и слёзы естественны и дозволены, но демонстративное, театральное оплакивание с криком считалось грехом, который классические учёные особо связывали с женскими собраниями скорби.\n\nТауба: сдержанная скорбь, дуа за умершего, терпение (сабр).', textKk: 'Пайғамбар ﷺ нияхадан — жоқтауда дауыстап зар қағудан, киімді жыртудан, бетке соғудан сақтандырды, мұны исламға дейінгі надандықтың бір көрінісі деп атады (әл-Бухари 1294, Мүслім 103). Қайғыру мен көз жасы табиғи әрі рұқсат етілген, бірақ айқаймен көрсетпек, театрлық жоқтау классикалық ғалымдар ерекше әйелдер жиналған қайғы жиындарымен байланыстырған күнә саналған.\n\nТәубе: ұстамды қайғыру, марқұмға дұға ету, сабыр.' },
         { title: 'Выход надушенной среди посторонних мужчин', titleKk: 'Бөгде ерлер арасына хош иіс себініп шығу', text: 'Пророк ﷺ сказал: «Любая женщина, надушившаяся и прошедшая мимо людей, чтобы они почувствовали её аромат, — блудница» (в одной из версий хадиса, ат-Тирмизи, ан-Насаи; иснад обсуждается учёными, но смысл подтверждается общими текстами о фитне). Речь о духах с сильным, привлекающим внимание запахом, специально нанесённых перед выходом к посторонним.\n\nДома, перед мужем — духи поощряются.\n\nТауба: сдержанность в парфюме вне дома, лёгкий или незаметный аромат при необходимости выйти.', textKk: 'Пайғамбар ﷺ: «Хош иіс себініп, адамдар иісін сезсін деп олардың қасынан өткен әрбір әйел — зинақор» (хадистің бір нұсқасы, ат-Тирмизи, ән-Насаи; иснады ғалымдар арасында талқыланады, бірақ мағынасы фитна туралы жалпы мәтіндермен расталады), — деді. Сөз бөгделерге шығар алдында арнайы себінген, назар аудартатын күшті иіс туралы.\n\nҮйде, күйеуінің алдында — иіс су қуатталады.\n\nТәубе: үйден тыс парфюмерияда ұстамдылық, шығу қажет болғанда жеңіл немесе байқалмайтын иіс.' },
-        { title: 'Уподобление мужчинам во внешности и манерах', titleKk: 'Сырт келбет пен мінезде ерлерге еліктеу', text: 'Пророк ﷺ проклял женщин, уподобляющихся мужчинам, и мужчин, уподобляющихся женщинам (аль-Бухари 5885) — в одежде, походке, голосе, манерах, если это делается намеренно ради стирания различия полов, а не по нейтральным практическим причинам.\n\nШариат сохраняет ясное различие ролей и внешнего облика между мужчиной и женщиной как часть фитры.\n\nТауба: вернуться к естественной, соответствующей полу манере одеваться и держаться.', textKk: 'Пайғамбар ﷺ ер адамдарға еліктейтін әйелдерге және әйелдерге еліктейтін ер адамдарға қарғыс айтқан (әл-Бухари) — бұл жыныстар айырмашылығын жою мақсатымен әдейі жасалатын киім, жүріс, дауыс, мінезге қатысты, бейтарап тәжірибелік себептерге емес.\n\nШариат ер мен әйел арасындағы рөлдер мен сырт келбеттегі анық айырмашылықты фитраның бөлігі ретінде сақтайды.\n\nТәубе: жынысына сай табиғи киіну мен ұстамды мінезге қайту.' },
-        { title: 'Небрежение домом и детьми без уважительной причины', titleKk: 'Себепсіз үй мен балаларды елемеу', text: 'Пророк ﷺ сказал: «Женщина — пастырь в доме своего мужа и в ответе за свою паству» (аль-Бухари 893, Муслим 1829). Постоянное пренебрежение уходом за детьми, домом, обязанностями ради развлечений, бесконечных встреч или экранного времени, при живом муже и отсутствии договорённости о распределении ролей, — нарушение доверенной ответственности.\n\nЭто не отменяет права женщины на отдых, работу и личное развитие по взаимному согласию.\n\nТауба: баланс обязанностей, честный разговор с супругом о распределении ролей.', textKk: 'Пайғамбар ﷺ: «Әйел — күйеуінің үйіндегі бақташы және өз бақташылығына жауапты», — деген (әл-Бухари, Мүслім). Күйеуі тірі болып, рөлдерді бөлу туралы келісім болмаған жағдайда, көңіл көтеру, шексіз кездесулер немесе экран уақыты үшін балаларға, үйге, міндеттерге тұрақты немқұрайлылық — сеніп тапсырылған жауапкершілікті бұзу.\n\nБұл әйелдің өзара келісіммен демалуға, жұмыс істеуге, жеке дамуға құқығын жоймайды.\n\nТәубе: міндеттердегі тепе-теңдік, жұбайымен рөлдерді бөлу туралы шынайы әңгіме.' },
+        { title: 'Уподобление мужчинам во внешности и манерах', titleKk: 'Сырт келбет пен мінезде ерлерге еліктеу', text: 'Пророк ﷺ проклял женщин, уподобляющихся мужчинам, и мужчин, уподобляющихся женщинам (аль-Бухари 5885) — в одежде, походке, голосе, манерах, если это делается намеренно ради стирания различия полов, а не по нейтральным практическим причинам.\n\nШариат сохраняет ясное различие ролей и внешнего облика между мужчиной и женщиной как часть фитры.\n\nТауба: вернуться к естественной, соответствующей полу манере одеваться и держаться.', textKk: 'Пайғамбар ﷺ ер адамдарға еліктейтін әйелдерге және әйелдерге еліктейтін ер адамдарға қарғыс айтқан (әл-Бухари 5885) — бұл жыныстар айырмашылығын жою мақсатымен әдейі жасалатын киім, жүріс, дауыс, мінезге қатысты, бейтарап тәжірибелік себептерге емес.\n\nШариат ер мен әйел арасындағы рөлдер мен сырт келбеттегі анық айырмашылықты фитраның бөлігі ретінде сақтайды.\n\nТәубе: жынысына сай табиғи киіну мен ұстамды мінезге қайту.' },
+        { title: 'Небрежение домом и детьми без уважительной причины', titleKk: 'Себепсіз үй мен балаларды елемеу', text: 'Пророк ﷺ сказал: «Женщина — пастырь в доме своего мужа и в ответе за свою паству» (аль-Бухари 893, Муслим 1829). Постоянное пренебрежение уходом за детьми, домом, обязанностями ради развлечений, бесконечных встреч или экранного времени, при живом муже и отсутствии договорённости о распределении ролей, — нарушение доверенной ответственности.\n\nЭто не отменяет права женщины на отдых, работу и личное развитие по взаимному согласию.\n\nТауба: баланс обязанностей, честный разговор с супругом о распределении ролей.', textKk: 'Пайғамбар ﷺ: «Әйел — күйеуінің үйіндегі бақташы және өз бақташылығына жауапты», — деген (әл-Бухари 893, Мүслім 1829). Күйеуі тірі болып, рөлдерді бөлу туралы келісім болмаған жағдайда, көңіл көтеру, шексіз кездесулер немесе экран уақыты үшін балаларға, үйге, міндеттерге тұрақты немқұрайлылық — сеніп тапсырылған жауапкершілікті бұзу.\n\nБұл әйелдің өзара келісіммен демалуға, жұмыс істеуге, жеке дамуға құқығын жоймайды.\n\nТәубе: міндеттердегі тепе-теңдік, жұбайымен рөлдерді бөлу туралы шынайы әңгіме.' },
         { title: 'Выставление семьи и материнства напоказ', titleKk: 'Отбасы мен ана болуды жария көрсету', text: 'Постоянные посты о доме, муже и детях ради восхищения и статуса «идеальной семьи» — вплоть до выкладывания фото детей без разбора и разглашения деталей семейной жизни посторонним — превращает частное благо в витрину. Пророк ﷺ учил скрывать благополучие и добрые дела, кроме случаев явной пользы: «Ищите помощи в осуществлении ваших дел через скрытность» (ат-Табарани, хадис хороший по одной из оценок).\n\nЭто отдельно от разглашения интимных супружеских тайн (см. раздел «Семья») — здесь речь о публичной витрине образа семьи ради чужого одобрения, часто скрывающей реальные трудности.\n\nТауба: беречь частную жизнь семьи, делиться благом без цели вызвать зависть или восхищение.', textKk: 'Үй, күйеу және балалар туралы «үлгілі отбасы» мәртебесі мен таңданысы үшін үздіксіз жариялау — тіпті балалардың суреттерін талғамсыз қою мен отбасы өміріндегі бөлшектерді бөгделерге жария етуге дейін — жеке игілікті көрмеге айналдырады. Пайғамбар ﷺ айқын пайда жағдайынан басқа кезде игілік пен жақсы амалдарды жасыруды үйреткен: «Істеріңізді жүзеге асыруда жасырындықтан көмек іздеңіздер» (ат-Табарани, бір бағалау бойынша хадис хасан).\n\nБұл жұбайлар арасындағы жеке құпияларды жариялаудан бөлек («Отбасы» бөлімін қараңыз) — мұнда сөз бөгденің мақұлдауы үшін отбасы бейнесін жария көрмеге айналдыру туралы, ол көбіне нақты қиындықтарды жасырады.\n\nТәубе: отбасының жеке өмірін сақтау, игілікпен қызғаныш немесе таңдану тудыру мақсатынсыз бөлісу.' },
         { title: 'Сравнение и зависимость от чужого одобрения', titleKk: 'Салыстыру және бөгденің мақұлдауына тәуелділік', text: 'Постоянное сравнение своего мужа, детей, дома или внешности с чужими «идеальными» образами из соцсетей рождает неблагодарность и хасад — Аллах предостерёг: «Не заглядывайтесь на то, чем Мы наделили некоторые пары из них» (20:131). Зависимость от лайков и одобрения подруг или подписчиков в оценке своей семейной жизни подменяет довольство Аллахом довольством толпы.\n\nЭто ослабляет благодарность (шукр) за собственные, часто скрытые от чужих глаз благословения.\n\nТауба: ограничить сравнение, вернуть мерилом довольство Аллаха, а не реакцию окружающих.', textKk: 'Күйеуін, балаларын, үйін немесе сыртқы келбетін әлеуметтік желідегі бөгденің «үлгілі» бейнелерімен үздіксіз салыстыру ризашылықсыздық пен хасадты тудырады — Аллаһ ескерткен: «Олардың кейбір жұптарына бергенімізге көз салмаңдар» (20:131). Отбасылық өмірін бағалауда достардың немесе жазылушылардың лайкы мен мақұлдауына тәуелді болу Аллаһтың ризашылығын көпшіліктің ризашылығымен алмастырады.\n\nБұл өзінің, көбіне бөгде көзден жасырын игіліктеріне шүкір етуді әлсіретеді.\n\nТәубе: салыстыруды шектеу, өлшемді айналадағылардың реакциясынан Аллаһтың ризашылығына қайтару.' },
-        { title: 'Отказ от близости с мужем без уважительной причины', titleKk: 'Себепсіз күйеуімен жақындықтан бас тарту', text: 'Пророк ﷺ сказал: «Если муж зовёт жену в постель, а она отказывается, и он проводит ночь разгневанным на неё, ангелы проклинают её до утра» (аль-Бухари 3237, Муслим 1436). Речь о немотивированном, регулярном отказе как способе наказать или манипулировать мужем, а не о случаях болезни, усталости или уважительных причин, которые полностью допустимы.\n\nБрак — взаимные права, включая интимные.\n\nТауба: открытый разговор о причинах и потребностях вместо молчаливого отказа.', textKk: 'Пайғамбар ﷺ: «Күйеуі әйелін төсекке шақырса да, ол бас тартса, әрі ол оған ашуланып түн өткізсе, періштелер таңға дейін оған лағнет айтады», — деген (әл-Бухари, Мүслім). Сөз ауру, шаршау немесе басқа құрметті себептер емес (олар толық рұқсат етіледі), керісінше күйеуін жазалау немесе манипуляциялау тәсілі ретінде себепсіз, тұрақты бас тарту туралы.\n\nНеке — интимдікті қоса алғандағы өзара құқықтар.\n\nТәубе: үнсіз бас тартудың орнына себептер мен қажеттіліктер туралы ашық әңгіме.' },
+        { title: 'Отказ от близости с мужем без уважительной причины', titleKk: 'Себепсіз күйеуімен жақындықтан бас тарту', text: 'Пророк ﷺ сказал: «Если муж зовёт жену в постель, а она отказывается, и он проводит ночь разгневанным на неё, ангелы проклинают её до утра» (аль-Бухари 3237, Муслим 1436). Речь о немотивированном, регулярном отказе как способе наказать или манипулировать мужем, а не о случаях болезни, усталости или уважительных причин, которые полностью допустимы.\n\nБрак — взаимные права, включая интимные.\n\nТауба: открытый разговор о причинах и потребностях вместо молчаливого отказа.', textKk: 'Пайғамбар ﷺ: «Күйеуі әйелін төсекке шақырса да, ол бас тартса, әрі ол оған ашуланып түн өткізсе, періштелер таңға дейін оған лағнет айтады», — деген (әл-Бухари 3237, Мүслім 1436). Сөз ауру, шаршау немесе басқа құрметті себептер емес (олар толық рұқсат етіледі), керісінше күйеуін жазалау немесе манипуляциялау тәсілі ретінде себепсіз, тұрақты бас тарту туралы.\n\nНеке — интимдікті қоса алғандағы өзара құқықтар.\n\nТәубе: үнсіз бас тартудың орнына себептер мен қажеттіліктер туралы ашық әңгіме.' },
         { title: 'Хулв — требование развода без уважительной причины', titleKk: 'Хулв — себепсіз ажырасуды талап ету', text: 'Пророк ﷺ предупредил: «Любая женщина, попросившая мужа о разводе без веской причины, — запретен для неё аромат рая» (Ахмад 5/277, Абу Дауд 2226, ат-Тирмизи 1187, Ибн Маджа 2055; достоверность подтвердили ат-Тирмизи, Ибн Хузайма и аль-Альбани). Это не про женщин, страдающих от зульма и добивающихся законного хула, а про капризное давление на развод из-за ссоры, скуки или сравнения с чужим браком.\n\nРазвод — крайняя мера, а не инструмент манипуляции.\n\nТауба: искать примирение и посредничество прежде, чем требовать расторжения брака.', textKk: 'Пайғамбар ﷺ ескерткен: «Күйеуінен елеулі себепсіз ажырасуды сұраған кез келген әйелге жәннаттың хош иісі харам», — деген (Ахмад 5/277, Әбу Дәуіт 2226, ат-Тирмизи 1187, Ибн Мажа 2055; дұрыстығын ат-Тирмизи, Ибн Хузайма және әл-Албани растаған). Бұл зулымнан зардап шегіп, заңды хулды талап ететін әйелдер туралы емес, керісінше дау-жанжал, зерігу немесе бөгде некемен салыстыру салдарынан ажырасуға тегін қысым жасау туралы.\n\nАжырасу — соңғы шара, манипуляция құралы емес.\n\nТәубе: некені бұзуды талап етпес бұрын татуласу мен делдалдық іздеу.' },
         { title: 'Трата имущества мужа без его разрешения', titleKk: 'Күйеуінің мүлкін оның рұқсатынсыз жұмсау', text: 'Пророк ﷺ дозволил жене раздавать садаку и тратить на разумные бытовые нужды из имущества мужа с его подразумеваемым согласием, но крупные траты, скрытые долги или подарки родне за счёт мужа без его ведома — нарушение амана (доверенного имущества).\n\nЭто не умаляет финансовой самостоятельности жены в её собственном заработке — речь именно об имуществе мужа.\n\nТауба: прозрачность в тратах, согласование крупных решений.', textKk: 'Пайғамбар ﷺ әйелге күйеуінің мүлкінен оның болжамды келісімімен садақа беруге және орынды тұрмыстық қажеттіліктерге жұмсауға рұқсат еткен, бірақ күйеуі білмей жасалған үлкен шығындар, жасырын қарыздар немесе оның есебінен туыстарға сый-сияпат — аманатқа қиянат.\n\nБұл әйелдің өз табысындағы қаржылық дербестігін кемітпейді — сөз дәл күйеуінің мүлкі туралы.\n\nТәубе: шығындарда ашықтық, үлкен шешімдерді келісу.' }
       ];
@@ -45286,13 +46156,13 @@ function getMyVocab() {
           { title: 'Забих (правильное заклание)', short: 'Условия халяльного мяса', detail: 'Условия: упоминание имени Аллаха, острый нож, перерезание горла с трахеей и сосудами, животное было живо перед закланием.\nМясо людей Писания (иудеи, христиане) большинство мазхабов признаёт дозволенным при соблюдении их норм заклания; охотничья добыча — по правилам, отличным от домашнего скота.',
             titleKk: 'Забих (дұрыс сою)', shortKk: 'Халал еттің шарттары', detailKk: 'Шарттары: Аллаһтың есімін атау, өткір пышақ, кеңірдек пен тамырларды кесу, мал сойылар алдында тірі болуы.\nКітап иелерінің (яхуди, христиан) еті көпшілік мазһаб бойынша олардың сою нормалары сақталса рұқсат етіледі; аңшылықпен алынған ет — үй жануарларынан өзгеше ережелермен.' },
           { title: 'Алкоголь и опьяняющие вещества', short: 'Харам в любом количестве', detail: 'Хамр (вино и любой опьяняющий напиток) запрещён (5:90). Правило из хадиса: «То, что опьяняет в большом количестве — харам и в малом» (Абу Дауд 3681; ат-Тирмизи 1866; Ибн Маджа 3393).\nБольшинство современных учёных распространяют это по аналогии (кыяс) на наркотики и иные одурманивающие вещества.',
-            titleKk: 'Алкоголь және есірткі заттар', shortKk: 'Кез келген мөлшерде харам', detailKk: 'Хамр (шарап және кез келген мас қылатын сусын) тыйым салынған (5:90). Хадистегі қағида: «Көп мөлшері мас қылатын нәрсенің азы да харам» (Әбу Дәуід, ат-Тирмизи).\nҚазіргі ғалымдардың көпшілігі мұны ұқсастық (қияс) бойынша есірткіге және басқа масайту заттарына қолданады.' },
+            titleKk: 'Алкоголь және есірткі заттар', shortKk: 'Кез келген мөлшерде харам', detailKk: 'Хамр (шарап және кез келген мас қылатын сусын) тыйым салынған (5:90). Хадистегі қағида: «Көп мөлшері мас қылатын нәрсенің азы да харам» (Әбу Дәуід 3681, ат-Тирмизи 1866).\nҚазіргі ғалымдардың көпшілігі мұны ұқсастық (қияс) бойынша есірткіге және басқа масайту заттарына қолданады.' },
           { title: 'Морепродукты и сомнительное (машбух)', short: 'Рыба, желатин, е-добавки', detail: 'Морские обитатели: ханафиты сужают дозволенное преимущественно до рыбы, остальные мазхабы разрешают всех обитателей моря.\nСомнительные ингредиенты (желатин, эмульгаторы, ферменты) — источник (растительный/животный, вид животного) уточняют по составу или сертификату халяль.',
             titleKk: 'Теңіз өнімдері және күмәнді (машбух)', shortKk: 'Балық, желатин, Е-қоспалар', detailKk: 'Теңіз тіршілік иелері: ханафилер негізінен балықпен шектейді, қалған мазһабтар теңіздің барлық тіршілік иелерін рұқсат етеді.\nКүмәнді құрамдастар (желатин, эмульгаторлар, ферменттер) — көзін (өсімдік/жануар, жануар түрі) құрамы немесе халал сертификаты бойынша нақтылау керек.' }
         ],
         'Клятвы и обеты': [
-          { title: 'Клятва именем Аллаха (ямин)', short: 'Только Аллахом', detail: 'Клясться дозволено только именем Аллаха или Его атрибутом. Пророк ﷺ сказал: «Кто клянётся, пусть клянётся Аллахом, или молчит» (аль-Бухари, Муслим).\nКлятва обязывает к исполнению, если предмет клятвы не грех; клятва совершить грех — не исполняется, но требует каффары.',
-            titleKk: 'Аллаһпен ант ету (йамин)', shortKk: 'Тек Аллаһпен', detailKk: 'Ант тек Аллаһтың есімімен немесе сипатымен беріледі. Пайғамбар ﷺ: «Кім ант берсе, Аллаһпен берсін, немесе үндемесін» деген (әл-Бұхари, Мүслім).\nАнт күнә болмаса, орындауды міндеттейді; күнә іс жасауға ант берілсе — орындалмайды, бірақ каффара қажет.' },
+          { title: 'Клятва именем Аллаха (ямин)', short: 'Только Аллахом', detail: 'Клясться дозволено только именем Аллаха или Его атрибутом. Пророк ﷺ сказал: «Кто клянётся, пусть клянётся Аллахом, или молчит» (аль-Бухари 6646, Муслим 1646).\nКлятва обязывает к исполнению, если предмет клятвы не грех; клятва совершить грех — не исполняется, но требует каффары.',
+            titleKk: 'Аллаһпен ант ету (йамин)', shortKk: 'Тек Аллаһпен', detailKk: 'Ант тек Аллаһтың есімімен немесе сипатымен беріледі. Пайғамбар ﷺ: «Кім ант берсе, Аллаһпен берсін, немесе үндемесін» деген (әл-Бұхари 6646, Мүслім 1646).\nАнт күнә болмаса, орындауды міндеттейді; күнә іс жасауға ант берілсе — орындалмайды, бірақ каффара қажет.' },
           { title: 'Каффара за нарушенную клятву', short: 'Искупление', detail: 'За нарушенную клятву (5:89): накормить 10 бедных, или одеть их, или освободить раба (в наши дни — первые два варианта); при невозможности — пост 3 дня.\nПовторное нарушение клятвы — каффара за каждое нарушение отдельно, по большинству мнений.',
             titleKk: 'Бұзылған ант үшін каффара', shortKk: 'Өтеу', detailKk: 'Бұзылған ант үшін (5:89): 10 кедейді тамақтандыру, немесе киіндіру, немесе құл азат ету (қазіргі кезде — алғашқы екі нұсқа); мүмкін болмаса — 3 күн ораза ұстау.\nАнтты қайта бұзу — көпшілік пікір бойынша әр бұзу үшін бөлек каффара.' },
           { title: 'Обет (назр)', short: 'Добровольное обязательство', detail: 'Назр на послушание Аллаху (например, «если выздоровею — раздам садака») — обязателен к исполнению («кто дал обет покорности Аллаху — пусть исполнит», аль-Бухари 6696).\nНазр на грех — не исполняется, но по мнению большинства требует каффары клятвы. Не рекомендуется давать назр как условие («если... то...») — лучше делать благое дело без обусловливания.',
@@ -46398,8 +47268,8 @@ function renderFiqh() {
               'Пророк ﷺ сказал: «Мольба трёх не отвергается: постящегося — до момента разговения, справедливого правителя и мольба притеснённого, которую Аллах поднимает над облаками» (ат-Тирмизи 3598, открывает для неё врата небес, и Господь говорит: клянусь Своим величием, Я непременно помогу тебе, даже если это будет позже» (ат-Тирмизи 3598, хасан).\n\nТо есть время, когда мольба особенно принимается, — это не только момент ифтара, но и весь день поста, пока человек постится, а также, согласно другим хадисам, последняя часть ночи и время между азаном и икаматом.\n\nЭто повод обращаться к Аллаху с дуа и в течение рабочего или учебного дня, а не откладывать всё на вечер: во время работы, в дороге, во время небольшой паузы — постящийся человек находится в состоянии, особенно располагающем к принятию мольбы, независимо от того, чем он занят в этот момент.\n\nУчёные советуют использовать это время для дуа за себя, за родителей, за умму, за прощение грехов и за исполнение конкретных, даже бытовых нужд — на любом понятном человеку языке, своими словами, без обязательного заучивания арабских формул, хотя знание сунновских дуа тоже приветствуется.' },
           { title: '👪 ' + (kk ? 'Рамазан және отбасы' : 'Рамадан и семья'),
             detail: kk ?
-              'Пайғамбар ﷺ отбасын түнгі намазға оятатын (әл-Бухари 2024) — Рамазан тек жеке ғана емес, отбасылық ғибадат уақыты, үй ішіндегілер бірге оянатын, бірге тамақтанатын, бірге намаз оқитын кез.\n\nБалаларды жасына, күш-қабілетіне қарай, күштемей, біртіндеп оразаға үйрету — сахабалар арасында кең тараған тәжірибе: тіпті кішкентай балаларды да оразаға үйретіп, олар күн батпай тамақ сұраса, ойыншықпен алаңдатқаны белгілі (⚠️ әл-Бухари 1960, нөмірі толық расталмаған); мұның қысым мен жазадан қорқудан емес, жұмсақ түрде, көтермелеумен өтуі маңызды.\n\nБалалармен бірге сахур мен ауызашар жасау, қысқа дұғаларды бірге жаттау, оразаның мағынасы туралы жасына сай тілмен әңгімелесу — мұның бәрі балада оразаға қорқыныш емес, өмір бойы қалатын жылы көзқарас қалыптастырады.\n\nАуызашар дастарқаны — үй ішінде ынтымақ пен ыстық шырай сақтаудың жақсы себебі: бүкіл отбасы ораза күнінен кейін бірге отыратын уақыт табиғи түрде өкпе-назды кешіруге, шын жүректен әңгімеге, бір-біріне назар аударуға бейімдейді — дау-жанжалға, шаршаудан болатын ызаға немесе әрқайсысы өз телефонына үнсіз қарап отыруға емес.\n\nОтбасын бірге қайырымдылыққа тартқан да пайдалы — мысалы, көршіге артық порция тамақ дайындау немесе бірлесіп садақа беру, тіпті әр баладан аз-аздан жинау — бұл жомарттықты тек сөзбен емес, іс жүзінде үйретеді.' :
-              'Пророк ﷺ будил свою семью на ночной намаз (аль-Бухари 2024) — Рамадан не только личное, но и семейное поклонение, время, когда домочадцы вместе просыпаются, вместе едят и вместе молятся.\n\nПостепенное, без принуждения, приучение детей к посту с учётом возраста и сил — распространённая практика среди сподвижников: известно, что они приучали даже маленьких детей к посту, отвлекая их игрушками, если те просили есть до заката (⚠️ аль-Бухари 1960, номер не подтверждён на 100%); важно, чтобы это происходило мягко и с поощрением, а не через давление и страх наказания.\n\nСовместные сухур и ифтар, заучивание коротких дуа вместе с детьми, разговоры о смысле поста доступным для их возраста языком — всё это формирует у ребёнка тёплую, а не пугающую ассоциацию с постом, которая останется с ним на всю жизнь.\n\nСтол ифтара — хороший повод сохранять в доме тепло и согласие: время, когда вся семья садится вместе после дня поста, естественным образом располагает к прощению обид, разговору по душам и вниманию друг к другу — а не к спорам, раздражению из-за усталости или молчаливому сидению каждого в своём телефоне.\n\nПолезно также вовлекать семью в благотворительность вместе — например, готовить лишнюю порцию еды для соседа или жертвовать садаку сообща, даже небольшую сумму от каждого ребёнка, — это учит щедрости на практике, а не только на словах.' }
+              'Пайғамбар ﷺ отбасын түнгі намазға оятатын (әл-Бухари 2024) — Рамазан тек жеке ғана емес, отбасылық ғибадат уақыты, үй ішіндегілер бірге оянатын, бірге тамақтанатын, бірге намаз оқитын кез.\n\nБалаларды жасына, күш-қабілетіне қарай, күштемей, біртіндеп оразаға үйрету — сахабалар арасында кең тараған тәжірибе: тіпті кішкентай балаларды да оразаға үйретіп, олар күн батпай тамақ сұраса, ойыншықпен алаңдатқаны белгілі (әл-Бухари 1960); мұның қысым мен жазадан қорқудан емес, жұмсақ түрде, көтермелеумен өтуі маңызды.\n\nБалалармен бірге сахур мен ауызашар жасау, қысқа дұғаларды бірге жаттау, оразаның мағынасы туралы жасына сай тілмен әңгімелесу — мұның бәрі балада оразаға қорқыныш емес, өмір бойы қалатын жылы көзқарас қалыптастырады.\n\nАуызашар дастарқаны — үй ішінде ынтымақ пен ыстық шырай сақтаудың жақсы себебі: бүкіл отбасы ораза күнінен кейін бірге отыратын уақыт табиғи түрде өкпе-назды кешіруге, шын жүректен әңгімеге, бір-біріне назар аударуға бейімдейді — дау-жанжалға, шаршаудан болатын ызаға немесе әрқайсысы өз телефонына үнсіз қарап отыруға емес.\n\nОтбасын бірге қайырымдылыққа тартқан да пайдалы — мысалы, көршіге артық порция тамақ дайындау немесе бірлесіп садақа беру, тіпті әр баладан аз-аздан жинау — бұл жомарттықты тек сөзбен емес, іс жүзінде үйретеді.' :
+              'Пророк ﷺ будил свою семью на ночной намаз (аль-Бухари 2024) — Рамадан не только личное, но и семейное поклонение, время, когда домочадцы вместе просыпаются, вместе едят и вместе молятся.\n\nПостепенное, без принуждения, приучение детей к посту с учётом возраста и сил — распространённая практика среди сподвижников: известно, что они приучали даже маленьких детей к посту, отвлекая их игрушками, если те просили есть до заката (аль-Бухари 1960); важно, чтобы это происходило мягко и с поощрением, а не через давление и страх наказания.\n\nСовместные сухур и ифтар, заучивание коротких дуа вместе с детьми, разговоры о смысле поста доступным для их возраста языком — всё это формирует у ребёнка тёплую, а не пугающую ассоциацию с постом, которая останется с ним на всю жизнь.\n\nСтол ифтара — хороший повод сохранять в доме тепло и согласие: время, когда вся семья садится вместе после дня поста, естественным образом располагает к прощению обид, разговору по душам и вниманию друг к другу — а не к спорам, раздражению из-за усталости или молчаливому сидению каждого в своём телефоне.\n\nПолезно также вовлекать семью в благотворительность вместе — например, готовить лишнюю порцию еды для соседа или жертвовать садаку сообща, даже небольшую сумму от каждого ребёнка, — это учит щедрости на практике, а не только на словах.' }
         ];
         body = renderExpandableCards(ABOUT_ITEMS, { hideShort: true });
       } else if (tab === 'today') {
@@ -46669,8 +47539,8 @@ function renderFiqh() {
         const FIQH_ITEMS = [
           { title: kk ? 'Ораза кімге парыз?' : 'Кому пост обязателен?',
             detail: kk ?
-              'Рамазан оразасы — Исламның бес тірегінің бірі, Құранның тікелей мәтінімен бекітілген парыз: «Ей, иман келтіргендер! Сендерге ораза парыз етілді, сендерден бұрынғыларға парыз етілгендей — тақуалыққа жету үшін» (2:183).\n\nФақихтар шариғат мәтіндерінен парыздылық шарттарын шығарады: ислам — мұсылман еместен осы дүниеде оразаны тастағаны үшін есеп алынбайды, дегенмен күпірлігі үшін бөлек жауап береді; балиғатқа жету (булуғ) — табиғи белгілер бойынша (ұлда — түс көру, қызда — етеккірдің басталуы) немесе белгі болмаса жасы бойынша анықталады (көпшілігі он бес жасты бағдар алады); ақыл-естің дұрыстығы — ақыл-есінен толық айырылған адамнан (мәжнүн) міндет кейінге қалдырусыз алынып тасталады, уақытша есінен танудан айырмашылығы осында; және оразаны көтере алатын дене шамасы.\n\nКейінге қалдырылып қаза өтелетіндер, күнәсіз: шариғи сапардағы адам — Құран тікелей рұқсат етеді: «ал кім науқас болса немесе сапарда болса, басқа күндерде сол мөлшерде ұстасын» (2:184); жазылу үміті бар немесе ораза айқын қиындық туғызатын науқас; етеккір немесе босанудан кейінгі қан кету кезеңіндегі әйел — оларға сол күндері ораза тұту харам, ораза кейін өтеледі, ал намаз мүлде өтелмейді — Айша (р.а.): «Бізге оразаны қаза қылу бұйырылды, намазды емес» деген (Мүслім 335).\n\nФидиямен (кедейді тамақтандырумен) ауыстырылып, қазасыз қалдырылатындар: денсаулығы жол бермейтін және жазылу үміті жоқ қарттар мен емделмейтін ауру адамдар — Ибн Аббас (р.а.) 2:184 аятын дәл осындай, ораза ұстай алмайтын қарт еркек пен әйелге қатысты түсіндірген: олар әр өткізіп алған күн үшін бір кедейді тамақтандырады.\n\nЖүкті және емізетін әйел — мазһабтардың пікірі алшақтайтын мәселе: егер өз денсаулығына қауіп төнсе, жағдайы науқас адамдай (тек қаза); тек баланың денсаулығына ғана қауіп төнсе, өзінікі сақ болса, кейбір ғалымдар қазаны да, фидияны да міндеттейді, ханафилер — тек қазаны. Пікір алшақтығына байланысты өз жеріңіздегі білікті адаммен кеңескен жөн.\n\nБалиғатқа жетпеген балаларға ораза парыз емес — оны тастағаны үшін күнә толығымен алынған, — бірақ сахабалар балаларды алдын ала, жұмсақ түрде, қиналғанда ойыншықпен алаңдатып үйрететін (⚠️ әл-Бухари 1960, нөмірі толық расталмаған): бұл — болашақ парызға дайындайтын тәрбие сүннеті, баланың өзіне жүктелген міндет емес.' :
-              'Пост Рамадана — фард, один из пяти столпов Ислама, установленный прямым текстом Корана: «О те, которые уверовали! Предписан вам пост, подобно тому, как он был предписан тем, кто был до вас, — быть может, вы устрашитесь» (2:183).\n\nУсловия обязательности, которые факихи выводят из шариатских текстов: ислам — с немусульманина в этом мире спрос за оставление поста не берётся, хотя за неверие в целом он ответит отдельно; совершеннолетие (булюг) — определяется по естественным признакам (поллюция у юноши, начало месячных у девушки) или, если признаков не было, по возрасту (большинство ориентируется на пятнадцать лет); здравый ум (акль) — с человека, полностью лишённого рассудка (маджнун), обязанность снимается без последующей казы, в отличие от временного обморока; и физическая способность поститься.\n\nОт поста освобождаются с последующим возмещением (каза), без греха: путешественник, совершающий шариатский сафар, — Коран прямо разрешает: «а кто болен или в пути, пусть постится столько же дней в другое время» (2:184); больной, чьё состояние обещает улучшение или для которого пост создаёт явную тяжесть; женщина в период менструации или послеродового кровотечения — им харам поститься эти дни, пост восполняется позже, тогда как пропущенные намазы не восполняются вовсе — Аиша (р.а.) говорила: «Нам было велено восполнять пост, но не намаз» (Муслим 335).\n\nОт поста освобождаются с заменой на фидью (кормление бедняка), без казы: престарелые люди, чьё здоровье уже не позволит им поститься, и больные с неизлечимым заболеванием — Ибн Аббас (р.а.) разъяснял аят 2:184 именно применительно к пожилым мужчине и женщине, не способным поститься: они кормят одного бедняка за каждый пропущенный день.\n\nБеременная и кормящая женщина — вопрос, где мнения мазхабов расходятся: если она опасается за собственное здоровье, её положение приравнивается к больному (только каза); если опасается исключительно за здоровье ребёнка при сохранности своего, часть учёных обязывает и казу, и фидью, ханафиты — только казу. Ввиду разногласия желательно свериться со знающим человеком своей местности.\n\nДети до наступления булюга постом не обязаны — грех за его оставление с них полностью снят, — но сподвижники приучали детей к посту заранее, мягко, отвлекая игрушками при трудностях (⚠️ аль-Бухари 1960, номер не подтверждён на 100%): это сунна воспитания, готовящая к будущему фарду, а не обязанность, возложенная на самого ребёнка.' },
+              'Рамазан оразасы — Исламның бес тірегінің бірі, Құранның тікелей мәтінімен бекітілген парыз: «Ей, иман келтіргендер! Сендерге ораза парыз етілді, сендерден бұрынғыларға парыз етілгендей — тақуалыққа жету үшін» (2:183).\n\nФақихтар шариғат мәтіндерінен парыздылық шарттарын шығарады: ислам — мұсылман еместен осы дүниеде оразаны тастағаны үшін есеп алынбайды, дегенмен күпірлігі үшін бөлек жауап береді; балиғатқа жету (булуғ) — табиғи белгілер бойынша (ұлда — түс көру, қызда — етеккірдің басталуы) немесе белгі болмаса жасы бойынша анықталады (көпшілігі он бес жасты бағдар алады); ақыл-естің дұрыстығы — ақыл-есінен толық айырылған адамнан (мәжнүн) міндет кейінге қалдырусыз алынып тасталады, уақытша есінен танудан айырмашылығы осында; және оразаны көтере алатын дене шамасы.\n\nКейінге қалдырылып қаза өтелетіндер, күнәсіз: шариғи сапардағы адам — Құран тікелей рұқсат етеді: «ал кім науқас болса немесе сапарда болса, басқа күндерде сол мөлшерде ұстасын» (2:184); жазылу үміті бар немесе ораза айқын қиындық туғызатын науқас; етеккір немесе босанудан кейінгі қан кету кезеңіндегі әйел — оларға сол күндері ораза тұту харам, ораза кейін өтеледі, ал намаз мүлде өтелмейді — Айша (р.а.): «Бізге оразаны қаза қылу бұйырылды, намазды емес» деген (Мүслім 335).\n\nФидиямен (кедейді тамақтандырумен) ауыстырылып, қазасыз қалдырылатындар: денсаулығы жол бермейтін және жазылу үміті жоқ қарттар мен емделмейтін ауру адамдар — Ибн Аббас (р.а.) 2:184 аятын дәл осындай, ораза ұстай алмайтын қарт еркек пен әйелге қатысты түсіндірген: олар әр өткізіп алған күн үшін бір кедейді тамақтандырады.\n\nЖүкті және емізетін әйел — мазһабтардың пікірі алшақтайтын мәселе: егер өз денсаулығына қауіп төнсе, жағдайы науқас адамдай (тек қаза); тек баланың денсаулығына ғана қауіп төнсе, өзінікі сақ болса, кейбір ғалымдар қазаны да, фидияны да міндеттейді, ханафилер — тек қазаны. Пікір алшақтығына байланысты өз жеріңіздегі білікті адаммен кеңескен жөн.\n\nБалиғатқа жетпеген балаларға ораза парыз емес — оны тастағаны үшін күнә толығымен алынған, — бірақ сахабалар балаларды алдын ала, жұмсақ түрде, қиналғанда ойыншықпен алаңдатып үйрететін (әл-Бухари 1960): бұл — болашақ парызға дайындайтын тәрбие сүннеті, баланың өзіне жүктелген міндет емес.' :
+              'Пост Рамадана — фард, один из пяти столпов Ислама, установленный прямым текстом Корана: «О те, которые уверовали! Предписан вам пост, подобно тому, как он был предписан тем, кто был до вас, — быть может, вы устрашитесь» (2:183).\n\nУсловия обязательности, которые факихи выводят из шариатских текстов: ислам — с немусульманина в этом мире спрос за оставление поста не берётся, хотя за неверие в целом он ответит отдельно; совершеннолетие (булюг) — определяется по естественным признакам (поллюция у юноши, начало месячных у девушки) или, если признаков не было, по возрасту (большинство ориентируется на пятнадцать лет); здравый ум (акль) — с человека, полностью лишённого рассудка (маджнун), обязанность снимается без последующей казы, в отличие от временного обморока; и физическая способность поститься.\n\nОт поста освобождаются с последующим возмещением (каза), без греха: путешественник, совершающий шариатский сафар, — Коран прямо разрешает: «а кто болен или в пути, пусть постится столько же дней в другое время» (2:184); больной, чьё состояние обещает улучшение или для которого пост создаёт явную тяжесть; женщина в период менструации или послеродового кровотечения — им харам поститься эти дни, пост восполняется позже, тогда как пропущенные намазы не восполняются вовсе — Аиша (р.а.) говорила: «Нам было велено восполнять пост, но не намаз» (Муслим 335).\n\nОт поста освобождаются с заменой на фидью (кормление бедняка), без казы: престарелые люди, чьё здоровье уже не позволит им поститься, и больные с неизлечимым заболеванием — Ибн Аббас (р.а.) разъяснял аят 2:184 именно применительно к пожилым мужчине и женщине, не способным поститься: они кормят одного бедняка за каждый пропущенный день.\n\nБеременная и кормящая женщина — вопрос, где мнения мазхабов расходятся: если она опасается за собственное здоровье, её положение приравнивается к больному (только каза); если опасается исключительно за здоровье ребёнка при сохранности своего, часть учёных обязывает и казу, и фидью, ханафиты — только казу. Ввиду разногласия желательно свериться со знающим человеком своей местности.\n\nДети до наступления булюга постом не обязаны — грех за его оставление с них полностью снят, — но сподвижники приучали детей к посту заранее, мягко, отвлекая игрушками при трудностях (аль-Бухари 1960): это сунна воспитания, готовящая к будущему фарду, а не обязанность, возложенная на самого ребёнка.' },
           { title: kk ? 'Оразаны не бұзады' : 'Что нарушает пост',
             detail: kk ?
               'Ораза — таң намазынан (фаджрден) күн батысқа дейін Аллаһ үшін ниетпен тамақ, сусын және жыныстық қатынастан бас тарту деп анықталады — осы бас тартуды әдейі және өз еркімен бұзатын кез келген нәрсе оразаны да бұзады.\n\nАйқын бұзатындар (кемінде қазаны талап етеді): әдейі тамақ немесе сусын ішу, соның ішінде ауыз арқылы тамаққа жатпайтын заттарды жұту (мысалы, дәрі); әдейі жыныстық қатынас — қазадан бөлек ауыр каффараны да талап етеді; әдейі құсу — хадис бойынша: «Кімді өз еркінен тыс құсық жеңсе, оған қаза жоқ, ал кім әдейі құсса, оған қаза бар» (Абу Дауд 2380, хасан); етеккір немесе босанудан кейінгі қан кетудің басталуы, тіпті күн батарға бір минут қалғанда да.\n\nМазһабқа қарай пікірі алшақтайтын мәселелер: денеге тамақтандыру мақсатында жіберілетін тамшылатқыш (капельница) көптеген қазіргі ғалымдардың пікірінше тамақ пен сусынға теңеледі — тамақты алмастырмайтын дәрі инъекциясынан айырмашылығы осында; мұрынға тамшы тамызу — кейбір пікірлерде тамаққа жетсе бұзады, кейбірінде жоқ; хижама (қан алдыру) — хадис бойынша «Хижама жасаушы да, жасатушы да оразасын бұзды» (Абу Дауд 2369; ат-Тирмизи 774) деген мәтінге сүйеніп кейбір ғалымдар бұзады дейді, кейбірі бұл хадисті басқа мағынада түсіндіреді.\n\nБұзбайды: умытып жеу-ішу — бөлек карточкада қаралған; өз еркінен тыс құсу; мұрыннан немесе жарадан қан кету, талдауға қан алдыру; мисуакпен немесе щеткамен су жұтпай тіс тазалау; жуыну, әдеттегі дәрет алу, су жұтпай тамшы тамызу; жұбайын сүю, шәухат шықпаса (өзін-өзі ұстай алатындарға) — Айша (р.а.): Пайғамбар ﷺ ораза кезінде жұбайын сүйетін деп жеткізген (әл-Бухари 1927); иіс жұту, күн бойы мисуак қолдану.\n\nМұндағы фиқһ қағидасы: «денеге табиғи жол арқылы, тамақтану немесе ләззат алу мақсатымен әдейі кірген нәрсе оразаны бұзады; өз еркінен тыс болған немесе тамаққа, сусынға, жақындасуға жатпайтын нәрсе бұзбайды». Даулы жағдайларда (тамшы, ингалятор, инъекция) біржақты пікір жоқ болғандықтан білікті адаммен кеңескен жөн.' :
@@ -47026,7 +47896,7 @@ function renderLibrary() {
       el.innerHTML =
         '<div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap">' +
         '<input id="lib-folder-name" class="search-input" style="flex:1;min-width:120px" placeholder="Новая папка">' +
-        '<button type="button" class="btn btn-sm" id="lib-add-folder">+ Папка</button></div>' +
+        '<button type="button" class="btn btn-sm" id="lib-add-folder">'+tLabel('+ Папка')+'</button></div>' +
         '<div style="margin-bottom:0.75rem">' + state.libraryFolders.map(f =>
           '<button type="button" class="btn btn-sm lib-folder" data-fid="'+f.id+'" style="margin:0.2rem">'+f.name+'</button>'
         ).join('') + '</div>' +
@@ -47583,8 +48453,8 @@ function startApp() {
         _hadithNavCtx = hc.getAttribute('data-hadith-ctx') || null;
         var found = null;
         if (typeof findCitedHadith === 'function') found = hk ? findCitedHadith(hk) : findCitedHadith(hb, hn);
-        if (found && typeof openHadithFullPopup === 'function') openHadithFullPopup(found);
-        else if (hb && hn && typeof openHadithRef === 'function') openHadithRef(hb, hn);
+        if (found && typeof openHadithFullPopup === 'function') openHadithFullPopup(found, (typeof hadithQuoteBefore === 'function') ? hadithQuoteBefore(hc) : '');
+        else if (hb && hn && typeof openHadithRef === 'function') openHadithRef(hb, hn, (typeof hadithQuoteBefore === 'function') ? hadithQuoteBefore(hc) : '');
         return;
       }
       var sec = t.closest('.cross-section');
