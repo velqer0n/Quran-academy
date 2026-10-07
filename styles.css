@@ -83,8 +83,14 @@
        счётчики, чаты) — те не трогают этот класс повторно. */
     @keyframes fadeInUp5_68 { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
     .view-fade-in { animation: fadeInUp5_68 0.22s var(--ease); }
+    /* build 6.04: лёгкое скольжение между разделами */
+    @keyframes viewSlideFwd { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }
+    @keyframes viewSlideBack { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+    .view.active.view-slide-fwd { animation: viewSlideFwd 0.28s var(--ease); }
+    .view.active.view-slide-back { animation: viewSlideBack 0.28s var(--ease); }
+    body.reduce-motion .view.active.view-slide-fwd, body.reduce-motion .view.active.view-slide-back { animation: none !important; }
     @media (prefers-reduced-motion: reduce) {
-      .view-fade-in { animation: none; }
+      .view-fade-in, .view.active.view-slide-fwd, .view.active.view-slide-back { animation: none; }
       html { scroll-behavior: auto; }
     }
 
@@ -235,6 +241,7 @@
     }
     main {
       padding-bottom: calc(3.25rem + env(safe-area-inset-bottom, 0px));
+      overflow-x: clip; /* build 6.04: скольжение разделов не даёт горизонтальной прокрутки */
     }
     #view-dict .dict-add-row {
       position: sticky;
@@ -3455,3 +3462,13 @@
     body.quiet-reading.zen-one #ayah-list .ayah.zen-current { display: flex !important; flex-direction: column; justify-content: center; align-items: center; text-align: center; min-height: 62vh; }
     body.quiet-reading.zen-one #ayah-list .ayah.zen-current .ayah-text { font-size: calc(2.1rem * var(--ar-scale, 1)); line-height: 2.3; }
     body.quiet-reading.zen-one #ayah-list .ayah.zen-current .ayah-translation { max-width: 34rem; margin-top: 1rem; }
+
+/* build 6.04: цвета таджвида в движении — пульс правил у звучащего слова + подсказка */
+@keyframes twPulse { from { text-shadow: 0 0 0 transparent; } to { text-shadow: 0 0 10px currentColor, 0 0 2px currentColor; } }
+.wt-word.wt-active [class*="tw-"] { animation: twPulse 0.55s ease-in-out infinite alternate; }
+#tw-tip { position: fixed; z-index: 9000; transform: translate(-50%, -100%) translateY(6px); opacity: 0; pointer-events: none;
+  background: var(--bg-card, #111827); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.3rem 0.55rem;
+  font-size: 0.78rem; line-height: 1.35; text-align: center; white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,.35); transition: opacity .2s ease, transform .25s var(--ease, ease); max-width: 80vw; }
+#tw-tip.on { opacity: 1; transform: translate(-50%, -100%); }
+body.reduce-motion .wt-word.wt-active [class*="tw-"] { animation: none; }
+@media (prefers-reduced-motion: reduce) { .wt-word.wt-active [class*="tw-"] { animation: none; } #tw-tip { transition: none; } }
