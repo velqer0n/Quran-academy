@@ -854,6 +854,8 @@ _applyAriaLabelsFromTitles();
         // build 6.00: эти кнопки вообще не попали в словарь раньше — не
         // «требовали перезагрузки», а были навсегда русскими, на любом языке.
         '🎨 Таджвид': '🎨 Тәжуид', 'Найди правило': 'Ережені тап', '✍️ Написать букву': '✍️ Әріпті жазу',
+        'Вставь огласовку': 'Харакат қой', 'Строки для чтения': 'Оқу жолдары', 'Слоги из букв': 'Әріптерден буын', 'Собери слог': 'Буын құра',
+        'Читаем с соединением': 'Жалғап оқу', '🎤 Соединение голосом': '🎤 Дауыспен жалғау', 'Без огласовок': 'Харакатсыз', 'Скорость чтения': 'Оқу жылдамдығы',
         'Личный учитель': 'Жеке мұғалім', '🧘 Чистый фокус': '🧘 Таза зейін', 'Шалфей': 'Шалфей', 'Графит': 'Графит', 'Бирюза': 'Көгілдір', 'Светлые': 'Ашық', 'Тёмные спокойные': 'Қараңғы, жайлы', 'Особые (батарея, слабое зрение)': 'Ерекше (батарея, көру қиындығы)'
       } : {};
 
@@ -881,7 +883,9 @@ _applyAriaLabelsFromTitles();
         'Русский — Порохова': 'Орысша — Порохова', 'Русский — Абу Адель': 'Орысша — Әбу Адель',
         'Русский — Крачковский': 'Орысша — Крачковский',
         // аудио
-        '🎧 Аудио': '🎧 Аудио', 'Чтец Корана': 'Құран қарисы',
+        '🎧 Аудио': '🎧 Аудио', 'Чтец Корана': 'Құран қарисы', '🎧 Чтец для «Сур»': '🎧 «Сүрелер» қарисы', '🎧 Чтец для «Озвучки»': '🎧 «Тыңдау» қарисы', '🎧 Чтец для «Таджвида»': '🎧 «Тәжуид» қарисы',
+        'Чтец — «Суры»': 'Қари — «Сүрелер»', 'Чтец — «Озвучка»': 'Қари — «Тыңдау»', 'Чтец — «Таджвид»': 'Қари — «Тәжуид»', '🎧 Озвучка': '🎧 Тыңдау',
+        'В каждой вкладке «Сур» (Суры, Озвучка, Таджвид) — свой чтец; ▶ — послушать начало «аль-Фатихи».': '«Сүрелердің» әр қойындысында (Сүрелер, Тыңдау, Тәжуид) — өз қарисы; ▶ — «әл-Фатиханың» басын тыңдау.',
         'Чтец азана (суннит.)': 'Азан қарисы (сунниттік)',
         'Классический': 'Классикалық', 'Египетский стиль': 'Мысырлық стиль',
         '⏹ Стоп': '⏹ Тоқтату',
@@ -1084,7 +1088,7 @@ function applySettings() {
       const arF = document.getElementById('setting-arabic-font');
       const trF = document.getElementById('setting-tr-font');
       if (tr) tr.value = state.settings.translation;
-      if (rec) rec.value = state.settings.reciter;
+      if (rec) { try { fillReciterSelects(); } catch (e) { rec.value = state.settings.reciter; } }
       if (size) size.value = state.settings.arabicSize;
       if (arF) arF.value = arFont;
       if (trF) trF.value = trFont;
@@ -1698,7 +1702,7 @@ const SURAH_CACHE_KEY = 'quran-surah-cache-v2'; // v2: старый кэш не 
             // ar.husary (давно и надёжно там числится), чтобы при таком
             // случае целиком не сломать озвучку суры — сам выбор чтеца
             // (для везде остального, включая everyayah.com) не трогаем.
-            var ALQURAN_CLOUD_SAFE = { 'ar.aymansuwaid': 1, 'ar.husarymuallim': 1, 'ar.jibreel': 1 };
+            var ALQURAN_CLOUD_SAFE = { 'ar.aymansuwaid': 1, 'ar.husarymuallim': 1, 'ar.jibreel': 1, 'ar.minshawimujawwad': 1, 'ar.abdulbasitmujawwad': 1, 'ar.hanirifai': 1, 'ar.tablawi': 1 };
             var acReciter = ALQURAN_CLOUD_SAFE[state.settings.reciter] ? 'ar.husary' : (state.settings.reciter || 'ar.husary');
             const au = await tryFetch('https://api.alquran.cloud/v1/surah/' + num + '/' + acReciter);
             if (au.data && au.data.ayahs) {
@@ -2625,6 +2629,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
 
     function showView(name, isBack) {
       try { name = applyViewAlias(name); } catch (e) {}
+      try { if (name === 'reader') setReciterCtx('surahs'); } catch (e) {}
       try { twWordTip(null); } catch (e) {}
       // build 4.87: если сессия уже была в localStorage при загрузке
       // страницы (обычный повторный визит), authSetSession() не вызывается
@@ -3849,7 +3854,12 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         'ar.abdulbasitmurattal': 'Abdul_Basit_Murattal_192kbps',
         'ar.shaatree': 'Abu_Bakr_Ash-Shaatree_128kbps',
         'ar.minshawi': 'Minshawy_Murattal_128kbps',
-        'ar.jibreel': 'Muhammad_Jibreel_64kbps'
+        'ar.jibreel': 'Muhammad_Jibreel_64kbps',
+        // build 6.09: ещё 4 чтеца (папки everyayah.com)
+        'ar.minshawimujawwad': 'Minshawy_Mujawwad_192kbps',
+        'ar.abdulbasitmujawwad': 'Abdul_Basit_Mujawwad_128kbps',
+        'ar.hanirifai': 'Hani_Rifai_192kbps',
+        'ar.tablawi': 'Mohammad_al_Tablaway_128kbps'
       };
       return map[r] || 'Ayman_Sowaid_64kbps';
     }
@@ -5501,31 +5511,82 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       toast('Перевод изменён');
     });
 
-    document.getElementById('setting-reciter').addEventListener('change', e => {
-      state.settings.reciter = e.target.value;
-      state.cache = {};
-      saveState();
-      toast('Чтец изменён');
-      // build 4.100: держим быстрый выбор в «Суры» в синхроне с тем же
-      // самым значением — один общий state.settings.reciter, просто два
-      // разных select на разных экранах.
-      var quickSel = document.getElementById('home-reciter-select');
-      if (quickSel) quickSel.value = e.target.value;
-      try { resyncAudioQueueReciter(); } catch(err) {}
+    // ===== build 6.09: свой чтец в каждой вкладке «Суры»: Суры, Озвучка, Таджвид =====
+    // Хранится в state.settings.reciterBy; state.settings.reciter — чтец ТЕКУЩЕЙ вкладки
+    // (его читают все проигрыватели), он меняется при переключении вкладки.
+    const RECITER_LIST = [
+      { id: 'ar.husary', ru: 'Махмуд аль-Хусари (мураттал)', kk: 'Махмуд әл-Хусари (мураттал)' },
+      { id: 'ar.husarymuallim', ru: 'Махмуд аль-Хусари (муаллим — учебный, медленный)', kk: 'Махмуд әл-Хусари (муаллим — оқу үшін, баяу)' },
+      { id: 'ar.minshawi', ru: 'Мухаммад Сыддык аль-Миншави (мураттал)', kk: 'Мұхаммад Сыддық әл-Миншауи (мураттал)' },
+      { id: 'ar.minshawimujawwad', ru: 'Мухаммад Сыддык аль-Миншави (муджаввад)', kk: 'Мұхаммад Сыддық әл-Миншауи (мужәууад)' },
+      { id: 'ar.abdulsamad', ru: 'Абдуль-Басит Абдус-Самад (мураттал)', kk: 'Абдұлбасит Абдұссамад (мураттал)' },
+      { id: 'ar.abdulbasitmujawwad', ru: 'Абдуль-Басит Абдус-Самад (муджаввад)', kk: 'Абдұлбасит Абдұссамад (мужәууад)' },
+      { id: 'ar.alafasy', ru: 'Мишари Рашид аль-Афаси', kk: 'Мишари Рашид әл-Афаси' },
+      { id: 'ar.shaatree', ru: 'Абу Бакр аш-Шатри', kk: 'Әбу Бәкр әш-Шатри' },
+      { id: 'ar.hanirifai', ru: 'Хани ар-Рифаи', kk: 'Һани әр-Рифағи' },
+      { id: 'ar.tablawi', ru: 'Мухаммад ат-Таблави', kk: 'Мұхаммад әт-Таблауи' },
+      { id: 'ar.aymansuwaid', ru: 'Айман Сувейд (нет подсветки слов — для него нет тайм-кодов)', kk: 'Айман Сууайд (сөз жарықтанбайды — уақыт белгілері жоқ)' }
+    ];
+    const RECITER_TABS = ['surahs', 'study', 'tajweed'];
+    const _RECITER_SELECTS = { surahs: ['setting-reciter', 'home-reciter-select'], study: ['setting-reciter-study', 'study-reciter-select'], tajweed: ['setting-reciter-tajweed', 'tajweed-reciter-select'] };
+    let _reciterCtx = 'surahs';
+    function _reciterValid(id) { return RECITER_LIST.some(function(r) { return r.id === id; }); }
+    function _reciterInit() {
+      if (!state.settings) state.settings = {};
+      const base = _reciterValid(state.settings.reciter) ? state.settings.reciter : (state.settings.reciter === 'ar.husarymujawwad' ? 'ar.husary' : 'ar.husary');
+      const by = state.settings.reciterBy && typeof state.settings.reciterBy === 'object' ? state.settings.reciterBy : {};
+      RECITER_TABS.forEach(function(t) { if (!_reciterValid(by[t])) by[t] = base; });
+      state.settings.reciterBy = by;
+      state.settings.reciter = by[_reciterCtx];
+    }
+    function setReciterCtx(ctx) {
+      if (RECITER_TABS.indexOf(ctx) < 0) return;
+      _reciterInit();
+      _reciterCtx = ctx;
+      state.settings.reciter = state.settings.reciterBy[ctx];
+    }
+    function fillReciterSelects() {
+      _reciterInit();
+      const kk = isKk();
+      const opts = RECITER_LIST.map(function(r) { return '<option value="' + r.id + '">' + (kk ? r.kk : r.ru) + '</option>'; }).join('');
+      RECITER_TABS.forEach(function(t) {
+        _RECITER_SELECTS[t].forEach(function(id) { const el = document.getElementById(id); if (el) { el.innerHTML = opts; el.value = state.settings.reciterBy[t]; } });
+      });
+    }
+    let _reciterPreviewAudio = null;
+    function previewReciter(id, btn) {
+      try {
+        if (_reciterPreviewAudio) { _reciterPreviewAudio.pause(); if (_reciterPreviewAudio._btn === btn) { _reciterPreviewAudio = null; if (btn) btn.textContent = '▶'; return; } if (_reciterPreviewAudio._btn) _reciterPreviewAudio._btn.textContent = '▶'; }
+        const au = new Audio(ayahAudioUrl(1, 2, id));
+        au._btn = btn; _reciterPreviewAudio = au;
+        if (btn) btn.textContent = '⏹';
+        au.onended = au.onerror = function() { if (btn) btn.textContent = '▶'; if (_reciterPreviewAudio === au) _reciterPreviewAudio = null; };
+        au.play().catch(function() { if (btn) btn.textContent = '▶'; toast(isKk() ? 'Ойнату мүмкін болмады' : 'Не удалось воспроизвести'); });
+      } catch (e) {}
+    }
+    RECITER_TABS.forEach(function(t) {
+      _RECITER_SELECTS[t].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('change', function(e) {
+          _reciterInit();
+          state.settings.reciterBy[t] = e.target.value;
+          if (_reciterCtx === t) state.settings.reciter = e.target.value;
+          state.cache = {};
+          saveState();
+          toast(isKk() ? 'Қари өзгертілді' : 'Чтец изменён');
+          _RECITER_SELECTS[t].forEach(function(id2) { const o = document.getElementById(id2); if (o && o !== el) o.value = e.target.value; });
+          if (_reciterCtx === t) { try { resyncAudioQueueReciter(); } catch (err) {} }
+        });
+      });
     });
-    document.getElementById('home-reciter-select')?.addEventListener('change', e => {
-      state.settings.reciter = e.target.value;
-      state.cache = {};
-      saveState();
-      toast('Чтец изменён');
-      var mainSel = document.getElementById('setting-reciter');
-      if (mainSel) mainSel.value = e.target.value;
-      try { resyncAudioQueueReciter(); } catch(err) {}
+    document.addEventListener('click', function(e) {
+      const b = e.target && e.target.closest && e.target.closest('[data-reciter-preview]');
+      if (!b) return;
+      const sel = document.getElementById(b.getAttribute('data-reciter-preview'));
+      if (sel) previewReciter(sel.value, b);
     });
-    (function() {
-      var quickSel = document.getElementById('home-reciter-select');
-      if (quickSel) quickSel.value = (state.settings && state.settings.reciter) || 'ar.aymansuwaid';
-    })();
+    try { fillReciterSelects(); } catch (e) {}
 
     
     document.getElementById('btn-lang-toggle')?.addEventListener('click', () => {
@@ -8549,41 +8610,55 @@ function speakLetter(ch, name, ttsOnly) {
       } else if (skill.kind === 'reading-no-harakat') {
         // build 5.86: убираем огласовки/сукун/шадду/танвин регексом с текста
         // уже готового аята — с кнопкой «Показать с огласовками» на подстраховку.
+        const _nhOk = practiceNoHarakat(null, kkT, true);
+        if (!_nhOk) { toast(kkT ? 'Деректер жоқ' : 'Нет данных'); return; }
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); });
+        currentGame = null;
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        practiceNoHarakat(document.getElementById('game-area'), kkT);
+        addTeacherFinishButton();
+      } else if (skill.kind === 'speed') {
+        if (!practiceSpeed(null, kkT, true)) { toast(kkT ? 'Деректер жоқ' : 'Нет данных'); return; }
+        showView('games');
+        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
+        document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); });
+        currentGame = null;
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        practiceSpeed(document.getElementById('game-area'), kkT);
+        addTeacherFinishButton();
+      }
+    }
+    // build 6.09: «Чтение без огласовок» — общий для «Учителя» и «Практики → Тренажёры»
+    function practiceNoHarakat(area3, kkT, probe) {
         const item = pickRandomWbwAyah('medium') || pickRandomWbwAyah('hard');
-        if (!item) { toast(kkT ? 'Деректер жоқ' : 'Нет данных'); return; }
+        if (!item) return false;
+        if (probe) return true;
         const ayahs = (item.surah === 1 && typeof FATIHA_LESSON !== 'undefined') ? FATIHA_LESSON : (WBW_STUDY_SURAHS[item.surah] || []);
         const ayObj = ayahs.find(function(a){ return a.ayah === item.ayah; });
         const fullText = ayObj ? (ayObj.full || '') : '';
         const stripped = fullText.replace(/[\u064B-\u0652\u0670]/g, '');
-        showView('games');
-        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
-        document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); });
-        currentGame = null;
-        try { _updateDifficultyPanelVisibility(); } catch(e) {}
-        const area3 = document.getElementById('game-area');
         area3.innerHTML =
           '<div class="quiz-card" style="text-align:center">' +
-          '<div class="quiz-q">' + (kkT ? item.surah + ':' + item.ayah + ' — огласовкаларсыз оқыңыз' : item.surah + ':' + item.ayah + ' — прочитайте без огласовок') + '</div>' +
+          '<div class="quiz-q">' + (kkT ? item.surah + ':' + item.ayah + ' — харакатсыз оқыңыз' : item.surah + ':' + item.ayah + ' — прочитайте без огласовок') + '</div>' +
           '<div class="arabic" dir="rtl" id="tnh-text" style="font-size:calc(2rem * var(--ar-scale, 1));line-height:2.1;margin:1rem 0">' + stripped + '</div>' +
-          '<button type="button" class="btn btn-sm" id="tnh-reveal">' + (kkT ? 'Огласовкамен көрсету' : 'Показать с огласовками') + '</button>' +
+          '<button type="button" class="btn btn-sm" id="tnh-reveal">' + (kkT ? 'Харакатпен көрсету' : 'Показать с огласовками') + '</button>' +
           '</div>';
         document.getElementById('tnh-reveal')?.addEventListener('click', function() {
           document.getElementById('tnh-text').textContent = fullText;
         });
-        addTeacherFinishButton();
-      } else if (skill.kind === 'speed') {
+        return true;
+    }
+    // build 6.09: «Скорость чтения» — общий для «Учителя» и «Практики → Тренажёры»
+    function practiceSpeed(area4, kkT, probe) {
         const item = pickRandomWbwAyah('medium') || pickRandomWbwAyah('hard');
-        if (!item) { toast(kkT ? 'Деректер жоқ' : 'Нет данных'); return; }
+        if (!item) return false;
+        if (probe) return true;
         const ayahs2 = (item.surah === 1 && typeof FATIHA_LESSON !== 'undefined') ? FATIHA_LESSON : (WBW_STUDY_SURAHS[item.surah] || []);
         const ayObj2 = ayahs2.find(function(a){ return a.ayah === item.ayah; });
         const text2 = ayObj2 ? (ayObj2.full || '') : '';
         const wordCount = text2.trim().split(/\s+/).filter(Boolean).length;
-        showView('games');
-        document.querySelectorAll('#games-group-switch button').forEach(function(b){ b.classList.toggle('btn-primary', b.dataset.gamegroup === 'drills'); });
-        document.querySelectorAll('#games-tabs button').forEach(function(b){ b.classList.remove('active'); });
-        currentGame = null;
-        try { _updateDifficultyPanelVisibility(); } catch(e) {}
-        const area4 = document.getElementById('game-area');
         area4.innerHTML =
           '<div class="quiz-card" style="text-align:center">' +
           '<div class="quiz-q">' + (kkT ? 'Дауыстап оқыңыз, дайын болғанда «Старт» басыңыз' : 'Прочитайте вслух, когда готовы — нажмите «Старт»') + '</div>' +
@@ -8604,8 +8679,7 @@ function speakLetter(ch, name, ttsOnly) {
           ev.target.style.display = 'none';
           document.getElementById('speed-result').textContent = (kkT ? 'Уақыт: ' : 'Время: ') + secs.toFixed(1) + ' ' + (kkT ? 'сек · Жылдамдық: ' : 'сек · Скорость: ') + wpm + ' ' + (kkT ? 'сөз/мин' : 'слов/мин');
         });
-        addTeacherFinishButton();
-      }
+        return true;
     }
     // Для тренажёров без автосчёта (слоги, диктовка, различие звуков, чтение)
     // — кнопка «Готово» сама фиксирует навык как отработанный один раз.
@@ -10126,128 +10200,186 @@ function renderMistakes() {
         '<button type="button" class="btn btn-sm" data-lw-play="slow">🐢 ' + (kk ? 'Баяу' : 'Медленно') + '</button></div>' +
         '<div class="lw-stage"></div></div>';
     }
+    // build 6.09: формы в слове — кнопки; нажатие показывает, как пишется буква в этом месте слова.
+    // Начальная, средняя и конечная формы — data-letter-forms.js (грузится при первом нажатии).
+    let _lfLoading = null;
+    function loadLetterForms() {
+      if (typeof LETTER_FORMS !== 'undefined') return Promise.resolve();
+      if (_lfLoading) return _lfLoading;
+      _lfLoading = new Promise(function(res, rej) {
+        const sc = document.createElement('script'); sc.src = 'data-letter-forms.js';
+        sc.onload = function() { res(); }; sc.onerror = function() { _lfLoading = null; rej(new Error('load')); };
+        document.head.appendChild(sc);
+      });
+      return _lfLoading;
+    }
+    const _LW_NOJOIN = 'اأإآدذرزوؤ';
+    function _lwFormData(ch, form) {
+      const nj = _LW_NOJOIN.indexOf(ch) >= 0;
+      if (form === 'isol' || (nj && form === 'init')) return typeof LETTER_STROKES !== 'undefined' ? LETTER_STROKES[ch] : null;
+      if (typeof LETTER_FORMS === 'undefined') return null;
+      return LETTER_FORMS[ch + '.' + (nj && form === 'medi' ? 'fina' : form)] || null;
+    }
+    function _lwFormNote(ch, form, kk) {
+      const nj = _LW_NOJOIN.indexOf(ch) >= 0;
+      if (form === 'isol') return kk ? 'Жеке тұрған әріп — көршілерімен жалғанбайды.' : 'Отдельная буква — ни с чем не соединяется.';
+      if (nj && form === 'init') return kk ? 'Бұл әріп келесімен жалғанбайды — басында жеке түрі сияқты жазылады.' : 'Эта буква не соединяется со следующей — в начале пишется как отдельная.';
+      if (nj && form === 'medi') return kk ? 'Бұл әріп келесімен жалғанбайды — ортасында соңындағыдай жазылады: сызық тек оң жақтан, алдыңғы әріптен келеді.' : 'Эта буква не соединяется со следующей — в середине пишется как в конце: черта приходит только справа, от предыдущей буквы.';
+      if (form === 'init') return kk ? 'Басында: әріп келесі әріппен жалғанады — сызық солға кетеді.' : 'В начале: буква соединяется со следующей — черта уходит влево.';
+      if (form === 'medi') return kk ? 'Ортасында: сызық оң жақтан (алдыңғы әріптен) келіп, солға (келесі әріпке) кетеді.' : 'В середине: черта приходит справа (от предыдущей буквы) и уходит влево (к следующей).';
+      return kk ? 'Соңында: сызық оң жақтан, алдыңғы әріптен келеді.' : 'В конце: черта приходит справа, от предыдущей буквы.';
+    }
     function _lwFormsHtml(ch, kk) {
       const L = (typeof ARABIC_LETTERS !== 'undefined') ? ARABIC_LETTERS.find(function(x) { return x.ch === ch; }) : null;
       if (!L || !L.forms || L.forms.length !== 4) return '';
       const lab = kk ? ['Жеке', 'Басында', 'Ортасында', 'Соңында'] : ['Отдельно', 'В начале', 'В середине', 'В конце'];
+      const keys = ['isol', 'init', 'medi', 'fina'];
       const noJoin = L.forms[1] === L.forms[0];
       return '<div class="lw-forms" dir="rtl" style="display:flex;gap:0.45rem;justify-content:center;flex-wrap:wrap;margin-top:0.55rem">' +
         L.forms.map(function(f, i) {
-          return '<div class="lw-form" style="opacity:0;transform:translateY(8px);transition:opacity .35s ease ' + (i * 0.35) + 's,transform .35s ease ' + (i * 0.35) + 's;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.35rem 0.55rem;min-width:4rem">' +
+          return '<button type="button" class="lw-form" data-lw-form="' + keys[i] + '" title="' + (kk ? 'Қалай жазылатынын көрсету' : 'Показать, как пишется') + '" style="cursor:pointer;font:inherit;opacity:0;transform:translateY(8px);transition:opacity .35s ease ' + (i * 0.35) + 's,transform .35s ease ' + (i * 0.35) + 's,border-color .2s;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.35rem 0.55rem;min-width:4rem;color:inherit">' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.7rem * var(--ar-scale, 1));color:' + (i ? 'var(--accent)' : 'var(--text)') + '">' + f + '</div>' +
-            '<div dir="ltr" style="font-size:0.68rem;color:var(--text-muted)">' + lab[i] + '</div></div>';
+            '<div dir="ltr" style="font-size:0.68rem;color:var(--text-muted)">✍️ ' + lab[i] + '</div></button>';
         }).join('') + '</div>' +
         '<div class="ayah-translation lw-note" dir="ltr" style="opacity:0;transition:opacity .4s ease 1.5s;font-size:0.8rem;margin-top:0.4rem">' +
         (noJoin
           ? (kk ? 'Бұл әріп келесі әріппен жалғанбайды — сондықтан басындағы түрі жеке түрімен бірдей, ал одан кейін сөз жаңа бөліктен басталады.' : 'Эта буква не соединяется со следующей — поэтому в начале она пишется как отдельная, а после неё слово продолжается с нового куска.')
-          : (kk ? 'Сызықша (ـ) — көрші әріппен жалғанатын жер. Басында әріп «құйрығын» жоғалтып, келесі әріпке қосылады.' : 'Чёрточка (ـ) — место соединения с соседней буквой. В начале слова буква теряет «хвост» и тянется к следующей.')) + '</div>';
+          : (kk ? 'Сызықша (ـ) — көрші әріппен жалғанатын жер. Басында әріп «құйрығын» жоғалтып, келесі әріпке қосылады.' : 'Чёрточка (ـ) — место соединения с соседней буквой. В начале слова буква теряет «хвост» и тянется к следующей.')) + '</div>' +
+        '<div class="ayah-translation" dir="ltr" style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem">' + (kk ? 'Түрді басыңыз — сол жердегі жазылуы көрсетіледі.' : 'Нажмите на форму — покажу, как она пишется.') + '</div>' +
+        '<div class="lw-fstage"></div>';
+    }
+    // Общая отрисовка: перо по чертам (D — данные буквы или формы); alive() — не прервано ли; done() — по окончании
+    function _lwDraw(stage, D, o) {
+      const kk = o.kk, slow = o.slow;
+      const id = 'lwm' + (++_lwSeq);
+      const vb = D.vb, W = 32; // ширина «маски» — чуть толще штриха буквы
+      const fr = D.eo ? ' fill-rule="evenodd"' : '';
+      let svg = '<svg viewBox="' + vb.join(' ') + '" width="100%" height="' + (o.height || 230) + '" style="max-width:' + (o.maxW || 300) + 'px;display:block;margin:0.5rem auto 0;background:var(--bg);border:1px solid var(--border);border-radius:0.85rem">' +
+        '<defs><mask id="' + id + '" maskUnits="userSpaceOnUse" x="' + vb[0] + '" y="' + vb[1] + '" width="' + vb[2] + '" height="' + vb[3] + '">';
+      D.s.forEach(function(st, i) {
+        if (st.dot) svg += '<circle data-lwm="' + i + '" cx="' + st.dot[0] + '" cy="' + st.dot[1] + '" r="0" fill="#fff"/>';
+        else svg += '<path data-lwm="' + i + '" d="' + st.d + '" fill="none" stroke="#fff" stroke-width="' + W + '" stroke-linecap="round" stroke-linejoin="round"/>';
+      });
+      svg += '</mask></defs>' +
+        // направляющая: бледный контур буквы
+        '<path d="' + D.g + '"' + fr + ' fill="var(--text-muted)" opacity="0.18"/>' +
+        // «чернила»: тот же контур, открывается маской
+        '<path d="' + D.g + '"' + fr + ' fill="var(--accent)" mask="url(#' + id + ')"/>' +
+        '<g class="lw-marks"></g>' +
+        '<circle class="lw-pen" r="7" fill="#fb7185" stroke="#fff" stroke-width="2" opacity="0"/></svg>' +
+        '<div class="lw-cap" dir="ltr" style="font-size:0.82rem;color:var(--text-muted);min-height:1.2em;margin-top:0.25rem"></div>' + (o.extraHtml || '');
+      stage.innerHTML = svg;
+      const svgEl = stage.querySelector('svg');
+      const pen = svgEl.querySelector('.lw-pen');
+      const marks = svgEl.querySelector('.lw-marks');
+      const cap = stage.querySelector('.lw-cap');
+      const NS = 'http://www.w3.org/2000/svg';
+      const items = D.s.map(function(st, i) {
+        const el = svgEl.querySelector('[data-lwm="' + i + '"]');
+        const len = st.dot ? 0 : el.getTotalLength();
+        if (!st.dot) { el.style.strokeDasharray = len + ' ' + (len + 10); el.style.strokeDashoffset = len; }
+        return { st: st, el: el, len: len };
+      });
+      const nStrokes = items.length;
+      const speed = (slow ? 0.42 : 1) * 330; // единиц (≈px эскиза) в секунду
+      const addMark = function(i) {
+        const it = items[i];
+        let x, y, ang = null;
+        if (it.st.dot) { x = it.st.dot[0]; y = it.st.dot[1]; }
+        else {
+          const p0 = it.el.getPointAtLength(0), p1 = it.el.getPointAtLength(Math.min(14, it.len));
+          x = p0.x; y = p0.y; ang = Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180 / Math.PI;
+        }
+        const g = document.createElementNS(NS, 'g');
+        let h = '<circle cx="' + x + '" cy="' + y + '" r="11" fill="var(--bg-hover, #1e293b)" stroke="#fb7185" stroke-width="2"/>' +
+          '<text x="' + x + '" y="' + (y + 5) + '" text-anchor="middle" font-size="14" font-weight="700" font-family="system-ui" fill="#fb7185">' + (i + 1) + '</text>';
+        if (ang !== null) h += '<g transform="translate(' + x + ',' + y + ') rotate(' + ang + ')"><path d="M16,0 L34,0 M27,-6 L34,0 L27,6" fill="none" stroke="#fb7185" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>';
+        g.innerHTML = h;
+        // номер ставим чуть в сторону, чтобы не закрывать начало штриха
+        g.setAttribute('transform', 'translate(' + (it.st.dot ? 14 : 0) + ',' + (it.st.dot ? -14 : 0) + ')');
+        marks.appendChild(g);
+      };
+      const capText = function(i) {
+        const it = items[i];
+        if (it.st.dot) return (kk ? 'Нүкте' : 'Точка') + ' · ' + (i + 1) + ' / ' + nStrokes;
+        return (kk ? 'Сызық ' : 'Черта ') + (i + 1) + ' / ' + nStrokes;
+      };
+      const finish = function() { pen.setAttribute('opacity', '0'); if (o.done) o.done(cap); };
+      if (_lwReduce()) { // без движения: сразу итог с номерами
+        items.forEach(function(it, i) { if (it.st.dot) it.el.setAttribute('r', '16'); else it.el.style.strokeDashoffset = 0; addMark(i); });
+        finish(); return;
+      }
+      let i = 0, t0 = null, phase = 'gap', gapUntil = 0;
+      const step = function(ts) {
+        if (!o.alive() || !svgEl.isConnected) return;
+        if (i >= nStrokes) { finish(); return; }
+        const it = items[i];
+        if (phase === 'gap') {
+          if (!gapUntil) { gapUntil = ts + (i ? 260 : 120) / (slow ? 0.6 : 1); addMark(i); cap.textContent = capText(i); }
+          if (ts < gapUntil) { requestAnimationFrame(step); return; }
+          phase = 'draw'; t0 = ts; gapUntil = 0;
+        }
+        if (it.st.dot) {
+          const k = Math.min(1, (ts - t0) / (slow ? 520 : 240));
+          it.el.setAttribute('r', String(16 * k));
+          pen.setAttribute('cx', it.st.dot[0]); pen.setAttribute('cy', it.st.dot[1]); pen.setAttribute('opacity', '1');
+          if (k >= 1) { i++; phase = 'gap'; }
+        } else {
+          const done = Math.min(it.len, (ts - t0) / 1000 * speed);
+          it.el.style.strokeDashoffset = it.len - done;
+          const p = it.el.getPointAtLength(done);
+          pen.setAttribute('cx', p.x); pen.setAttribute('cy', p.y); pen.setAttribute('opacity', '1');
+          if (done >= it.len) { i++; phase = 'gap'; }
+        }
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
     }
     function playLetterWrite(wrap, slow) {
       const ch = wrap.getAttribute('data-lw');
       const stage = wrap.querySelector('.lw-stage');
       const kk = isKk();
       const myRun = ++_lwSeq;
-      wrap._lwRun = myRun;
+      wrap._lwRun = myRun; wrap._lwFRun = 0;
+      wrap._lwSlow = !!slow;
       stage.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:0.4rem">…</div>';
       loadLetterStrokes().then(function() {
         if (wrap._lwRun !== myRun) return;
         const D = LETTER_STROKES[ch];
         if (!D) { stage.innerHTML = ''; return; }
-        const id = 'lwm' + myRun;
-        const vb = D.vb, W = 32; // ширина «маски» — чуть толще штриха буквы
-        let svg = '<svg viewBox="' + vb.join(' ') + '" width="100%" height="230" style="max-width:300px;display:block;margin:0.5rem auto 0;background:var(--bg);border:1px solid var(--border);border-radius:0.85rem">' +
-          '<defs><mask id="' + id + '" maskUnits="userSpaceOnUse" x="' + vb[0] + '" y="' + vb[1] + '" width="' + vb[2] + '" height="' + vb[3] + '">';
-        D.s.forEach(function(st, i) {
-          if (st.dot) svg += '<circle data-lwm="' + i + '" cx="' + st.dot[0] + '" cy="' + st.dot[1] + '" r="0" fill="#fff"/>';
-          else svg += '<path data-lwm="' + i + '" d="' + st.d + '" fill="none" stroke="#fff" stroke-width="' + W + '" stroke-linecap="round" stroke-linejoin="round"/>';
-        });
-        svg += '</mask></defs>' +
-          // направляющая: бледный контур буквы
-          '<path d="' + D.g + '" fill="var(--text-muted)" opacity="0.18"/>' +
-          // «чернила»: тот же контур, открывается маской
-          '<path d="' + D.g + '" fill="var(--accent)" mask="url(#' + id + ')"/>' +
-          '<g class="lw-marks"></g>' +
-          '<circle class="lw-pen" r="7" fill="#fb7185" stroke="#fff" stroke-width="2" opacity="0"/></svg>' +
-          '<div class="lw-cap" dir="ltr" style="font-size:0.82rem;color:var(--text-muted);min-height:1.2em;margin-top:0.25rem"></div>' +
-          '<div class="lw-forms-box" dir="ltr"></div>';
-        stage.innerHTML = svg;
-        const svgEl = stage.querySelector('svg');
-        const pen = svgEl.querySelector('.lw-pen');
-        const marks = svgEl.querySelector('.lw-marks');
-        const cap = stage.querySelector('.lw-cap');
-        const NS = 'http://www.w3.org/2000/svg';
-        const items = D.s.map(function(st, i) {
-          const el = svgEl.querySelector('[data-lwm="' + i + '"]');
-          const len = st.dot ? 0 : el.getTotalLength();
-          if (!st.dot) { el.style.strokeDasharray = len + ' ' + (len + 10); el.style.strokeDashoffset = len; }
-          return { st: st, el: el, len: len };
-        });
-        const nStrokes = items.length;
-        const speed = (slow ? 0.42 : 1) * 330; // единиц (≈px эскиза) в секунду
-        const reduce = _lwReduce();
-        const addMark = function(i) {
-          const it = items[i];
-          let x, y, ang = null;
-          if (it.st.dot) { x = it.st.dot[0]; y = it.st.dot[1]; }
-          else {
-            const p0 = it.el.getPointAtLength(0), p1 = it.el.getPointAtLength(Math.min(14, it.len));
-            x = p0.x; y = p0.y; ang = Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180 / Math.PI;
-          }
-          const g = document.createElementNS(NS, 'g');
-          let h = '<circle cx="' + x + '" cy="' + y + '" r="11" fill="var(--bg-hover, #1e293b)" stroke="#fb7185" stroke-width="2"/>' +
-            '<text x="' + x + '" y="' + (y + 5) + '" text-anchor="middle" font-size="14" font-weight="700" font-family="system-ui" fill="#fb7185">' + (i + 1) + '</text>';
-          if (ang !== null) h += '<g transform="translate(' + x + ',' + y + ') rotate(' + ang + ')"><path d="M16,0 L34,0 M27,-6 L34,0 L27,6" fill="none" stroke="#fb7185" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>';
-          g.innerHTML = h;
-          // номер ставим чуть в сторону, чтобы не закрывать начало штриха
-          g.setAttribute('transform', 'translate(' + (it.st.dot ? 14 : 0) + ',' + (it.st.dot ? -14 : 0) + ')');
-          marks.appendChild(g);
-        };
-        const capText = function(i) {
-          const it = items[i];
-          if (it.st.dot) return (kk ? 'Нүкте' : 'Точка') + ' · ' + (i + 1) + ' / ' + nStrokes;
-          return (kk ? 'Сызық ' : 'Черта ') + (i + 1) + ' / ' + nStrokes;
-        };
-        const finish = function() {
-          pen.setAttribute('opacity', '0');
-          cap.textContent = kk ? 'Дайын. Енді сөздегі түрлері:' : 'Готово. Теперь — формы в слове:';
-          const fb = stage.querySelector('.lw-forms-box');
-          fb.innerHTML = _lwFormsHtml(ch, kk);
-          requestAnimationFrame(function() { requestAnimationFrame(function() {
-            fb.querySelectorAll('.lw-form').forEach(function(f) { f.style.opacity = '1'; f.style.transform = 'none'; });
-            const nt = fb.querySelector('.lw-note'); if (nt) nt.style.opacity = '1';
-          }); });
-        };
-        if (reduce) { // без движения: сразу итог с номерами
-          items.forEach(function(it, i) { if (it.st.dot) it.el.setAttribute('r', '16'); else it.el.style.strokeDashoffset = 0; addMark(i); });
-          finish(); return;
-        }
-        let i = 0, t0 = null, phase = 'gap', gapUntil = 0;
-        const step = function(ts) {
-          if (wrap._lwRun !== myRun || !svgEl.isConnected) return;
-          if (i >= nStrokes) { finish(); return; }
-          const it = items[i];
-          if (phase === 'gap') {
-            if (!gapUntil) { gapUntil = ts + (i ? 260 : 120) / (slow ? 0.6 : 1); addMark(i); cap.textContent = capText(i); }
-            if (ts < gapUntil) { requestAnimationFrame(step); return; }
-            phase = 'draw'; t0 = ts; gapUntil = 0;
-          }
-          if (it.st.dot) {
-            const k = Math.min(1, (ts - t0) / (slow ? 520 : 240));
-            it.el.setAttribute('r', String(16 * k));
-            pen.setAttribute('cx', it.st.dot[0]); pen.setAttribute('cy', it.st.dot[1]); pen.setAttribute('opacity', '1');
-            if (k >= 1) { i++; phase = 'gap'; }
-          } else {
-            const done = Math.min(it.len, (ts - t0) / 1000 * speed);
-            it.el.style.strokeDashoffset = it.len - done;
-            const p = it.el.getPointAtLength(done);
-            pen.setAttribute('cx', p.x); pen.setAttribute('cy', p.y); pen.setAttribute('opacity', '1');
-            if (done >= it.len) { i++; phase = 'gap'; }
-          }
-          requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
+        _lwDraw(stage, D, { kk: kk, slow: slow, alive: function() { return wrap._lwRun === myRun; }, extraHtml: '<div class="lw-forms-box" dir="ltr"></div>',
+          done: function(cap) {
+            cap.textContent = kk ? 'Дайын. Енді сөздегі түрлері:' : 'Готово. Теперь — формы в слове:';
+            const fb = stage.querySelector('.lw-forms-box');
+            fb.innerHTML = _lwFormsHtml(ch, kk);
+            requestAnimationFrame(function() { requestAnimationFrame(function() {
+              fb.querySelectorAll('.lw-form').forEach(function(f) { f.style.opacity = '1'; f.style.transform = 'none'; });
+              const nt = fb.querySelector('.lw-note'); if (nt) nt.style.opacity = '1';
+            }); });
+          } });
       }).catch(function() {
         stage.innerHTML = '<div class="ayah-translation" style="margin-top:0.4rem">' + (kk ? 'Деректер жүктелмеді — интернетті тексеріңіз.' : 'Не удалось загрузить — проверьте интернет.') + '</div>';
+      });
+    }
+    function playLetterForm(wrap, form) {
+      const ch = wrap.getAttribute('data-lw');
+      const box = wrap.querySelector('.lw-fstage');
+      if (!box) return;
+      const kk = isKk();
+      const myRun = ++_lwSeq;
+      wrap._lwFRun = myRun;
+      wrap.querySelectorAll('.lw-form').forEach(function(b) { b.style.borderColor = b.getAttribute('data-lw-form') === form ? 'var(--accent)' : 'var(--border)'; });
+      box.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:0.4rem">…</div>';
+      Promise.all([loadLetterStrokes(), form === 'isol' ? Promise.resolve() : loadLetterForms()]).then(function() {
+        if (wrap._lwFRun !== myRun) return;
+        const D = _lwFormData(ch, form);
+        if (!D) { box.innerHTML = ''; return; }
+        _lwDraw(box, D, { kk: kk, slow: wrap._lwSlow, height: 200, maxW: 320, alive: function() { return wrap._lwFRun === myRun; },
+          extraHtml: '<div class="ayah-translation" dir="ltr" style="font-size:0.8rem;margin-top:0.2rem">' + _lwFormNote(ch, form, kk) + '</div>',
+          done: function(cap) { cap.textContent = kk ? 'Дайын.' : 'Готово.'; } });
+        try { box.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+      }).catch(function() {
+        box.innerHTML = '<div class="ayah-translation" style="margin-top:0.4rem">' + (kk ? 'Деректер жүктелмеді — интернетті тексеріңіз.' : 'Не удалось загрузить — проверьте интернет.') + '</div>';
       });
     }
     document.addEventListener('click', function(e) {
@@ -10258,6 +10390,8 @@ function renderMistakes() {
         if (box) { joinDemoPlay(box, jb.getAttribute('data-join-demo'), jb.getAttribute('data-join-tr')); try { box.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(_) {} }
         return;
       }
+      const fbtn = e.target && e.target.closest && e.target.closest('[data-lw-form]');
+      if (fbtn) { const fw = fbtn.closest('.lw-wrap'); if (fw) playLetterForm(fw, fbtn.getAttribute('data-lw-form')); return; }
       const b = e.target && e.target.closest && e.target.closest('[data-lw-play]');
       if (!b) return;
       const wrap = b.closest('.lw-wrap');
@@ -10769,6 +10903,7 @@ function renderMistakes() {
       var studyPane = document.getElementById('home-study-pane');
       var tajweedPane = document.getElementById('home-tajweed-pane');
       if (!surahsPane || !studyPane) return;
+      try { setReciterCtx(tab === 'study' || tab === 'tajweed' ? tab : 'surahs'); } catch (e) {}
       [surahsBtn, studyBtn, tajweedBtn].forEach(function(b) { if (b) b.classList.remove('btn-primary'); });
       surahsPane.style.display = 'none';
       studyPane.style.display = 'none';
@@ -10975,6 +11110,10 @@ function renderMistakes() {
           try { renderWriteLetterDrill(area); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Қате: ' : 'Ошибка: ') + (e.message||e) + '</p>'; }
           return;
         }
+        if (PRACTICE_TEACHER_DRILLS[currentGame]) {
+          try { renderTeacherDrillIntro(area, currentGame); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Қате: ' : 'Ошибка: ') + (e.message||e) + '</p>'; }
+          return;
+        }
         if (currentGame === 'listenwrite') {
           try { renderListenWriteDrill(area); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Қате: ' : 'Ошибка: ') + (e.message||e) + '</p>'; }
           return;
@@ -10985,6 +11124,93 @@ function renderMistakes() {
         document.getElementById('btn-start-game').addEventListener('click', startGame);
       });
     });
+
+    // ========== build 6.09: упражнения «Учителя» — отдельными тренажёрами в «Практике» ==========
+    // Те же функции, что и в «Учителе», но буквы выбирает сам ученик (по умолчанию — все 28);
+    // результат не идёт в прогресс «Учителя».
+    const PRACTICE_TEACHER_DRILLS = {
+      fillgap: { ru: 'Вставь огласовку', kk: 'Харакат қой', letters: false,
+        dRu: 'В слове пропущена огласовка (фатха, кясра или дамма) — выберите нужную.', dKk: 'Сөзде бір харакат жоқ (фатха, кәсра не дамма) — дұрысын таңдаңыз.' },
+      qaida: { ru: 'Строки для чтения', kk: 'Оқу жолдары', letters: true,
+        dRu: 'Строки слогов, как в Каиде: читайте вслух по порядку, можно послушать.', dKk: 'Қайдадағыдай буын жолдары: ретімен дауыстап оқыңыз, тыңдауға болады.' },
+      blend: { ru: 'Слоги из букв', kk: 'Әріптерден буын', letters: true,
+        dRu: 'Буква + огласовка = слог: как он читается?', dKk: 'Әріп + харакат = буын: қалай оқылады?' },
+      construct: { ru: 'Собери слог', kk: 'Буын құра', letters: true, sukun: true,
+        dRu: 'Соберите слог или слово из букв и огласовок по звучанию.', dKk: 'Дыбысына қарап әріптер мен харакаттардан буын не сөз құраңыз.' },
+      join: { ru: 'Читаем с соединением', kk: 'Жалғап оқу', letters: true, alif: true,
+        dRu: 'Слова из соединённых букв: прочитайте и проверьте себя по слогам.', dKk: 'Жалғанған әріптерден сөздер: оқып, буын бойынша тексеріңіз.' },
+      joinmic: { ru: '🎤 Соединение голосом', kk: '🎤 Дауыспен жалғау', letters: true, alif: true,
+        dRu: 'Прочитайте слово вслух — сайт распознает речь (нужен Chrome и микрофон).', dKk: 'Сөзді дауыстап оқыңыз — сайт сөйлеуді таниды (Chrome және микрофон керек).' },
+      noharakat: { ru: 'Без огласовок', kk: 'Харакатсыз', letters: false,
+        dRu: 'Аят без огласовок: прочитайте сами, потом откройте с огласовками и сверьтесь.', dKk: 'Харакатсыз аят: өзіңіз оқып, кейін харакатпен ашып тексеріңіз.' },
+      speed: { ru: 'Скорость чтения', kk: 'Оқу жылдамдығы', letters: false,
+        dRu: '«Старт» — читайте аят вслух — «Стоп»: сайт посчитает слова в минуту.', dKk: '«Старт» — аятты дауыстап оқыңыз — «Тоқтату»: сайт минутына сөз санын есептейді.' }
+    };
+    const _PTD_ALL = 'ا ب ت ث ج ح خ د ذ ر ز س ش ص ض ط ظ ع غ ف ق ك ل م ن ه و ي'.split(' ');
+    function _ptdLetters() {
+      const saved = state.settings && Array.isArray(state.settings.drillLetters) ? state.settings.drillLetters.filter(function(c) { return _PTD_ALL.indexOf(c) >= 0; }) : [];
+      return saved.length ? saved : _PTD_ALL.slice();
+    }
+    function _ptdStart(key) {
+      const kk = isKk();
+      const area = document.getElementById('game-area');
+      _activeTeacherSkill = null; _activeTeacherReview = false; _activeTeacherFree = false;
+      const all = _ptdLetters();
+      const cons = all.filter(function(c) { return c !== 'ا' && (typeof BASE_CONSONANT_SOUND === 'undefined' || BASE_CONSONANT_SOUND[c]); });
+      const useCons = cons.length ? cons : all;
+      const withAlif = all.indexOf('ا') >= 0 ? all : ['ا'].concat(all);
+      const again = function() { return '<div style="text-align:center;margin-top:0.6rem"><button type="button" class="btn" id="ptd-again">↻ ' + (kk ? 'Басқасы' : 'Другой') + '</button> <button type="button" class="btn btn-sm" id="ptd-back">← ' + (kk ? 'Баптау' : 'Настройки') + '</button></div>'; };
+      const bindAgain = function() {
+        const a = document.getElementById('ptd-again'); if (a) a.addEventListener('click', function() { _ptdStart(key); });
+        const b = document.getElementById('ptd-back'); if (b) b.addEventListener('click', function() { renderTeacherDrillIntro(area, key); });
+      };
+      if (key === 'fillgap') { startFillgapDrill(); return; }
+      if (key === 'blend') { startBlendDrill(useCons); return; }
+      if (key === 'construct') { startConstructDrill(useCons, !!(state.settings && state.settings.drillSukun)); return; }
+      if (key === 'join') { startJoinDrill(withAlif, null); return; }
+      if (key === 'joinmic') { startJoinMicDrill(withAlif, null); return; }
+      if (key === 'qaida') { currentGame = 'qaida'; area.innerHTML = '<div id="ptd-box"></div>'; startQaidaLines(document.getElementById('ptd-box'), useCons); area.insertAdjacentHTML('beforeend', again()); bindAgain(); return; }
+      if (key === 'noharakat' || key === 'speed') {
+        currentGame = key;
+        const ok = key === 'noharakat' ? practiceNoHarakat(area, kk) : practiceSpeed(area, kk);
+        if (!ok) { area.innerHTML = '<div class="empty-state">' + (kk ? 'Деректер жоқ' : 'Нет данных') + '</div>'; return; }
+        area.insertAdjacentHTML('beforeend', again()); bindAgain();
+      }
+    }
+    function renderTeacherDrillIntro(area, key) {
+      const D = PRACTICE_TEACHER_DRILLS[key]; if (!D) return;
+      const kk = isKk();
+      const sel = _ptdLetters();
+      const allOn = sel.length === _PTD_ALL.length;
+      let h = '<div class="quiz-card">' +
+        '<div class="quiz-q" style="font-size:1.05rem">' + (kk ? D.kk : D.ru) + '</div>' +
+        '<div class="ayah-translation" style="margin-top:0.35rem;line-height:1.5">' + (kk ? D.dKk : D.dRu) + '</div>' +
+        '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.35rem">' + (kk ? 'Бұл жаттығу «Мұғалімде» де бар; мұнда нәтиже мұғалімнің прогресіне есептелмейді.' : 'Это упражнение есть и в «Учителе»; здесь результат не идёт в прогресс «Учителя».') + '</div>';
+      if (D.letters) {
+        h += '<div style="margin-top:0.7rem"><b style="font-size:0.88rem">' + (kk ? 'Әріптер: ' : 'Буквы: ') + '</b><span style="font-size:0.85rem;color:var(--text-muted)">' + (allOn ? (kk ? 'барлығы (28)' : 'все (28)') : sel.length) + '</span>' +
+          ' <button type="button" class="btn btn-sm" id="ptd-all">' + (kk ? 'Барлығы' : 'Все') + '</button></div>' +
+          '<div id="ptd-letters" dir="rtl" style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.4rem">' +
+          _PTD_ALL.map(function(c) { const on = sel.indexOf(c) >= 0 && !allOn || allOn; return '<button type="button" class="btn btn-sm' + (on ? ' btn-primary' : '') + '" data-ptd-l="' + c + '" style="min-width:2.4rem;font-size:1.25rem;font-family:var(--arabic-font, inherit)">' + c + '</button>'; }).join('') + '</div>' +
+          '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem">' + (kk ? 'Әріпті басыңыз — қосу/алып тастау. Ештеңе таңдалмаса — барлығы.' : 'Нажмите на букву — добавить или убрать. Если ничего не выбрано — все.') + '</div>';
+      }
+      if (D.sukun) h += '<label style="display:flex;gap:0.4rem;align-items:center;margin-top:0.5rem;font-size:0.88rem"><input type="checkbox" id="ptd-sukun"' + (state.settings && state.settings.drillSukun ? ' checked' : '') + '> ' + (kk ? 'Сукунмен' : 'С сукуном') + '</label>';
+      h += '<div style="text-align:center;margin-top:0.8rem"><button type="button" class="btn btn-primary" id="ptd-start">' + (kk ? 'Бастау' : 'Начать') + '</button></div></div>';
+      area.innerHTML = h;
+      area.querySelectorAll('[data-ptd-l]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          let cur = (state.settings.drillLetters && state.settings.drillLetters.length) ? state.settings.drillLetters.slice() : [];
+          const c = b.getAttribute('data-ptd-l');
+          if (!cur.length) cur = [c]; // из «все» — начинаем свой набор с этой буквы
+          else if (cur.indexOf(c) >= 0) cur = cur.filter(function(x) { return x !== c; });
+          else cur.push(c);
+          state.settings.drillLetters = cur; try { saveState(); } catch (e) {}
+          renderTeacherDrillIntro(area, key);
+        });
+      });
+      const ba = document.getElementById('ptd-all'); if (ba) ba.addEventListener('click', function() { state.settings.drillLetters = []; try { saveState(); } catch (e) {} renderTeacherDrillIntro(area, key); });
+      const sk = document.getElementById('ptd-sukun'); if (sk) sk.addEventListener('change', function() { state.settings.drillSukun = sk.checked; try { saveState(); } catch (e) {} });
+      document.getElementById('ptd-start').addEventListener('click', function() { _ptdStart(key); });
+    }
 
     function shuffle(arr) {
       const a = arr.slice();
@@ -11021,6 +11247,8 @@ function renderMistakes() {
         startFindRuleQuizStandalone();
       } else if (currentGame === 'speak' || currentGame === 'speak-ayah') {
         startSpeakGame(currentGame === 'speak-ayah');
+      } else if (currentGame === 'fillgap') {
+        startFillgapDrill();
       } else if (currentGame === 'blend' && _activeBlendLetters) {
         startBlendDrill(_activeBlendLetters);
       } else if (currentGame === 'construct' && _lastConstructArgs) {
@@ -11788,11 +12016,11 @@ function renderMistakes() {
           '<div style="color:var(--accent);font-weight:700">' + it.tr + '</div>' +
           '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.7rem"><button class="btn" id="mic-listen">🔊 ' + (kk ? 'Үлгі' : 'Образец') + '</button><button class="btn btn-primary" id="mic-rec">🎤 ' + (kk ? 'Айту' : 'Сказать') + '</button></div>' +
           '<div id="mic-res" style="margin-top:0.7rem">' + (resultHtml || '') + '</div>' +
-          '<div style="margin-top:0.7rem;display:flex;gap:0.5rem;justify-content:center"><button class="btn btn-sm" id="mic-back">← ' + (kk ? 'Мұғалім' : 'Учитель') + '</button><button class="btn btn-sm" id="mic-next">' + (kk ? 'Келесі →' : 'Дальше →') + '</button></div>' +
+          '<div style="margin-top:0.7rem;display:flex;gap:0.5rem;justify-content:center"><button class="btn btn-sm" id="mic-back">← ' + (_activeTeacherSkill ? (kk ? 'Мұғалім' : 'Учитель') : (kk ? 'Жаттықтырғыштар' : 'Тренажёры')) + '</button><button class="btn btn-sm" id="mic-next">' + (kk ? 'Келесі →' : 'Дальше →') + '</button></div>' +
           '<div style="margin-top:0.8rem;font-size:0.75rem;color:var(--text-muted)">' + (kk ? 'Сөз ' : 'Слово ') + (i + 1) + ' / ' + items.length + ' · ' + (kk ? 'Браузердің сөйлеуді тануы — шамамен ғана; интернет керек.' : 'Распознавание речи браузера — приблизительное; нужен интернет.') + '</div></div>';
         area.querySelector('#mic-listen').addEventListener('click', function() { try { speakArText(it.ar, 0.6); } catch(e) {} });
         area.querySelector('#mic-next').addEventListener('click', function() { i++; show(); });
-        area.querySelector('#mic-back').addEventListener('click', function() { showView('teacher'); try { renderPersonalTeacher(); } catch(e) {} });
+        area.querySelector('#mic-back').addEventListener('click', function() { if (!_activeTeacherSkill) { showView('games'); return; } showView('teacher'); try { renderPersonalTeacher(); } catch(e) {} });
         area.querySelector('#mic-rec').addEventListener('click', function() {
           const res = area.querySelector('#mic-res');
           res.innerHTML = '<span style="color:var(--text-muted)">🎙 ' + (kk ? 'Тыңдап тұрмын…' : 'Слушаю…') + '</span>';
@@ -19031,6 +19259,7 @@ bKk:
         '2': { ru: 'аккаунты', kk: 'аккаунттар' },
         '3': { ru: 'подробности', kk: 'толықтырулар' },
         '4': { ru: 'онлайн', kk: 'онлайн' },
+        '5': { ru: 'учитель', kk: 'мұғалім' },
         '6': { ru: 'намаз и практика', kk: 'намаз және практика' }
       };
       const majorTabs = [{ id: 'all', lab: (_clKk ? 'Барлығы' : 'Все') }].concat(majorsSorted.map(function(m){

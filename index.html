@@ -246,19 +246,9 @@
            синхронизируется в обе стороны через тот же обработчик change). -->
       <div class="card" id="home-reciter-quick" style="margin-bottom:0.7rem;padding:0.6rem 0.75rem">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
-          <span style="font-size:0.85rem;color:var(--text-muted)">🎧 Чтец Корана</span>
+          <span style="font-size:0.85rem;color:var(--text-muted)">🎧 Чтец для «Сур»</span>
         </div>
-        <select id="home-reciter-select" style="width:100%;margin-top:0.35rem;padding:0.45rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">
-          <option value="ar.aymansuwaid">Айман Сувейд (по умолчанию, ясный таджвид)</option>
-          <option value="ar.husarymuallim">Махмуд аль-Хусари (муаллим — учебный, медленный)</option>
-          <option value="ar.alafasy">Мишари Рашид аль-Афаси</option>
-          <option value="ar.husary">Махмуд аль-Хусари (мураттал)</option>
-          <option value="ar.husarymujawwad">Махмуд аль-Хусари (муджаввад)</option>
-          <option value="ar.abdulsamad">Абдуль-Басит Абдус-Самад (мураттал)</option>
-          <option value="ar.shaatree">Абу Бакр аш-Шатри</option>
-          <option value="ar.minshawi">Мухаммад Сыддык аль-Миншави</option>
-          <option value="ar.jibreel">Мухаммад Джибрил</option>
-        </select>
+        <div style="display:flex;gap:0.4rem;margin-top:0.35rem"><select id="home-reciter-select" style="flex:1;min-width:0;padding:0.45rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select><button type="button" class="btn btn-sm" data-reciter-preview="home-reciter-select" title="Послушать">▶</button></div>
       </div>
       <div class="search-box">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -277,9 +267,25 @@
            внутри «Суры» сразу показывает этот экран, а не общий раздел
            «Учёба» (Теория/Практика). Из «Практика» этот пункт убран. -->
       <div id="home-study-pane" style="display:none">
+        <!-- build 6.09: свой чтец для «Озвучки» -->
+        <div class="card" style="margin-bottom:0.7rem;padding:0.6rem 0.75rem">
+          <span style="font-size:0.85rem;color:var(--text-muted)">🎧 Чтец для «Озвучки»</span>
+          <div style="display:flex;gap:0.4rem;margin-top:0.35rem">
+            <select id="study-reciter-select" style="flex:1;min-width:0;padding:0.45rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
+            <button type="button" class="btn btn-sm" data-reciter-preview="study-reciter-select" title="Послушать">▶</button>
+          </div>
+        </div>
         <div id="home-wbw-surahs"></div>
       </div>
       <div id="home-tajweed-pane" style="display:none">
+        <!-- build 6.09: свой чтец для «Таджвида» -->
+        <div class="card" style="margin-bottom:0.7rem;padding:0.6rem 0.75rem">
+          <span style="font-size:0.85rem;color:var(--text-muted)">🎧 Чтец для «Таджвида»</span>
+          <div style="display:flex;gap:0.4rem;margin-top:0.35rem">
+            <select id="tajweed-reciter-select" style="flex:1;min-width:0;padding:0.45rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
+            <button type="button" class="btn btn-sm" data-reciter-preview="tajweed-reciter-select" title="Послушать">▶</button>
+          </div>
+        </div>
         <div id="home-tajweed-colors"></div>
       </div>
     </div>
@@ -496,6 +502,7 @@
         <button data-game="findrule" data-group="tests">Найди правило</button>
         <button data-game="speak" data-group="speak" style="display:none">🎤 Буквы</button>
         <button data-game="speak-ayah" data-group="speak" style="display:none">🎤 Аят</button>
+        <button data-game="joinmic" data-group="speak" style="display:none">🎤 Соединение голосом</button>
         <button data-game="syllables" data-group="drills" style="display:none">Слоги</button>
         <button data-game="practice" data-group="drills" style="display:none">Слова</button>
         <button data-game="srs" data-group="drills" style="display:none">Карточки</button>
@@ -503,6 +510,14 @@
         <button data-game="minimal-pairs" data-group="drills" style="display:none">Различие звуков</button>
         <button data-game="write" data-group="drills" style="display:none">✍️ Написать букву</button>
         <button data-game="listenwrite" data-group="drills" style="display:none">🎧 Послушай и напиши</button>
+        <!-- build 6.09: упражнения «Учителя» — отдельными тренажёрами -->
+        <button data-game="fillgap" data-group="drills" style="display:none">Вставь огласовку</button>
+        <button data-game="qaida" data-group="drills" style="display:none">Строки для чтения</button>
+        <button data-game="blend" data-group="drills" style="display:none">Слоги из букв</button>
+        <button data-game="construct" data-group="drills" style="display:none">Собери слог</button>
+        <button data-game="join" data-group="drills" style="display:none">Читаем с соединением</button>
+        <button data-game="noharakat" data-group="drills" style="display:none">Без огласовок</button>
+        <button data-game="speed" data-group="drills" style="display:none">Скорость чтения</button>
       </div>
       <!-- build 5.78: выбор сложности — только там, где он реально что-то меняет
            (число вариантов ответа в тестах буквы/названия/правила, и набор пар
@@ -1002,21 +1017,22 @@
       <div class="card set-cat" data-set-panel="audio" style="margin-bottom:0.75rem;display:none">
         <b>🎧 Аудио</b>
         <div class="setting-row" style="margin-top:0.5rem">
-          <span>Чтец Корана</span>
-          <select id="setting-reciter">
-            <option value="ar.aymansuwaid">Айман Сувейд (по умолчанию, ясный таджвид)</option>
-            <option value="ar.husarymuallim">Махмуд аль-Хусари (муаллим — учебный, медленный)</option>
-            <option value="ar.alafasy">Мишари Рашид аль-Афаси</option>
-            <option value="ar.husary">Махмуд аль-Хусари (мураттал)</option>
-            <option value="ar.husarymujawwad">Махмуд аль-Хусари (муджаввад)</option>
-            <option value="ar.abdulsamad">Абдуль-Басит Абдус-Самад (мураттал)</option>
-            <option value="ar.shaatree">Абу Бакр аш-Шатри</option>
-            <option value="ar.minshawi">Мухаммад Сыддык аль-Миншави</option>
-            <option value="ar.jibreel">Мухаммад Джибрил</option>
-          </select>
+          <span>Чтец — «Суры»</span>
+          <select id="setting-reciter"></select>
+          <button type="button" class="btn btn-sm" data-reciter-preview="setting-reciter" title="Послушать">▶</button>
         </div>
         <div class="setting-row" style="margin-top:0.35rem">
-          <span style="font-size:0.78rem;opacity:0.75">✅ Айман Сувейд, Хусари (муаллим), Абдуль-Басит (мураттал) и Мухаммад Джибрил — сверены с официальным списком everyayah.com (build 5.25), папки верные.</span>
+          <span>Чтец — «Озвучка»</span>
+          <select id="setting-reciter-study"></select>
+          <button type="button" class="btn btn-sm" data-reciter-preview="setting-reciter-study" title="Послушать">▶</button>
+        </div>
+        <div class="setting-row" style="margin-top:0.35rem">
+          <span>Чтец — «Таджвид»</span>
+          <select id="setting-reciter-tajweed"></select>
+          <button type="button" class="btn btn-sm" data-reciter-preview="setting-reciter-tajweed" title="Послушать">▶</button>
+        </div>
+        <div class="setting-row" style="margin-top:0.35rem">
+          <span style="font-size:0.78rem;opacity:0.75">В каждой вкладке «Сур» (Суры, Озвучка, Таджвид) — свой чтец; ▶ — послушать начало «аль-Фатихи».</span>
         </div>
         <div class="setting-row" style="margin-top:0.35rem">
           <span style="font-size:0.78rem;color:var(--accent)">🎙 Подсветка текущего слова при прослушивании (в обычном чтении и в «Цвета таджвида») работает только с чтецом «Хусари (мураттал)» — только для него есть точные тайм-коды слов. С другими чтецами аят всё равно звучит нормально, просто без подсветки.</span>
