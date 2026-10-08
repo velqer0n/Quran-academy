@@ -6778,7 +6778,7 @@ function speakLetter(ch, name, ttsOnly) {
     async function downloadEverythingOffline(onProgress) {
       const shellFiles = ['./', 'styles.css', 'data-changelog.js', 'data-quran-learning.js',
         'data-reading-library.js', 'data-islamic-knowledge.js', 'data-hajj-and-names.js',
-        'data-daily-practice.js', 'data-app-settings.js', 'logic-app.js', 'quran-offline-data.js', 'three.module.min.js', 'data-hisn.js', 'data-letter-strokes.js'].concat((typeof ARABIC_LETTERS !== 'undefined' ? ARABIC_LETTERS : []).filter(function(L) { return L.audio; }).map(function(L) { return LETTER_AUDIO_BASE + L.audio; }));
+        'data-daily-practice.js', 'data-app-settings.js', 'logic-app.js', 'quran-offline-data.js', 'three.module.min.js', 'data-hisn.js', 'data-letter-strokes.js', 'salah-model.bin'].concat((typeof ARABIC_LETTERS !== 'undefined' ? ARABIC_LETTERS : []).filter(function(L) { return L.audio; }).map(function(L) { return LETTER_AUDIO_BASE + L.audio; }));
       let shellOk = 0;
       for (let i = 0; i < shellFiles.length; i++) {
         try { await fetch(shellFiles[i]); shellOk++; } catch(e) {}
@@ -13700,6 +13700,17 @@ function renderDictation(area) {
       setFg(P.sitFinger, 'point', 'thigh');
       P.sitRing = _sPose(P.sit, {}); setFg(P.sitRing, 'ring', 'thigh');
       setFg(P.salamR, 'ring', 'thigh'); setFg(P.salamL, 'ring', 'thigh');
+      // build 6.05: дуа после намаза (распространённая практика, не часть намаза): сидя, ладони раскрыты к небу перед грудью
+      const duaArm = { w: { at: 'chest', o: [-6, -14, 9] }, pole: [-0.3, -0.7, 1], hd: [130, 6], tb: [0.1, 0.2, 1] };
+      P.dua = _sPose(P.sit, { head: 165, R: duaArm, L: duaArm }); setFg(P.dua, 'natural');
+      // build 6.05: касания пола для 3D-модели: flat — стопы всей подошвой; toes — колени и подогнутые
+      // пальцы ног; forehead — лоб и нос; palms — ладони на полу; toesR seat — сидят на левой стопе
+      ['stand', 'takbir', 'fold', 'ruku'].forEach(function(k) { P[k].contact = 'flat'; });
+      P.takbir.thumbLobe = true; P.ruku.reach = true;
+      P.kneel.contact = 'toes'; P.rise.contact = 'toes';
+      P.hands.contact = 'toes palms'; P.hands.R.floor = P.hands.L.floor = true;
+      P.sajda.contact = 'toes forehead palms'; P.sajda.R.floor = P.sajda.L.floor = true;
+      ['sit', 'sitFinger', 'sitRing', 'salamR', 'salamL', 'dua'].forEach(function(k) { P[k].contact = 'toesR seat'; });
       return P;
     })();
 
@@ -13756,6 +13767,7 @@ function renderDictation(area) {
         else if (w.at === 'ear') base = p.ear;
         else if (w.at === 'knee') base = p.kn;
         else if (w.at === 'thigh') base = _sLerp3(p.hp, p.kn, 0.72);
+        else if (w.at === 'chest') base = _sAdd(_sAdd(pelvis, tdir, R.torso * 0.76), [1, 0, 0], 28);
         else base = pelvis;
         return _sAdd(base, [w.o[0], w.o[1], w.o[2] * sg]);
       };
@@ -13892,6 +13904,7 @@ function renderDictation(area) {
         else if (opts.gaze === 'lap') tgt = _sAdd(_sLerp3(pts.R.hp, pts.R.kn, 0.75), [0, 8, -pts.R.sg * 4]);
         else if (opts.gaze === 'shR') tgt = _sAdd(pts.R.sh, [-2, 5, 4]);
         else if (opts.gaze === 'shL') tgt = _sAdd(pts.L.sh, [-2, 5, -4]);
+        else if (opts.gaze === 'palms') tgt = _sLerp3(pts.R.wr, pts.L.wr, 0.5);
         else if (opts.gaze === 'nose') tgt = _sAdd(_sAdd(body.headC, body.hFwd, SALAH_RIG.headR + 2), body.hAxis, -6);
         if (tgt) {
           const a0 = _sAdd(body.headC, body.hFwd, SALAH_RIG.headR * 0.95);
@@ -13944,7 +13957,6 @@ function renderDictation(area) {
       s += ear(-1, true) + ear(1, true);
       return s;
     }
-
 
     // ----- «Крупно»: детальные рисунки кистей, стоп и положения рук -----
     // Отдельные 2D-рисунки (вид спереди/сверху/сбоку), где видны пальцы,
@@ -14355,8 +14367,65 @@ function renderDictation(area) {
           placeAlong(m, b, td);
         });
       };
+      // build 6.05: живая модель человека (если файл загрузился) вместо фигуры из простых форм
+      let model = null, modelSajdaX = null;
+      try {
+        loadSalahModelBuf().then(function(buf) {
+          try {
+            model = salahModelCreate(THREE, buf);
+            model.display.rotation.y = Math.PI / 2; model.display.scale.setScalar(100);
+            scene.add(model.display);
+            meshes.forEach(function(m) { m.visible = false; });
+            const sj = model.setFrame('sajda', 'sajda', 1); modelSajdaX = sj.headC.x + 6;
+            if (typeof onModel === 'function') onModel();
+          } catch (e) { model = null; }
+        }).catch(function() {});
+      } catch (e) {}
+      let onModel = null;
       let target = null;
+      function renderModel(pose, view, gaze, gazeK, matX) {
+        const f = view.frame || { a: 'stand', b: 'stand', k: 1 };
+        const I = model.setFrame(f.a, f.b, f.k);
+        const v3 = function(v) { return [v.x, v.y, v.z]; };
+        let tgt = null;
+        const mx = modelSajdaX || matX || 84;
+        if (gaze === 'mat') tgt = [mx, 0.5, 0];
+        else if (gaze === 'feet') tgt = [I.feet.x + 6, 1, I.feet.z];
+        else if (gaze === 'lap') tgt = v3(I.lap);
+        else if (gaze === 'shR') tgt = add3(v3(I.shR), [-2, 6, 4]);
+        else if (gaze === 'shL') tgt = add3(v3(I.shL), [-2, 6, -4]);
+        else if (gaze === 'nose') tgt = v3(I.nose.clone().add(I.fwd.clone().multiplyScalar(4)));
+        else if (gaze === 'palms') tgt = _sLerp3(v3(I.handR), v3(I.handL), 0.5);
+        const showG = !!tgt && gazeK > 0.02;
+        gazeLine.visible = gazeCone.visible = showG;
+        if (showG) {
+          const a0 = v3(I.eye);
+          const dvec = nrm(add3(tgt, a0, -1));
+          const end = add3(tgt, dvec, -2.4);
+          gazeGeo.setFromPoints([new THREE.Vector3(a0[0], a0[1], a0[2]), new THREE.Vector3(end[0], end[1], end[2])]);
+          gazeLine.computeLineDistances();
+          gazeMat.opacity = Math.min(1, gazeK);
+          gazeCone.position.set(end[0], end[1], end[2]);
+          gazeCone.quaternion.setFromUnitVectors(UP, V3(dvec));
+          gazeCone.material.opacity = Math.min(1, gazeK);
+        }
+        glow.visible = (pose && pose.finger || 0) > 0.3;
+        if (glow.visible) { glow.position.copy(I.indexTip); glow.material.opacity = 0.45 * pose.finger; }
+        const pel = v3(I.pelvis), hc = v3(I.headC);
+        let want = [(pel[0] + hc[0]) / 2 * 0.6 + 45 * 0.4, Math.max(20, (pel[1] + hc[1]) / 2 * 0.82), 0];
+        if (view.focus === 'head') want = hc;
+        else if (view.focus === 'hands') want = _sLerp3(v3(I.handR), v3(I.handL), 0.5);
+        else if (view.focus === 'feet') want = v3(I.feet);
+        target = target ? _sLerp3(target, want, 0.25) : want;
+        const yw = view.yaw * Math.PI / 180, el = view.el * Math.PI / 180;
+        const dist = 375 / (view.zoom || 1);
+        camera.position.set(target[0] + Math.sin(yw) * Math.cos(el) * dist, target[1] + Math.sin(el) * dist, target[2] + Math.cos(yw) * Math.cos(el) * dist);
+        camera.lookAt(target[0], target[1], target[2]);
+        renderer.render(scene, camera);
+        return Math.hypot(target[0] - want[0], target[1] - want[1]) > 0.3;
+      }
       function render(pose, view, gaze, gazeK, matX) {
+        if (model) return renderModel(pose, view, gaze, gazeK, matX);
         const body = salahGroundBody(salahBuildBody(pose));
         const P = body.pts;
         // туловище
@@ -14400,6 +14469,7 @@ function renderDictation(area) {
         else if (gaze === 'shR') tgt = add3(P.R.sh, [-2, 6, 4]);
         else if (gaze === 'shL') tgt = add3(P.L.sh, [-2, 6, -4]);
         else if (gaze === 'nose') tgt = add3(add3(body.headC, body.hFwd, R.headR + 3), body.hAxis, -7);
+        else if (gaze === 'palms') tgt = _sLerp3(P.R.wr, P.L.wr, 0.5);
         const showG = !!tgt && gazeK > 0.02;
         gazeLine.visible = gazeCone.visible = showG;
         if (showG) {
@@ -14435,10 +14505,596 @@ function renderDictation(area) {
         renderer.setSize(w, Math.round(w * 0.97));
       }
       function dispose() {
+        try { if (model) model.dispose(); } catch (e) {}
         try { renderer.dispose(); } catch (e) {}
         try { renderer.forceContextLoss(); } catch (e) {}
       }
-      return { render: render, resize: resize, dispose: dispose, canvas: renderer.domElement };
+      return { render: render, resize: resize, dispose: dispose, canvas: renderer.domElement, onModel: function(fn) { onModel = fn; if (model) fn(); }, hasModel: function() { return !!model; } };
+    }
+
+    // ===== 3D-модель человека для «Как читать намаз» — build 6.05, 6.06 =====
+    // Модель: Quaternius «Universal Base Characters» (CC0), заранее переработана
+    // (salah-model.bin): лицо без черт (уши свои), обычное телосложение,
+    // видимы только голова, шея, кисти, голени (брюки) и стопы. Камис и рукава
+    // строятся на месте в каждой позе (одно цельное свободное полотно). Поза — из тех же данных, что
+    // и у схемы (SALAH_POSES_ANIM): углы ног и корпуса, цели для запястий.
+    // Касания пола считаются: стопы в стоянии — всей подошвой; в суджуде —
+    // колени, подогнутые пальцы ног, ладони, лоб и нос; в сидении — колени и
+    // правая стопа на пальцах, сидят на левой стопе.
+    let _salahModelBuf = null;
+    function loadSalahModelBuf() {
+      if (!_salahModelBuf) _salahModelBuf = fetch('salah-model.bin').then(function(r) { if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); }).catch(function(e) { _salahModelBuf = null; throw e; });
+      return _salahModelBuf;
+    }
+    function salahModelCreate(THREE, buf) {
+      const dv = new DataView(buf);
+      if (dv.getUint32(0, true) !== 0x484c4153) throw new Error('bad model');
+      const hl = dv.getUint32(4, true);
+      const H = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hl)));
+      const base = 8 + hl + ((4 - ((8 + hl) % 4)) % 4);
+      const arr = function(name) { const s = H.sec[name]; const C = { Float32Array: Float32Array, Int8Array: Int8Array, Uint8Array: Uint8Array, Uint16Array: Uint16Array }[s[0]]; return new C(buf, base + s[1], s[2]); };
+      const V = function(x, y, z) { return new THREE.Vector3(x, y, z); };
+      const map = function(a) { return V(-a[2], a[1], a[0]); }; // наши оси → оси модели
+      const SC = 1.81 / 172;
+      // ---- сборка скелета ----
+      const display = new THREE.Group(); // показ в сцене: см и поворот (ставит вызывающий)
+      const root = new THREE.Group(); display.add(root);
+      const arm = new THREE.Group(); arm.matrixAutoUpdate = true; new THREE.Matrix4().fromArray(H.arm).decompose(arm.position, arm.quaternion, arm.scale); root.add(arm);
+      const bones = H.bones.map(function(b) { const o = new THREE.Bone(); o.name = b.n; o.position.fromArray(b.p); o.quaternion.fromArray(b.q); o.scale.fromArray(b.s); return o; });
+      H.bones.forEach(function(b, i) { (b.pa >= 0 ? bones[b.pa] : arm).add(bones[i]); });
+      const B = {}; bones.forEach(function(b) { B[b.name] = b; });
+      const invA = arr('boneInv'); const inverses = bones.map(function(_, i) { return new THREE.Matrix4().fromArray(Array.from(invA.subarray(i * 16, i * 16 + 16))); });
+      const skeleton = new THREE.Skeleton(bones, inverses);
+      const bindM = new THREE.Matrix4().fromArray(H.bind);
+      const col = function(c) { return new THREE.Color(c); };
+      const mkSkinned = function(pos, idx, si, sw, mat, nrm, colr) {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+        if (nrm) g.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(nrm), 3, true));
+        if (colr) g.setAttribute('color', new THREE.BufferAttribute(new Uint8Array(colr), 3, true));
+        g.setAttribute('skinIndex', new THREE.BufferAttribute(new Uint16Array(si), 4));
+        const w = new Float32Array(sw.length); for (let i = 0; i < sw.length; i += 4) { const s = (sw[i] + sw[i + 1] + sw[i + 2] + sw[i + 3]) || 1; for (let k = 0; k < 4; k++) w[i + k] = sw[i + k] / s; }
+        g.setAttribute('skinWeight', new THREE.BufferAttribute(w, 4));
+        g.setIndex(new THREE.BufferAttribute(new Uint16Array(idx), 1));
+        if (!nrm) g.computeVertexNormals();
+        const m = new THREE.SkinnedMesh(g, mat);
+        new THREE.Matrix4().fromArray(H.bodyM).decompose(m.position, m.quaternion, m.scale);
+        m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
+        arm.add(m); m.bind(skeleton, bindM);
+        return m;
+      };
+      const body = mkSkinned(arr('bodyPos'), arr('bodyIdx'), arr('bodySkI'), arr('bodySkW'), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }), arr('bodyNrm'), arr('bodyCol'));
+      const clothMat = new THREE.MeshStandardMaterial({ color: col(H.colors.cloth), roughness: 0.93, metalness: 0, side: THREE.DoubleSide });
+      // лицо-маска и тюбетейка — на кости головы
+      { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr('facePos')), 3)); g.setIndex(new THREE.BufferAttribute(new Uint16Array(arr('faceIdx')), 1)); g.computeVertexNormals();
+        const f = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col(H.colors.skin), roughness: 0.8, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
+        new THREE.Matrix4().fromArray(H.faceM).decompose(f.position, f.quaternion, f.scale); B.Head.add(f); }
+      const kufi = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: col(H.colors.cap), roughness: 0.9 }));
+      new THREE.Matrix4().fromArray(H.kufiM).decompose(kufi.position, kufi.quaternion, kufi.scale); kufi.castShadow = true; B.Head.add(kufi);
+      root.updateMatrixWorld(true);
+      // ---- покой ----
+      const wp = function(n) { return B[n].getWorldPosition(V()); };
+      const rest = {}; bones.forEach(function(b) { rest[b.name] = { q: b.getWorldQuaternion(new THREE.Quaternion()), lq: b.quaternion.clone(), p: wp(b.name) }; });
+      const yAxis = function(n) { return V(0, 1, 0).applyQuaternion(rest[n].q); };
+      const RIGHT = V(-1, 0, 0), FWD = V(0, 0, 1);
+      const lobeLocal = { R: V().fromArray(H.lobe.R), L: V().fromArray(H.lobe.L) };
+      const restSkull = V().fromArray(H.skull), restNeck = V().fromArray(H.neck);
+      const fax = {}; Object.keys(H.fax).forEach(function(k) { fax[k] = V().fromArray(H.fax[k]); });
+      const lenUA = rest.lowerarm_r.p.distanceTo(rest.upperarm_r.p), lenFA = rest.hand_r.p.distanceTo(rest.lowerarm_r.p);
+      const restTorso = rest.neck_01.p.clone().sub(rest.pelvis.p).normalize();
+      // точки для касаний и опоры (в покое, в локальных осях костей)
+      const facePts = []; { const fp = arr('facePos'); const fM = new THREE.Matrix4().fromArray(H.faceM); for (let i = 0; i < fp.length; i += 9) facePts.push(V(fp[i], fp[i + 1], fp[i + 2]).applyMatrix4(fM)); }
+      const bodyPts = []; { const bp = arr('bodyPos'); const n = bp.length / 3; for (let i = 0; i < n; i += 3) bodyPts.push(i); }
+      // ---- математика ----
+      const basis = function(a, s) { a = a.clone().normalize(); s = s.clone().sub(a.clone().multiplyScalar(s.dot(a))).normalize(); const c = new THREE.Vector3().crossVectors(a, s); return new THREE.Matrix4().makeBasis(a, s, c); };
+      const setWorld = function(name, a1, s1, a0, s0) {
+        const b = B[name];
+        const R = basis(a1, s1).multiply(basis(a0, s0).transpose());
+        const qW = new THREE.Quaternion().setFromRotationMatrix(R).multiply(rest[name].q);
+        const pq = b.parent.getWorldQuaternion(new THREE.Quaternion());
+        b.quaternion.copy(pq.invert().multiply(qW)); b.updateMatrixWorld(true);
+      };
+      const setWorldQ = function(name, qW) { const b = B[name]; const pq = b.parent.getWorldQuaternion(new THREE.Quaternion()); b.quaternion.copy(pq.invert().multiply(qW)); b.updateMatrixWorld(true); };
+      const ik = function(S, Wt, a, b, pole) {
+        let D = Wt.clone().sub(S); let d = D.length(); const dMax = a + b - 1e-4, dMin = Math.abs(a - b) + 1e-4;
+        if (d > dMax) { D.multiplyScalar(dMax / d); d = dMax; } if (d < dMin) { D.multiplyScalar(dMin / d); d = dMin; }
+        const n = D.clone().normalize(); let m = pole.clone().sub(n.clone().multiplyScalar(pole.dot(n))); if (m.length() < 1e-4) m = V(0, -1, 0); m.normalize();
+        const x = (a * a - b * b + d * d) / (2 * d), h = Math.sqrt(Math.max(0, a * a - x * x));
+        return { E: S.clone().add(n.clone().multiplyScalar(x)).add(m.clone().multiplyScalar(h)), W: S.clone().add(D) };
+      };
+      const vtx = V();
+      const bodyVert = function(i) { body.getVertexPosition(i, vtx); return vtx.applyMatrix4(body.matrixWorld); };
+      // пальцы: сгиб по фалангам + развод (sp, градусы) у основания
+      const setFingers = function(sx, fg) {
+        const c = fg ? fg.c : [0.2, 0.18, 0.22, 0.28, 0.32], sp = (fg && fg.sp) || 0;
+        const spread = { index: 1.2, middle: 0.35, ring: -0.45, pinky: -1.25 };
+        ['thumb', 'index', 'middle', 'ring', 'pinky'].forEach(function(f, k) {
+          const ax = fax[f + sx];
+          const segs = f === 'thumb' ? ['thumb_02', 'thumb_03'] : [f + '_01', f + '_02', f + '_03'];
+          const amp = f === 'thumb' ? [0.5, 0.9] : [1.25, 1.55, 1.0];
+          segs.forEach(function(n, j) {
+            const bn = B[n + sx];
+            const q = rest[bn.name].lq.clone().multiply(new THREE.Quaternion().setFromAxisAngle(ax, Math.max(-0.6, c[k]) * amp[j]));
+            if (j === 0 && f !== 'thumb' && sp) { const sax = V(0, 0, 1).cross(ax).lengthSq() > 0.5 ? V(0, 0, 1) : V(1, 0, 0); q.multiply(new THREE.Quaternion().setFromAxisAngle(sax, (sx === '_r' ? 1 : -1) * spread[f] * sp * Math.PI / 180)); }
+            bn.quaternion.copy(q);
+          });
+        });
+      };
+      // ---- поза ----
+      const unDisplay = function() { const k = { q: display.quaternion.clone(), s: display.scale.clone(), p: display.position.clone() }; display.quaternion.identity(); display.scale.set(1, 1, 1); display.position.set(0, 0, 0); display.updateMatrixWorld(true); return k; };
+      const reDisplay = function(k) { display.quaternion.copy(k.q); display.scale.copy(k.s); display.position.copy(k.p); display.updateMatrixWorld(true); };
+      function solvePose(P, opt) {
+        opt = opt || {};
+        bones.forEach(function(b) { b.quaternion.copy(rest[b.name].lq); });
+        root.position.set(0, 0, 0); root.updateMatrixWorld(true);
+        const dir = function(t, p) { return map(_sDir(t, p)); };
+        const contacts = P.contact || '';
+        let torsoT = P.torso;
+        const lat = map([0, 0, 1]);
+        const yw = (P.yaw || 0) * Math.PI / 180;
+        let tdir, hAx, hR;
+        const setTorso = function(tt, headT) {
+          tdir = dir(tt, 0); hAx = dir(headT, 0);
+          let hF = dir(headT - 90, 0); const hR0 = new THREE.Vector3().crossVectors(hF, hAx).normalize();
+          hF = hF.clone().multiplyScalar(Math.cos(yw)).add(hR0.clone().multiplyScalar(Math.sin(yw))).normalize();
+          hR = new THREE.Vector3().crossVectors(hF, hAx).normalize();
+          const angT = restTorso.angleTo(tdir);
+          const slerpDir = function(f) { if (angT < 1e-3) return tdir.clone(); const axis = new THREE.Vector3().crossVectors(restTorso, tdir).normalize(); return restTorso.clone().applyAxisAngle(axis, angT * f); };
+          setWorld('pelvis', slerpDir(0.9), lat, restTorso, RIGHT);
+          setWorld('spine_01', slerpDir(1.0), lat, restTorso, RIGHT);
+          setWorld('spine_02', tdir, lat, restTorso, RIGHT);
+          setWorld('spine_03', tdir, lat, restTorso, RIGHT);
+          setWorld('neck_01', tdir.clone().lerp(hAx, 0.35).normalize(), lat, restNeck, RIGHT);
+          setWorld('Head', hAx, hR, restSkull, RIGHT);
+        };
+        const setLegs = function(ankleTweak) {
+          ['R', 'L'].forEach(function(s) {
+            const sx = s === 'R' ? '_r' : '_l', sg = s === 'R' ? 1 : -1, S = P[s];
+            const d = function(k) { return dir(S[k][0], S[k][1] * sg); };
+            const th = d('th'), sh = d('sh');
+            let m = sh.clone().sub(th.clone().multiplyScalar(sh.dot(th)));
+            if (m.length() < 0.05) m = FWD.clone().negate();
+            const hinge = new THREE.Vector3().crossVectors(th, m.normalize()).normalize();
+            if (hinge.dot(lat) > 0) hinge.negate(); // одна и та же ось колена во всех позах — без перекрута ноги в переходах
+            const restHinge = new THREE.Vector3().crossVectors(V(0, -1, 0), FWD.clone().negate());
+            setWorld('thigh' + sx, th, hinge, yAxis('thigh' + sx), restHinge);
+            setWorld('calf' + sx, sh, hinge, yAxis('calf' + sx), restHinge);
+            if (/flat/.test(contacts)) {
+              // стоят: стопа всей подошвой на полу — как в покое
+              setWorldQ('foot' + sx, rest['foot' + sx].q.clone()); setWorldQ('ball' + sx, rest['ball' + sx].q.clone());
+            } else {
+              let ft = d('ft'); const to = d('to');
+              if (ankleTweak && ankleTweak[s]) ft = ft.applyAxisAngle(lat, ankleTweak[s]);
+              setWorld('foot' + sx, ft, lat, yAxis('foot' + sx), RIGHT);
+              setWorld('ball' + sx, to, lat, yAxis('ball' + sx), RIGHT);
+            }
+          });
+        };
+        setTorso(torsoT, P.head); setLegs(null);
+        root.updateMatrixWorld(true); skeleton.update();
+        // касание пальцев ног (суджуд, сидение — правая): подбираем голеностоп, чтобы пальцы легли на уровень колен
+        const kneePt = function(sx) { const k = wp('calf' + sx); const shn = wp('foot' + sx).sub(k).normalize(); return k.add(shn.clone().multiplyScalar(0.03)).add(V(0, -0.055, 0)); };
+        if (/toes/.test(contacts)) {
+          const tweak = {};
+          ['R', 'L'].forEach(function(s) {
+            if (/toesR/.test(contacts) && s === 'L') return;
+            const sx = s === 'R' ? '_r' : '_l';
+            let best = { e: 1e9, a: 0 };
+            for (let a = -0.9; a <= 0.9; a += 0.05) { tweak[s] = a; setLegs(tweak); root.updateMatrixWorld(true);
+              const e = Math.abs(wp('ball_leaf' + sx).y - 0.012 - (kneePt(sx).y)); if (e < best.e) best = { e: e, a: a }; }
+            tweak[s] = best.a;
+          });
+          setLegs(tweak); root.updateMatrixWorld(true);
+        }
+        // ---- руки ----
+        let clavF = 0.08; const miss = { R: 0, L: 0 };
+        const armsPass = function(floorY) {
+          const anchors = function(s, w) {
+            const sx = s === 'R' ? '_r' : '_l', sg = s === 'R' ? 1 : -1;
+            let b0;
+            if (w.at === 'sh') b0 = wp('upperarm' + sx);
+            else if (w.at === 'ear') b0 = B.Head.localToWorld(lobeLocal[s].clone()).add(hAx.clone().multiplyScalar(0.012));
+            else if (w.at === 'knee') b0 = wp('calf' + sx).add(map([1, 0, 0]).multiplyScalar(0.06));
+            else if (w.at === 'thigh') b0 = wp('thigh' + sx).lerp(wp('calf' + sx), 0.72).add(V(0, 0.05, 0));
+            else if (w.at === 'chest') b0 = wp('spine_03').add(map([1, 0, 0]).multiplyScalar(0.3));
+            else b0 = wp('pelvis').add(map([1, 0, 0]).multiplyScalar(0.07)).add(V(0, -0.075, 0));
+            return b0.add(map([w.o[0], w.o[1], w.o[2] * sg]).multiplyScalar(SC));
+          };
+          ['R', 'L'].forEach(function(s) {
+            const sx = s === 'R' ? '_r' : '_l', sg = s === 'R' ? 1 : -1, S = P[s];
+            const hd = dir(S.hd[0], S.hd[1] * sg);
+            const tbv = S.tb || [1, 0, 0]; const tb = map([tbv[0], tbv[1], tbv[2] * sg]);
+            const pole = map([S.pole[0], S.pole[1], S.pole[2] * sg]);
+            setFingers(sx, S.fg);
+            let Wt = S.wA ? anchors(s, S.wA).lerp(anchors(s, S.wB), S.wk) : anchors(s, S.w);
+            if (floorY != null && S.floor) Wt.y = floorY + 0.03; // ладонь лежит на полу
+            // плечевой пояс немного следует за рукой
+            B['clavicle' + sx].quaternion.copy(rest['clavicle' + sx].lq); B['clavicle' + sx].updateMatrixWorld(true);
+            { const sh = wp('upperarm' + sx); const dd = Wt.clone().sub(sh).normalize(); const cur = sh.clone().sub(wp('clavicle' + sx)).normalize();
+              const q = new THREE.Quaternion().slerp(new THREE.Quaternion().setFromUnitVectors(cur, dd), clavF);
+              const b = B['clavicle' + sx]; const wq = b.getWorldQuaternion(new THREE.Quaternion()); setWorldQ('clavicle' + sx, q.multiply(wq)); }
+            const solve = function(Wt0) {
+              const Sp = wp('upperarm' + sx);
+              const r = ik(Sp, Wt0, lenUA, lenFA, pole);
+              const ua = r.E.clone().sub(Sp).normalize(), fa = r.W.clone().sub(r.E).normalize();
+              let m = fa.clone().sub(ua.clone().multiplyScalar(fa.dot(ua)));
+              if (m.length() < 0.05) m = pole.clone().negate().sub(ua.clone().multiplyScalar(-pole.dot(ua)));
+              const hinge = new THREE.Vector3().crossVectors(ua, m.normalize()).normalize();
+              const restA = yAxis('upperarm' + sx), restHinge = new THREE.Vector3().crossVectors(restA, FWD);
+              setWorld('upperarm' + sx, ua, hinge, restA, restHinge);
+              setWorld('lowerarm' + sx, fa, hinge, yAxis('lowerarm' + sx), restHinge);
+              setWorld('hand' + sx, hd, tb, yAxis('hand' + sx), rest['thumb_01' + sx].p.clone().sub(rest['hand' + sx].p));
+              root.updateMatrixWorld(true);
+            };
+            solve(Wt); miss[s] = wp('hand' + sx).distanceTo(Wt);
+            if (S.w && S.w.at === 'ear' && opt.thumbToLobe !== false && P.thumbLobe) {
+              // большой палец — на мочку уха
+              const lobe = B.Head.localToWorld(lobeLocal[s].clone());
+              const target = lobe.clone().add(hR.clone().multiplyScalar(sg * 0.006));
+              let Wc = wp('hand' + sx);
+              for (let it = 0; it < 6; it++) { Wc = Wc.add(target.clone().sub(wp('thumb_04_leaf' + sx))); solve(Wc); }
+            }
+          });
+        };
+        armsPass(null);
+        // ---- на пол ----
+        const ground = function() {
+          root.updateMatrixWorld(true); skeleton.update();
+          let minY = 1e9; for (let k = 0; k < bodyPts.length; k++) { const y = bodyVert(bodyPts[k]).y; if (y < minY) minY = y; }
+          root.position.y -= minY; root.updateMatrixWorld(true);
+        };
+        ground();
+        if (/forehead/.test(contacts)) {
+          // суджуд: лоб и нос на полу — наклон корпуса подбирается так, чтобы лицо легло на пол, колени и пальцы ног остаются на полу
+          const faceMinY = function() { let m = 1e9; for (let k = 0; k < facePts.length; k++) { const y = B.Head.localToWorld(facePts[k].clone()).y; if (y < m) m = y; } return m; };
+          let best = { e: 1e9, t: torsoT };
+          for (let dt = -14; dt <= 14; dt += 1) {
+            root.position.y = 0; setTorso(P.torso + dt, P.head + dt); root.updateMatrixWorld(true);
+            armsPass(null); ground();
+            const e = Math.abs(faceMinY() - 0.004); if (e < best.e) best = { e: e, t: P.torso + dt };
+          }
+          root.position.y = 0; setTorso(best.t, P.head + (best.t - P.torso)); root.updateMatrixWorld(true);
+          armsPass(null); ground();
+        }
+        if (P.reach) {
+          // руку‘: ладони должны лечь на колени. Если руке не хватает длины — плечи
+          // подаются вперёд, а корпус чуть ниже горизонтали (спина остаётся прямой,
+          // голова — на одной линии со спиной)
+          let best = null;
+          for (let dt = 0; dt <= 12; dt += 2) for (let cf = 0.08; cf <= 0.57; cf += 0.07) {
+            root.position.y = 0; setTorso(P.torso + dt, P.head + dt); setLegs(null); clavF = cf; root.updateMatrixWorld(true);
+            armsPass(null); const e = Math.max(miss.R, miss.L), sc = Math.max(0, e - 0.006) * 20 + dt * 0.002 + cf * 0.01;
+            if (!best || sc < best.sc) best = { sc: sc, dt: dt, cf: cf, e: e };
+          }
+          root.position.y = 0; setTorso(P.torso + best.dt, P.head + best.dt); setLegs(null); clavF = best.cf; root.updateMatrixWorld(true);
+          armsPass(null); ground(); clavF = 0.08;
+          if (window.__RK) window.__RK.push(best);
+        }
+        if (/palms/.test(contacts)) { armsPass(0); root.updateMatrixWorld(true); }
+        if (/seat/.test(contacts)) {
+          // сидение на левой стопе: таз опускается до верха стопы
+          root.updateMatrixWorld(true); skeleton.update();
+        }
+        root.updateMatrixWorld(true); skeleton.update();
+        return { q: bones.map(function(b) { return b.quaternion.clone(); }), y: root.position.y };
+      }
+      // ---- кэш решённых поз и кадр перехода ----
+      const cache = {};
+      const getPose = function(name) {
+        if (!cache[name]) { const k = unDisplay(); cache[name] = solvePose(SALAH_POSES_ANIM[name]); reDisplay(k); }
+        return cache[name];
+      };
+      const sparse = []; { const n = arr('bodyPos').length / 3; for (let i = 0; i < n; i += 7) sparse.push(i); }
+      let lastFrame = null;
+      function setFrame(a, b, k) {
+        const A = getPose(a), Bp = getPose(b || a); k = Math.max(0, Math.min(1, k == null ? 1 : k));
+        const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+        const key = a + '|' + (b || a) + '|' + e.toFixed(4);
+        if (lastFrame && lastFrame.key === key) return lastFrame.out;
+        const kd = unDisplay();
+        bones.forEach(function(bn, i) { bn.quaternion.copy(A.q[i]).slerp(Bp.q[i], e); });
+        root.position.set(0, A.y + (Bp.y - A.y) * e, 0); root.updateMatrixWorld(true); skeleton.update();
+        if (e > 0.001 && e < 0.999) { // переход: ничего не уходит под пол
+          let minY = 1e9; for (let i = 0; i < sparse.length; i++) { const y = bodyVert(sparse[i]).y; if (y < minY) minY = y; }
+          if (minY < 0) { root.position.y -= minY; root.updateMatrixWorld(true); }
+        }
+        buildRobe();
+        const info = { indexTip: wp('index_04_leaf_r'), shR: wp('upperarm_r'), shL: wp('upperarm_l'), handR: wp('hand_r'), handL: wp('hand_l'),
+          feet: wp('ball_r').lerp(wp('ball_l'), 0.5), lap: wp('thigh_r').lerp(wp('calf_r'), 0.78), pelvis: wp('pelvis') };
+        const hq = B.Head.getWorldQuaternion(new THREE.Quaternion()).multiply(rest.Head.q.clone().invert());
+        info.up = restSkull.clone().applyQuaternion(hq); info.fwd = FWD.clone().applyQuaternion(hq);
+        info.headC = wp('Head').add(info.up.clone().multiplyScalar(0.1));
+        info.eye = info.headC.clone().add(info.fwd.clone().multiplyScalar(0.085));
+        info.nose = info.headC.clone().add(info.fwd.clone().multiplyScalar(0.11)).add(info.up.clone().multiplyScalar(-0.04));
+        reDisplay(kd);
+        // в координаты сцены
+        const toScene = function(v) { return display.localToWorld(v.clone()); };
+        const out = {}; Object.keys(info).forEach(function(n) { out[n] = (n === 'up' || n === 'fwd') ? info[n].clone().applyQuaternion(display.quaternion) : toScene(info[n]); });
+        lastFrame = { key: key, out: out };
+        return out;
+      }
+      // ---- камис: одна свободная оболочка от ворота до подола + рукава (build 6.06) ----
+      // Тело под одеждой скрыто, поэтому ткань строится цельной трубой вдоль линии
+      // ворот → грудь → поясница → таз → бёдра → колени → подол: спина, ягодицы и
+      // бёдра — одно полотно без стыков. Сечение — выпуклая оболочка простых форм
+      // тела (таз, талия, грудь, плечи, бёдра, голени) + запас ткани, провис вниз
+      // и мелкие складки. Подол падает вниз и ложится на пол.
+      const RB = 40, RN = 40, SB = 18, SN = 16;
+      const mkTube = function(nb, nr) {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nb * nr * 3), 3));
+        const ix = []; for (let r = 0; r < nr - 1; r++) for (let k = 0; k < nb; k++) { const a = r * nb + k, b = r * nb + (k + 1) % nb, c = a + nb, d = b + nb; ix.push(a, c, b, b, c, d); }
+        g.setIndex(ix);
+        const m = new THREE.Mesh(g, clothMat); m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; root.add(m); return m;
+      };
+      const robe = mkTube(RB, RN), sleeves = [mkTube(SB, SN), mkTube(SB, SN)];
+      const prim = function(a, b, lx, fz, ax, af, ab, t0, t1) {
+        const n = b.clone().sub(a); const len = n.length(); if (len > 1e-6) n.multiplyScalar(1 / len); else n.set(0, 1, 0);
+        let l = lx.clone().sub(n.clone().multiplyScalar(lx.dot(n))); if (l.lengthSq() < 1e-6) l = Math.abs(n.y) < 0.9 ? V(0, 1, 0).cross(n) : V(1, 0, 0).cross(n); l.normalize();
+        let f = fz.clone().sub(n.clone().multiplyScalar(fz.dot(n))).sub(l.clone().multiplyScalar(fz.dot(l))); if (f.lengthSq() < 1e-6) f = new THREE.Vector3().crossVectors(n, l); f.normalize();
+        t0 = t0 == null ? 1 : t0; t1 = t1 == null ? t0 : t1;
+        return { a: a, n: n, len: len, l: l, f: f, ax: ax, af: af, ab: ab, t0: t0, t1: t1, mid: a.clone().add(b).multiplyScalar(0.5), br: len / 2 + Math.max(ax, af, ab) * Math.max(t0, t1) };
+      };
+      const tq = V();
+      const inPrim = function(P, p) {
+        tq.copy(p).sub(P.a); const u = tq.dot(P.n);
+        const du = u < 0 ? -u : (u > P.len ? u - P.len : 0), uc = Math.max(0, Math.min(P.len, u));
+        tq.addScaledVector(P.n, -uc);
+        const s = P.len > 1e-6 ? P.t0 + (P.t1 - P.t0) * uc / P.len : P.t0;
+        const x = tq.dot(P.l) / (P.ax * s), zz = tq.dot(P.f), z = zz / ((zz > 0 ? P.af : P.ab) * s), c = du / (Math.min(P.ax, P.af, P.ab) * s);
+        return x * x + z * z + c * c < 1;
+      };
+      const inAny = function(list, p) { for (let i = 0; i < list.length; i++) if (inPrim(list[i], p)) return true; return false; };
+      // выпуклая оболочка 2D и расстояние до неё по лучу из центра
+      const hull2 = function(pts) {
+        pts = pts.slice().sort(function(a, b) { return a[0] - b[0] || a[1] - b[1]; });
+        const cr = function(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); };
+        const lo = [], up = [];
+        pts.forEach(function(p) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); });
+        for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+        lo.pop(); up.pop(); return lo.concat(up);
+      };
+      const rayHull = function(H2, dx, dy) {
+        let best = -1;
+        for (let i = 0; i < H2.length; i++) { const a = H2[i], b = H2[(i + 1) % H2.length];
+          const ex = b[0] - a[0], ey = b[1] - a[1], den = dx * ey - dy * ex; if (Math.abs(den) < 1e-9) continue;
+          const t = (a[0] * ey - a[1] * ex) / den, s = (a[0] * dy - a[1] * dx) / den;
+          if (t > 0 && s >= -1e-6 && s <= 1 + 1e-6 && t > best) best = t; }
+        return best;
+      };
+      // гладкая линия через опорные точки; на выходе — n точек через равные отрезки
+      const pathSample = function(P, n) {
+        const dense = [], tag = [];
+        for (let i = 0; i < P.length - 1; i++) { const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)];
+          for (let j = 0; j < 16; j++) { const t = j / 16, t2 = t * t, t3 = t2 * t;
+            dense.push(V(0, 0, 0).addScaledVector(p0, -0.5 * t3 + t2 - 0.5 * t).addScaledVector(p1, 1.5 * t3 - 2.5 * t2 + 1).addScaledVector(p2, -1.5 * t3 + 2 * t2 + 0.5 * t).addScaledVector(p3, 0.5 * t3 - 0.5 * t2)); tag.push(i + t); } }
+        dense.push(P[P.length - 1].clone()); tag.push(P.length - 1);
+        const cum = [0]; for (let i = 1; i < dense.length; i++) cum.push(cum[i - 1] + dense[i].distanceTo(dense[i - 1]));
+        const total = cum[cum.length - 1] || 1e-6, out = []; let j = 0;
+        for (let k = 0; k < n; k++) { const s = total * k / (n - 1); while (j < dense.length - 2 && cum[j + 1] < s) j++;
+          const w = Math.max(0, Math.min(1, (s - cum[j]) / ((cum[j + 1] - cum[j]) || 1e-6)));
+          out.push({ p: dense[j].clone().lerp(dense[j + 1], w), u: tag[j] + (tag[j + 1] - tag[j]) * w }); }
+        out.forEach(function(o, k) { const a = out[Math.max(0, k - 1)].p, b = out[Math.min(n - 1, k + 1)].p; o.t = b.clone().sub(a).normalize(); });
+        return out;
+      };
+      const stationVal = function(vals, u) { const i = Math.max(0, Math.min(vals.length - 2, Math.floor(u))); const w = Math.max(0, Math.min(1, u - i)); return vals[i] + (vals[i + 1] - vals[i]) * w; };
+      const dq = function(n) { return B[n].getWorldQuaternion(new THREE.Quaternion()).multiply(rest[n].q.clone().invert()); };
+      function buildRobe() {
+        const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+        const L = function(n) { return wp(n).applyMatrix4(inv); };
+        const floorY = -root.position.y + 0.004;
+        const thR = L('thigh_r'), thL = L('thigh_l'), kR = L('calf_r'), kL = L('calf_l'), aR = L('foot_r'), aL = L('foot_l');
+        const s1 = L('spine_01'), s2 = L('spine_02'), s3 = L('spine_03'), nk = L('neck_01'), hd = L('Head');
+        const uaR = L('upperarm_r'), uaL = L('upperarm_l');
+        const hipMid = thR.clone().add(thL).multiplyScalar(0.5), kneeMid = kR.clone().add(kL).multiplyScalar(0.5);
+        const fr = function(n) { const q = dq(n); return { l: RIGHT.clone().applyQuaternion(q), f: FWD.clone().applyQuaternion(q), u: V(0, 1, 0).applyQuaternion(q) }; };
+        const fP = fr('pelvis'), f1 = fr('spine_01'), f3 = fr('spine_03');
+        const shR = uaR.clone().lerp(uaL, 0.04), shL = uaL.clone().lerp(uaR, 0.04);
+        const one = V(1, 0, 0);
+        const prims = [
+          prim(hipMid.clone().addScaledVector(fP.u, -0.05), s1, fP.l, fP.f, 0.165, 0.095, 0.12),
+          prim(s1, s2, f1.l, f1.f, 0.14, 0.095, 0.085),
+          prim(s2, s3.clone().addScaledVector(f3.u, 0.08), f3.l, f3.f, 0.155, 0.105, 0.095),
+          prim(shL, shR, f3.u, f3.f, 1, 1, 1, 0.055),
+          prim(nk, shR, one, f3.f, 1, 1, 1, 0.045), prim(nk, shL, one, f3.f, 1, 1, 1, 0.045),
+          prim(nk, hd, one, f3.f, 1, 1, 1, 0.052),
+          prim(thR, kR, one, fP.f, 1, 1, 1, 0.082, 0.062), prim(thL, kL, one, fP.f, 1, 1, 1, 0.082, 0.062),
+          prim(kR, aR, one, fP.f, 1, 1, 1, 0.065, 0.045), prim(kL, aL, one, fP.f, 1, 1, 1, 0.065, 0.045)
+        ];
+        // давят ткань: предплечья (в рукавах) и ладони
+        const press = [];
+        ['_r', '_l'].forEach(function(sx) { const e = L('lowerarm' + sx), h = L('hand' + sx);
+          press.push(prim(e, h, one, fP.f, 1, 1, 1, 0.062, 0.05));
+          const pc = h.clone().lerp(L('middle_01' + sx), 0.6); press.push(prim(pc, pc, one, fP.f, 1, 1, 1, 0.05)); });
+        // линия камиса
+        const thighDir = kneeMid.clone().sub(hipMid).normalize();
+        const hemLen = Math.max(0.02, Math.min(0.21, kneeMid.y - floorY));
+        const P = [nk.clone().addScaledVector(f3.u, 0.005), s3, s2, s1, hipMid, hipMid.clone().addScaledVector(thighDir, 0.22), kneeMid, kneeMid.clone().add(V(0, -hemLen, 0))];
+        const slackV = [0.012, 0.03, 0.035, 0.04, 0.046, 0.052, 0.062, 0.078];
+        const sagV = [0, 0.012, 0.02, 0.026, 0.03, 0.04, 0.05, 0.05];
+        const foldV = [0, 0.002, 0.003, 0.004, 0.005, 0.007, 0.009, 0.012];
+        const latHip = thR.clone().sub(thL).normalize(), latSh = uaR.clone().sub(uaL).normalize();
+        const S = pathSample(P, RN);
+        const att = robe.geometry.attributes.position;
+        const TMAX = 0.36, ST = 0.015, rings = [];
+        // точка тела относится к кольцу, только если это кольцо (или соседнее) — ближайшее к ней:
+        // иначе на изгибах (таз ↔ бёдра) косое сечение «цепляет» бедро или спину далеко от себя
+        const nearRing = function(q) { let bi = 0, bd = 1e9; for (let i = 0; i < S.length; i++) { const d = S[i].p.distanceToSquared(q); if (d < bd) { bd = d; bi = i; } } return bi; };
+        S.forEach(function(st, r) {
+          const T = st.t, c = st.p;
+          const wSh = Math.max(0, Math.min(1, 1 - st.u / 3));
+          const lx = latHip.clone().lerp(latSh, wSh); lx.sub(T.clone().multiplyScalar(lx.dot(T))).normalize();
+          const fz = new THREE.Vector3().crossVectors(lx, T).normalize();
+          const near = r === 0 ? [prims[6]] : prims.filter(function(Pm) { return Pm.mid.distanceTo(c) < Pm.br + TMAX; });
+          const pts = [], q = V();
+          for (let k = 0; k < RB; k++) { const th = k / RB * Math.PI * 2, cx = Math.cos(th), sy = Math.sin(th);
+            const d = lx.clone().multiplyScalar(cx).addScaledVector(fz, sy);
+            let hit = -1; for (let t = TMAX; t >= 0; t -= ST) { q.copy(c).addScaledVector(d, t); if (inAny(near, q) && (r === 0 || Math.abs(nearRing(q) - r) <= 2)) { hit = t; break; } }
+            if (hit >= 0) { let lo = hit, hi = hit + ST; for (let it = 0; it < 5; it++) { const m = (lo + hi) / 2; q.copy(c).addScaledVector(d, m); if (inAny(near, q)) lo = m; else hi = m; } pts.push([lo * cx, lo * sy]); } }
+          const Hh = pts.length >= 3 ? hull2(pts) : null;
+          const slack = stationVal(slackV, st.u), sag = stationVal(sagV, st.u), fold = stationVal(foldV, st.u);
+          const R = [];
+          for (let k = 0; k < RB; k++) { const th = k / RB * Math.PI * 2, cx = Math.cos(th), sy = Math.sin(th);
+            let h = Hh ? rayHull(Hh, cx, sy) : -1; if (h < 0) h = 0.05;
+            const d = lx.clone().multiplyScalar(cx).addScaledVector(fz, sy);
+            const down = Math.max(0, -d.y);
+            R.push({ d: d, h: h, r: h + slack + sag * down * Math.sqrt(down) + fold * Math.sin(th * 9 + r * 0.35) }); }
+          // сгладить по кругу
+          const rr = R.map(function(o) { return o.r; });
+          for (let k = 0; k < RB; k++) { R[k].r = Math.max(R[k].h + slack * 0.6, (rr[(k + RB - 1) % RB] + 2 * rr[k] + rr[(k + 1) % RB]) / 4); R[k].min = R[k].h + slack * 0.5; }
+          rings.push({ c: c, R: R });
+        });
+        // сгладить вдоль камиса (без «поясов» на стыках форм тела)
+        for (let it = 0; it < 3; it++) for (let k = 0; k < RB; k++) {
+          const col = rings.map(function(g) { return g.R[k].r; });
+          for (let r = 2; r < RN - 1; r++) { const o = rings[r].R[k]; o.r = Math.max(o.min, (col[r - 1] + 2 * col[r] + col[r + 1]) / 4); } }
+        rings.forEach(function(g, r) { const c = g.c, R = g.R, q = V();
+          for (let k = 0; k < RB; k++) { const o = R[k]; let rad = o.r, guard = 0;
+            while (rad > o.h + 0.008 && guard++ < 24) { q.copy(c).addScaledVector(o.d, rad); if (!inAny(press, q)) break; rad -= 0.006; }
+            q.copy(c).addScaledVector(o.d, rad); if (q.y < floorY) q.y = floorY;
+            att.setXYZ(r * RB + k, q.x, q.y, q.z); }
+        });
+        att.needsUpdate = true; robe.geometry.computeVertexNormals(); robe.geometry.computeBoundingSphere();
+        // рукава: от плеча (внутри камиса) до запястья, книзу провисают
+        ['_r', '_l'].forEach(function(sx, si) {
+          const cl = L('clavicle' + sx), ua = L('upperarm' + sx), el = L('lowerarm' + sx), hn = L('hand' + sx);
+          const faD = hn.clone().sub(el).normalize();
+          const Q = [cl.clone().lerp(ua, 0.45), ua, el, hn.clone().addScaledVector(faD, -0.012)];
+          const rV = [0.05, 0.074, 0.062, 0.037];
+          const Ss = pathSample(Q, SN), ga = sleeves[si].geometry.attributes.position;
+          let lx = null;
+          Ss.forEach(function(st, r) { const T = st.t;
+            if (!lx) { lx = Math.abs(T.y) < 0.9 ? V(0, 1, 0).cross(T) : V(1, 0, 0).cross(T); }
+            lx.sub(T.clone().multiplyScalar(lx.dot(T))).normalize();
+            const fz = new THREE.Vector3().crossVectors(lx, T).normalize();
+            const rad = stationVal(rV, st.u), last = r === SN - 1;
+            for (let k = 0; k < SB; k++) { const th = k / SB * Math.PI * 2; const d = lx.clone().multiplyScalar(Math.cos(th)).addScaledVector(fz, Math.sin(th));
+              const down = Math.max(0, -d.y);
+              const p = st.p.clone().addScaledVector(d, rad + (last ? 0 : 0.016 * down * Math.min(1, st.u)) + (last ? 0 : 0.002 * Math.sin(th * 5 + r)));
+              if (p.y < floorY) p.y = floorY; ga.setXYZ(r * SB + k, p.x, p.y, p.z); } });
+          ga.needsUpdate = true; sleeves[si].geometry.computeVertexNormals(); sleeves[si].geometry.computeBoundingSphere();
+        });
+      }
+      function dispose() { [body, robe, sleeves[0], sleeves[1], kufi].forEach(function(m) { try { m.geometry.dispose(); } catch (e) {} }); }
+      return { display: display, setFrame: setFrame, getPose: getPose, dispose: dispose, B: B };
+    }
+
+    // ----- «Что читать» в каждом действии намаза (build 6.05) -----
+    // Арабский текст и смысловой перевод зикров — из «Дуа и зикры» (Хисн
+    // аль-муслим, там же живая запись ▶); аль-Фатиха и сура — из того же
+    // источника, что и чтение Корана в приложении (api.alquran.cloud:
+    // quran-uthmani + ru.kuliev / kk.altai, с кэшем). Транскрипция кириллицей
+    // (рус./каз.) — в этом файле.
+    const HS_TX = {
+      niyyah: { special: 'niyyah', t: 'Намерение (ният)', tk: 'Ниет' },
+      takbir: { t: 'Такбир', tk: 'Тәкбір', ar: 'اللّٰهُ أَكْبَرُ', tr: ['Аллаху акбар', 'Аллаһу акбар'], m: ['«Аллах велик»', '«Аллаһ ұлы»'] },
+      sana: { t: 'Сана (вступительная хвала)', tk: 'Сәнә (ашу мадағы)', hisn: '28',
+        tr: ['Субханака-Ллахумма ва би-хамдика, ва табарака-смука, ва та‘аля джаддука, ва ля иляха гайрук', 'Субханакә Аллаһуммә уә бихамдикә, уә тәбәракәсмукә, уә тәғалә жәддукә, уә лә иләһә ғайрук'] },
+      taawwudh: { t: 'А‘узу (прибегание к Аллаху)', tk: 'Әғузу (Аллаһқа сиыну)', ar: 'أَعُوذُ بِاللّٰهِ مِنَ الشَّيْطَانِ الرَّجِيمِ',
+        tr: ['А‘узу би-Лляхи мин аш-шайтани-р-раджим', 'Әғузу билләһи минәш-шайтанир-ражим'], m: ['«Прибегаю к защите Аллаха от проклятого шайтана»', '«Қуылған шайтаннан Аллаһқа сиынамын»'] },
+      basmala: { t: 'Басмала', tk: 'Бисмилләһ', ar: 'بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيمِ',
+        tr: ['Бисми-Лляхи-р-Рахмани-р-Рахим', 'Бисмилләһир-Рахмәнир-Рахим'], m: ['«Во имя Аллаха, Милостивого, Милосердного»', '«Аса қайырымды, ерекше мейірімді Аллаһтың атымен»'] },
+      fatiha: { special: 'surah', n: 1, t: 'Сура аль-Фатиха', tk: 'Әл-Фатиха сүресі' },
+      amin: { t: '«Амин» — про себя', tk: '«Әмин» — іштей', ar: 'آمِين', tr: ['Амин', 'Әмин'], m: ['«О Аллах, прими»', '«Уа, Аллаһ, қабыл ет»'] },
+      surah: { special: 'surah', t: 'Сура после аль-Фатихи', tk: 'Әл-Фатихадан кейінгі сүре' },
+      rukuTasbih: { t: 'В руку‘ — трижды', tk: 'Рукұғта — үш рет', hisn: '33', times: 3, tr: ['Субхана Раббияль-‘Азым', 'Субхана Раббиял-ғазим'] },
+      tasmi: { t: 'При выпрямлении', tk: 'Түзелгенде', ar: 'سَمِعَ اللّٰهُ لِمَنْ حَمِدَهُ', tr: ['Сами‘а-Ллаху ли-ман хамидах', 'Сәмиғаллаһу лимән хәмидаһ'], m: ['«Слышит Аллах тех, кто Его восхваляет»', '«Аллаһ Өзін мақтағанды естиді»'] },
+      tahmid: { t: 'Стоя', tk: 'Тұрып', ar: 'رَبَّنَا وَلَكَ الْحَمْدُ', tr: ['Раббана ва ляка-ль-хамд', 'Раббанә уә ләкәл-хамд'], m: ['«Господь наш, Тебе вся хвала»', '«Раббымыз, Саған мақтау болсын»'] },
+      sujudTasbih: { t: 'В суджуде — трижды', tk: 'Сәждеде — үш рет', hisn: '41', times: 3, tr: ['Субхана Раббияль-А‘ля', 'Субхана Раббиял-әғлә'] },
+      tashahhud: { t: 'Ташаххуд (ат-тахийят)', tk: 'Тәшәһһуд (әт-тахийят)', hisn: '52',
+        tr: ['Ат-тахийяту ли-Лляхи ва-с-саляуату ва-т-таййибат. Ас-саляму ‘аляйка аййуха-н-набиййу ва рахмату-Ллахи ва баракятух. Ас-саляму ‘аляйна ва ‘аля ‘ибади-Лляхи-с-салихин. Ашхаду алля иляха илля-Ллах, ва ашхаду анна Мухаммадан ‘абдуху ва расулюх',
+             'Әт-тахийяту лилләһи уәс-саләуәту уәт-таййибәт. Әссәләму ғаләйкә әййуһән-нәбиййу уә рахматуллаһи уә бәрәкәтуһ. Әссәләму ғаләйнә уә ғалә ғибәдилләһис-салихин. Әшһәду әл лә иләһә иллаллаһ, уә әшһәду әннә Мухаммәдән ғабдуһу уә расулуһ'] },
+      salawat: { t: 'Салават Ибрахима', tk: 'Ибраһим салауаты', hisn: '53',
+        tr: ['Аллахумма салли ‘аля Мухаммадин ва ‘аля али Мухаммад, кама салляйта ‘аля Ибрахима ва ‘аля али Ибрахим, иннака Хамидун Маджид. Аллахумма барик ‘аля Мухаммадин ва ‘аля али Мухаммад, кама баракта ‘аля Ибрахима ва ‘аля али Ибрахим, иннака Хамидун Маджид',
+             'Аллаһуммә салли ғалә Мухаммәдин уә ғалә әли Мухаммәд, кәмә салләйтә ғалә Ибраһимә уә ғалә әли Ибраһим, иннәкә Хәмидун Мәжид. Аллаһуммә бәрик ғалә Мухаммәдин уә ғалә әли Мухаммәд, кәмә бәрактә ғалә Ибраһимә уә ғалә әли Ибраһим, иннәкә Хәмидун Мәжид'] },
+      dua: { t: 'Дуа перед саламом (например)', tk: 'Сәлем алдындағы дұға (мысалы)', hisn: '57',
+        tr: ['Аллахумма инни залямту нафси зульман касиран, ва ля йагфиру-з-зунуба илля Анта, фа-гфир ли магфиратан мин ‘индика ва-рхамни, иннака Анта-ль-Гафуру-р-Рахим',
+             'Аллаһуммә инни заләмту нәфси зулмән кәсирән, уә лә йағфируз-зунубә иллә әнтә, фағфир ли мағфиратән мин ғиндикә уәрхәмни, иннәкә әнтәл-Ғафурур-Рахим'] },
+      salam: { t: 'Салам', tk: 'Сәлем', ar: 'السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللّٰهِ', tr: ['Ас-саляму ‘алейкум ва рахмату-Ллах', 'Әссәләму ғәләйкум уә рахматуллаһ'], m: ['«Мир вам и милость Аллаха»', '«Сіздерге Аллаһтың сәлемі мен рахымы болсын»'] },
+      afterSalam: { t: 'Сразу после салама', tk: 'Сәлемнен кейін бірден', hisn: '66',
+        tr: ['Астагфиру-Ллах (трижды). Аллахумма Анта-с-Салям ва минка-с-салям, табаракта йа За-ль-джаляли ва-ль-икрам', 'Әстағфируллаһ (үш рет). Аллаһуммә әнтәс-Сәләм уә минкәс-сәләм, тәбәрактә йә Зәл-жәләли уәл-икрам'] },
+      rabbana: { t: 'Дуа своими словами или из Корана, например', tk: 'Өз сөзіңізбен немесе Құраннан дұға, мысалы', hisn: '235',
+        tr: ['Раббана атина фи-д-дунья хасанатан ва фи-ль-ахырати хасанатан ва кына ‘азаба-н-нар', 'Раббәнә әтинә фид-дунйә хасанатән уә фил-әхирати хасанатән уә қинә ғазәбән-нәр'] }
+    };
+    // Транскрипция аль-Фатихи и коротких сур по аятам: [рус, каз]
+    const HS_SURAH_TR = {
+      1: [['Бисми-Лляхи-р-Рахмани-р-Рахим', 'Бисмилләһир-Рахмәнир-Рахим'], ['Аль-хамду ли-Лляхи Рабби-ль-‘алямин', 'Әлхамду лилләһи Раббил-ғәләмин'], ['Ар-Рахмани-р-Рахим', 'Әр-Рахмәнир-Рахим'], ['Малики йауми-д-дин', 'Мәлики йәумид-дин'], ['Иййака на‘буду ва иййака наста‘ин', 'Иййәкә нәғбуду уә иййәкә нәстағин'], ['Ихдина-с-сырата-ль-мустакым', 'Ихдинас-сыратал-мустақим'], ['Сырата-ллязина ан‘амта ‘алейхим, гайри-ль-магдуби ‘алейхим ва ля-д-даллин', 'Сыраталлазинә әнғамтә ғаләйһим, ғайрил-мағдуби ғаләйһим уә ләд-дәллин']],
+      112: [['Куль хуа-Ллаху ахад', 'Құл һуаллаһу әхад'], ['Аллаху-с-самад', 'Аллаһус-самад'], ['Лям йалид ва лям йуляд', 'Ләм йәлид уә ләм йуләд'], ['Ва лям йакун ляху куфуван ахад', 'Уә ләм йәкун ләһу куфуән әхад']],
+      108: [['Инна а‘тайна-кя-ль-каусар', 'Иннә ағтайнәкәл-кәусәр'], ['Фа-салли ли-Раббика ва-нхар', 'Фәсалли лираббикә уәнхар'], ['Инна шани’ака хуа-ль-абтар', 'Иннә шәниәкә һуәл-әбтар']],
+      103: [['Валь-‘аср', 'Уәл-ғаср'], ['Инна-ль-инсана ляфи хуср', 'Иннәл-инсәнә ләфи хуср'], ['Илля-ллязина аману ва ‘амилю-с-салихати ва тауасау би-ль-хакки ва тауасау би-с-сабр', 'Илләлләзинә әмәну уә ғамилус-салихати уә тәуәсау бил-хаққи уә тәуәсау бис-сабр']],
+      113: [['Куль а‘узу би-Рабби-ль-фалякъ', 'Құл әғузу бираббил-фәләқ'], ['Мин шарри ма халякъ', 'Мин шәрри мә халақ'], ['Ва мин шарри гасикын иза вакаб', 'Уә мин шәрри ғасиқин изә уақаб'], ['Ва мин шарри-н-наффасати фи-ль-‘укъад', 'Уә мин шәррин-нәффәсәти фил-ғуқад'], ['Ва мин шарри хасидин иза хасад', 'Уә мин шәрри хәсидин изә хәсәд']],
+      114: [['Куль а‘узу би-Рабби-н-нас', 'Құл әғузу бираббин-нәс'], ['Малики-н-нас', 'Мәликин-нәс'], ['Иляхи-н-нас', 'Иләһин-нәс'], ['Мин шарри-ль-васваси-ль-ханнас', 'Мин шәррил-уәсуәсил-ханнәс'], ['Аллязи йуасвису фи судури-н-нас', 'Әлләзи йууәсуису фи судурин-нәс'], ['Мина-ль-джиннати ва-н-нас', 'Минәл-жиннәти уән-нәс']]
+    };
+    const HS_SURAHS = [[112, 'аль-Ихлас', 'Ықылас'], [108, 'аль-Каусар', 'Кәусәр'], [103, 'аль-‘Аср', 'Ғаср'], [113, 'аль-Фаляк', 'Фәләқ'], [114, 'ан-Нас', 'Нас']];
+    // Сура: арабский + перевод (рус. Кулиев / каз. Алтай), кэш в localStorage; офлайн — встроенные данные
+    const _hsSurahCache = {};
+    function hsLoadSurah(n, kk) {
+      const key = (kk ? 'kk' : 'ru') + n;
+      if (_hsSurahCache[key]) return _hsSurahCache[key];
+      const ed = kk ? 'kk.altai' : 'ru.kuliev';
+      const lsKey = 'quran_hs_surah_' + key;
+      try { const c = JSON.parse(localStorage.getItem(lsKey) || 'null'); if (c && c.length) { _hsSurahCache[key] = Promise.resolve(c); return _hsSurahCache[key]; } } catch (e) {}
+      const strip = function(t, i) { t = String(t || ''); if (n !== 1 && i === 0) t = t.replace(/^\s*بِسْمِ\s+[ٱا]للَّهِ\s+[ٱا]لرَّحْمَٰنِ\s+[ٱا]لرَّحِيمِ\s*/, ''); return t.trim(); };
+      _hsSurahCache[key] = Promise.all([
+        fetch('https://api.alquran.cloud/v1/surah/' + n + '/quran-uthmani').then(function(r) { return r.json(); }),
+        fetch('https://api.alquran.cloud/v1/surah/' + n + '/' + ed).then(function(r) { return r.json(); })
+      ]).then(function(res) {
+        const a = res[0].data.ayahs, t = res[1].data.ayahs;
+        const out = a.map(function(x, i) { return { ar: strip(x.text, i), tr: t[i] ? t[i].text : '' }; });
+        try { localStorage.setItem(lsKey, JSON.stringify(out)); } catch (e) {}
+        return out;
+      }).catch(function() {
+        _hsSurahCache[key] = null;
+        // без сети: встроенные данные приложения
+        if (n === 1 && typeof FATIHA_LESSON !== 'undefined') return FATIHA_LESSON.map(function(x) { return { ar: x.full, tr: kk ? '' : (x.fullTr || '') }; });
+        if (typeof OFFLINE_SURAHS !== 'undefined' && OFFLINE_SURAHS[n]) return OFFLINE_SURAHS[n].ayahs.map(function(x, i) { return { ar: strip(x.text, i), tr: kk ? '' : (x.translation || '') }; });
+        return null;
+      });
+      return _hsSurahCache[key];
+    }
+    function _hsClean(ar) { return String(ar || '').replace(/[()﴾﴿]/g, '').replace(/\s*(ثلاث\s*مرَّاتٍ|ثَلاَثَاً|ثلاثاً)\.?\s*/g, ' ').replace(/\s+\./g, '.').trim(); }
+    // html одного текста; surahN — выбранная сура; ctx — для намерения
+    function hsTextHtml(id, kk, ctx) {
+      const T = HS_TX[id]; if (!T) return '';
+      const L = kk ? 1 : 0;
+      const esc = function(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+      const head = function(extra) { return '<div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.7rem"><b style="flex:1">' + esc(kk ? T.tk : T.t) + (T.times ? ' <span style="color:var(--accent)">×' + T.times + '</span>' : '') + '</b>' + (extra || '') + '</div>'; };
+      if (T.special === 'niyyah') {
+        return head() + '<div class="ayah-translation" style="margin-top:0.2rem;line-height:1.55">' + esc(ctx && ctx.niyyah ? ctx.niyyah[L] : '') + '</div>' +
+          '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.15rem">' + (kk ? 'Ниет — жүрекпен; тілмен айту міндетті емес.' : 'Намерение — сердцем; произносить вслух не обязательно.') + '</div>';
+      }
+      if (T.special === 'surah') {
+        const n = T.n || (ctx && ctx.surah) || 112;
+        const nm = T.n ? (kk ? T.tk : T.t) : (function() { const s = HS_SURAHS.find(function(x) { return x[0] === n; }); return (kk ? T.tk : T.t) + (s ? ': ' + s[L + 1] : ''); })();
+        return '<div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.7rem"><b style="flex:1">' + esc(nm) + '</b></div>' +
+          '<div class="hs-surah" data-hs-surah="' + n + '" style="margin-top:0.2rem"><span style="color:var(--text-muted);font-size:0.85rem">' + (kk ? 'Жүктелуде…' : 'Загрузка…') + '</span></div>';
+      }
+      let ar = T.ar, m = T.m ? T.m[L] : '';
+      if (T.hisn && typeof HISN_ITEMS !== 'undefined') { const it = HISN_ITEMS.find(function(x) { return String(x.a) === T.hisn; }); if (it) { ar = _hsClean(it.ar); m = kk ? it.kk : it.ru; } }
+      const play = T.hisn ? '<button type="button" class="btn btn-sm" data-hisn-play="' + T.hisn + '" title="' + (kk ? 'Тыңдау' : 'Слушать') + '">▶</button>' : '';
+      return head(play) +
+        (ar ? '<div class="arabic" dir="rtl" style="font-size:calc(1.35rem * var(--ar-scale, 1));line-height:2;margin-top:0.15rem">' + esc(ar) + '</div>' : '<div style="font-size:0.8rem;color:var(--text-muted)">…</div>') +
+        '<div style="color:var(--accent);font-weight:600;line-height:1.5">' + esc(T.tr[L]) + '</div>' +
+        (m ? '<div class="ayah-translation" style="margin-top:0.15rem;line-height:1.5">' + esc(m) + '</div>' : '');
+    }
+    // дозаполнить блоки сур после загрузки
+    function hsFillSurahs(root, kk) {
+      root.querySelectorAll('[data-hs-surah]').forEach(function(box) {
+        const n = parseInt(box.getAttribute('data-hs-surah'), 10);
+        const p = hsLoadSurah(n, kk);
+        (p || Promise.resolve(null)).then(function(ay) {
+          if (!box.isConnected) return;
+          const trs = HS_SURAH_TR[n] || [];
+          if (!ay) { box.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem">' + (kk ? 'Мәтін жүктелмеді — интернетті тексеріңіз.' : 'Текст не загрузился — проверьте интернет.') + '</span>'; return; }
+          const esc = function(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+          box.innerHTML = ay.map(function(a, i) {
+            return '<div style="margin-top:0.35rem;border-left:2px solid var(--border);padding-left:0.5rem">' +
+              '<div class="arabic" dir="rtl" style="font-size:calc(1.3rem * var(--ar-scale, 1));line-height:2">' + esc(a.ar) + ' <span style="font-size:0.8rem;color:var(--text-muted)">(' + (i + 1) + ')</span></div>' +
+              (trs[i] ? '<div style="color:var(--accent);font-weight:600;line-height:1.45">' + esc(trs[i][kk ? 1 : 0]) + '</div>' : '') +
+              (a.tr ? '<div class="ayah-translation" style="line-height:1.45">' + esc(a.tr) + '</div>' : '') + '</div>';
+          }).join('') + '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.25rem">' + (kk ? 'Мағынасы: Х. Алтай аудармасы.' : 'Смысл: перевод Э. Кулиева.') + '</div>';
+        });
+      });
     }
 
     // ----- Раздел «Как читать намаз» (Ещё → Как читать намаз) -----
@@ -14477,13 +15133,13 @@ function renderDictation(area) {
         nk: 'Парыздың соңғы ракағаттарында тек әл-Фатиха оқылады, қосымша сүре қажет емес.',
         fard: { arkan: [0, 1] }, sunna: { sunan: [32, 8] }, more: { mustahabb: [1] } },
       ruku: { pose: 'ruku', gaze: 'feet', detail: ['knee'],
-        say: { ar: 'سُبْحَانَ رَبِّيَ الْعَظِيمِ', ru: 'Субхана Раббияль-‘Азым ×3 — «Пречист мой Великий Господь»', kk: 'Субхана Раббиял-ғазым ×3 — «Ұлы Раббым пәк»' },
+        say: { ar: 'سُبْحَانَ رَبِّيَ الْعَظِيمِ', ru: 'Субхана Раббияль-‘Азым ×3 — «Слава моему Великому Господу»', kk: 'Субхана Раббиял-ғазым ×3 — «Ұлы Раббыма мадақ болсын»' },
         t: 'Руку‘ — поясной поклон', tk: 'Рукұғ — белге дейін иілу',
         n: 'С такбиром наклонитесь: спина прямая и горизонтальная, голова на одном уровне со спиной, голени вертикальны. Ладони обхватывают колени, пальцы раздвинуты, локти в стороне от боков. Взгляд — на стопы.',
         nk: 'Тәкбірмен иіліңіз: арқа түзу әрі көлденең, бас арқамен бір деңгейде, балтыр тік. Алақан тізені ұстайды, саусақтар ашық, шынтақ бүйірден алшақ. Көз — табанда.',
         fard: { arkan: [2] }, wajib: { wajib: [5] }, sunna: { sunan: [13, 14, 15, 16, 17] }, more: { mustahabb: [2] } },
       qawma: { pose: 'stand', gaze: 'mat',
-        say: { ar: 'سَمِعَ اللّٰهُ لِمَنْ حَمِدَهُ — رَبَّنَا لَكَ الْحَمْدُ', ru: 'Сами‘а-Ллаху ли-ман хамидах — Раббана ляка-ль-хамд', kk: 'Сәмиғаллаһу лимән хәмидаһ — Раббанә ләкәл-хамд' },
+        say: { ar: 'سَمِعَ اللّٰهُ لِمَنْ حَمِدَهُ — رَبَّنَا وَلَكَ الْحَمْدُ', ru: 'Сами‘а-Ллаху ли-ман хамидах — Раббана ва ляка-ль-хамд', kk: 'Сәмиғаллаһу лимән хәмидаһ — Раббанә уә ләкәл-хамд' },
         t: 'Выпрямление после руку‘ (кауме)', tk: 'Рукұғтан түзелу (қаума)',
         n: 'Выпрямитесь полностью, руки опущены вдоль тела. Постойте спокойно, пока тело не замрёт (таманина). Молящийся один произносит обе фразы.',
         nk: 'Толық түзеліңіз, қол дене бойымен түсірулі. Дене толық тынышталғанша тұрыңыз (тағмәнина). Жалғыз оқитын кісі екі сөзді де айтады.',
@@ -14495,7 +15151,7 @@ function renderDictation(area) {
         nk: 'Тәкбірмен түсіңіз: еденге алдымен тізе, содан кейін алақан, сосын мұрын мен маңдай тиеді.',
         sunna: { sunan: [19, 20] } },
       sajda: { pose: 'sajda', gaze: 'nose', detail: ['sajdaHands', 'sajdaFeet'],
-        say: { ar: 'سُبْحَانَ رَبِّيَ الْأَعْلَى', ru: 'Субхана Раббияль-А‘ля ×3 — «Пречист мой Всевышний Господь»', kk: 'Субхана Раббиял-ағла ×3 — «Ең жоғары Раббым пәк»' },
+        say: { ar: 'سُبْحَانَ رَبِّيَ الْأَعْلَى', ru: 'Субхана Раббияль-А‘ля ×3 — «Слава моему Всевышнему Господу»', kk: 'Субхана Раббиял-ағла ×3 — «Ең Жоғары Раббыма мадақ болсын»' },
         t: 'Суджуд — земной поклон', tk: 'Сәжде',
         n: 'Лоб и нос на полу, лицо между ладонями, большие пальцы на уровне ушей, пальцы рук сомкнуты и направлены к кибле. Живот отдалён от бёдер, локти — от боков, предплечья не лежат на полу. Стопы стоят на пальцах, загнутых к кибле. Взгляд — на кончик носа.',
         nk: 'Маңдай мен мұрын еденде, бет екі алақанның арасында, бас бармақтар құлақ тұсында, қол саусақтары жұмулы, құбылаға қарайды. Іш саннан, шынтақ бүйірден алшақ, білек еденге жайылмайды. Табан құбылаға бүгілген саусақтарда тұрады. Көз — мұрынның ұшында.',
@@ -14515,21 +15171,21 @@ function renderDictation(area) {
       rise: { pose: 'rise', gaze: 'mat',
         say: { ar: 'اللّٰهُ أَكْبَرُ', ru: 'Аллаху акбар', kk: 'Аллаһу акбар' },
         t: 'Подъём на следующий ракаат', tk: 'Келесі ракағатқа тұру',
-        n: 'Поднимаются в обратном порядке: лоб и нос, затем ладони, затем колени. Встают сразу, без сидения для отдыха, упираясь ладонями в колени, а не в пол.',
-        nk: 'Кері ретпен көтеріледі: маңдай мен мұрын, содан кейін алақан, сосын тізе. Демалу үшін отырмай, бірден, алақанды еденге емес, тізеге тіреп тұрады.',
+        n: 'Поднимаются в обратном порядке: лоб и нос, затем ладони, затем колени. Встают сразу, не засиживаясь для отдыха и не опираясь руками о пол.',
+        nk: 'Кері ретпен көтеріледі: маңдай мен мұрын, содан кейін алақан, сосын тізе. Демалу үшін отырмай, қолды еденге тіремей, бірден тұрады.',
         sunna: { sunan: [21, 28] } },
       qada1: { pose: 'sit', gaze: 'lap', detail: ['iftirash'],
         say: { ar: 'التَّحِيَّاتُ لِلّٰهِ … عَبْدُهُ وَرَسُولُهُ', ru: 'Ташаххуд до «‘абдуху ва расулюх»', kk: 'Тәшәһһуд «ғабдуһу уә расулуһ» дегенге дейін' },
-        t: 'Первое сидение (после 2-го ракаата)', tk: 'Бірінші отырыс (2-ракағаттан кейін)',
-        n: 'В намазе из 3 или 4 ракаатов после второго ракаата садятся и читают только ташаххуд, затем сразу встают.',
-        nk: '3 немесе 4 ракағатты намазда екінші ракағаттан кейін отырып, тек тәшәһһуд оқылады, содан кейін бірден тұрады.',
+        t: 'Первое сидение — ваджиб (после 2-го ракаата)', tk: 'Бірінші отырыс — уәжіп (2-ракағаттан кейін)',
+        n: 'В любом намазе из 3 или 4 ракаатов (и фарз, и сунна) после второго ракаата садятся — это ваджиб. Читают только ташаххуд (тоже ваджиб) и сразу встают на третий ракаат.',
+        nk: '3 немесе 4 ракағатты кез келген намазда (парыз да, сүннет те) екінші ракағаттан кейін отыру — уәжіп. Тек тәшәһһуд оқылады (бұл да уәжіп) және бірден үшінші ракағатқа тұрады.',
         wajib: { wajib: [6, 7] }, sunna: { sunan: [30, 31] }, more: { mustahabb: [4, 8] } },
       rise3: { pose: 'rise', gaze: 'mat',
         say: { ar: 'اللّٰهُ أَكْبَرُ', ru: 'Аллаху акбар', kk: 'Аллаһу акбар' },
         t: 'Подъём на третий ракаат', tk: 'Үшінші ракағатқа тұру',
-        n: 'Сразу после ташаххуда, без задержки (салават здесь не читают), с такбиром встают, упираясь ладонями в колени.',
-        nk: 'Тәшәһһудтан кейін бірден, кідірмей (мұнда салауат оқылмайды), тәкбірмен алақанды тізеге тіреп тұрады.',
-        wajib: { wajib: [8] }, sunna: { sunan: [21, 28] } },
+        n: 'Сразу после ташаххуда, без задержки (салават читают только в последнем сидении), с такбиром встают, не опираясь руками о пол.',
+        nk: 'Тәшәһһудтан кейін бірден, кідірмей (салауат тек соңғы отырыста оқылады), тәкбірмен, қолды еденге тіремей тұрады.',
+        wajib: { wajib: [8] }, sunna: { sunan: [21, 28, 33] } },
       qada: { pose: 'sit', gaze: 'lap', detail: ['iftirash'],
         say: { ar: 'التَّحِيَّاتُ لِلّٰهِ وَالصَّلَوَاتُ وَالطَّيِّبَاتُ …', ru: 'Ат-тахийяту ли-Лляхи ва-с-саляувату ва-т-таййибат…', kk: 'Әт-тахийяту лилләһи уәс-саләуәту уәт-таййибәт…' },
         t: 'Последнее сидение: ташаххуд', tk: 'Соңғы отырыс: тәшәһһуд',
@@ -14648,10 +15304,73 @@ function renderDictation(area) {
       sahw: { ru: 'Саджда сахв (земной поклон забывчивости) — ваджиб, если по забывчивости пропущен или отложен ваджиб: например, не прочитана сура после аль-Фатихи в первых двух ракаатах, забыто первое сидение, забыт кунут в витре. Если ваджиб пропущен намеренно — саджда сахв не восполняет, намаз нужно повторить. Если пропущен фарз (например, руку‘ или суджуд) — намаз недействителен, его повторяют. Ниже показан конец намаза с саджда сахв.',
               kk: 'Сәһу сәждесі (ұмытшақтық сәждесі) — ұмытып уәжіп қалса немесе кешіктірілсе, уәжіп: мысалы, алғашқы екі ракағатта әл-Фатихадан кейін сүре оқылмаса, бірінші отырыс ұмытылса, уітірде құнұт ұмытылса. Уәжіп әдейі қалдырылса — сәһу сәждесі толтырмайды, намаз қайта оқылады. Парыз қалса (мысалы, рукұғ не сәжде) — намаз жарамсыз, қайта оқылады. Төменде сәһу сәждесімен намаздың соңы көрсетілген.' }
     };
-    // Последовательность шагов для намаза из n ракаатов (фарз)
-    function buildHowSalahSteps(mode) {
+    // build 6.05/6.06: ракааты сунны (раватиб), после намаза
+    Object.assign(HOWSALAH_STAGES, {
+      qiyamS: { pose: 'fold', gaze: 'mat', detail: ['fold'],
+        t: 'Ракаат сунны: аль-Фатиха и сура', tk: 'Сүннет ракағаты: әл-Фатиха және сүре',
+        n: 'В сунне (нафль) аль-Фатиха и сура после неё читаются в каждом ракаате, в том числе в третьем и четвёртом — это ваджиб.', nk: 'Сүннетте (нәпіл) әл-Фатиха және одан кейінгі сүре әр ракағатта, үшінші мен төртіншіде де оқылады — бұл уәжіп.',
+        fard: { arkan: [0, 1] }, wajib: { wajib: [1, 2] }, sunna: { sunan: [8, 4, 5] } },
+      afterDhikr: { pose: 'sit', gaze: 'lap', after: true,
+        t: 'После намаза: зикр', tk: 'Намаздан кейін: зікір',
+        n: 'Намаз завершён саламом. Сразу после него Пророк ﷺ трижды просил прощения у Аллаха и говорил: «Аллахумма Анта-с-Салям…» (Муслим, 591). Это сунна, но уже не часть намаза.',
+        nk: 'Намаз сәлеммен аяқталды. Пайғамбар ﷺ сәлемнен кейін бірден үш рет Аллаһтан кешірім сұрап: «Аллаһуммә әнтәс-Сәләм…» дейтін (Муслим, 591). Бұл — сүннет, бірақ енді намаздың бөлігі емес.' },
+      afterDua: { pose: 'dua', gaze: 'palms', after: true,
+        t: 'После намаза: дуа с поднятыми руками', tk: 'Намаздан кейін: қол көтеріп дұға',
+        n: 'После намаза можно просить Аллаха своими словами или словами из Корана и Сунны. В сам намаз это уже не входит. Пример — из раздела «Дуа и зикры».',
+        nk: 'Намаздан кейін Аллаһтан өз сөзіңізбен немесе Құран мен Сүннет сөздерімен сұрауға болады. Бұл енді намаздың өзіне кірмейді. Мысал — «Дұға мен зікір» бөлімінен.' }
+    });
+    // что читать в каждом действии (ключи HS_TX)
+    const HS_RC = { niyyah: ['niyyah'], takbir: ['takbir'], qiyam1: ['sana', 'taawwudh', 'basmala', 'fatiha', 'amin', 'surah'], qiyam2: ['basmala', 'fatiha', 'amin', 'surah'],
+      qiyam34: ['basmala', 'fatiha', 'amin'], qiyamS: ['basmala', 'fatiha', 'amin', 'surah'],
+      ruku: ['takbir', 'rukuTasbih'], qawma: ['tasmi', 'tahmid'], down: ['takbir'], sajda: ['sujudTasbih'], jalsa: ['takbir'], sajda2: ['takbir', 'sujudTasbih'],
+      rise: ['takbir'], rise3: ['takbir'], qada1: ['tashahhud'], qada: ['tashahhud'], salawat: ['salawat', 'dua'],
+      salamR: ['salam'], salamL: ['salam'], sahwStart: ['tashahhud'], sahwSalam: ['salam'], sahwSajda: ['takbir', 'sujudTasbih'], sahwJalsa: ['takbir'],
+      sahwSajda2: ['sujudTasbih'], sahwQada: ['tashahhud', 'salawat', 'dua'], afterDhikr: ['afterSalam'], afterDua: ['rabbana'] };
+    // Намазы: ракааты фарза и сунн раватиб — как в базе приложения (раздел «Нафиль» → «Сунны раватиб»:
+    // 2 до фаджра, 4 до и 2 после зухра, 2 после магриба, 2 после иши). kind: f — фарз, r — сунна раватиб
+    const HS_PRAYERS = [
+      { id: 'fajr', ru: 'Фаджр (утренний)', kk: 'Таң намазы', gen: ['утреннего намаза (фаджр)', 'таң намазының'], v: [{ k: 'sb', kind: 'r', n: 2, strong: 1 }, { k: 'f', kind: 'f', n: 2 }] },
+      { id: 'dhuhr', ru: 'Зухр (полуденный)', kk: 'Бесін намазы', gen: ['полуденного намаза (зухр)', 'бесін намазының'], v: [{ k: 'sb', kind: 'r', n: 4 }, { k: 'f', kind: 'f', n: 4 }, { k: 'sa', kind: 'r', n: 2 }] },
+      { id: 'asr', ru: 'Аср (предвечерний)', kk: 'Екінті намазы', gen: ['предвечернего намаза (аср)', 'екінті намазының'], v: [{ k: 'f', kind: 'f', n: 4 }] },
+      { id: 'maghrib', ru: 'Магриб (вечерний)', kk: 'Ақшам намазы', gen: ['вечернего намаза (магриб)', 'ақшам намазының'], v: [{ k: 'f', kind: 'f', n: 3 }, { k: 'sa', kind: 'r', n: 2 }] },
+      { id: 'isha', ru: 'Иша (ночной)', kk: 'Құптан намазы', gen: ['ночного намаза (иша)', 'құптан намазының'], v: [{ k: 'f', kind: 'f', n: 4 }, { k: 'sa', kind: 'r', n: 2 }] },
+      { id: 'sahw', ru: 'Саджда сахв (поклон забывчивости)', kk: 'Сәһу сәждесі', special: true },
+      { id: 'tarawih', ru: 'Тарауих', kk: 'Тарауих', soon: true }
+    ];
+    function hsVarLabel(v, kk) {
+      const w = v.k === 'f' ? (kk ? 'Парыз' : 'Фарз') : v.k === 'sb' ? (kk ? 'Парызға дейінгі сүннет' : 'Сунна до фарза') : (kk ? 'Парыздан кейінгі сүннет' : 'Сунна после фарза');
+      return w + ' · ' + v.n + (kk ? ' ракағат' : (v.n === 2 || v.n === 3 || v.n === 4 ? ' ракаата' : ' ракаатов'));
+    }
+    function hsKindLabel(kind, kk, v) { return kind === 'f' ? (kk ? 'парыз' : 'фарз') : (kk ? 'сүннәти раватиб' : 'сунна (раватиб)') + (v && v.strong ? (kk ? ', өте қатты тағайындалған' : ', сильно подчёркнута') : ''); }
+    function hsNiyyah(P, v) {
+      const ru = 'Намереваюсь ради Аллаха совершить ' + v.n + ' ракаата ' + (v.kind === 'f' ? 'фарза' : 'сунны') + ' ' + P.gen[0] + '.';
+      const kk = 'Аллаһ разылығы үшін ' + P.gen[1] + ' ' + v.n + ' ракағат ' + (v.kind === 'f' ? 'парызын' : 'сүннетін') + ' оқуға ниет еттім.';
+      return [ru, kk];
+    }
+    // вслух или про себя — только по базе приложения: ваджиб 14 (джахр имама), ваджиб 15 (сирр)
+    function hsJahrKey(P, v, r) {
+      if (v.kind === 'f') return P.id === 'fajr' || ((P.id === 'maghrib' || P.id === 'isha') && r <= 2) ? 'imam' : 'quiet';
+      return P.id === 'dhuhr' ? 'quietNafl' : 'none';
+    }
+    function hsJahrShort(P, v, kk) {
+      const k = hsJahrKey(P, v, 1);
+      if (k === 'imam') return P.id === 'fajr' ? (kk ? 'имам — дауыстап; жалғыз — қалауынша, дауыстап оқыған абзал' : 'имам — вслух; один — по желанию, вслух предпочтительнее') : (kk ? 'имам — 1–2-ракағатта дауыстап, қалғаны іштей; жалғыз 1–2-де — қалауынша, дауыстап абзал' : 'имам — вслух в 1–2-м, дальше про себя; один в 1–2-м — по желанию, вслух предпочтительнее');
+      if (k === 'quiet') return kk ? 'іштей (имам да, жалғыз да)' : 'про себя (и имам, и один)';
+      if (k === 'quietNafl') return kk ? 'іштей — күндізгі нәпіл' : 'про себя — дневной нафль';
+      return '— *';
+    }
+    function hsJahr(P, v, r, kk) {
+      if (!P || !v) return '';
+      const k = hsJahrKey(P, v, r);
+      const T = { imam: ['Аль-Фатиху и суру имам читает вслух. Молящийся один выбирает — вслух или про себя, но вслух предпочтительнее (ваджиб 14).', 'Әл-Фатиха мен сүрені имам дауыстап оқиды. Жалғыз оқитын кісі қалауынша оқиды, бірақ дауыстап оқыған абзал (14-уәжіп).'],
+        quiet: ['Аль-Фатиха и сура — про себя: так читают и имам, и молящийся один (ваджиб 15).', 'Әл-Фатиха мен сүре — іштей: имам да, жалғыз оқитын кісі де солай оқиды (15-уәжіп).'],
+        quietNafl: ['Дневной нафль — про себя (ваджиб 15).', 'Күндізгі нәпіл — іштей (15-уәжіп).'], none: ['', ''] };
+      return T[k][kk ? 1 : 0];
+    }
+    function buildHowSalahSteps(mode, cfg) {
       const S = [];
       const add = function(stage, o) { S.push(Object.assign({ stage: stage, tr: 1100, hold: 3600 }, o || {})); };
+      const tail = function(r) { add('afterDhikr', { tr: 1300, hold: 4200, r: 'after' }); add('afterDua', { tr: 1300, hold: 4600, r: 'after' }); };
       if (mode === 'sahw') {
         add('sahwStart', { tr: 10, hold: 4200, r: 2 });
         add('sahwSalam', { tr: 1200, hold: 3000, r: 2 });
@@ -14663,10 +15382,11 @@ function renderDictation(area) {
         add('salawat', { tr: 700, hold: 3200, r: 2 });
         add('salamR', { tr: 1200, hold: 3000, r: 2 });
         add('salamL', { tr: 1500, hold: 3000, r: 2 });
+        tail(2);
         return S;
       }
-      const witr = mode === 'witr', eid = mode === 'eid';
-      const n = witr ? 3 : eid ? 2 : (parseInt(mode, 10) || 2);
+      const v = (cfg && cfg.v) || { kind: 'f', n: parseInt(mode, 10) || 2 };
+      const n = v.n, sunna = v.kind !== 'f';
       const sajdaBlock = function(r) {
         add('qawma', { tr: 1200, hold: 3400, r: r });
         add('down', { tr: 1300, hold: 900, r: r, pose: 'kneel' });
@@ -14676,36 +15396,25 @@ function renderDictation(area) {
         add('sajda2', { tr: 1200, hold: 3600, r: r });
       };
       for (let r = 1; r <= n; r++) {
-        if (r === 1) {
-          add('niyyah', { tr: 10, hold: 3200, r: r }); add('takbir', { hold: 2800, r: r });
-          if (eid) {
-            add('eidQiyam1', { hold: 3600, r: r });
-            for (let k = 0; k < 3; k++) { add('eidTak', { tr: 900, hold: 1500, r: r }); add(k < 2 ? 'eidDrop' : 'eidFold', { tr: 900, hold: k < 2 ? 1500 : 4200, r: r }); }
-          } else add('qiyam1', { hold: 5200, r: r });
-        } else if (eid) {
-          add('eidQiyam2', { tr: 1200, hold: 4200, r: r });
-          for (let k = 0; k < 3; k++) { add('eidTak', { tr: 900, hold: 1500, r: r }); add('eidDrop', { tr: 900, hold: 1500, r: r }); }
-        } else if (witr && r === 3) {
-          add('qiyamW', { tr: 1200, hold: 4200, r: r });
-          add('qunutTak', { tr: 1000, hold: 2400, r: r });
-          add('qunut', { tr: 1000, hold: 4400, r: r });
-        } else add(r === 2 ? 'qiyam2' : (witr ? 'qiyamW' : 'qiyam34'), { tr: 1200, hold: 4400, r: r });
-        add(eid && r === 2 ? 'eidRuku' : 'ruku', { tr: 1300, hold: 4200, r: r });
+        if (r === 1) { add('niyyah', { tr: 10, hold: 3200, r: r }); add('takbir', { hold: 2800, r: r }); add('qiyam1', { hold: 5200, r: r }); }
+        else if (r === 2) add('qiyam2', { tr: 1200, hold: 4400, r: r });
+        else add(sunna ? 'qiyamS' : 'qiyam34', { tr: 1200, hold: 4400, r: r });
+        add('ruku', { tr: 1300, hold: 4200, r: r });
         sajdaBlock(r);
         if (r === 2 && n > 2) {
-          add('qada1', { tr: 1300, hold: 4200, r: r });
+          const q1 = 'qada1';
+          add(q1, { tr: 1300, hold: 4200, r: r });
           add('finger', { tr: 700, hold: 2400, r: r });
-          add('qada1', { tr: 700, hold: 1200, r: r, short: true });
+          add(q1, { tr: 700, hold: 1200, r: r, short: true });
           add('rise3', { tr: 1300, hold: 900, r: r });
-        } else if (r < n) {
-          add('rise', { tr: 1300, hold: 900, r: r });
-        }
+        } else if (r < n) add('rise', { tr: 1300, hold: 900, r: r });
       }
       add('qada', { tr: 1300, hold: 4200, r: n });
       add('finger', { tr: 700, hold: 2600, r: n });
       add('salawat', { tr: 700, hold: 4400, r: n });
       add('salamR', { tr: 1200, hold: 3000, r: n });
       add('salamL', { tr: 1500, hold: 3000, r: n });
+      tail(n);
       return S;
     }
     // без пометок о женском намазе: раздел пока только для мужчин
@@ -14743,6 +15452,61 @@ function renderDictation(area) {
         items.map(function(x) { return '<div class="ayah-translation" style="margin-top:0.25rem;line-height:1.5;font-size:calc(0.88rem * var(--ru-scale, 1))">• ' + x + '</div>'; }).join('') + '</div>';
     }
 
+    // окошко выбора (ракаат, шаг, намаз, пол, мазхаб, сура)
+    function hsPicker(title, opts, cur, onPick) {
+      const old = document.getElementById('hs-picker'); if (old) old.remove();
+      const ov = document.createElement('div'); ov.id = 'hs-picker';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+      const esc = function(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+      ov.innerHTML = '<div style="background:var(--bg-card,#1e293b);width:100%;max-width:520px;max-height:72vh;overflow:auto;border-radius:1rem 1rem 0 0;padding:0.8rem 0.8rem calc(0.8rem + env(safe-area-inset-bottom,0px))">' +
+        '<div style="display:flex;align-items:center;margin-bottom:0.4rem"><b style="flex:1">' + esc(title) + '</b><button type="button" class="btn btn-sm" data-hp-close>✕</button></div>' +
+        opts.map(function(o, i) {
+          if (o.head) return '<div style="font-size:0.78rem;color:var(--text-muted);margin:0.6rem 0 0.2rem">' + esc(o.head) + '</div>';
+          const on = String(o.v) === String(cur);
+          return '<button type="button" class="btn' + (on ? ' btn-primary' : '') + '" data-hp="' + i + '"' + (o.disabled ? ' disabled style="opacity:.5;width:100%;text-align:left;margin-top:0.3rem"' : ' style="width:100%;text-align:left;margin-top:0.3rem"') + '>' + esc(o.label) + (o.note ? ' <span style="font-size:0.75rem;opacity:.75">· ' + esc(o.note) + '</span>' : '') + '</button>';
+        }).join('') + '</div>';
+      document.body.appendChild(ov);
+      const close = function() { ov.remove(); };
+      ov.addEventListener('click', function(e) { if (e.target === ov || e.target.closest('[data-hp-close]')) close(); });
+      ov.querySelectorAll('[data-hp]').forEach(function(b) { b.addEventListener('click', function() { const o = opts[+b.getAttribute('data-hp')]; close(); if (o && !o.disabled) onPick(o.v); }); });
+      const sel = ov.querySelector('.btn-primary[data-hp]'); if (sel) try { sel.scrollIntoView({ block: 'center' }); } catch (e) {}
+    }
+    function hsPickBtn(id, label, value) {
+      return '<button type="button" class="btn btn-sm" data-hs-pick="' + id + '" style="display:inline-flex;align-items:center;gap:0.25rem">' + label + ' <b>' + value + '</b> ▾</button>';
+    }
+    // таблица различий фарза и сунн выбранного намаза — только по базе приложения
+    function hsDiffTable(P, kk) {
+      if (!P || !P.v) return '';
+      const cols = P.v;
+      const cell = function(v, row) {
+        const f = v.kind === 'f';
+        switch (row) {
+          case 'n': return String(v.n);
+          case 'kind': return hsKindLabel(v.kind, kk, v);
+          case 'when': return v.k === 'f' ? (kk ? 'өз уақытында' : 'в своё время') : v.k === 'sb' ? (kk ? 'парыздан бұрын' : 'до фарза') : (kk ? 'парыздан кейін' : 'после фарза');
+          case 'fatiha': return f ? (v.n > 2 ? (kk ? '1–2-ракағатта — уәжіп; соңғыларында — сүннет' : 'в 1–2-м ракаатах — ваджиб; в последних — сунна') : (kk ? 'екі ракағатта да — уәжіп' : 'в обоих ракаатах — ваджиб')) : (kk ? 'әр ракағатта — уәжіп' : 'в каждом ракаате — ваджиб');
+          case 'surah': return f ? (kk ? 'тек 1–2-ракағатта — уәжіп' : 'только в 1–2-м ракаатах — ваджиб') : (kk ? 'әр ракағатта — уәжіп' : 'в каждом ракаате — ваджиб');
+          case 'jahr': return hsJahrShort(P, v, kk);
+          case 'qada1': return v.n < 3 ? '—' : (kk ? 'уәжіп: тек тәшәһһуд, содан кейін бірден тұру' : 'ваджиб: только ташаххуд, затем сразу встать');
+          case 'jama': return f ? (kk ? 'жамағатпен немесе жалғыз' : 'с джамаатом или одному') : (kk ? 'жалғыз' : 'одному');
+        }
+        return '';
+      };
+      const rows = [['n', kk ? 'Ракағат' : 'Ракаатов'], ['kind', kk ? 'Үкімі' : 'Вид'], ['when', kk ? 'Қашан' : 'Когда'],
+        ['fatiha', kk ? 'Әл-Фатиха' : 'Аль-Фатиха'], ['surah', kk ? 'Әл-Фатихадан кейін сүре' : 'Сура после аль-Фатихи'], ['jahr', kk ? 'Дауыстап / іштей' : 'Вслух / про себя'],
+        ['qada1', kk ? 'Бірінші отырыс' : 'Первое сидение'], ['jama', kk ? 'Жамағат' : 'Джамаат']];
+      const hasNone = cols.some(function(v) { return hsJahrKey(P, v, 1) === 'none'; });
+      const th = 'style="text-align:left;padding:0.35rem;border-bottom:1px solid var(--border);vertical-align:top"';
+      return '<div class="card" style="margin-top:0.6rem"><b>' + (kk ? P.kk + ': парыз бен сүннеттің айырмашылығы' : P.ru + ': чем отличаются фарз и сунна') + '</b>' +
+        '<div style="overflow-x:auto;margin-top:0.4rem"><table style="width:100%;border-collapse:collapse;font-size:calc(0.82rem * var(--ru-scale, 1));line-height:1.45">' +
+        '<tr><th ' + th + '></th>' + cols.map(function(v) { return '<th ' + th + '>' + hsVarLabel(v, kk) + '</th>'; }).join('') + '</tr>' +
+        rows.map(function(r) { return '<tr><td ' + th + '><b>' + r[1] + '</b></td>' + cols.map(function(v) { return '<td ' + th + '>' + cell(v, r[0]) + '</td>'; }).join('') + '</tr>'; }).join('') +
+        '</table></div>' +
+        (hasNone ? '<div style="margin-top:0.35rem;font-size:0.75rem;color:var(--text-muted)">' + (kk ? '* Бұл сүннет үшін қосымшаның базасында бөлек ереже жоқ.' : '* Для этой сунны в базе приложения отдельного правила нет.') + '</div>' : '') +
+        '<div style="margin-top:0.45rem;font-size:0.75rem;color:var(--text-muted)">' + (kk
+          ? 'Дереккөз: қосымшадағы ханафи фиқһ базасы (Нуруль-Идах): уәжіп 2, 3, 7–9, 14, 15; сүннет 33, 34; «Нәпіл» бөлімі — сүннәти раватиб.'
+          : 'Источник: ханафитская база приложения (Нуруль-Идах): ваджибы 2, 3, 7–9, 14, 15; сунны 33, 34; раздел «Нафиль» — сунны раватиб.') + '</div></div>';
+    }
     function renderHowSalah() {
       const el = document.getElementById('howsalah-body');
       if (!el) return;
@@ -14751,12 +15515,17 @@ function renderDictation(area) {
       if (title) title.textContent = kk ? 'Намаз қалай оқылады' : 'Как читать намаз';
       const B = (typeof HANAFI_SALAH_BOOK !== 'undefined') ? HANAFI_SALAH_BOOK : null;
       if (!window._hsTab) window._hsTab = 'during';
-      if (!window._hsRak) window._hsRak = '2';
-      const tabs = [['before', kk ? '1. Намазға дейін' : '1. До намаза'], ['during', kk ? '2. Намаз ішінде' : '2. Во время намаза'], ['after', kk ? '3. Не бұзады / бұзбайды' : '3. Что нарушает'], ['quiz', kk ? '4. Өзіңді тексер' : '4. Проверь себя']];
+      if (!window._hsPrayer) window._hsPrayer = 'fajr';
+      if (!window._hsSurah) window._hsSurah = 112;
+      // тексты зикров — из «Дуа и зикры»
+      if (typeof HISN_ITEMS === 'undefined' && typeof loadHisnData === 'function' && !window._hsHisnAsked) { window._hsHisnAsked = true; loadHisnData().then(function() { if (document.getElementById('howsalah-body') && window._hsTab === 'during') renderHowSalah(); }).catch(function() {}); }
+      const P = HS_PRAYERS.find(function(x) { return x.id === window._hsPrayer; }) || HS_PRAYERS[0];
+      if (P.v && !P.v.some(function(v) { return v.k === window._hsVar; })) window._hsVar = 'f';
+      const V = P.v ? P.v.find(function(v) { return v.k === window._hsVar; }) : null;
+      const madh = [['hanafi', kk ? 'Ханафи' : 'Ханафитский'], ['maliki', kk ? 'Мәлики' : 'Маликитский'], ['shafii', kk ? 'Шафиғи' : 'Шафиитский'], ['hanbali', kk ? 'Ханбали' : 'Ханбалитский'], ['salaf', kk ? 'Сәләфи' : 'Саляфитский подход']];
+      const tabs = [['before', kk ? '1. Намазға дейін' : '1. До намаза'], ['during', kk ? '2. Намаз ішінде' : '2. Во время намаза'], ['after', kk ? '3. Не бұзады' : '3. Что нарушает'], ['quiz', kk ? '4. Өзіңді тексер' : '4. Проверь себя'], ['extra', kk ? '5. Қосымша' : '5. Доп. инфо']];
       let h = '<div class="card" style="border-color:var(--accent)">' +
-        '<div class="ayah-translation" style="line-height:1.5">' + (kk
-          ? 'Ер адамның намазы, ханафи мазһабы бойынша. Әр қимыл анимацияда көрсетілген, астында — оның парыздары, уәжіптері мен сүннеттері; «Тағы» батырмасы қалған мәліметтерді ашады.'
-          : 'Мужской намаз по ханафитскому мазхабу. Каждое движение показано в анимации, под ним — его фарзы, ваджибы и сунны; кнопка «Ещё» открывает остальные подробности.') + '</div>' +
+        '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">' + hsPickBtn('gender', kk ? 'Жынысы:' : 'Пол:', kk ? 'ер' : 'мужской') + hsPickBtn('madh', kk ? 'Мазһаб:' : 'Мазхаб:', madh[0][1]) + '</div>' +
         '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.6rem">' +
         tabs.map(function(t) { return '<button type="button" class="btn btn-sm' + (window._hsTab === t[0] ? ' btn-primary' : '') + '" data-hs-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') +
         '</div></div>';
@@ -14770,16 +15539,17 @@ function renderDictation(area) {
       if (!B) {
         el.innerHTML = h + '<div class="card" style="margin-top:0.6rem">' + (kk ? 'Деректер жүктелмеді.' : 'Данные не загрузились.') + '</div>';
       } else if (window._hsTab === 'before') {
-        h += '<div class="card" style="margin-top:0.6rem"><b>' + (kk ? 'Намаздың шарттары (6) — намаз басталғанға дейін' : 'Условия намаза (6) — до начала намаза') + '</b>' +
+        h += '<div class="card" style="margin-top:0.6rem"><b>' + (kk ? 'Намаздың шарттары — намаз басталғанға дейін' : 'Условия намаза — до его начала') + '</b>' +
           B.shurut.map(function(it) {
             return '<div style="margin-top:0.55rem;border-left:3px solid #f87171;padding-left:0.55rem"><b>' + it.n + '. ' + ((kk && it.tKk) || it.t) + '</b><div class="ayah-translation" style="margin-top:0.2rem;line-height:1.5">' + ((kk && it.dKk) || it.d) + '</div></div>';
           }).join('') +
-          '<div class="ayah-translation" style="margin-top:0.6rem;font-size:0.82rem;color:var(--text-muted)">' + (kk ? 'Алтыншы шарт — тахрима тәкбірі — «Намаз ішінде» бөлімінде анимациямен көрсетілген.' : 'Шестое условие — вступительный такбир — показано в анимации во вкладке «Во время намаза».') + '</div></div>' +
-          howSalahKindsCard(kk) +
-          '<div class="card" style="margin-top:0.6rem"><b>' + (kk ? 'Тұру қалпы' : 'Как встать') + '</b>' +
-          '<div style="max-width:260px;margin:0.4rem auto 0;background:#1e293b;border-radius:0.6rem;padding-bottom:0.35rem">' + salahDetailSvg('stance', kk) + salahDetailNotesHtml('stance', kk) + '</div>' +
-          '<div class="ayah-translation" style="margin-top:0.4rem;line-height:1.5">' + _hsList({ sunan: [10] }, kk)[0] + '</div></div>' + legend;
+          '<div class="ayah-translation" style="margin-top:0.6rem;font-size:0.82rem;color:var(--text-muted)">' + (kk ? 'Тахрима тәкбірі (соңғы шарт) және тұру қалпы «Намаз ішінде» бөлімінде анимациямен көрсетілген.' : 'Вступительный такбир (последнее условие) и то, как встать, показаны в анимации во вкладке «Во время намаза».') + '</div></div>';
         el.innerHTML = h;
+      } else if (window._hsTab === 'extra') {
+        el.innerHTML = h + howSalahExtraHtml(kk, B);
+        el.querySelectorAll('[data-hs-x]').forEach(function(b) { b.addEventListener('click', function() { window._hsX = b.getAttribute('data-hs-x'); renderHowSalah(); }); });
+        if (window._hsX === 'terms') try { bindTermsDictionary('howsalah'); } catch (e) {}
+        try { bindExpandableCards(el); } catch (e) {}
       } else if (window._hsTab === 'quiz') {
         el.innerHTML = h + '<div class="card" style="margin-top:0.6rem" id="hs-quiz"></div>';
         howSalahQuiz(el.querySelector('#hs-quiz'), kk);
@@ -14788,34 +15558,40 @@ function renderDictation(area) {
           _hsBlock(kk ? 'Намазды бұзады' : 'Нарушает намаз', '#f87171', B.mufsidat.map(function(x) { return (kk && x.kk) || x.ru; })) +
           _hsBlock(kk ? 'Намазды бұзбайды' : 'Не нарушает намаз', '#4ade80', B.notNull.map(function(x) { return (kk && x.kk) || x.ru; })) +
           _hsBlock(kk ? 'Мәкрүһ (намаз бұзылмайды, бірақ сауабы кемиді)' : 'Макрух (намаз не нарушается, но порицаемо)', '#fbbf24', B.makruh.map(function(x) { return (kk && x.kk) || x.ru; })) +
-          '</div>' +
-          '<div class="card" style="margin-top:0.6rem"><b>' + (kk ? 'Ерекше намаздардағы уәжіптер' : 'Ваджибы особых намазов') + '</b>' +
-          _hsBlock('', '#fbbf24', _hsList({ wajib: [10, 11, 12] }, kk)) +
-          _hsBlock(kk ? 'Құнұт' : 'Кунут', '#93c5fd', _hsList({ mustahabb: [9] }, kk)) +
-          '</div>' +
-          '<div class="ayah-translation" style="margin:0.5rem 0.2rem;font-size:0.78rem;color:var(--text-muted)">' + (B.source || '') + '</div>';
+          '</div><div class="ayah-translation" style="margin:0.5rem 0.2rem;font-size:0.78rem;color:var(--text-muted)">' + (B.source || '') + '</div>';
         el.innerHTML = h;
       } else {
+        const pName = kk ? P.kk : P.ru;
         h += '<div class="card" style="margin-top:0.6rem">' +
-          '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center"><span style="font-size:0.85rem;color:var(--text-muted)">' + (kk ? 'Ракағат саны:' : 'Ракаатов:') + '</span>' +
-          [['2', kk ? '2 (таң)' : '2 (фаджр)'], ['3', kk ? '3 (ақшам)' : '3 (магриб)'], ['4', kk ? '4 (бесін, екінті, құптан)' : '4 (зухр, аср, иша)'], ['witr', kk ? 'Уітір' : 'Витр'], ['eid', kk ? 'Айт намазы' : 'Намаз Ида'], ['sahw', kk ? 'Сәһу сәждесі' : 'Саджда сахв']].map(function(r) {
-            return '<button type="button" class="btn btn-sm' + (String(window._hsRak) === r[0] ? ' btn-primary' : '') + '" data-hs-rak="' + r[0] + '">' + r[1] + '</button>';
-          }).join('') + '</div>' +
-          (HOWSALAH_MODE_INFO[window._hsRak] ? '<div class="ayah-translation" style="margin-top:0.6rem;line-height:1.55;border-left:3px solid #fbbf24;padding-left:0.55rem">' + (kk ? HOWSALAH_MODE_INFO[window._hsRak].kk : HOWSALAH_MODE_INFO[window._hsRak].ru) + '</div>' : '') +
-          howSalahPlayerHtml(kk) + '</div>' + legend;
+          '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center">' + hsPickBtn('prayer', kk ? 'Намаз:' : 'Намаз:', pName) +
+          (V ? hsPickBtn('var', '', hsVarLabel(V, kk)) : '') + (P.special ? '' : hsPickBtn('surah', kk ? 'Сүре:' : 'Сура:', (HS_SURAHS.find(function(x) { return x[0] === window._hsSurah; }) || HS_SURAHS[0])[kk ? 2 : 1])) + '</div>' +
+          (V ? '<div class="ayah-translation" style="margin-top:0.5rem;line-height:1.5;font-size:0.88rem">' + (V.kind === 'f' ? '' : hsKindLabel(V.kind, kk, V).replace(/^./, function(c) { return c.toUpperCase(); }) + '. ') + hsJahr(P, V, 1, kk) + '</div>' : '') +
+          (P.special ? '<div class="ayah-translation" style="margin-top:0.6rem;line-height:1.55;border-left:3px solid #fbbf24;padding-left:0.55rem">' + (kk ? HOWSALAH_MODE_INFO.sahw.kk : HOWSALAH_MODE_INFO.sahw.ru) + '</div>' : '') +
+          howSalahPlayerHtml(kk) + '</div>' + legend + (P.v ? hsDiffTable(P, kk) : '');
         el.innerHTML = h;
-        initHowSalahPlayer(el, buildHowSalahSteps(String(window._hsRak)), kk);
-        el.querySelectorAll('[data-hs-rak]').forEach(function(b) {
-          b.addEventListener('click', function() { window._hsRak = b.getAttribute('data-hs-rak') || '2'; renderHowSalah(); });
-        });
+        const steps = buildHowSalahSteps(P.special ? 'sahw' : 'v', { v: V });
+        initHowSalahPlayer(el, steps, kk, { P: P, V: V, surah: window._hsSurah, niyyah: V ? hsNiyyah(P, V) : null });
       }
       el.querySelectorAll('[data-hs-tab]').forEach(function(b) {
         b.addEventListener('click', function() { window._hsTab = b.getAttribute('data-hs-tab'); renderHowSalah(); });
+      });
+      el.querySelectorAll('[data-hs-pick]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          const id = b.getAttribute('data-hs-pick');
+          const soon = kk ? 'жақында' : 'скоро';
+          if (id === 'gender') hsPicker(kk ? 'Жынысы' : 'Пол', [{ v: 'm', label: kk ? 'Ер адам' : 'Мужской' }, { v: 'f', label: kk ? 'Әйел адам' : 'Женский', disabled: true, note: soon }], 'm', function() {});
+          else if (id === 'madh') hsPicker(kk ? 'Мазһаб' : 'Мазхаб', madh.map(function(m, i) { return { v: m[0], label: m[1], disabled: i > 0, note: i > 0 ? soon : '' }; }), 'hanafi', function() {});
+          else if (id === 'prayer') hsPicker(kk ? 'Намаз' : 'Намаз', [{ head: kk ? 'Бес парыз намаз' : 'Пять обязательных намазов' }].concat(HS_PRAYERS.slice(0, 5).map(function(x) { return { v: x.id, label: kk ? x.kk : x.ru }; }),
+            [{ head: kk ? 'Басқа' : 'Другое' }], HS_PRAYERS.slice(5).map(function(x) { return { v: x.id, label: kk ? x.kk : x.ru, disabled: !!x.soon, note: x.soon ? soon : '' }; })), window._hsPrayer, function(v) { window._hsPrayer = v; window._hsVar = 'f'; renderHowSalah(); });
+          else if (id === 'var') hsPicker(kk ? 'Парыз немесе сүннет' : 'Фарз или сунна', P.v.map(function(v) { return { v: v.k, label: hsVarLabel(v, kk), note: hsKindLabel(v.kind, kk, v) }; }), window._hsVar, function(v) { window._hsVar = v; renderHowSalah(); });
+          else if (id === 'surah') hsPicker(kk ? 'Әл-Фатихадан кейінгі сүре' : 'Сура после аль-Фатихи', HS_SURAHS.map(function(x) { return { v: x[0], label: x[kk ? 2 : 1] + ' (' + x[0] + ')' }; }), window._hsSurah, function(v) { window._hsSurah = +v; renderHowSalah(); });
+        });
       });
     }
     function howSalahPlayerHtml(kk) {
       const btn = function(id, label, extra) { return '<button type="button" class="btn btn-sm" data-sa="' + id + '"' + (extra || '') + '>' + label + '</button>'; };
       return '<div id="salah-anim" style="margin:0.6rem auto 0;max-width:560px">' +
+        '<div id="hs-pos-row" style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center;margin-bottom:0.45rem"></div>' +
         '<div style="position:relative;border-radius:0.6rem;overflow:hidden;background:radial-gradient(ellipse at 50% 35%, #26344d 0%, #141c2b 75%)">' +
         '<div id="salah-3d"></div>' +
         '<svg id="salah-anim-svg" viewBox="-72 -196 232 226" style="width:100%;height:auto;display:block;cursor:grab;touch-action:none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + (kk ? 'Намаз анимациясы' : 'Анимация намаза') + '"></svg>' +
@@ -14838,7 +15614,8 @@ function renderDictation(area) {
           : 'Положения и нормы — по ханафитскому фикху (база приложения: «Нуруль-Идах» и сходные учебники; описание Darul Iftaa Birmingham). Не заменяет обучения у знающего.') + '</div>' +
         '</div>';
     }
-    function initHowSalahPlayer(root, steps, kk) {
+    function initHowSalahPlayer(root, steps, kk, ctx) {
+      ctx = ctx || {};
       const box = root.querySelector('#salah-anim');
       if (!box) return;
       const svg = box.querySelector('#salah-anim-svg');
@@ -14856,14 +15633,45 @@ function renderDictation(area) {
       try { const sb = salahGroundBody(salahBuildBody(SALAH_POSES_ANIM.sajda)); matX = sb.headC[0] + 4; } catch(e) {}
       const esc = function(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
       const poseOf = function(s) { return s.pose || HOWSALAH_STAGES[s.stage].pose; };
+      // build 6.05: номер шага внутри ракаата и выбор ракаата/шага из списка
+      const rakOf = function(i) { return steps[i].r; };
+      const rakName = function(r) { return r === 'after' ? (kk ? 'Намаздан кейін' : 'После намаза') : String(r); };
+      const stepNo = function(i) { let k = 0; for (let j = 0; j <= i; j++) if (steps[j].r === steps[i].r) k++; return k; };
+      const posRow = box.querySelector('#hs-pos-row');
+      const stName = function(i) { const G = HOWSALAH_STAGES[steps[i].stage]; let t = kk ? G.tk : G.t; if (steps[i].pose === 'kneel') t += kk ? ' — тізе' : ' — колени'; else if (steps[i].pose === 'hands') t += kk ? ' — алақан' : ' — ладони'; return t; };
+      const renderPos = function() {
+        if (!posRow) return;
+        const r = rakOf(st.i);
+        posRow.innerHTML = '<button type="button" class="btn btn-sm" data-hs-pos="rak">' + (r === 'after' ? rakName(r) : (kk ? 'Ракағат ' : 'Ракаат ') + '<b>' + r + '</b>') + ' ▾</button>' +
+          '<button type="button" class="btn btn-sm" data-hs-pos="step">' + (kk ? 'Қадам ' : 'Шаг ') + '<b>' + stepNo(st.i) + '</b> ▾</button>' +
+          '<span style="font-size:0.85rem;color:var(--text-muted);flex:1;min-width:8rem">' + esc(stName(st.i)) + '</span>';
+        posRow.querySelector('[data-hs-pos="rak"]').addEventListener('click', function() {
+          const rs = []; steps.forEach(function(x) { if (rs.indexOf(x.r) < 0) rs.push(x.r); });
+          hsPicker(kk ? 'Ракағат' : 'Ракаат', rs.map(function(x) { return { v: x, label: x === 'after' ? rakName(x) + (kk ? ' (намазға кірмейді)' : ' (не часть намаза)') : (kk ? 'Ракағат ' : 'Ракаат ') + x }; }), r, function(v) {
+            const i = steps.findIndex(function(x) { return String(x.r) === String(v); }); if (i >= 0) { setPlay(false); go(i, true); } });
+        });
+        posRow.querySelector('[data-hs-pos="step"]').addEventListener('click', function() {
+          const opts = []; steps.forEach(function(x, i) { if (x.r === r) opts.push({ v: i, label: stepNo(i) + '. ' + stName(i) }); });
+          hsPicker((r === 'after' ? rakName(r) : (kk ? 'Ракағат ' : 'Ракаат ') + r) + (kk ? ' — қадамдар' : ' — шаги'), opts, st.i, function(v) { setPlay(false); go(+v, true); });
+        });
+      };
       const caption = function() {
         const s = steps[st.i], G = HOWSALAH_STAGES[s.stage];
-        stepEl.textContent = (kk ? 'Ракағат ' : 'Ракаат ') + s.r + ' · ' + (kk ? 'қадам ' : 'шаг ') + (st.i + 1) + '/' + steps.length;
+        stepEl.textContent = (s.r === 'after' ? rakName(s.r) : (kk ? 'Ракағат ' : 'Ракаат ') + s.r) + ' · ' + (kk ? 'қадам ' : 'шаг ') + stepNo(st.i) + ' · ' + stName(st.i);
+        renderPos();
         seek.value = st.i;
         let html = '<b style="font-size:1.04rem">' + esc(kk ? G.tk : G.t) + '</b>';
-        if (G.say) html += '<div class="arabic" dir="rtl" style="font-size:calc(1.3rem * var(--ar-scale, 1));margin-top:0.3rem;line-height:1.8">' + esc(G.say.ar) + '</div>' +
-          '<div style="color:var(--accent);font-weight:600;margin-top:0.1rem">' + esc(kk ? G.say.kk : G.say.ru) + '</div>';
+        if (G.after) html += '<div style="margin-top:0.25rem;font-size:0.8rem;color:#fbbf24">' + (kk ? 'Намаз аяқталды — бұл оның бөлігі емес.' : 'Намаз уже завершён — это не его часть.') + '</div>';
         html += '<div class="ayah-translation" style="margin-top:0.35rem;line-height:1.55">' + esc(kk ? G.nk : G.n) + '</div>';
+        // что читать — полный текст
+        const rc = (HS_RC[s.stage] || []);
+        if (rc.length && !s.short) {
+          let jt = /^qiyam/.test(s.stage) && ctx.V ? hsJahr(ctx.P, ctx.V, s.r, kk) : '';
+          if (jt && s.stage === 'qiyam34') jt = jt.replace(kk ? 'Әл-Фатиха мен сүре' : 'Аль-Фатиха и сура', kk ? 'Әл-Фатиха' : 'Аль-Фатиха').replace(kk ? 'Әл-Фатиха мен сүрені' : 'Аль-Фатиху и суру', kk ? 'Әл-Фатиханы' : 'Аль-Фатиху');
+          const jahr = jt ? '<div style="margin-top:0.35rem;font-size:0.82rem;color:var(--text-muted)">🔈 ' + esc(jt) + '</div>' : '';
+          html += '<div style="margin-top:0.6rem;border-top:1px solid var(--border);padding-top:0.4rem"><b style="color:var(--accent)">📖 ' + (kk ? 'Не оқылады' : 'Что читать') + '</b>' + jahr +
+            rc.map(function(id) { return hsTextHtml(id, kk, ctx); }).join('') + '</div>';
+        }
         if (G.detail && G.detail.length) {
           html += '<div style="display:grid;grid-template-columns:repeat(' + G.detail.length + ',minmax(0,1fr));gap:0.4rem;margin:0.55rem auto 0;max-width:' + (G.detail.length > 1 ? '520px' : '280px') + '">' +
             G.detail.map(function(d) { return '<div style="background:#1e293b;border-radius:0.5rem;border:1px solid var(--border);padding-bottom:0.35rem">' + salahDetailSvg(d, kk) + salahDetailNotesHtml(d, kk) + '</div>'; }).join('') + '</div>';
@@ -14886,6 +15694,8 @@ function renderDictation(area) {
           }
         }
         cap.innerHTML = html;
+        cap.querySelectorAll('[data-hisn-play]').forEach(function(b) { b.addEventListener('click', function() { setPlay(false); try { hisnPlay(b.getAttribute('data-hisn-play')); } catch (e) {} }); });
+        try { hsFillSurahs(cap, kk); } catch (e) {}
         cap.querySelector('#salah-anim-more')?.addEventListener('click', function() {
           st.more = !st.more;
           if (st.more) setPlay(false);
@@ -14915,7 +15725,8 @@ function renderDictation(area) {
         const k = gazeK();
         st.lastGazeK = k;
         if (r3d) {
-          try { r3dBusy = r3d.render(poseAt(), { yaw: st.yaw, el: st.el, zoom: st.zoom, focus: st.focus }, G.gaze, k, matX); return; }
+          const prevS = st.i > 0 ? steps[st.i - 1] : s;
+          try { r3dBusy = r3d.render(poseAt(), { yaw: st.yaw, el: st.el, zoom: st.zoom, focus: st.focus, frame: { a: poseOf(prevS), b: poseOf(s), k: s.tr ? Math.min(1, st.t / s.tr) : 1 } }, G.gaze, k, matX); return; }
           catch (e) { try { r3d.dispose(); } catch (_) {} r3d = null; if (host3d) host3d.innerHTML = ''; svg.style.display = ''; }
         }
         svg.innerHTML = defs + salahRenderSvg(poseAt(), salahCamera(st.yaw, st.el), { qibla: kk ? 'құбыла' : 'кибла', gaze: G.gaze, gazeK: k, matX: matX });
@@ -14999,6 +15810,7 @@ function renderDictation(area) {
           if (!box.isConnected) return;
           try {
             r3d = salah3dCreate(host3d, T, kk);
+            if (r3d.onModel) r3d.onModel(function() { if (box.isConnected) { r3dBusy = true; draw(); } });
             svg.style.display = 'none';
             const fr = box.querySelector('#salah-focus-row'); if (fr) fr.style.display = 'flex';
             draw();
@@ -15022,11 +15834,11 @@ function renderDictation(area) {
       { q: ['Когда в ташаххуде поднимают указательный палец?', 'Тәшәһһудта сұқ саусақ қашан көтеріледі?'], a: [['На словах «ля иляха»', '«Лә иләһә» дегенде'], ['На словах «илля-Ллах»', '«Иллаллаһ» дегенде'], ['В начале ташаххуда', 'Тәшәһһудтың басында'], ['При саламе', 'Сәлем бергенде']] },
       { q: ['Что из этого — фарз (аркан) намаза?', 'Мыналардың қайсысы — намаздың парызы (арқаны)?'], a: [['Последнее сидение', 'Соңғы отырыс'], ['Салам', 'Сәлем'], ['Сана', 'Сәнә'], ['«Амин» после Фатихи', 'Фатихадан кейінгі «Әмин»']] },
       { q: ['Что из этого — ваджиб?', 'Мыналардың қайсысы — уәжіп?'], a: [['Чтение аль-Фатихи', 'Әл-Фатиханы оқу'], ['Сана', 'Сәнә'], ['Поднятие рук в такбире', 'Тәкбірде қол көтеру'], ['«Амин» про себя', 'Іштей «Әмин»']] },
+      { q: ['Первое сидение в намазе из 3–4 ракаатов — это:', '3–4 ракағатты намаздағы бірінші отырыс —'], a: [['Ваджиб', 'Уәжіп'], ['Сунна', 'Сүннет'], ['Фарз', 'Парыз'], ['Мустахаб', 'Мұстахаб']] },
+      { q: ['Сура после аль-Фатихи в 3-м и 4-м ракаатах сунны:', 'Сүннеттің 3- және 4-ракағатында әл-Фатихадан кейінгі сүре:'], a: [['Читается — это ваджиб', 'Оқылады — бұл уәжіп'], ['Не читается', 'Оқылмайды'], ['Только в 3-м', 'Тек 3-те'], ['По желанию', 'Қалауынша']] },
       { q: ['Что делать, если по забывчивости пропущен ваджиб?', 'Ұмытып уәжіп қалса, не істеу керек?'], a: [['Саджда сахв в конце намаза', 'Намаз соңында сәһу сәждесі'], ['Ничего', 'Ештеңе'], ['Добавить ещё ракаат', 'Тағы бір ракағат қосу'], ['Сразу прервать намаз', 'Намазды бірден тоқтату']] },
       { q: ['Как стоят стопы в суджуде?', 'Сәждеде табан қалай тұрады?'], a: [['На пальцах, загнутых к кибле', 'Құбылаға бүгілген саусақтарда'], ['Лежат плашмя', 'Жалпақ жатады'], ['На пятках', 'Өкшеде'], ['Скрещены', 'Айқасқан']] },
       { q: ['Локти мужчины в суджуде:', 'Сәждедегі ер адамның шынтағы:'], a: [['Приподняты и отведены от боков', 'Көтеріңкі, бүйірден алшақ'], ['Лежат на полу', 'Еденде жатады'], ['Прижаты к бокам', 'Бүйірге қысылған'], ['На коленях', 'Тізеде']] },
-      { q: ['Сколько дополнительных такбиров в каждом ракаате намаза Ида (ханафи)?', 'Айт намазының әр ракағатында қанша қосымша тәкбір бар (ханафи)?'], a: [['Три', 'Үш'], ['Один', 'Бір'], ['Семь', 'Жеті'], ['Пять', 'Бес']] },
-      { q: ['Когда в витре читают кунут?', 'Уітірде құнұт қашан оқылады?'], a: [['В 3-м ракаате после суры, перед руку‘', '3-ракағатта сүреден кейін, рукұғтан бұрын'], ['После руку‘', 'Рукұғтан кейін'], ['В 1-м ракаате', '1-ракағатта'], ['После салама', 'Сәлемнен кейін']] },
       { q: ['Как сидят между суджудами?', 'Екі сәжде арасында қалай отырады?'], a: [['На левой стопе, правая стоит на пальцах', 'Сол табанның үстінде, оң табан саусақта тұрады'], ['Скрестив ноги', 'Аяқты айқастырып'], ['На обеих пятках', 'Екі өкшенің үстінде'], ['Ноги вытянуты вперёд', 'Аяқ алға созылған']] }
     ];
     function howSalahQuiz(box, kk) {
@@ -15063,44 +15875,47 @@ function renderDictation(area) {
       show();
     }
 
-    // ----- Чем отличаются фарз, ваджиб, сунна и нафль намазы (ханафи) -----
-    function howSalahKindsCard(kk) {
-      const row = function(color, title, body) {
-        return '<div style="margin-top:0.55rem;border-left:3px solid ' + color + ';padding-left:0.55rem"><b>' + title + '</b><div class="ayah-translation" style="margin-top:0.2rem;line-height:1.55">' + body + '</div></div>';
+    // ----- Вкладка «Доп. инфо» (build 6.06): всё из скрытого раздела «Намаз», что не вошло в анимацию -----
+    // Данные те же: SALAH_WUDU_STEPS, SALAH_TAYAMMUM_STEPS, SALAH_NAFL (раздел «Намаз»), SALAH_POSES и HANAFI_SALAH_BOOK.
+    function _hsMaleOnly(t) {
+      return _hsStripWomen(t).replace(/\s*(Женщин[аеуы]?|Әйел(дер)?|Нәзік жанды(лар)?)[^.]*\./g, '').trim();
+    }
+    function howSalahExtraHtml(kk, B) {
+      const subs = [['wudu', kk ? 'Дәрет' : 'Вуду'], ['tayammum', kk ? 'Тәйәммум' : 'Тайаммум'], ['poses', kk ? 'Қалыптар' : 'Положения'],
+        ['wajib', kk ? 'Барлық уәжіптер' : 'Все ваджибы'], ['sunan', kk ? 'Барлық сүннеттер' : 'Все сунны'], ['mustahabb', kk ? 'Мұстахаб' : 'Мустахаб'],
+        ['nafl', kk ? 'Нәпіл намаздар' : 'Нафль-намазы'], ['terms', kk ? 'Терминдер' : 'Термины']];
+      if (!subs.some(function(x) { return x[0] === window._hsX; })) window._hsX = 'wudu';
+      const cur = window._hsX;
+      const card = function(title, text, color) {
+        return '<div class="card" style="margin-top:0.5rem' + (color ? ';border-left:3px solid ' + color : '') + '">' + (title ? '<b>' + title + '</b>' : '') +
+          '<div class="ayah-translation" style="margin-top:' + (title ? '0.35rem' : '0') + ';line-height:1.55;white-space:pre-wrap;font-size:calc(0.9rem * var(--ru-scale, 1))">' + text + '</div></div>';
       };
-      const li = function(arr) { return arr.map(function(x) { return '• ' + x; }).join('<br>'); };
-      if (kk) {
-        return '<div class="card" style="margin-top:0.6rem"><b>Парыз, уәжіп, сүннет және нәпіл намаздар — айырмашылығы</b>' +
-          row('#f87171', 'Парыз', li(['Күнделікті бес намаз: таң — 2, бесін — 4, екінті — 4, ақшам — 3, құптан — 4 ракағат; ер адамдарға жұма намазы.', 'Оқымау — үлкен күнә; қалып кетсе, міндетті түрде қаза оқылады.', 'Күші жеткен адам тұрып оқиды.'])) +
-          row('#fbbf24', 'Уәжіп', li(['Уітір (3 ракағат) және екі айт намазы (2 ракағаттан).', 'Үкімі парызға жақын: қалдыруға болмайды.'])) +
-          row('#4ade80', 'Сүннәти муаккада (тұрақты сүннет)', li(['Таң парызынан бұрын 2; бесіннен бұрын 4 және кейін 2; ақшамнан кейін 2; құптаннан кейін 2; жұмадан бұрын 4 және кейін 4.', 'Пайғамбар ﷺ тұрақты оқыған; әдетке айналдырып тастау — сөгіске лайық.'])) +
-          row('#93c5fd', 'Сүннәти ғайри муаккада және нәпіл', li(['Мысалы, екінтіден бұрын 4, құптаннан бұрын 4; басқа ерікті намаздар.', 'Оқыса — сауап, оқымаса — күнә емес.'])) +
-          '<div style="margin-top:0.7rem"><b>Оқылуындағы айырмашылықтар</b></div>' +
-          '<div class="ayah-translation" style="margin-top:0.25rem;line-height:1.6">' + li([
-            '<b>Сүре:</b> парызда әл-Фатихадан кейінгі сүре тек алғашқы екі ракағатта оқылады; уітірде, сүннет пен нәпілде — <b>әр ракағатта</b> (уәжіп).',
-            '<b>4 ракағатты сүннәти муаккада</b> (бесін мен жұмадан бұрын): бірінші отырыста парыздағыдай тек тәшәһһуд, содан кейін бірден тұрады.',
-            '<b>4 ракағатты ғайри муаккада/нәпіл</b> (мысалы, екінтіден бұрын): бірінші отырыста тәшәһһудтан кейін салауат та оқылады, ал үшінші ракағат сәнә және әғузумен басталады.',
-            '<b>Отырып оқу:</b> парыз бен уәжіпті себепсіз отырып оқуға болмайды. Нәпілді себепсіз отырып оқуға болады, бірақ сауабы жартылай; таң сүннетін себепсіз отырып оқымайды.',
-            '<b>Ниет:</b> парызда нақты қай намаз екені ниет етіледі (мысалы, «бүгінгі бесіннің парызы»).',
-            '<b>Қаза:</b> қалып кеткен парыз бен уәжіп қаза оқылады; сүннеттер әдетте қаза етілмейді — тек таң сүннеті сол күні түске дейін парызбен бірге оқылады.'
-          ]) + '</div>' +
-          '<div style="margin-top:0.5rem;font-size:0.75rem;color:var(--text-muted)">Дереккөздер: SeekersGuidance (4 ракағатты сүннет, отырып оқу), IlmHub «Sunnah and Nafl Salah», қосымшадағы ханафи фиқһ базасы.</div></div>';
+      const fx = function(t) { try { return typeof explainFiqhTerms === 'function' ? explainFiqhTerms(t) : t; } catch (e) { return t; } };
+      let h = '<div class="card" style="margin-top:0.6rem"><div style="display:flex;gap:0.35rem;flex-wrap:wrap">' +
+        subs.map(function(x) { return '<button type="button" class="btn btn-sm' + (x[0] === cur ? ' btn-primary' : '') + '" data-hs-x="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div></div>';
+      const steps = function(arr) { return (arr || []).map(function(st) { return card((kk && st.tKk) || st.t, (kk && st.dKk) || st.d); }).join(''); };
+      if (cur === 'wudu') h += steps(typeof SALAH_WUDU_STEPS !== 'undefined' ? SALAH_WUDU_STEPS : []);
+      else if (cur === 'tayammum') h += steps(typeof SALAH_TAYAMMUM_STEPS !== 'undefined' ? SALAH_TAYAMMUM_STEPS : []);
+      else if (cur === 'nafl') h += steps(typeof SALAH_NAFL !== 'undefined' ? SALAH_NAFL : []);
+      else if (cur === 'poses') {
+        h += (typeof SALAH_POSES !== 'undefined' ? SALAH_POSES : []).map(function(p) {
+          return '<div class="card" style="margin-top:0.5rem"><b>' + ((kk && p.titleKk) || p.title) + '</b>' +
+            '<div class="ayah-translation" style="margin-top:0.35rem;line-height:1.55">' + _hsMaleOnly((kk && p.noteKk) || p.note) + '</div>' +
+            '<div style="margin-top:0.55rem;padding-top:0.45rem;border-top:1px solid var(--border);color:var(--accent)">' + p.svg + '</div></div>';
+        }).join('');
+      } else if (cur === 'wajib' && B) {
+        h += card('', (kk && B.noteKk) || B.note || '', '#fbbf24') +
+          B.wajib.map(function(it) { return card(it.n + '. ' + ((kk && it.tKk) || it.t), fx((kk && it.dKk) || it.d), '#fbbf24'); }).join('');
+      } else if (cur === 'sunan' && B) {
+        h += B.sunan.map(function(x, i) { return card('', '<b>' + (i + 1) + '.</b> ' + _hsMaleOnly((kk && x.kk) || x.ru), '#4ade80'); }).join('');
+      } else if (cur === 'mustahabb' && B) {
+        h += B.mustahabb.map(function(x, i) { return card('', '<b>' + (i + 1) + '.</b> ' + _hsMaleOnly((kk && x.kk) || x.ru), '#93c5fd'); }).join('');
+      } else if (cur === 'terms') {
+        try { if (typeof SECTION_TERMS !== 'undefined' && !SECTION_TERMS.howsalah && SECTION_TERMS.salah) SECTION_TERMS.howsalah = SECTION_TERMS.salah; } catch (e) {}
+        try { h += '<div style="margin-top:0.5rem">' + termsDictionaryCardHtml('howsalah') + '</div>'; } catch (e) {}
       }
-      return '<div class="card" style="margin-top:0.6rem"><b>Фарз, ваджиб, сунна и нафль намазы — в чём разница</b>' +
-        row('#f87171', 'Фарз', li(['Пять ежедневных намазов: фаджр — 2, зухр — 4, аср — 4, магриб — 3, иша — 4 ракаата; для мужчин — пятничный намаз.', 'Оставить — тяжкий грех; пропущенный обязательно восполняют (каза).', 'Кто может стоять — совершает стоя.'])) +
-        row('#fbbf24', 'Ваджиб', li(['Витр (3 ракаата) и два праздничных намаза Ида (по 2 ракаата).', 'По силе близок к фарзу: оставлять нельзя.'])) +
-        row('#4ade80', 'Сунна муаккада (подтверждённая)', li(['2 до фарза фаджра; 4 до зухра и 2 после; 2 после магриба; 2 после иши; 4 до и 4 после пятничного намаза.', 'Пророк ﷺ совершал их постоянно; оставлять по привычке — порицаемо.'])) +
-        row('#93c5fd', 'Сунна гайр муаккада и нафль', li(['Например, 4 до асра, 4 до иши; любые добровольные намазы.', 'Совершил — награда, не совершил — не грех.'])) +
-        '<div style="margin-top:0.7rem"><b>Чем отличается само совершение</b></div>' +
-        '<div class="ayah-translation" style="margin-top:0.25rem;line-height:1.6">' + li([
-          '<b>Сура:</b> в фарзе сура после аль-Фатихи читается только в первых двух ракаатах; в витре, сунне и нафле — <b>в каждом ракаате</b> (ваджиб).',
-          '<b>4 ракаата сунны муаккада</b> (до зухра и до/после пятничного): в первом сидении, как в фарзе, только ташаххуд, затем сразу встают.',
-          '<b>4 ракаата гайр муаккада/нафль</b> (например, до асра): в первом сидении после ташаххуда читают и салават, а третий ракаат начинают с сана и а‘узу.',
-          '<b>Сидя:</b> фарз и ваджиб без уважительной причины сидя совершать нельзя. Нафль сидя без причины допустим, но награда — половина; сунну фаджра без причины сидя не совершают.',
-          '<b>Намерение:</b> в фарзе намереваются конкретный намаз (например, «фарз сегодняшнего зухра»).',
-          '<b>Восполнение:</b> пропущенные фарз и ваджиб восполняют; сунны обычно не восполняют — кроме сунны фаджра, которую восполняют вместе с фарзом в тот же день до полудня.'
-        ]) + '</div>' +
-        '<div style="margin-top:0.5rem;font-size:0.75rem;color:var(--text-muted)">Источники: SeekersGuidance (4-ракаатная сунна, намаз сидя), IlmHub «Sunnah and Nafl Salah», ханафитская база приложения.</div></div>';
+      if (B && B.source && /wajib|sunan|mustahabb/.test(cur)) h += '<div class="ayah-translation" style="margin:0.5rem 0.2rem;font-size:0.78rem;color:var(--text-muted)">' + B.source + '</div>';
+      return h;
     }
 
     // ========== ДУА И ЗИКРЫ: «Хисн аль-муслим» с живой озвучкой (build 6.01) ==========
@@ -15274,6 +16089,47 @@ function renderDictation(area) {
       });
     }
 
+    // Вуду, тайаммум и нафль-намазы — общие для скрытого раздела «Намаз» и вкладки «Доп. инфо» в «Как читать намаз» (build 6.06)
+    const SALAH_WUDU_STEPS = [
+      { t:'1. Нийя', tKk:'1. Ниет', d:'Нийя — совершить вуду ради Аллаха. В ханафи нийя не всегда условие действительности вуду, но лучше иметь её всегда.', dKk:'Ниет — дәретті Аллаһ ризалығы үшін жасау. Ханафи мазһабында ниет дәреттің жарамдылығына шарт саналмайды, бірақ әрқашан ниет ету жақсы.' },
+      { t:'2. Басмаля', tKk:'2. Бісмілля', d:'«Бисмиллях» перед вуду — сунна. Если забыли — вуду не отменяется.', dKk:'Дәрет алудың алдында «Бісмілләһ» деу — сүннет. Ұмытып кетсе, дәрет бұзылмайды.' },
+      { t:'3. Руки до запястий', tKk:'3. Білекке дейін қолдар', d:'Вымыть кисти рук до запястий трижды, начиная с правой руки; очистить между пальцами.', dKk:'Екі қолды білекке дейін үш рет жуу, оң қолдан бастап; саусақ араларын тазалау.' },
+      { t:'4. Рот и нос', tKk:'4. Ауыз бен мұрын', d:'Прополоскать рот (мадмада) и промыть нос (истиншак) — трижды, сунна.', dKk:'Ауызды шаю (мадмада) және мұрынды тазалау (истиншақ) — үш рет, сүннет.' },
+      { t:'5. Лицо', tKk:'5. Бет', d:'Умыть лицо трижды: от линии волос до низа подбородка, от уха до уха. Фард.', dKk:'Бетті үш рет жуу: шаш өсетін жерден иектің астына дейін, құлақтан құлаққа дейін. Парыз.' },
+      { t:'6. Руки до локтей', tKk:'6. Шынтаққа дейін қолдар', d:'Вымыть руки до локтей включительно трижды, начиная с правой. Фард.', dKk:'Қолдарды шынтаққа дейін (қоса алғанда) үш рет жуу, оң жақтан бастап. Парыз.' },
+      { t:'7. Масх головы; уши', tKk:'7. Басқа масх; құлақ', d:'Протереть влажной рукой голову (масх) — фард, объём по мазхабу; протереть уши — сунна.', dKk:'Дымқыл қолмен басты сипап өту (масх) — парыз, көлемі мазһабқа қарай; құлақты сипау — сүннет.' },
+      { t:'8. Ноги до щиколоток', tKk:'8. Тобыққа дейін аяқтар', d:'Вымыть ноги до щиколоток включительно трижды, начиная с правой; очистить между пальцами. Фард.', dKk:'Аяқтарды тобыққа дейін (қоса алғанда) үш рет жуу, оң жақтан бастап; саусақ араларын тазалау. Парыз.' },
+      { t:'9. Порядок и непрерывность', tKk:'9. Реті мен үзіліссіздігі', d:'Соблюдать порядок фардов и не делать долгих перерывов между ними (детали — по мазхабу); не лить воду сверх меры.', dKk:'Парыздардың ретін сақтау және араларында ұзақ үзіліс жасамау (егжей-тегжейі мазһабқа қарай); суды шектен тыс жұмсамау.' }
+    ];
+    const SALAH_TAYAMMUM_STEPS = [
+      { t:'1. Нет воды или вред от воды', tKk:'1. Су жоқ немесе судан зиян', d:'Тайаммум допустим при отсутствии воды, при вреде от неё (болезнь, сильный холод) или если вода нужна для питья в пути.', dKk:'Су болмағанда, судан зиян келгенде (ауру, қатты суық) немесе жолда су ішуге қажет болғанда тәйәммум жасауға болады.' },
+      { t:'2. Нийя тайаммума для намаза', tKk:'2. Намаз үшін тәйәммум ниеті', d:'Намерение сердцем — совершить тайаммум ради дозволения намаза.', dKk:'Жүрекпен ниет ету — намазды рұқсат ету үшін тәйәммум жасау.' },
+      { t:'3. Удар по чистой земле', tKk:'3. Таза жерге қағу', d:'Ударить ладонями по чистой земле или пыли (один или два удара — по мазхабу).', dKk:'Алақанмен таза жерге немесе шаңға қағу (бір немесе екі рет — мазһабқа қарай).' },
+      { t:'4. Протереть лицо', tKk:'4. Бетті сипап өту', d:'Протереть лицо ладонями полностью.', dKk:'Бетті алақанмен толық сипап өту.' },
+      { t:'5. Протереть руки', tKk:'5. Қолдарды сипап өту', d:'Протереть руки (до запястий или до локтей — по мазхабу).', dKk:'Қолдарды сипап өту (білекке дейін немесе шынтаққа дейін — мазһабқа қарай).' },
+      { t:'6. Нарушается как вуду + появление воды', tKk:'6. Дәрет сияқты бұзылады + судың табылуы', d:'Тайаммум нарушается тем же, чем и вуду, а также появлением воды до начала намаза.', dKk:'Тәйәммум дәретті бұзатын нәрселерден, сондай-ақ намаз басталғанға дейін судың табылуынан бұзылады.' }
+    ];
+    const SALAH_NAFL = [
+      { t: 'Духа (чашт)', tKk: 'Духа (шашт)', d: 'Время: после полного восхода солнца (~15 мин после шурук) до зенита (до зухра).\nЧисло: минимум 2 ракаата, лучше 4, до 8.\nСмысл: «Каждому суставу человека положена садака… и достаточно двух ракаатов духа» (Муслим 720; Абу Дауд 1285).\nКому: всем, у кого есть вуду и время. Не в запретные времена.\nКак: обычный нафиль, стоя, с Фатихой и сурой.',
+        dKk: 'Уақыты: күн толық шыққаннан кейін (шурықтан ~15 мин соң) түс ауғанға дейін (бесінге дейін).\nСаны: кемінде 2 ракағат, жақсысы 4, 8-ге дейін.\nМағынасы: «Әр адамның буынына садақа парыз… екі ракағат духа осының бәріне жетеді» (Мүслім 720; Әбу Дәуіт 1285).\nКімге: дәреті және уақыты бар әркімге. Тыйым салынған уақытта емес.\nҚалай: Фатиха мен сүре оқылатын әдеттегі нәпіл намаз, тұрып оқылады.' },
+      { t: 'Сунны раватиб', tKk: 'Сүннәти раватиб', d: 'До/после фарда:\n• 2 до фаджра (сильно подчёркнуты)\n• 4 до и 2 после зухра\n• 2 после магриба\n• 2 после иши\nСмысл: охраняют фард, восполняют недостатки.\nКому: желательно всем; в пути часть можно опускать по мазхабу.',
+        dKk: 'Парыздың алдында/артында:\n• Таңға дейін 2 ракағат (өте қатты тағайындалған)\n• Бесіннен бұрын 4, кейін 2\n• Ақшамнан кейін 2\n• Құптаннан кейін 2\nМағынасы: парызды қорғайды, кемшіліктерін толтырады.\nКімге: барлығына ұсынылады; жолда мазһабқа қарай бір бөлігін қалдыруға болады.' },
+      { t: 'Витр', tKk: 'Уітір', d: 'Время: после иши до фаджра.\nХанафи: ваджиб, часто 3 ракаата с кунутом.\nДругие мазхабы: сунна муаккада, 1–11 ракаатов.\nКому: всем; не оставляйте без нужды.',
+        dKk: 'Уақыты: құптаннан кейін таңға дейін.\nХанафи: уәжіп, көбіне құнұтпен 3 ракағат.\nБасқа мазһабтар: сүннәти муаккада, 1–11 ракағат.\nКімге: барлығына; себепсіз қалдырмаңыз.' },
+      { t: 'Тахаджжуд / киям ляйл', tKk: 'Тахаджжуд / қиям әл-ләйл', d: 'После сна ночью, до фаджра.\nЛучшее добровольное после фарда.\n2+ ракаата, спокойное чтение.\nКому: кто может встать ночью; можно и до сна часть ночных (если нет сна).',
+        dKk: 'Түнде ұйықтап тұрғаннан кейін, таңға дейін.\nПарыздан кейінгі ең қайырлы ерікті намаз.\n2+ ракағат, ұстамды оқу.\nКімге: түнде тұра алатындарға; ұйқы келмесе, ұйықтар алдында бір бөлігін оқуға болады.' },
+      { t: 'Таравих', tKk: 'Тарауих', d: 'В Рамадан после иши.\n8 или 20 ракаатов — по местной практике и мазхабу.\nСунна муаккада по многим.\nКому: мужчинам в мечети предпочтительно; женщинам — дома или в мечети по обычаю.',
+        dKk: 'Рамазанда құптаннан кейін.\n8 немесе 20 ракағат — жергілікті дәстүр мен мазһабқа қарай.\nКөп ғалымдар бойынша сүннәти муаккада.\nКімге: ерлерге мешітте оқу артық; нәзік жандыларға — үйде немесе дәстүрге қарай мешітте.' },
+      { t: 'Тахият аль-масджид', tKk: 'Тахиятул-мәсжид', d: '2 ракаата при входе в мечеть до сидения.\nНе в запретные времена (восход, зенит, закат) — с оговорками мазхабов.\nСмысл: приветствие мечети.',
+        dKk: 'Мешітке кіргенде отырудан бұрын 2 ракағат.\nТыйым салынған уақыттарда (күн шығу, түс, күн бату) оқылмайды — мазһабтардың ескертулерімен.\nМағынасы: мешітке деген құрмет.' },
+      { t: 'Истихара', tKk: 'Истихара', d: '2 ракаата, затем дуа истихары при выборе дозволенного дела.\nНе «гадание», а просьба блага у Аллаха.\nКому: когда есть сомнение в выборе; не для харама.',
+        dKk: '2 ракағат, содан кейін рұқсат етілген іс таңдағанда истихара дұғасы оқылады.\n«Бал ашу» емес, Аллаһтан қайыр сұрау.\nКімге: таңдауда күмән болғанда; харам іс үшін емес.' },
+      { t: 'Сунун аль-вуду', tKk: 'Сүннәти-л-уду', d: '2 ракаата после вуду (если не запретное время).\nСмысл: следование сунне, закрепление омовения поклонением.',
+        dKk: 'Дәреттен кейін 2 ракағат (тыйым салынған уақыт болмаса).\nМағынасы: сүннетке ілесу, дәретті құлшылықпен бекіту.' },
+      { t: 'Запретные времена для нафиля', tKk: 'Нәпіл үшін тыйым салынған уақыттар', d: 'Обычно не читают нафиль при восходе, в зените и при закате (детали — по мазхабу).\nКаза фарда в эти времена — по правилам школы.\nКому нельзя: нафиль в эти окна без нужды; исключены некоторые сунны по мазхабу.',
+        dKk: 'Әдетте күн шыққанда, түс ауғанда және күн батқанда нәпіл оқылмайды (егжей-тегжейі мазһабқа қарай).\nОсы уақыттардағы парыздың қазасы — мектептің ережелері бойынша.\nКімге болмайды: қажеттіліксіз осы аралықтарда нәпіл оқу; мазһабқа қарай кейбір сүннеттер осыдан тыс қалады.' }
+    ];
+
     function renderSalah() {
       const el = document.getElementById('salah-body');
       if (!el) return;
@@ -15283,45 +16139,7 @@ function renderDictation(area) {
       const madh = (state.settings && state.settings.madhhab) || '';
       const madhLabel = { hanafi:'Ханафи', maliki:'Малики', shafii:'Шафии', hanbali:'Ханбали', salaf:'Саляфитский подход' }[madh] || 'не выбран';
 
-      const wuduSteps = [
-        { t:'1. Нийя', tKk:'1. Ниет', d:'Нийя — совершить вуду ради Аллаха. В ханафи нийя не всегда условие действительности вуду, но лучше иметь её всегда.', dKk:'Ниет — дәретті Аллаһ ризалығы үшін жасау. Ханафи мазһабында ниет дәреттің жарамдылығына шарт саналмайды, бірақ әрқашан ниет ету жақсы.' },
-        { t:'2. Басмаля', tKk:'2. Бісмілля', d:'«Бисмиллях» перед вуду — сунна. Если забыли — вуду не отменяется.', dKk:'Дәрет алудың алдында «Бісмілләһ» деу — сүннет. Ұмытып кетсе, дәрет бұзылмайды.' },
-        { t:'3. Руки до запястий', tKk:'3. Білекке дейін қолдар', d:'Вымыть кисти рук до запястий трижды, начиная с правой руки; очистить между пальцами.', dKk:'Екі қолды білекке дейін үш рет жуу, оң қолдан бастап; саусақ араларын тазалау.' },
-        { t:'4. Рот и нос', tKk:'4. Ауыз бен мұрын', d:'Прополоскать рот (мадмада) и промыть нос (истиншак) — трижды, сунна.', dKk:'Ауызды шаю (мадмада) және мұрынды тазалау (истиншақ) — үш рет, сүннет.' },
-        { t:'5. Лицо', tKk:'5. Бет', d:'Умыть лицо трижды: от линии волос до низа подбородка, от уха до уха. Фард.', dKk:'Бетті үш рет жуу: шаш өсетін жерден иектің астына дейін, құлақтан құлаққа дейін. Парыз.' },
-        { t:'6. Руки до локтей', tKk:'6. Шынтаққа дейін қолдар', d:'Вымыть руки до локтей включительно трижды, начиная с правой. Фард.', dKk:'Қолдарды шынтаққа дейін (қоса алғанда) үш рет жуу, оң жақтан бастап. Парыз.' },
-        { t:'7. Масх головы; уши', tKk:'7. Басқа масх; құлақ', d:'Протереть влажной рукой голову (масх) — фард, объём по мазхабу; протереть уши — сунна.', dKk:'Дымқыл қолмен басты сипап өту (масх) — парыз, көлемі мазһабқа қарай; құлақты сипау — сүннет.' },
-        { t:'8. Ноги до щиколоток', tKk:'8. Тобыққа дейін аяқтар', d:'Вымыть ноги до щиколоток включительно трижды, начиная с правой; очистить между пальцами. Фард.', dKk:'Аяқтарды тобыққа дейін (қоса алғанда) үш рет жуу, оң жақтан бастап; саусақ араларын тазалау. Парыз.' },
-        { t:'9. Порядок и непрерывность', tKk:'9. Реті мен үзіліссіздігі', d:'Соблюдать порядок фардов и не делать долгих перерывов между ними (детали — по мазхабу); не лить воду сверх меры.', dKk:'Парыздардың ретін сақтау және араларында ұзақ үзіліс жасамау (егжей-тегжейі мазһабқа қарай); суды шектен тыс жұмсамау.' }
-      ];
-      const tayammumSteps = [
-        { t:'1. Нет воды или вред от воды', tKk:'1. Су жоқ немесе судан зиян', d:'Тайаммум допустим при отсутствии воды, при вреде от неё (болезнь, сильный холод) или если вода нужна для питья в пути.', dKk:'Су болмағанда, судан зиян келгенде (ауру, қатты суық) немесе жолда су ішуге қажет болғанда тәйәммум жасауға болады.' },
-        { t:'2. Нийя тайаммума для намаза', tKk:'2. Намаз үшін тәйәммум ниеті', d:'Намерение сердцем — совершить тайаммум ради дозволения намаза.', dKk:'Жүрекпен ниет ету — намазды рұқсат ету үшін тәйәммум жасау.' },
-        { t:'3. Удар по чистой земле', tKk:'3. Таза жерге қағу', d:'Ударить ладонями по чистой земле или пыли (один или два удара — по мазхабу).', dKk:'Алақанмен таза жерге немесе шаңға қағу (бір немесе екі рет — мазһабқа қарай).' },
-        { t:'4. Протереть лицо', tKk:'4. Бетті сипап өту', d:'Протереть лицо ладонями полностью.', dKk:'Бетті алақанмен толық сипап өту.' },
-        { t:'5. Протереть руки', tKk:'5. Қолдарды сипап өту', d:'Протереть руки (до запястий или до локтей — по мазхабу).', dKk:'Қолдарды сипап өту (білекке дейін немесе шынтаққа дейін — мазһабқа қарай).' },
-        { t:'6. Нарушается как вуду + появление воды', tKk:'6. Дәрет сияқты бұзылады + судың табылуы', d:'Тайаммум нарушается тем же, чем и вуду, а также появлением воды до начала намаза.', dKk:'Тәйәммум дәретті бұзатын нәрселерден, сондай-ақ намаз басталғанға дейін судың табылуынан бұзылады.' }
-      ];
-      const nafl = [
-        { t: 'Духа (чашт)', tKk: 'Духа (шашт)', d: 'Время: после полного восхода солнца (~15 мин после шурук) до зенита (до зухра).\nЧисло: минимум 2 ракаата, лучше 4, до 8.\nСмысл: «Каждому суставу человека положена садака… и достаточно двух ракаатов духа» (Муслим 720; Абу Дауд 1285).\nКому: всем, у кого есть вуду и время. Не в запретные времена.\nКак: обычный нафиль, стоя, с Фатихой и сурой.',
-          dKk: 'Уақыты: күн толық шыққаннан кейін (шурықтан ~15 мин соң) түс ауғанға дейін (бесінге дейін).\nСаны: кемінде 2 ракағат, жақсысы 4, 8-ге дейін.\nМағынасы: «Әр адамның буынына садақа парыз… екі ракағат духа осының бәріне жетеді» (Мүслім 720; Әбу Дәуіт 1285).\nКімге: дәреті және уақыты бар әркімге. Тыйым салынған уақытта емес.\nҚалай: Фатиха мен сүре оқылатын әдеттегі нәпіл намаз, тұрып оқылады.' },
-        { t: 'Сунны раватиб', tKk: 'Сүннәти раватиб', d: 'До/после фарда:\n• 2 до фаджра (сильно подчёркнуты)\n• 4 до и 2 после зухра\n• 2 после магриба\n• 2 после иши\nСмысл: охраняют фард, восполняют недостатки.\nКому: желательно всем; в пути часть можно опускать по мазхабу.',
-          dKk: 'Парыздың алдында/артында:\n• Таңға дейін 2 ракағат (өте қатты тағайындалған)\n• Бесіннен бұрын 4, кейін 2\n• Ақшамнан кейін 2\n• Құптаннан кейін 2\nМағынасы: парызды қорғайды, кемшіліктерін толтырады.\nКімге: барлығына ұсынылады; жолда мазһабқа қарай бір бөлігін қалдыруға болады.' },
-        { t: 'Витр', tKk: 'Уітір', d: 'Время: после иши до фаджра.\nХанафи: ваджиб, часто 3 ракаата с кунутом.\nДругие мазхабы: сунна муаккада, 1–11 ракаатов.\nКому: всем; не оставляйте без нужды.',
-          dKk: 'Уақыты: құптаннан кейін таңға дейін.\nХанафи: уәжіп, көбіне құнұтпен 3 ракағат.\nБасқа мазһабтар: сүннәти муаккада, 1–11 ракағат.\nКімге: барлығына; себепсіз қалдырмаңыз.' },
-        { t: 'Тахаджжуд / киям ляйл', tKk: 'Тахаджжуд / қиям әл-ләйл', d: 'После сна ночью, до фаджра.\nЛучшее добровольное после фарда.\n2+ ракаата, спокойное чтение.\nКому: кто может встать ночью; можно и до сна часть ночных (если нет сна).',
-          dKk: 'Түнде ұйықтап тұрғаннан кейін, таңға дейін.\nПарыздан кейінгі ең қайырлы ерікті намаз.\n2+ ракағат, ұстамды оқу.\nКімге: түнде тұра алатындарға; ұйқы келмесе, ұйықтар алдында бір бөлігін оқуға болады.' },
-        { t: 'Таравих', tKk: 'Тарауих', d: 'В Рамадан после иши.\n8 или 20 ракаатов — по местной практике и мазхабу.\nСунна муаккада по многим.\nКому: мужчинам в мечети предпочтительно; женщинам — дома или в мечети по обычаю.',
-          dKk: 'Рамазанда құптаннан кейін.\n8 немесе 20 ракағат — жергілікті дәстүр мен мазһабқа қарай.\nКөп ғалымдар бойынша сүннәти муаккада.\nКімге: ерлерге мешітте оқу артық; нәзік жандыларға — үйде немесе дәстүрге қарай мешітте.' },
-        { t: 'Тахият аль-масджид', tKk: 'Тахиятул-мәсжид', d: '2 ракаата при входе в мечеть до сидения.\nНе в запретные времена (восход, зенит, закат) — с оговорками мазхабов.\nСмысл: приветствие мечети.',
-          dKk: 'Мешітке кіргенде отырудан бұрын 2 ракағат.\nТыйым салынған уақыттарда (күн шығу, түс, күн бату) оқылмайды — мазһабтардың ескертулерімен.\nМағынасы: мешітке деген құрмет.' },
-        { t: 'Истихара', tKk: 'Истихара', d: '2 ракаата, затем дуа истихары при выборе дозволенного дела.\nНе «гадание», а просьба блага у Аллаха.\nКому: когда есть сомнение в выборе; не для харама.',
-          dKk: '2 ракағат, содан кейін рұқсат етілген іс таңдағанда истихара дұғасы оқылады.\n«Бал ашу» емес, Аллаһтан қайыр сұрау.\nКімге: таңдауда күмән болғанда; харам іс үшін емес.' },
-        { t: 'Сунун аль-вуду', tKk: 'Сүннәти-л-уду', d: '2 ракаата после вуду (если не запретное время).\nСмысл: следование сунне, закрепление омовения поклонением.',
-          dKk: 'Дәреттен кейін 2 ракағат (тыйым салынған уақыт болмаса).\nМағынасы: сүннетке ілесу, дәретті құлшылықпен бекіту.' },
-        { t: 'Запретные времена для нафиля', tKk: 'Нәпіл үшін тыйым салынған уақыттар', d: 'Обычно не читают нафиль при восходе, в зените и при закате (детали — по мазхабу).\nКаза фарда в эти времена — по правилам школы.\nКому нельзя: нафиль в эти окна без нужды; исключены некоторые сунны по мазхабу.',
-          dKk: 'Әдетте күн шыққанда, түс ауғанда және күн батқанда нәпіл оқылмайды (егжей-тегжейі мазһабқа қарай).\nОсы уақыттардағы парыздың қазасы — мектептің ережелері бойынша.\nКімге болмайды: қажеттіліксіз осы аралықтарда нәпіл оқу; мазһабқа қарай кейбір сүннеттер осыдан тыс қалады.' }
-      ];
+      const wuduSteps = SALAH_WUDU_STEPS, tayammumSteps = SALAH_TAYAMMUM_STEPS, nafl = SALAH_NAFL;
 
       // Категории (кнопки сверху) и подкатегории
       const CATS = [
