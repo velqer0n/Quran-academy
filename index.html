@@ -209,7 +209,6 @@
         <button type="button" class="lock-btn-header" id="btn-header-groups" title="Групповые чаты" style="display:none">👥</button>
         <button type="button" class="lock-btn-header" id="btn-header-forum" title="Форум" style="display:none">💬</button>
         <button type="button" class="lock-btn-header" id="btn-header-myqa" title="Мои вопросы/ответы" style="display:none">❓</button>
-        <button type="button" class="lock-btn-header" id="btn-header-achievements" title="Достижения" style="display:none">🏅</button>
         <button type="button" class="lock-btn-header" id="btn-header-stats" title="Статистика" style="display:none">📊</button>
         <button type="button" class="lock-btn-header" id="btn-header-prayertimes" title="Время намаза и кибла" style="display:none">🕐</button>
       </div>
@@ -499,7 +498,7 @@
         <button data-game="names" data-group="tests">Тест: названия</button>
         <button data-game="rules" data-group="tests">Тест: правила</button>
         <button data-game="ayah" data-group="tests">Тест: аят</button>
-        <button data-game="findrule" data-group="tests">Найди правило</button>
+        <button data-game="findrule" data-group="tests">Найдите правило</button>
         <button data-game="speak" data-group="speak" style="display:none">🎤 Буквы</button>
         <button data-game="speak-ayah" data-group="speak" style="display:none">🎤 Аят</button>
         <button data-game="joinmic" data-group="speak" style="display:none">🎤 Соединение голосом</button>
@@ -507,14 +506,14 @@
         <button data-game="practice" data-group="drills" style="display:none">Слова</button>
         <button data-game="srs" data-group="drills" style="display:none">Карточки</button>
         <button data-game="dictation" data-group="drills" style="display:none">Диктовка</button>
-        <button data-game="minimal-pairs" data-group="drills" style="display:none">Различие звуков</button>
+        <button data-game="minimal-pairs" data-group="drills" style="display:none">👂 Тест на слух</button>
         <button data-game="write" data-group="drills" style="display:none">✍️ Написать букву</button>
-        <button data-game="listenwrite" data-group="drills" style="display:none">🎧 Послушай и напиши</button>
+        <button data-game="listenwrite" data-group="drills" style="display:none">🎧 Послушайте и напишите</button>
         <!-- build 6.09: упражнения «Учителя» — отдельными тренажёрами -->
-        <button data-game="fillgap" data-group="drills" style="display:none">Вставь огласовку</button>
+        <button data-game="fillgap" data-group="drills" style="display:none">Вставьте огласовку</button>
         <button data-game="qaida" data-group="drills" style="display:none">Строки для чтения</button>
         <button data-game="blend" data-group="drills" style="display:none">Слоги из букв</button>
-        <button data-game="construct" data-group="drills" style="display:none">Собери слог</button>
+        <button data-game="construct" data-group="drills" style="display:none">Соберите слог</button>
         <button data-game="join" data-group="drills" style="display:none">Читаем с соединением</button>
         <button data-game="noharakat" data-group="drills" style="display:none">Без огласовок</button>
         <button data-game="speed" data-group="drills" style="display:none">Скорость чтения</button>
@@ -629,14 +628,6 @@
       <h2 class="section-title">Хадисы</h2>
       <div id="hadiths-body"></div>
     </div>
-    <div id="view-fiqh" class="view">
-      <div class="section-breadcrumb" id="fiqh-breadcrumb"></div>
-      <div id="fiqh-body"></div>
-    </div>
-    <div id="view-madhhabs" class="view">
-      <h2 class="section-title">Мазхабы</h2>
-      <div id="madhhabs-body"></div>
-    </div>
     
     <div id="view-sins" class="view">
       <h2 class="section-title">Грехи и тауба</h2>
@@ -652,10 +643,6 @@
       <p style="color:var(--text-muted);margin-bottom:0.75rem">Основная академия — во вкладке «Арабский» / «Академия» в меню.</p>
       <button type="button" class="btn btn-primary" id="btn-goto-learn-acad">Открыть академию →</button>
       <div id="academy-body-legacy"></div>
-    </div>
-    <div id="view-salah" class="view">
-      <h2 class="section-title">Намаз</h2>
-      <div id="salah-body"></div>
     </div>
     <div id="view-hajj" class="view">
       <h2 class="section-title">Хадж и Умра</h2>
@@ -702,11 +689,6 @@
       <div id="stats-body"></div>
     </div>
 
-    <div id="view-achievements" class="view">
-      <h2 class="section-title">Достижения</h2>
-      <p class="ayah-translation" style="margin:-0.25rem 0 0.75rem;font-size:calc(0.9rem * var(--ru-scale, 1))">Бейджи за чтение, заучивание, стрик и академию</p>
-      <div id="achievements-body"></div>
-    </div>
 
     <div id="view-registration" class="view">
       <h2 class="section-title">Регистрация</h2>
@@ -881,6 +863,12 @@
       <div id="changelog-body"></div>
     </div>
 
+    <!-- build 6.15: «Источники» — откуда взяты тексты, переводы, записи; лицензии; проверка файлов -->
+    <div id="view-sources" class="view">
+      <h2 class="section-title">Источники и лицензии</h2>
+      <div id="sources-body"></div>
+    </div>
+
     <div id="view-help" class="view">
       <h2 class="section-title">Справка</h2>
       <div id="help-body"></div>
@@ -935,7 +923,7 @@
         <button type="button" class="btn btn-sm" data-set-cat="view">Вид</button>
         <button type="button" class="btn btn-sm" data-set-cat="fonts">Шрифты</button>
         <button type="button" class="btn btn-sm" data-set-cat="read">Чтение</button>
-        <button type="button" class="btn btn-sm" data-set-cat="study" style="position:relative">Учёба<span id="study-tab-new-badge" style="position:absolute;top:-0.5rem;right:-0.4rem;background:var(--accent);color:#fff;font-size:0.62rem;line-height:1;padding:0.18rem 0.32rem;border-radius:0.6rem;font-weight:600;display:none">новое</span></button>
+        <button type="button" class="btn btn-sm" data-set-cat="study" style="position:relative">Учёба<span id="study-tab-new-badge" style="position:absolute;top:-0.5rem;right:-0.4rem;background:var(--accent);color:var(--on-accent,#fff);font-size:0.62rem;line-height:1;padding:0.18rem 0.32rem;border-radius:0.6rem;font-weight:600;display:none">новое</span></button>
         <button type="button" class="btn btn-sm" data-set-cat="presets">Пресеты</button>
         <button type="button" class="btn btn-sm" data-set-cat="notif">Уведомления</button>
         <button type="button" class="btn btn-sm" data-set-cat="offline">Офлайн</button>
@@ -1293,12 +1281,12 @@
       </div>
       <div class="card set-cat" data-set-panel="study" style="margin-bottom:0.75rem;display:none">
         <b>🎓 Учёба</b>
-        <div class="ayah-translation" style="margin:0.4rem 0;font-size:calc(0.85rem * var(--ru-scale, 1))">Настройки, которые влияют на разделы «Теория» и «Практика».</div>
+        <div class="ayah-translation" style="margin:0.4rem 0;font-size:calc(0.85rem * var(--ru-scale, 1))">Настройки вкладки «Учёба» (теория, практика, Личный учитель).</div>
         <div class="setting-row" style="margin-top:0.5rem">
-          <span>Режим «только Коран»<br><small style="color:var(--text-muted);font-weight:400">Скрывает разделы «Теория» и «Практика» из меню</small></span>
+          <span>Режим «только Коран»<br><small style="color:var(--text-muted);font-weight:400">Скрывает вкладку «Учёба» из меню</small></span>
           <select id="setting-quran-only">
             <option value="0">Выкл</option>
-            <option value="1">Вкл (скрыть теорию и практику)</option>
+            <option value="1">Вкл (скрыть «Учёбу»)</option>
           </select>
         </div>
         <div class="setting-row">
@@ -1328,7 +1316,7 @@
              раздел сайта — нашёл этот пробел в ходе проверки настроек. -->
         <b style="display:block;margin-bottom:0.35rem">👨‍🏫 Личный учитель</b>
         <div class="setting-row">
-          <span>Ежедневная цель и напоминание<br><small style="color:var(--text-muted);font-weight:400">Счётчик «дней подряд» по Учителю на главном экране «Ежедневное»</small></span>
+          <span>Ежедневная цель и напоминание<br><small style="color:var(--text-muted);font-weight:400">Карточка «Следующий урок» или «Пора повторить» на главном экране «Ежедневное»</small></span>
           <select id="setting-teacher-daily-goal">
             <option value="1">Вкл (по умолчанию)</option>
             <option value="0">Выкл</option>
@@ -1390,24 +1378,12 @@
         <b>⚙️ Прочее</b>
         <div class="tabs-row subtabs-row" data-subtabs-group="other">
           <button type="button" class="btn btn-sm btn-primary" data-subtab="quick">Основное</button>
-          <button type="button" class="btn btn-sm" data-subtab="ach">Достижения</button>
           <button type="button" class="btn btn-sm" data-subtab="cards">Карточки</button>
           <button type="button" class="btn btn-sm" data-subtab="data">Данные</button>
         </div>
 
         <div class="subtab-panel" data-subtab-panel="quick" data-subtabs-group="other">
         <div class="setting-row" style="margin-top:0.5rem">
-          <span>Мазхаб (для намаза)</span>
-          <select id="setting-madhhab">
-            <option value="">Не выбран</option>
-            <option value="hanafi">Ханафи</option>
-            <option value="maliki">Малики</option>
-            <option value="shafii">Шафии</option>
-            <option value="hanbali">Ханбали</option>
-            <option value="salaf">Саляфитский подход (ахлю-ль-хадис)</option>
-          </select>
-        </div>
-        <div class="setting-row">
           <span>Кнопка Тел/ПК (справа внизу)</span>
           <select id="setting-device-btn">
             <option value="1">Показывать</option>
@@ -1422,7 +1398,7 @@
           </select>
         </div>
         <div class="setting-row">
-          <span>Свайп между вкладками<br><small style="color:var(--text-muted);font-weight:400">Смахивание влево/вправо по экрану переключает соседние разделы нижнего меню («Ежедневное», «Суры», «Теория», «Практика», «Ещё») — как альтернатива нажатию.</small></span>
+          <span>Свайп между вкладками<br><small style="color:var(--text-muted);font-weight:400">Смахивание влево/вправо по экрану переключает соседние разделы нижнего меню («Ежедневное», «Суры», «Учёба», «Онлайн», «Ещё») — как альтернатива нажатию.</small></span>
           <select id="setting-swipe-tabs">
             <option value="1">Вкл (по умолчанию)</option>
             <option value="0">Выкл</option>
@@ -1436,20 +1412,6 @@
             <option value="100">100</option>
             <option value="200">200</option>
             <option value="0">Без страниц (все)</option>
-          </select>
-        </div>
-        </div>
-
-        <div class="subtab-panel" data-subtab-panel="ach" data-subtabs-group="other" style="display:none">
-        <div class="ayah-translation" style="margin:0.4rem 0 0.55rem;font-size:calc(0.88rem * var(--ru-scale, 1));line-height:1.5;padding:0.65rem 0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:0.65rem">
-          Учитесь и совершайте добрые дела <b>не ради бейджей и наград в приложении</b>, а ради довольства Аллаха. Достижения — лишь вспомогательный ориентир; ният (намерение) важнее счётчиков.
-        </div>
-        <div class="setting-row" style="margin-top:0.25rem">
-          <span>Режим достижений<br><small style="color:var(--text-muted);font-weight:400">«Скрыть» убирает пункт из меню «Ещё», карточку в прогрессе и всплывающие уведомления. «Без уведомлений» — прогресс считается тихо, без toast 🏅.</small></span>
-          <select id="setting-achievements-mode">
-            <option value="on">Включены</option>
-            <option value="quiet">Без уведомлений</option>
-            <option value="off">Скрыть полностью</option>
           </select>
         </div>
         </div>
@@ -1495,6 +1457,7 @@
           <button class="btn btn-sm" id="btn-remind">Напоминание</button>
           <button type="button" class="btn btn-sm btn-install-pwa">Установить приложение</button>
         </div>
+        <div id="settings-extra-data" style="margin-top:1rem"></div>
         </div>
       </div>
       <!-- build 6.05: «Пресеты» — теперь своя категория, а не карточка,
@@ -1685,6 +1648,7 @@
   <script src="data-hajj-and-names.js"></script>
   <script src="data-daily-practice.js"></script>
   <script src="data-app-settings.js"></script>
+  <script src="data-kk-extra.js"></script>
   <script src="logic-app.js"></script>
 
 </body>
