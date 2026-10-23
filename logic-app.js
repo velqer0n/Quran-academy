@@ -10382,20 +10382,14 @@ function renderMistakes() {
       wrap._lwRun = myRun; wrap._lwFRun = 0;
       wrap._lwSlow = !!slow;
       stage.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:0.4rem">…</div>';
+      // build 6.27: без верхней анимации — формы появляются сразу; пишется выбранная форма (по умолчанию «Отдельно»)
       loadLetterStrokes().then(function() {
         if (wrap._lwRun !== myRun) return;
-        const D = LETTER_STROKES[ch];
-        if (!D) { stage.innerHTML = ''; return; }
-        _lwDraw(stage, D, { kk: kk, slow: slow, alive: function() { return wrap._lwRun === myRun; }, extraHtml: '<div class="lw-forms-box" dir="ltr"></div>',
-          done: function(cap) {
-            cap.textContent = kk ? 'Дайын. Енді сөздегі түрлері:' : 'Готово. Теперь — формы в слове:';
-            const fb = stage.querySelector('.lw-forms-box');
-            fb.innerHTML = _lwFormsHtml(ch, kk);
-            requestAnimationFrame(function() { requestAnimationFrame(function() {
-              fb.querySelectorAll('.lw-form').forEach(function(f) { f.style.opacity = '1'; f.style.transform = 'none'; });
-              const nt = fb.querySelector('.lw-note'); if (nt) nt.style.opacity = '1';
-            }); });
-          } });
+        if (!LETTER_STROKES[ch]) { stage.innerHTML = ''; return; }
+        stage.innerHTML = '<div class="lw-forms-box" dir="ltr">' + _lwFormsHtml(ch, kk) + '</div>';
+        stage.querySelectorAll('.lw-form').forEach(function(f) { f.style.opacity = '1'; f.style.transform = 'none'; });
+        const nt = stage.querySelector('.lw-note'); if (nt) nt.style.opacity = '1';
+        playLetterForm(wrap, 'isol');
       }).catch(function() {
         stage.innerHTML = '<div class="ayah-translation" style="margin-top:0.4rem">' + (kk ? 'Деректер жүктелмеді — интернетті тексеріңіз.' : 'Не удалось загрузить — проверьте интернет.') + '</div>';
       });
@@ -13987,8 +13981,8 @@ function renderDictation(area) {
       const takF = { w: { at: 'sh', o: [11, -7, 1] }, pole: [0.1, -1, 0.5], hd: [180, -8], tb: [-0.5, -0.8, -1] };
       P.takbirF = _sPose(P.stand, { head: 176, R: takF, L: takF });
       P.foldF = _sPose(P.stand, { head: 170,
-        R: { w: { at: 'chest', o: [-17, -7, 3] }, pole: [-0.35, -0.5, 0.85], hd: [94, -80], tb: [0, 1, 0.2] },
-        L: { w: { at: 'chest', o: [-18.5, -8, 5] }, pole: [-0.35, -0.5, 0.85], hd: [92, -78], tb: [0, 1, 0] } });
+        R: { w: { at: 'chest', o: [-10.5, -3, 1] }, pole: [-0.3, -1, 0.3], hd: [112, -72], tb: [0, 1, 0.2] },
+        L: { w: { at: 'chest', o: [-11.5, -4, 2.5] }, pole: [-0.3, -1, 0.3], hd: [110, -70], tb: [0, 1, 0] } });
       const rkF = { w: { at: 'knee', o: [5, 8, 1.5] }, pole: [-0.55, 0.2, 0.22], hd: [6, 2], tb: [0.3, 0, -1] };
       P.rukuF = _sPose(P.stand, { torso: 90, head: 88,
         R: Object.assign({}, rkF, { th: [-8, -2], sh: [6, -1], ft: [83.5, 0] }),
@@ -14499,38 +14493,43 @@ function renderDictation(area) {
       if (fem) Object.assign(_SD, { shirt: '#b7c3d9', shirtD: '#8f9db8', trous: '#a9b6cf', cap: '#b7c3d9' });
       let body;
       try { body = f(kk); } finally { if (keep) Object.assign(_SD, keep); }
-      return '<svg viewBox="0 0 120 122" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">' +
+      const svgHtml = '<svg viewBox="0 0 120 122" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">' +
         '<defs><marker id="sd-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="' + _SD.acc + '"/></marker>' +
         '<marker id="sd-arrq" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10z" fill="' + _SD.q + '"/></marker></defs>' +
         body + '</svg>';
+      // build 6.28: рисунок «крупно» — снимок самой 3D-фигуры (папка salah-details); если файла нет — прежний SVG
+      if (!SALAH_DETAIL_IMG[id] || fem) return svgHtml;
+      return '<div><img src="salah-details/' + id + '.webp" alt="" loading="lazy" style="width:100%;aspect-ratio:6/7;object-fit:cover;display:block;border-radius:0.45rem 0.45rem 0 0" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">' +
+        '<div style="display:none">' + svgHtml + '</div></div>';
     }
+    const SALAH_DETAIL_IMG = { ears: 1, fold: 1, knee: 1, sajdaHands: 1, sajdaFeet: 1, iftirash: 1, finger: 1, stance: 1, shouldersF: 1, foldF: 1, sajdaHandsF: 1, tawarrukF: 1 };
 
     // Пояснения к рисункам «крупно» — текстом под рисунком
     const SALAH_DETAIL_NOTES = {
-      ears: { ru: ['Вид спереди; кибла — в сторону зрителя.', 'Руки подняты до уровня ушей (пунктир), ладони обращены к кибле.', 'Пальцы в естественном положении — не сжаты и не растопырены.'],
-              kk: ['Алдынан көрініс; құбыла — көрерменге қарай.', 'Қол құлақ деңгейіне дейін көтерілген (пунктир), алақан құбылаға қарайды.', 'Саусақтар табиғи күйде — қысылмаған да, ашылмаған да.'] },
-      fold: { ru: ['Руки — под пупком (пунктир — линия пупка).', 'Правая ладонь лежит на тыльной стороне левой кисти.', 'Мизинец и большой палец правой руки обхватывают левое запястье.'],
-              kk: ['Қол — кіндіктен төмен (пунктир — кіндік сызығы).', 'Оң алақан сол қолдың сыртында жатады.', 'Оң қолдың шынашағы мен бас бармағы сол қолдың білезігін орайды.'] },
-      knee: { ru: ['Вид сбоку; стрелка — кибла.', 'Ладони обхватывают колени, пальцы раздвинуты.', 'Голени выпрямлены.'],
-              kk: ['Бүйірден көрініс; бағыттауыш — құбыла.', 'Алақан тізені ұстайды, саусақтар ашық.', 'Балтыр түзу.'] },
-      sajdaHands: { ru: ['Вид сверху; стрелка — кибла.', 'Лицо — между ладонями.', 'Пальцы рук сомкнуты и направлены к кибле.', 'Локти отведены от боков (если нет тесноты), предплечья не лежат на земле.'],
-              kk: ['Жоғарыдан көрініс; бағыттауыш — құбыла.', 'Бет — екі алақанның арасында.', 'Қол саусақтары жұмулы, құбылаға қарайды.', 'Шынтақ бүйірден алшақ (тар болмаса), білек жерге жайылмайды.'] },
-      sajdaFeet: { ru: ['Вид сбоку; стрелка — кибла.', 'Пальцы ног опираются на пол и обращены к кибле (кружок).'],
-              kk: ['Бүйірден көрініс; бағыттауыш — құбыла.', 'Аяқ саусақтары еденге тіреледі, құбылаға қарайды (шеңбер).'] },
-      iftirash: { ru: ['Вид сверху; стрелка — кибла.', 'Левая стопа подстелена — на ней сидят.', 'Правая стопа стоит на пальцах, пальцы обращены к кибле.', 'Так сидят в первом и в последнем сидении (ку‘уд).'],
-              kk: ['Жоғарыдан көрініс; бағыттауыш — құбыла.', 'Сол табан төселген — соның үстіне отырады.', 'Оң табан саусақ ұшында тұрады, саусақтар құбылаға қарайды.', 'Бірінші және соңғы отырыста осылай отырады.'] },
-      finger: { ru: ['Кисть лежит на бедре.', 'На «ля иляха» указательный палец правой руки поднимается (кружок), на «илля-Ллах» — опускается.'],
-              kk: ['Қол санда жатады.', '«Лә иләһә» дегенде оң қолдың сұқ саусағы көтеріледі (шеңбер), «иллаллаһ» дегенде түсіріледі.'] },
-      shouldersF: { ru: ['Вид спереди; кибла — в сторону зрителя.', 'Женщина поднимает руки до уровня плеч (пунктир), ладони обращены к кибле.', 'Пальцы в естественном положении — не сжаты и не растопырены.'],
-              kk: ['Алдынан көрініс; құбыла — көрерменге қарай.', 'Әйел қолын иық деңгейіне дейін көтереді (пунктир), алақан құбылаға қарайды.', 'Саусақтар табиғи күйде — қысылмаған да, ашылмаған да.'] },
-      foldF: { ru: ['Руки — на груди (пунктир — уровень груди).', 'Правая ладонь лежит на тыльной стороне левой кисти.', 'Без «кольца»: мизинец и большой палец запястье не обхватывают (перечёркнутый круг).'],
-              kk: ['Қол — кеудеде (пунктир — кеуде деңгейі).', 'Оң алақан сол қолдың сыртында жатады.', '«Сақинасыз»: шынашақ пен бас бармақ білезікті орамайды (сызылған шеңбер).'] },
-      sajdaHandsF: { ru: ['Вид сверху; стрелка — кибла.', 'Лицо — между ладонями.', 'Пальцы рук сомкнуты и направлены к кибле.', 'Живот прижат к бёдрам; предплечья по земле не расстилают (макрух).'],
-              kk: ['Жоғарыдан көрініс; бағыттауыш — құбыла.', 'Бет — екі алақанның арасында.', 'Қол саусақтары жұмулы, құбылаға қарайды.', 'Іш санға қысылған; білек жерге жайылмайды (мәкрүһ).'] },
-      tawarrukF: { ru: ['Вид сверху; стрелка — кибла (условная схема).', 'Женщина садится на ягодицы, бёдра лежат на земле.', 'Ногу выводит из-под правого бедра.', 'Так она сидит между суджудами, в первом и в последнем сидении.'],
-              kk: ['Жоғарыдан көрініс; бағыттауыш — құбыла (шартты сызба).', 'Әйел бөксесіне отырады, сандары жерде жатады.', 'Аяғын оң жамбасының астынан шығарады.', 'Екі сәжде арасында, бірінші және соңғы отырыста осылай отырады.'] },
-      stance: { ru: ['Вид сверху; стрелка — кибла.', 'Между стопами — примерно четыре пальца.', 'Пальцы ног обращены к кибле.'],
-              kk: ['Жоғарыдан көрініс; бағыттауыш — құбыла.', 'Табандар арасы — шамамен төрт саусақ.', 'Аяқ саусақтары құбылаға қарайды.'] }
+      ears: { ru: ['Вид спереди.', 'Руки подняты до уровня ушей, ладони обращены к кибле.', 'Пальцы в естественном положении — не сжаты и не растопырены.'],
+              kk: ['Алдынан көрініс.', 'Қол құлақ деңгейіне дейін көтерілген, алақан құбылаға қарайды.', 'Саусақтар табиғи күйде — қысылмаған да, ашылмаған да.'] },
+      fold: { ru: ['Вид спереди: руки — под пупком.', 'Правая ладонь лежит на тыльной стороне левой кисти.', 'Мизинец и большой палец правой руки обхватывают левое запястье.'],
+              kk: ['Алдынан көрініс: қол — кіндіктен төмен.', 'Оң алақан сол қолдың сыртында жатады.', 'Оң қолдың шынашағы мен бас бармағы сол қолдың білезігін орайды.'] },
+      knee: { ru: ['Вид сбоку.', 'Ладони обхватывают колени, пальцы раздвинуты.', 'Спина ровная, голени выпрямлены.'],
+              kk: ['Бүйірден көрініс.', 'Алақан тізені ұстайды, саусақтар ашық.', 'Арқа түзу, балтыр түзу.'] },
+      sajdaHands: { ru: ['Вид сверху.', 'Лицо — между ладонями.', 'Пальцы рук сомкнуты и направлены к кибле.', 'Локти отведены от боков (если нет тесноты), предплечья не лежат на земле.'],
+              kk: ['Жоғарыдан көрініс.', 'Бет — екі алақанның арасында.', 'Қол саусақтары жұмулы, құбылаға қарайды.', 'Шынтақ бүйірден алшақ (тар болмаса), білек жерге жайылмайды.'] },
+      sajdaFeet: { ru: ['Вид сбоку, одежда прозрачная.', 'Пальцы ног опираются на пол и обращены к кибле.'],
+              kk: ['Бүйірден көрініс, киім мөлдір.', 'Аяқ саусақтары еденге тіреледі, құбылаға қарайды.'] },
+      iftirash: { ru: ['Вид сверху-сбоку, одежда прозрачная.', 'Левая стопа подстелена — на ней сидят.', 'Правая стопа стоит на пальцах, пальцы обращены к кибле.', 'Так сидят в первом и в последнем сидении (ку‘уд).'],
+              kk: ['Жоғарыдан-бүйірден көрініс, киім мөлдір.', 'Сол табан төселген — соның үстіне отырады.', 'Оң табан саусақ ұшында тұрады, саусақтар құбылаға қарайды.', 'Бірінші және соңғы отырыста осылай отырады.'] },
+      finger: { ru: ['Кисть лежит на бедре.', 'На «ля иляха» указательный палец правой руки поднимается, на «илля-Ллах» — опускается.'],
+              kk: ['Қол санда жатады.', '«Лә иләһә» дегенде оң қолдың сұқ саусағы көтеріледі, «иллаллаһ» дегенде түсіріледі.'] },
+      shouldersF: { ru: ['Вид спереди.', 'Женщина поднимает руки до уровня плеч, ладони обращены к кибле.', 'Пальцы в естественном положении — не сжаты и не растопырены.'],
+              kk: ['Алдынан көрініс.', 'Әйел қолын иық деңгейіне дейін көтереді, алақан құбылаға қарайды.', 'Саусақтар табиғи күйде — қысылмаған да, ашылмаған да.'] },
+      foldF: { ru: ['Вид спереди: руки — на груди.', 'Правая ладонь лежит на тыльной стороне левой кисти.', 'Без «кольца»: мизинец и большой палец запястье не обхватывают.'],
+              kk: ['Алдынан көрініс: қол — кеудеде.', 'Оң алақан сол қолдың сыртында жатады.', '«Сақинасыз»: шынашақ пен бас бармақ білезікті орамайды.'] },
+      sajdaHandsF: { ru: ['Вид сверху-сбоку.', 'Лицо — между ладонями.', 'Пальцы рук сомкнуты и направлены к кибле.', 'Живот прижат к бёдрам; предплечья по земле не расстилают (макрух).'],
+              kk: ['Жоғарыдан-бүйірден көрініс.', 'Бет — екі алақанның арасында.', 'Қол саусақтары жұмулы, құбылаға қарайды.', 'Іш санға қысылған; білек жерге жайылмайды (мәкрүһ).'] },
+      tawarrukF: { ru: ['Вид сверху-сбоку, одежда прозрачная.', 'Женщина садится на ягодицы, бёдра лежат на земле.', 'Ногу выводит из-под правого бедра.', 'Так она сидит между суджудами, в первом и в последнем сидении.'],
+              kk: ['Жоғарыдан-бүйірден көрініс, киім мөлдір.', 'Әйел бөксесіне отырады, сандары жерде жатады.', 'Аяғын оң жамбасының астынан шығарады.', 'Екі сәжде арасында, бірінші және соңғы отырыста осылай отырады.'] },
+      stance: { ru: ['Вид сверху.', 'Между стопами — примерно четыре пальца.', 'Пальцы ног обращены к кибле.'],
+              kk: ['Жоғарыдан көрініс.', 'Табандар арасы — шамамен төрт саусақ.', 'Аяқ саусақтары құбылаға қарайды.'] }
     };
     function salahDetailNotesHtml(id, kk) {
       const n = SALAH_DETAIL_NOTES[id];
@@ -14931,8 +14930,11 @@ function renderDictation(area) {
         arm.add(m); m.bind(skeleton, bindM);
         return m;
       };
-      const body = mkSkinned(arr('bodyPos'), arr('bodyIdx'), arr('bodySkI'), arr('bodySkW'), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }), arr('bodyNrm'), arr('bodyCol'));
+      // build 6.27: цвета как на рисунках — мужчина: голубая рубаха и светлые брюки; женщина: тёмно-синее платье и розовый платок
+      const bodyColors = new Uint8Array(arr('bodyCol'));
+            const body = mkSkinned(arr('bodyPos'), arr('bodyIdx'), arr('bodySkI'), arr('bodySkW'), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }), arr('bodyNrm'), bodyColors);
       const clothMat = new THREE.MeshStandardMaterial({ color: col(FEM ? '#b7c3d9' : H.colors.cloth), roughness: 0.93, metalness: 0, side: THREE.DoubleSide });
+      const scarfMat = new THREE.MeshStandardMaterial({ color: col('#c9d3e6'), roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
       // лицо-маска и тюбетейка — на кости головы
       { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr('facePos')), 3)); g.setIndex(new THREE.BufferAttribute(new Uint16Array(arr('faceIdx')), 1)); g.computeVertexNormals();
         const f = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col(H.colors.skin), roughness: 0.8, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
@@ -14943,25 +14945,55 @@ function renderDictation(area) {
         new THREE.Matrix4().fromArray(H.kufiM).decompose(kufi.position, kufi.quaternion, kufi.scale); kufi.castShadow = true; B.Head.add(kufi);
       } else {
         // build 6.21: женский головной убор — капюшон-химар из той же ткани: закрывает волосы, шею и спускается на плечи; открыто только лицо
-        const prof0 = [[0.256, 0], [0.252, 0.042], [0.24, 0.082], [0.22, 0.108], [0.19, 0.127], [0.155, 0.134], [0.12, 0.132], [0.09, 0.126], [0.06, 0.118], [0.03, 0.108], [-0.005, 0.1], [-0.04, 0.102], [-0.075, 0.11]];
+        const prof0 = [[0.228, 0], [0.226, 0.035], [0.217, 0.06], [0.202, 0.08], [0.182, 0.094], [0.15, 0.105], [0.12, 0.11], [0.09, 0.109], [0.06, 0.103], [0.03, 0.097], [0.0, 0.093], [-0.03, 0.09], [-0.08, 0.092]]; // build 6.27: по размерам головы модели (ширина ±0.09, макушка 0.21)
         const prof = []; // добавим промежуточные точки: ровнее край выреза для лица
         for (let i = 0; i < prof0.length - 1; i++) for (let j = 0; j < 6; j++) { const u = j / 6; prof.push([prof0[i][0] + (prof0[i + 1][0] - prof0[i][0]) * u, prof0[i][1] + (prof0[i + 1][1] - prof0[i][1]) * u]); }
         prof.push(prof0[prof0.length - 1]);
         const lg0 = new THREE.LatheGeometry(prof.map(function(q) { return new THREE.Vector2(q[1], q[0]); }), 160);
+        lg0.scale(0.96, 1, 1); // build 6.28: голова уже, чем круглый капюшон — платок облегает по ширине
         lg0.translate(0, 0, 0.012);
-        const pa = lg0.attributes.position, ia = lg0.index.array, keep = [];
-        for (let i = 0; i < ia.length; i += 3) {
-          let cx = 0, cy = 0, cz = 0; for (let k = 0; k < 3; k++) { cx += pa.getX(ia[i + k]); cy += pa.getY(ia[i + k]); cz += pa.getZ(ia[i + k]); }
-          cx /= 3; cy /= 3; cz /= 3;
-          const ox = cx / 0.066, oy = (cy - 0.05) / 0.086;
-          if (cz > 0.02 && ox * ox + oy * oy < 1) continue; // овал лица
-          keep.push(ia[i], ia[i + 1], ia[i + 2]);
+        // овал лица: вершины внутри овала прижимаем к его краю (ровный контур), треугольники целиком внутри убираем
+        const pa = lg0.attributes.position, ia = lg0.index.array, keep = [], OX = 0.052, OY = 0.066, YC = 0.058, inside = new Uint8Array(pa.count);
+        const radAt = function(y) { for (let i = 0; i < prof.length - 1; i++) { const a = prof[i], b = prof[i + 1]; if ((y <= a[0] && y >= b[0])) { const w = (a[0] - y) / ((a[0] - b[0]) || 1e-9); return a[1] + (b[1] - a[1]) * w; } } return prof[prof.length - 1][1]; };
+        for (let i = 0; i < pa.count; i++) {
+          const x = pa.getX(i), y = pa.getY(i), zc = pa.getZ(i) - 0.012;
+          if (zc <= 0) continue;
+          const u = x / OX, v = (y - YC) / OY, ln = Math.hypot(u, v);
+          if (ln >= 1) continue;
+          inside[i] = 1;
+          const uu = ln > 1e-6 ? u / ln : 0, vv = ln > 1e-6 ? v / ln : 1, x2 = uu * OX, y2 = YC + vv * OY, r2 = radAt(y2);
+          pa.setXYZ(i, x2, y2, Math.sqrt(Math.max(0, r2 * r2 - (x2 / 0.96) * (x2 / 0.96))) + 0.012);
         }
+        for (let i = 0; i < ia.length; i += 3) { if (inside[ia[i]] && inside[ia[i + 1]] && inside[ia[i + 2]]) continue; keep.push(ia[i], ia[i + 1], ia[i + 2]); }
         lg0.setIndex(keep); lg0.computeVertexNormals();
-        kufi = new THREE.Mesh(lg0, clothMat); kufi.castShadow = true; kufi.receiveShadow = true; kufi.frustumCulled = false; B.Head.add(kufi);
+        kufi = new THREE.Mesh(lg0, scarfMat); kufi.castShadow = true; kufi.receiveShadow = true; kufi.frustumCulled = false; B.Head.add(kufi);
       }
       root.updateMatrixWorld(true);
+      // build 6.28: у женщины — светлая подшивка платка по краю овала лица (черты лица не рисуем)
+      { const faceMesh = B.Head.children.find(function(c) { return c.isMesh && c.geometry.attributes.position.count === arr('facePos').length / 3; });
+        const ray = new THREE.Raycaster(), hm = B.Head.matrixWorld;
+        const surf = function(mesh, x, y) {
+          const o = B.Head.localToWorld(V(x, y, 0.4)), d = V(0, 0, -1).transformDirection(hm);
+          ray.set(o, d); const hit = ray.intersectObject(mesh, false)[0];
+          return hit ? B.Head.worldToLocal(hit.point.clone()) : null;
+        };
+        if (FEM && kufi) {
+          const pts = []; const N = 72;
+          for (let i = 0; i < N; i++) { const a2 = i / N * Math.PI * 2, x = 1.07 * 0.052 * Math.cos(a2), y = 0.058 + 1.07 * 0.066 * Math.sin(a2); const q = surf(kufi, x, y); if (q) pts.push(new THREE.Vector3(q.x, q.y, q.z)); }
+          if (pts.length > 40) { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 140, 0.0055, 8, true);
+            const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col('#efe9de'), roughness: 0.9, metalness: 0 })); m.frustumCulled = false; B.Head.add(m); }
+        }
+      }
+      // build 6.27: у основания шеи сетка тела расширяется «воронкой» с рваным краем (трапеции) — выше воротника она торчала клочьями; срезаем её ниже узкой части шеи
+      { const nb = B.neck_01.getWorldPosition(V()), hb = B.Head.getWorldPosition(V()), ax = hb.clone().sub(nb).normalize(), vv = V();
+        const pos = body.geometry.attributes.position, ix = body.geometry.index.array, tt = new Float32Array(pos.count), rr = new Float32Array(pos.count);
+        for (let i = 0; i < pos.count; i++) { body.getVertexPosition(i, vv); vv.applyMatrix4(body.matrixWorld); const d = vv.clone().sub(nb); tt[i] = d.dot(ax); rr[i] = d.addScaledVector(ax, -tt[i]).length(); }
+        const keepIx = [];
+        for (let i = 0; i < ix.length; i += 3) { const a = ix[i], b2 = ix[i + 1], c = ix[i + 2], t = (tt[a] + tt[b2] + tt[c]) / 3, r = (rr[a] + rr[b2] + rr[c]) / 3;
+          if (t < 0.07 && t > -0.35 && r < 0.25) continue; keepIx.push(a, b2, c); }
+        body.geometry.setIndex(new THREE.BufferAttribute(new Uint16Array(keepIx), 1)); }
       // ---- покой ----
+      if (FEM) { ['hand_r', 'hand_l'].forEach(function(n) { B[n].scale.setScalar(0.9); }); root.updateMatrixWorld(true); } // build 6.28: женские кисти мельче и тоньше
       const wp = function(n) { return B[n].getWorldPosition(V()); };
       const rest = {}; bones.forEach(function(b) { rest[b.name] = { q: b.getWorldQuaternion(new THREE.Quaternion()), lq: b.quaternion.clone(), p: wp(b.name) }; });
       const yAxis = function(n) { return V(0, 1, 0).applyQuaternion(rest[n].q); };
@@ -15162,7 +15194,14 @@ function renderDictation(area) {
           root.updateMatrixWorld(true); skeleton.update();
         }
         root.updateMatrixWorld(true); skeleton.update();
-        return { q: bones.map(function(b) { return b.quaternion.clone(); }), y: root.position.y };
+        // build 6.28: положения кистей, локтей и ладоней в системе груди — по ним рука ведётся при переходе
+        const ar = {}; { const sp3 = B.spine_03; sp3.updateWorldMatrix(true, false);
+          const qi = sp3.getWorldQuaternion(new THREE.Quaternion()).invert();
+          ['_r', '_l'].forEach(function(sx) {
+            ar[sx] = { w: sp3.worldToLocal(wp('hand' + sx)), e: sp3.worldToLocal(wp('lowerarm' + sx)),
+              hq: qi.clone().multiply(B['hand' + sx].getWorldQuaternion(new THREE.Quaternion())) };
+          }); }
+        return { q: bones.map(function(b) { return b.quaternion.clone(); }), y: root.position.y, ar: ar, torso: P.torso };
       }
       // ---- кэш решённых поз и кадр перехода ----
       const cache = {};
@@ -15180,6 +15219,30 @@ function renderDictation(area) {
         const kd = unDisplay();
         bones.forEach(function(bn, i) { bn.quaternion.copy(A.q[i]).slerp(Bp.q[i], e); });
         root.position.set(0, A.y + (Bp.y - A.y) * e, 0); root.updateMatrixWorld(true); skeleton.update();
+        if (e > 0.001 && e < 0.999 && A.torso >= 150 && Bp.torso >= 150 && A.ar && Bp.ar) { // build 6.28: кисть идёт по своей дуге у груди, а не по углам суставов
+          const sp3 = B.spine_03; sp3.updateWorldMatrix(true, false);
+          const sq = sp3.getWorldQuaternion(new THREE.Quaternion());
+          const latW = wp('upperarm_r').sub(wp('upperarm_l')).normalize();
+          const fwdW = FWD.clone().applyQuaternion(sq);
+          const bump = Math.sin(Math.PI * e);
+          ['_r', '_l'].forEach(function(sx) {
+            const sg = sx === '_r' ? 1 : -1, a = A.ar[sx], b = Bp.ar[sx];
+            const Wt = sp3.localToWorld(a.w.clone().lerp(b.w, e)).add(latW.clone().multiplyScalar(sg * 0.045 * bump)).add(fwdW.clone().multiplyScalar(0.035 * bump));
+            const Et = sp3.localToWorld(a.e.clone().lerp(b.e, e));
+            const Sp = wp('upperarm' + sx);
+            const pole = Et.clone().sub(Sp.clone().lerp(Wt, 0.5)).add(latW.clone().multiplyScalar(sg * 0.02));
+            const r = ik(Sp, Wt, lenUA, lenFA, pole);
+            const ua = r.E.clone().sub(Sp).normalize(), fa = r.W.clone().sub(r.E).normalize();
+            let m = fa.clone().sub(ua.clone().multiplyScalar(fa.dot(ua)));
+            if (m.length() < 0.05) m = pole.clone().sub(ua.clone().multiplyScalar(pole.dot(ua)));
+            const hinge = new THREE.Vector3().crossVectors(ua, m.normalize()).normalize();
+            const restA = yAxis('upperarm' + sx), restHinge = new THREE.Vector3().crossVectors(restA, FWD);
+            setWorld('upperarm' + sx, ua, hinge, restA, restHinge);
+            setWorld('lowerarm' + sx, fa, hinge, yAxis('lowerarm' + sx), restHinge);
+            setWorldQ('hand' + sx, sq.clone().multiply(a.hq.clone().slerp(b.hq, e)));
+          });
+          root.updateMatrixWorld(true); skeleton.update();
+        }
         if (e > 0.001 && e < 0.999) { // переход: ничего не уходит под пол
           let minY = 1e9; for (let i = 0; i < sparse.length; i++) { const y = bodyVert(sparse[i]).y; if (y < minY) minY = y; }
           if (minY < 0) { root.position.y -= minY; root.updateMatrixWorld(true); }
@@ -15205,7 +15268,7 @@ function renderDictation(area) {
       // бёдра — одно полотно без стыков. Сечение — выпуклая оболочка простых форм
       // тела (таз, талия, грудь, плечи, бёдра, голени) + запас ткани, провис вниз
       // и мелкие складки. Подол падает вниз и ложится на пол.
-      const RB = 40, RN = 40, SB = 18, SN = 16;
+      const RB = 40, RN = 40, SB = 20, SN = 26;
       const mkTube = function(nb, nr) {
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nb * nr * 3), 3));
@@ -15214,6 +15277,13 @@ function renderDictation(area) {
         const m = new THREE.Mesh(g, clothMat); m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; root.add(m); return m;
       };
       const robe = mkTube(RB, RN), sleeves = [mkTube(SB, SN), mkTube(SB, SN)];
+      // build 6.27: шарики в плече и локте закрывают стык трубы при сгибе, манжета закрывает открытый край рукава
+      const sleeveBits = [];
+      const sleeveJoint = [0, 1].map(function() { const mk2 = function() { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), clothMat); m.castShadow = true; m.frustumCulled = false; root.add(m); sleeveBits.push(m); return m; }; return { sh: mk2(), el: mk2(), cuff: (function() { const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.14, 8, 22), clothMat); m.castShadow = true; m.frustumCulled = false; root.add(m); sleeveBits.push(m); return m; })() }; });
+      // build 6.27: платок-накидка (хиджаб) — лежит поверх одежды на плечах и груди; впереди длиннее, сзади короче
+      const SCN = 12;
+      let scarf = null;
+      if (FEM) { scarf = mkTube(RB, SCN); scarf.material = scarfMat; }
       // «просвечивающий» режим (вид ступней в сидении): ткань почти прозрачна, видны бёдра, голени и ступни
       const thighMat = new THREE.MeshStandardMaterial({ color: 0x6b7078, roughness: 0.9, metalness: 0 });
       const thighs = [0, 1].map(function() { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.058, 1, 16), thighMat); m.visible = false; m.frustumCulled = false; m.castShadow = true; root.add(m); return m; });
@@ -15222,7 +15292,7 @@ function renderDictation(area) {
         on = !!on; if (on === ghostOn) return; ghostOn = on;
         clothMat.transparent = on; clothMat.opacity = on ? 0.13 : 1; clothMat.depthWrite = !on; clothMat.needsUpdate = true;
         thighs.forEach(function(m) { m.visible = on; });
-        robe.castShadow = sleeves[0].castShadow = sleeves[1].castShadow = !on; sleeves[0].visible = sleeves[1].visible = !on;
+        robe.castShadow = sleeves[0].castShadow = sleeves[1].castShadow = !on; sleeves[0].visible = sleeves[1].visible = !on; sleeveBits.forEach(function(m) { m.visible = !on; });
       }
       const prim = function(a, b, lx, fz, ax, af, ab, t0, t1) {
         const n = b.clone().sub(a); const len = n.length(); if (len > 1e-6) n.multiplyScalar(1 / len); else n.set(0, 1, 0);
@@ -15314,17 +15384,17 @@ function renderDictation(area) {
         // линия камиса
         const thighDir = kneeMid.clone().sub(hipMid).normalize();
         const hemLen = Math.max(0.02, Math.min(0.21, kneeMid.y - floorY));
-        const P = [nk.clone().addScaledVector(V(0, 1, 0).applyQuaternion(dq('neck_01')), FEM ? 0.058 : 0.03), s3, s2, s1, hipMid, hipMid.clone().addScaledVector(thighDir, 0.22), kneeMid, kneeMid.clone().add(V(0, -hemLen, 0))];
-        let slackV = [0.012, 0.028, 0.032, 0.042, 0.056, 0.07, 0.082, 0.092];
+        const P = [nk.clone().addScaledVector(V(0, 1, 0).applyQuaternion(dq('neck_01')), FEM ? 0.058 : 0.084), s3, s2, s1, hipMid, hipMid.clone().addScaledVector(thighDir, 0.22), kneeMid, kneeMid.clone().add(V(0, -hemLen, 0))];
+        let slackV = [0.042, 0.04, 0.026, 0.034, 0.045, 0.055, 0.062, 0.062];
         let sagV = [0, 0.008, 0.012, 0.018, 0.028, 0.04, 0.05, 0.05];
         let foldV = [0, 0.002, 0.003, 0.004, 0.005, 0.007, 0.009, 0.012];
         if (FEM) {
           // путь ткани продолжается по голеням и стопам до пола: подол закрывает ноги в любой позе
           const anMid = aR.clone().add(aL).multiplyScalar(0.5), toeMid = bR.clone().add(bL).multiplyScalar(0.5);
           P.pop(); P.push(anMid, toeMid.clone().add(V(0, -0.01, 0)));
-          slackV = [0.035, 0.075, 0.105, 0.13, 0.155, 0.18, 0.19, 0.17, 0.13];
-          sagV = [0, 0.02, 0.03, 0.045, 0.06, 0.08, 0.09, 0.07, 0.05];
-          foldV = [0, 0.004, 0.006, 0.008, 0.01, 0.013, 0.016, 0.016, 0.012];
+          slackV = [0.022, 0.03, 0.03, 0.04, 0.058, 0.085, 0.1, 0.085, 0.05];
+          sagV = [0, 0.004, 0.006, 0.01, 0.02, 0.035, 0.045, 0.035, 0.02];
+          foldV = [0, 0.002, 0.003, 0.004, 0.006, 0.009, 0.012, 0.012, 0.008];
         }
         const latHip = thR.clone().sub(thL).normalize(), latSh = uaR.clone().sub(uaL).normalize();
         const S = pathSample(P, RN);
@@ -15374,6 +15444,8 @@ function renderDictation(area) {
         for (let it = 0; it < 14; it++) for (let k = 0; k < RB; k++) {
           const col = rings.map(function(g) { return g.R[k].r; });
           for (let r = 2; r < RN - 1; r++) { const o = rings[r].R[k]; o.r = Math.min(o.dent, Math.max(o.min, (col[r - 1] + 2 * col[r] + col[r + 1]) / 4)); } }
+        // воротник: верхние кольца ровные по кругу (без «зубцов» от неровностей формы шеи)
+        rings.forEach(function(g, r) { if (r > 3) return; const R = g.R; let m = 0; for (let k = 0; k < RB; k++) m += R[k].r; m /= RB; const w = r / 4; for (let k = 0; k < RB; k++) R[k].r = m * (1 - w) + R[k].r * w; });
         rings.forEach(function(g, r) { const c = g.c, R = g.R, q = V();
           for (let k = 0; k < RB; k++) { const o = R[k]; let rad = o.r, guard = 0;
             while (rad > o.h + 0.008 && guard++ < 24) { q.copy(c).addScaledVector(o.d, rad); if (!inAny(press, q)) break; rad -= 0.006; }
@@ -15381,14 +15453,38 @@ function renderDictation(area) {
             att.setXYZ(r * RB + k, q.x, q.y, q.z); }
         });
         att.needsUpdate = true; robe.geometry.computeVertexNormals(); robe.geometry.computeBoundingSphere();
+        if (FEM && scarf) {
+          const sg = scarf.geometry.attributes.position, ring = function(r, k) { return V(att.getX(r * RB + k), att.getY(r * RB + k), att.getZ(r * RB + k)); };
+          for (let k = 0; k < RB; k++) {
+            const d = rings[3].R[k].d, w = Math.max(0, Math.min(1, 0.5 + 0.62 * d.dot(f3.f)));
+            const e = 3.5 + 6.5 * w;
+            for (let j = 0; j < SCN; j++) {
+              const u = j / (SCN - 1), t = u * e, r0 = Math.min(RN - 2, Math.floor(t)), a = t - r0;
+              const p = ring(r0, k).lerp(ring(r0 + 1, k), a), c = rings[r0].c.clone().lerp(rings[r0 + 1].c, a);
+              const dir = p.clone().sub(c); if (dir.lengthSq() > 1e-8) dir.normalize();
+              p.addScaledVector(dir, 0.014 + 0.016 * u + 0.004 * u * Math.sin(k * 3.1)); p.lerp(c, 0.1 * u);
+              if (p.y < floorY) p.y = floorY;
+              sg.setXYZ(j * RB + k, p.x, p.y, p.z);
+            }
+          }
+          sg.needsUpdate = true; scarf.geometry.computeVertexNormals(); scarf.geometry.computeBoundingSphere();
+        }
         [[thR, kR], [thL, kL]].forEach(function(pr, i) { const a = pr[0], b = pr[1], d = b.clone().sub(a), len = d.length(); if (len < 1e-6) return;
           thighs[i].position.copy(a).lerp(b, 0.5); thighs[i].quaternion.setFromUnitVectors(V(0, 1, 0), d.normalize()); thighs[i].scale.set(1, len, 1); });
         // рукава: от плеча (внутри камиса) до запястья, книзу провисают
         ['_r', '_l'].forEach(function(sx, si) {
           const cl = L('clavicle' + sx), ua = L('upperarm' + sx), el = L('lowerarm' + sx), hn = L('hand' + sx);
           const faD = hn.clone().sub(el).normalize();
-          const Q = [cl.clone().lerp(ua, 0.9).add(V(0, -0.02, 0)), ua, el, hn.clone().addScaledVector(faD, -0.012)];
-          const rV = FEM ? [0.036, 0.072, 0.084, 0.082] : [0.03, 0.052, 0.058, 0.05];
+          const wr = hn.clone().addScaledVector(faD, -0.012), uaD = ua.clone().sub(el).normalize();
+          const elIn = el.clone().addScaledVector(uaD, 0.04), elOut = el.clone().addScaledVector(faD, 0.04);
+          const outer = elIn.clone().sub(el).add(elOut.clone().sub(el)).multiplyScalar(-1); if (outer.lengthSq() > 1e-8) outer.normalize();
+          const elMid = el.clone().addScaledVector(outer, 0.01);
+          const Q = [cl.clone().lerp(ua, 0.9).add(V(0, -0.02, 0)), ua, elIn, elMid, elOut, wr];
+          const rV = FEM ? [0.03, 0.05, 0.056, 0.058, 0.058, 0.058] : [0.03, 0.046, 0.05, 0.052, 0.05, 0.044];
+          const jt = sleeveJoint[si];
+          jt.sh.position.copy(ua); jt.sh.scale.setScalar(FEM ? 0.046 : 0.04);
+          jt.el.position.copy(elMid); jt.el.scale.setScalar(FEM ? 0.056 : 0.049);
+          jt.cuff.position.copy(wr); jt.cuff.scale.setScalar(FEM ? 0.058 : 0.044); jt.cuff.quaternion.setFromUnitVectors(V(0, 0, 1), faD);
           const Ss = pathSample(Q, SN), ga = sleeves[si].geometry.attributes.position;
           let lx = null;
           Ss.forEach(function(st, r) { const T = st.t;
@@ -15398,12 +15494,12 @@ function renderDictation(area) {
             const rad = stationVal(rV, st.u), last = r === SN - 1;
             for (let k = 0; k < SB; k++) { const th = k / SB * Math.PI * 2; const d = lx.clone().multiplyScalar(Math.cos(th)).addScaledVector(fz, Math.sin(th));
               const down = Math.max(0, -d.y);
-              const p = st.p.clone().addScaledVector(d, rad + (last ? 0 : (FEM ? 0.05 : 0.026) * down * Math.min(1, st.u)) + (last ? 0 : 0.002 * Math.sin(th * 5 + r)));
+              const p = st.p.clone().addScaledVector(d, rad + (last ? 0 : (FEM ? 0.03 : 0.026) * down * Math.min(1, st.u)) + (last ? 0 : 0.002 * Math.sin(th * 5 + r)));
               if (p.y < floorY) p.y = floorY; ga.setXYZ(r * SB + k, p.x, p.y, p.z); } });
           ga.needsUpdate = true; sleeves[si].geometry.computeVertexNormals(); sleeves[si].geometry.computeBoundingSphere();
         });
       }
-      function dispose() { [body, robe, sleeves[0], sleeves[1], kufi].forEach(function(m) { try { m.geometry.dispose(); } catch (e) {} }); }
+      function dispose() { [body, robe, sleeves[0], sleeves[1], kufi, scarf].concat(sleeveBits).forEach(function(m) { try { m.geometry.dispose(); } catch (e) {} }); }
       return { display: display, setFrame: setFrame, getPose: getPose, setGhost: setGhost, dispose: dispose, B: B };
     }
 
@@ -16398,6 +16494,15 @@ function renderDictation(area) {
           ? 'Бұл құрылғыда 3D көрсету қолжетімсіз, ал әйел нұсқасының фигурасы тек 3D-да көрсетіледі. Мәтіндер мен суреттер төменде жұмыс істейді.'
           : 'На этом устройстве 3D недоступно, а женская фигура показывается только в 3D. Тексты и рисунки ниже работают.') + '</div>';
       };
+      // build 6.28: женская 3D-фигура пока скрыта (переделывается) — серая заглушка, тексты и рисунки ниже работают
+      const femHidden = function() {
+        if (!host3d) return;
+        svg.style.display = 'none';
+        host3d.innerHTML = '<div id="hs-fem-nofig" style="padding:3.2rem 1rem;text-align:center;background:#4b5563;color:#e5e7eb;font-size:0.9rem;line-height:1.5">' + (kk
+          ? 'Әйел нұсқасының 3D-фигурасы әзірге жасырылған — қайта жасалуда. Мәтіндер мен суреттер төменде жұмыс істейді.'
+          : 'Женская 3D-фигура пока скрыта — переделывается. Тексты и рисунки ниже работают.') + '</div>';
+        ['[data-sa="zin"]', '[data-sa="zout"]', '[data-sa="cam-0"]', '[data-sa="cam-35"]', '[data-sa="cam-90"]'].forEach(function(q) { const e = box.querySelector(q); if (e) e.style.display = 'none'; });
+      };
       const setPlay = function(p) { st.play = p; const b = box.querySelector('[data-sa="play"]'); if (b) b.textContent = p ? '⏸' : '▶'; };
       // отдельный показ ступней в сидении: ткань почти прозрачна, видно, как лежит левая и стоит правая стопа
       const isSit = function(s) { if (FEMALE) return false; try { return (HOWSALAH_STAGES[s.stage].detail || []).indexOf('iftirash') >= 0; } catch (e) { return false; } };
@@ -16498,7 +16603,7 @@ function renderDictation(area) {
       stage.addEventListener('wheel', function(e) { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); st.zoom = Math.max(0.6, Math.min(4, st.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12))); draw(); }, { passive: false });
       // 3D-фигура: подгружаем three.js; если WebGL недоступен — остаётся 2D-схема
       if (FEMALE) svg.style.display = 'none';
-      if (host3d && typeof loadSalahThree === 'function') {
+      if (!FEMALE && host3d && typeof loadSalahThree === 'function') {
         loadSalahThree().then(function(T) {
           if (!box.isConnected) return;
           try {
@@ -16510,7 +16615,7 @@ function renderDictation(area) {
             if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(function() { if (r3d && box.isConnected) { r3d.resize(); draw(); } else ro.disconnect(); }); ro.observe(host3d); }
           } catch (e) { r3d = null; host3d.innerHTML = ''; if (FEMALE) femNoFigure(); else svg.style.display = ''; salahDiag(host3d, 'WebGL/3D: ' + (e && e.message || e)); }
         }).catch(function(e) { if (FEMALE) femNoFigure(); salahDiag(host3d, 'three.module.min.js не загружен: ' + (e && e.message || e)); });
-      } else if (FEMALE) femNoFigure();
+      } else if (FEMALE) femHidden();
       caption(); draw();
       requestAnimationFrame(frame);
     }

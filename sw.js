@@ -34,7 +34,8 @@ self.addEventListener('fetch', e => {
     return;
   }
   e.respondWith(
-    fetch(req).then(resp => {
+    // build 6.27: no-cache — браузер всегда сверяется с сервером (GitHub Pages даёт кэш ~10 минут: раньше первым мог показаться старый файл)
+    fetch(req.mode === 'navigate' ? req.url : req, { cache: 'no-cache' }).then(resp => {
       if (resp && resp.ok) { // непрозрачные (opaque) ответы не храним — они раздувают квоту
         const clone = resp.clone();
         caches.open(CACHE).then(c => c.put(req, clone)).catch(() => {});

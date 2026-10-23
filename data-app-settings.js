@@ -976,10 +976,10 @@
       { id:'knowledge', label:'Знание', hidden:false },
       { id:'worship', label:'Поклонение', hidden:false },
       { id:'quran', label:'Коран', hidden:false },
-      { id:'games', label:'Игры', hidden:false },
       { id:'life', label:'Жизнь', hidden:false },
       { id:'online', label:'Онлайн', hidden:false },
       { id:'admin', label:'Админ', hidden:false },
+      { id:'games', label:'Игры', hidden:false },
       { id:'system', label:'Система', hidden:false }
     ];
 
