@@ -58,3 +58,21 @@ async function rangeFrom(resp, range) {
     'Content-Range': 'bytes ' + start + '-' + end + '/' + size,
     'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes' } });
 }
+
+// Web Push: уведомление о намазе приходит с сервера, даже когда сайт закрыт
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: 'Quran Academy', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Quran Academy', {
+    body: d.body || '', tag: d.tag || 'prayer', renotify: true, silent: !!d.silent,
+    icon: 'icon-192.png', badge: 'icon-192.png', data: { url: './' }
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (all.length) { try { await all[0].focus(); return; } catch (x) {} }
+    await self.clients.openWindow('./');
+  })());
+});

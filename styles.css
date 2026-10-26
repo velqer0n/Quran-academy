@@ -44,7 +44,7 @@
       padding: 0;
     }
 
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: auto; } /* 6.25: переход между вкладками без ожидания плавной прокрутки; плавность — только там, где её просят явно */
 
     /* build 5.66: тонкий, аккуратный скроллбар и фирменное выделение текста
        вместо стандартного синего браузерного — мелочи, которые сразу
@@ -343,13 +343,17 @@
     .chat-msg-card.msg-mine {
       background: color-mix(in srgb, var(--primary, #2e7d32) 10%, var(--bg-card));
       border-color: color-mix(in srgb, var(--primary, #2e7d32) 55%, var(--border));
-      margin-left: 8%;
+      margin-left: auto;
     }
     .chat-msg-card.msg-theirs {
       background: var(--bg-card);
       border-color: var(--border);
-      margin-right: 8%;
+      margin-right: auto;
     }
+    /* build 6.25: пузырь по ширине текста — имя, значки и время рядом (как в мессенджерах): свои справа, чужие слева */
+    .chat-msg-card.msg-mine, .chat-msg-card.msg-theirs, .chat-msg-card.msg-mentioned { width: fit-content; min-width: 9.5rem; max-width: 88%; box-sizing: border-box; }
+    .chat-msg-card:has(img, video, audio, canvas, .chat-reply-quote) { width: 88%; }
+    .chat-msg-card.msg-mine > div:first-of-type, .chat-msg-card.msg-theirs > div:first-of-type { gap: 0.8rem !important; }
     .chat-msg-card.msg-mentioned {
       border-color: var(--accent);
     }
@@ -3247,6 +3251,11 @@
       background: rgba(236, 253, 245, 0.96);
     }
 
+    /* build 6.25: шапка и нижняя панель в темах «Шалфей», «Графит», «Бирюза» — раньше брали тёмно-синий цвет по умолчанию и выбивались из темы */
+    body.theme-sage header, body.theme-sage .bottom-nav, body.theme-sage .audio-bar { background: rgba(250, 247, 240, 0.96); }
+    body.theme-graphite header, body.theme-graphite .bottom-nav, body.theme-graphite .audio-bar { background: rgba(27, 31, 36, 0.95); }
+    body.theme-teal header, body.theme-teal .bottom-nav, body.theme-teal .audio-bar { background: rgba(13, 31, 34, 0.95); }
+
     
     .font-pick-wrap { margin-top: 0.35rem; width: 100%; }
     .font-pick-toggle {
@@ -3514,7 +3523,8 @@ body.reduce-motion .fb-ok, body.reduce-motion .fb-bad { animation: none; }
 /* Коротко / Подробно */
 .tl-toggle { display: inline-flex; gap: 0.25rem; margin: 0.3rem 0; }
 .tl-toggle .btn { padding: 0.25rem 0.7rem; font-size: 0.8rem; }
-.tl-wrap.tl-short > .tl-body { max-height: 11em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 65%, transparent); mask-image: linear-gradient(#000 65%, transparent); }
+.tl-wrap.tl-short > .tl-body { max-height: 9.5em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+.tl-more { display: block; margin: 0.2rem 0 0; padding: 0.4rem 0; background: none; border: 0; color: var(--accent); font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
 .tl-toggle .btn.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); }
 
 /* ===== build 6.12: вкладка «Кибла» ===== */
@@ -3585,6 +3595,19 @@ body.reduce-motion .fb-ok, body.reduce-motion .fb-bad { animation: none; }
     #sg-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; margin-top: 0.6rem; color: var(--text-muted); }
     #sg-btns { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end; margin-top: 0.7rem; }
     #sg-btns .sg-hide { visibility: hidden; }
+    #sg-card { position: relative; display: flex; flex-direction: column; touch-action: pan-y; }
+    #sg-ov { overscroll-behavior: contain; touch-action: none; }
+    #sg-x { position: absolute; top: 0.4rem; right: 0.5rem; width: 2rem; height: 2rem; border-radius: 50%; border: 0; background: transparent; color: var(--text-muted); font-size: 1.05rem; cursor: pointer; }
+    #sg-title { padding-right: 2rem; }
+    html.sg-lock, body.sg-lock { overflow: hidden !important; }
+    #sg-body.sg-html { white-space: normal; overscroll-behavior: contain; }
+    .sg-intro { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; line-height: 1.45; }
+    .sg-gh { margin: 0.7rem 0 0.25rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); }
+    .sg-row { display: flex; gap: 0.55rem; align-items: flex-start; width: 100%; text-align: left; padding: 0.5rem 0.55rem; margin: 0 0 0.3rem; border-radius: 0.6rem; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; cursor: pointer; }
+    .sg-row .sg-ic { font-size: 1.15rem; line-height: 1.3; }
+    .sg-row .sg-tx { display: block; min-width: 0; }
+    .sg-row b { display: block; font-size: 0.9rem; }
+    .sg-row small { display: block; font-size: 0.76rem; color: var(--text-muted); line-height: 1.35; margin-top: 0.1rem; }
     #sg-tip { position: fixed; z-index: 10070; max-width: 16rem; padding: 0.4rem 0.6rem; border-radius: 0.5rem; background: #1d2433; color: #fff; font-size: 0.8rem; line-height: 1.3; box-shadow: 0 6px 18px rgba(0,0,0,0.45); pointer-events: none; opacity: 0; transition: opacity .12s; }
     #sg-tip.open { opacity: 1; }
 
@@ -3595,6 +3618,7 @@ body.reduce-motion .fb-ok, body.reduce-motion .fb-bad { animation: none; }
 .qz-ic{font-size:1.5rem}
 .qz-grid{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}
 .qz-card{display:flex;align-items:center;gap:.5rem;text-align:left;padding:.55rem;border-radius:.7rem;border:2px solid var(--border);background:var(--bg-card,#fff);color:var(--text);font:inherit;cursor:pointer}
+.qz-card[disabled]{opacity:.4;filter:grayscale(1);cursor:not-allowed}
 .qz-card.on{border-color:var(--accent);background:rgba(16,185,129,.12)}
 .qz-card .qz-ic{font-size:1.2rem}
 .qz-row{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem;align-items:center}
@@ -3606,3 +3630,20 @@ body.reduce-motion .fb-ok, body.reduce-motion .fb-bad { animation: none; }
 .qz-slots{border:2px dashed var(--border)}
 .qz-chip{padding:.4rem .7rem;border-radius:.6rem;border:1px solid var(--border);background:var(--bg-card,#fff);color:var(--text);font-family:inherit;font-size:calc(1.2rem * var(--ar-scale,1));cursor:pointer}
 .qz-chip.on{border-color:var(--accent);background:rgba(16,185,129,.12)}
+
+
+    /* build 6.27: свёрнутый плеер — одна строка */
+    .audio-bar.collapsed { padding: 0.35rem 4.4rem 0.35rem 3.7rem; gap: 0; } /* справа/слева — плавающие «Тел» и «?» */
+    .audio-bar.collapsed .progress-row,
+    .audio-bar.collapsed .player-controls,
+    .audio-bar.collapsed .player-modes,
+    .audio-bar.collapsed #audio-sleep-panel,
+    .audio-bar.collapsed #audio-mode-tip,
+    .audio-bar.collapsed #audio-speed-bar { display: none !important; }
+    .audio-bar.collapsed #audio-mini-play { display: inline-flex !important; }
+    #audio-sleep-panel { border: 1px solid var(--border); border-radius: 0.6rem; padding: 0.5rem 0.6rem; font-size: 0.8rem; background: var(--bg); }
+    #audio-sleep-panel .sl-row { display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; }
+    #audio-sleep-panel select, #audio-sleep-panel input[type=number] { background: var(--bg-card); border: 1px solid var(--border); color: var(--text); border-radius: 0.35rem; padding: 0.25rem; font-size: 0.8rem; }
+    #audio-sleep-panel .sl-hint { margin-top: 0.35rem; color: var(--text-muted); font-size: 0.72rem; line-height: 1.35; }
+
+    .ayah-translit { margin: 0.1rem 0 0.35rem; color: var(--accent); font-style: italic; line-height: 1.55; font-size: calc(0.9rem * var(--ru-scale, 1)); text-align: left; }

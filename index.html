@@ -1013,6 +1013,15 @@
             <option value="kk.altai">Қазақша — Халифа Алтай</option>
           </select>
         </div>
+        <div class="setting-row">
+          <span>Транскрипция (аяты и дуа)</span>
+          <select id="setting-translit">
+            <option value="latin">English (латиница) — по умолчанию</option>
+            <option value="ru">Русская (кириллица)</option>
+            <option value="kk">Қазақша (кирилл)</option>
+            <option value="off">Выключена</option>
+          </select>
+        </div>
       </div>
       <div class="card set-cat" data-set-panel="audio" style="margin-bottom:0.75rem;display:none">
         <b>🎧 Аудио</b>
@@ -1501,12 +1510,14 @@
         <div class="title" id="audio-title">—</div>
         <div class="sub" id="audio-sub">—</div>
       </div>
+      <button type="button" class="btn-player primary" id="audio-mini-play" style="display:none" title="Пуск/пауза">▶</button>
       <select id="audio-speed-bar" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.25rem;border-radius:0.35rem;font-size:0.75rem;max-width:4.5rem">
         <option value="0.5">0.5×</option>
         <option value="0.75">0.75×</option>
         <option value="1" selected>1×</option>
         <option value="1.25">1.25×</option>
       </select>
+      <button type="button" class="btn-player" id="audio-collapse" title="Свернуть плеер">▾</button>
       <button type="button" class="btn-player" id="audio-stop" title="Закрыть">✕</button>
     </div>
     <div class="progress-row">
@@ -1531,8 +1542,11 @@
            аятов — вместо того чтобы ждать, пока это выяснится само (через
            ошибку проигрывания), можно отметить это самому, один раз, и
            дальше приложение запомнит и сразу предложит запасного чтеца. -->
+      <button type="button" class="btn-player" id="audio-pick-reciter" title="Выбрать чтеца" style="font-size:0.7rem;padding:0.25rem 0.45rem">🎙 Чтец</button>
+      <button type="button" class="btn-player" id="audio-sleep-btn" title="Таймер сна и обрезка пауз" style="font-size:0.7rem;padding:0.25rem 0.45rem">⏱</button>
       <button type="button" class="btn-player" id="audio-report-missing" title="Этот аят не играет у этого чтеца" style="font-size:0.7rem;padding:0.25rem 0.45rem">🚩 Не играет</button>
     </div>
+    <div id="audio-sleep-panel" style="display:none"></div>
     <div id="audio-mode-tip" style="text-align:center;font-size:0.72rem;color:var(--text-muted);opacity:0;transition:opacity 0.3s;min-height:1em;pointer-events:none"></div>
   </div>
   <audio id="audio-player" preload="none"></audio>

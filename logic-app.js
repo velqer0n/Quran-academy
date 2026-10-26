@@ -751,6 +751,15 @@ _applyAriaLabelsFromTitles();
       return 'Сура ' + num;
     }
 
+    // название суры без номера: русское или казахское по языку сайта (английское — только если нет своего)
+    function surahShortName(num, eng) {
+      num = +num;
+      const kk = !!(state && state.settings && state.settings.lang === 'kk');
+      if (kk && typeof SURAH_KK !== 'undefined' && SURAH_KK[num]) return SURAH_KK[num];
+      if (typeof SURAH_RU !== 'undefined' && SURAH_RU[num]) return SURAH_RU[num];
+      return eng || ((kk ? 'Сүре ' : 'Сура ') + num);
+    }
+
     function surahNameLocal(num, eng) {
       const lang = (state.settings && state.settings.lang) || 'ru';
       if (lang === 'kk' && SURAH_KK[num]) return SURAH_KK[num] + ' (' + num + ')';
@@ -940,6 +949,7 @@ _applyAriaLabelsFromTitles();
         'Режим «только Коран»': '«Тек Құран» режимі',
         'Вкл (скрыть «Учёбу»)': 'Қосулы («Оқуды» жасыру)',
         'Скрыть транскрипцию/перевод в учёбе': 'Оқуда транскрипция/аударманы жасыру',
+        'Транскрипция (аяты и дуа)': 'Транскрипция (аяттар мен дұғалар)', '🎙 Чтец': '🎙 Қари', 'English (латиница) — по умолчанию': 'English (латын) — әдепкі', 'Русская (кириллица)': 'Орысша (кирилл)', 'Қазақша (кирилл)': 'Қазақша (кирилл)', 'Выключена': 'Өшірулі',
         'Слова в «🎧 Озвучке» (Суры)': '«🎧 Дыбысталу»дағы сөздер (Сүрелер)',
         'Транскрипция и перевод слова — сразу видны или открываются нажатием на слово':
           'Сөздің транскрипциясы мен аудармасы бірден көрінеді немесе сөзді басқанда ашылады',
@@ -1196,7 +1206,7 @@ function feedbackEnabled() {
   if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
 })();
 // build 6.10: переключатель «Коротко / Подробно» для длинных объяснений
-// (раскрывающиеся карточки и подробности). По умолчанию — коротко; выбор запоминается.
+// (раскрывающиеся карточки и подробности). По умолчанию — коротко, одна ссылка «Читать полностью» под текстом.
 function enhanceLongTexts(root) {
   const kk = (typeof isKk === 'function') && isKk();
   const mode = (state && state.settings && state.settings.textMode) || 'short';
@@ -1207,18 +1217,14 @@ function enhanceLongTexts(root) {
     if (len < 700) return;
     const body = document.createElement('div'); body.className = 'tl-body';
     while (det.firstChild) body.appendChild(det.firstChild);
-    const bar = document.createElement('div'); bar.className = 'tl-toggle';
-    [['short', kk ? 'Қысқаша' : 'Коротко'], ['full', kk ? 'Толығырақ' : 'Подробно']].forEach(function(o) {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-sm' + (o[0] === mode ? ' on' : ''); b.dataset.tlMode = o[0]; b.textContent = o[1];
-      b.addEventListener('click', function(e) {
-        e.stopPropagation();
-        try { state.settings.textMode = o[0]; saveState(); } catch (x) {}
-        document.querySelectorAll('.tl-wrap').forEach(function(w) { w.classList.toggle('tl-short', o[0] === 'short'); w.querySelectorAll('.tl-toggle .btn').forEach(function(bb) { bb.classList.toggle('on', bb.dataset.tlMode === o[0]); }); });
-      });
-      bar.appendChild(b);
-    });
     det.classList.add('tl-wrap'); det.classList.toggle('tl-short', mode === 'short');
-    det.appendChild(bar); det.appendChild(body);
+    det.appendChild(body);
+    // build 6.25: вместо двух кнопок «Коротко / Подробно» — одна ссылка под текстом; раскрывается только эта карточка
+    const more = document.createElement('button'); more.type = 'button'; more.className = 'tl-more';
+    const label = function() { return det.classList.contains('tl-short') ? (kk ? 'Толығырақ оқу ▾' : 'Читать полностью ▾') : (kk ? 'Жасыру ▴' : 'Свернуть ▴'); };
+    more.textContent = label();
+    more.addEventListener('click', function(e) { e.stopPropagation(); det.classList.toggle('tl-short'); more.textContent = label(); });
+    det.appendChild(more);
   });
 }
 (function longTextInit() {
@@ -3384,6 +3390,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
             <div class="ayah ${learned ? 'learned' : ''}" data-ayah="${a.number}">
               <div class="ayah-num">${a.number}${page}${morphBadge}</div>
               <div class="ayah-text arabic">${renderMorphAyahText(num, a.number, a.text)}</div>
+              ${ayahTranslitHtml(num, a)}
               ${(hasMorph && aIdx === 0) ? '<div class="morph-hint">Нажмите на слово, чтобы увидеть разбор (часть речи, падеж/наклонение, корень)</div>' : ''}
               <div class="morph-card" id="morph-${num}-${a.number}" style="display:none"></div>
               <div class="ayah-translation">${a.translation}</div>
@@ -3931,17 +3938,24 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     function getMissingReciterAyahs() {
       try { return JSON.parse(localStorage.getItem('quran_missing_reciter_ayahs') || '{}'); } catch(e) { return {}; }
     }
-    function markReciterAyahMissing(reciter, surah, ayah) {
+    function markReciterAyahMissing(reciter, surah, ayah, chosen) {
       try {
         var m = getMissingReciterAyahs();
         if (!m[reciter]) m[reciter] = {};
-        m[reciter][surah + ':' + ayah] = true;
+        m[reciter][surah + ':' + ayah] = chosen || true;
         localStorage.setItem('quran_missing_reciter_ayahs', JSON.stringify(m));
       } catch(e) {}
     }
     function isReciterAyahKnownMissing(reciter, surah, ayah) {
       var m = getMissingReciterAyahs();
       return !!(m[reciter] && m[reciter][surah + ':' + ayah]);
+    }
+    // build 6.27: чтец, которого пользователь САМ выбрал для этого аята (строка);
+    // старые отметки «true» (автозамена на запасного) больше не применяются.
+    function getReciterAyahChoice(reciter, surah, ayah) {
+      var m = getMissingReciterAyahs();
+      var v = m[reciter] && m[reciter][surah + ':' + ayah];
+      return (typeof v === 'string') ? v : '';
     }
     function resyncAudioQueueReciter() {
       try {
@@ -4291,7 +4305,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       // с точностью до кадра) и включаем подсветку слов. Если тайм-коды ещё
       // не подгружены к этому моменту — просто доиграем обычный файл без
       // подсветки в этот раз, а данные подгрузятся в фоне для следующего раза.
-      if (item.surah && item.ayah && state.settings && state.settings.reciter === 'ar.husary') {
+      if (item.surah && item.ayah && !item._recOverride && state.settings && state.settings.reciter === 'ar.husary') {
         loadWordTiming();
         var _wtEntry = getWordTiming(item.surah, item.ayah);
         if (_wtEntry && _wtEntry.audio_url) { _pqiUrl = _wtEntry.audio_url; item.url = _wtEntry.audio_url; }
@@ -4302,10 +4316,11 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         if (audioQueueIdx !== _pqiIdx || audioQueue[_pqiIdx] !== _pqiItem) return;
         audioEl.src = srcUrl;
         applyAudioSpeed();
-        try { if (item.surah && item.ayah) wtSetupForAyah(item.surah, item.ayah); else wtRestore(); } catch(e) {}
+        try { if (item.surah && item.ayah && !item._recOverride) wtSetupForAyah(item.surah, item.ayah); else wtRestore(); } catch(e) {}
         // сброс старых обработчиков
         try { audioEl.onerror = null; } catch(e) {}
         var playP = audioEl.play();
+        try { _trimAttach(_pqiUrl, srcUrl); _preloadNext(_pqiIdx); } catch(e) {}
         if (playP && playP.catch) {
           playP.catch(function() {
             // не speechSynthesis — на многих телефонах он «молчит»
@@ -4313,22 +4328,12 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           });
         }
         audioEl.onerror = function() {
-          // build 6.07: у некоторых чтецов на источнике (everyayah.com)
-          // реально нет записи для отдельных аятов — это ограничение
-          // самих данных, не наше. Раньше это выглядело как «просто не
-          // играет, и всё» — либо тихо пропускался аят, либо общая ошибка
-          // без объяснения. Теперь для ЭТОГО конкретного аята один раз
-          // пробуем запасного чтеца (обычно более полный по записям), с
-          // понятным сообщением — вместо тихого пропуска.
+          // build 6.27: раньше здесь плеер САМ подставлял запасного чтеца.
+          // Теперь выбор за пользователем: показываем список чтецов.
           try {
-            var fallbackReciter = 'ar.aymansuwaid';
-            var curReciter = (state.settings && state.settings.reciter) || '';
-            if (item && item.surah && item.ayah && !item._triedFallbackReciter && curReciter !== fallbackReciter) {
-              item._triedFallbackReciter = true;
-              try { markReciterAyahMissing(curReciter, item.surah, item.ayah); } catch(e2) {}
-              toast('У этого чтеца нет записи этого аята — пробуем другого');
-              item.url = ayahAudioUrl(item.surah, item.ayah, fallbackReciter);
-              playQueueItem(audioQueueIdx);
+            if (item && item.surah && item.ayah && !item._pickerShown && navigator.onLine !== false) {
+              item._pickerShown = true;
+              _askAyahReciter(item, audioQueueIdx, true);
               return;
             }
           } catch(e) {}
@@ -4390,9 +4395,10 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         // берём запасного чтеца, не дожидаясь новой ошибки проигрывания.
         var _curRec = (state.settings && state.settings.reciter) || '';
         let queue = data.ayahs.map(a => {
-          var known = (typeof isReciterAyahKnownMissing === 'function') && isReciterAyahKnownMissing(_curRec, surah, a.number);
+          var known = (typeof getReciterAyahChoice === 'function') ? getReciterAyahChoice(_curRec, surah, a.number) : '';
           return {
-            url: a.audio || ayahAudioUrl(surah, a.number, known ? 'ar.aymansuwaid' : undefined),
+            url: known ? ayahAudioUrl(surah, a.number, known) : (a.audio || ayahAudioUrl(surah, a.number)),
+            _recOverride: known || null,
             title: (typeof surahTitle === 'function' ? surahTitle(surah, data.meta && data.meta.englishName) : ('Сура ' + surah)) + ' · аят ' + a.number,
             ayah: a.number,
             surah: surah,
@@ -4418,6 +4424,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (modeLabel) sub += ' · ' + modeLabel;
       if (audioRepeatTotal > 1) sub += ' · повтор ' + (audioRepeatTotal - audioRepeatLeft + 1) + '/' + audioRepeatTotal;
       if (audioQueue.length) sub += ' · ' + (audioQueueIdx + 1) + '/' + audioQueue.length;
+      try { sub += _sleepLabel(); } catch(e) {}
       const el = document.getElementById('audio-sub');
       if (el) el.textContent = sub;
     }
@@ -4553,6 +4560,13 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       return Promise.resolve(false);
     }
     function playNextAyah() {
+      // build 6.27: таймер «по аятам» сам зацикливает суру (режимы повтора суры не нужны)
+      if (_sleepCountActive() && audioPlayMode !== 'ayah-loop' && audioQueue.length) {
+        if (audioQueueIdx < audioQueue.length - 1) { playQueueItem(audioQueueIdx + 1); return true; }
+        if (audioPlayMode === 'random') { try { shuffleAudioQueueInPlace(); } catch(e) {} }
+        playQueueItem(0);
+        return true;
+      }
       // режим «только аят» — не переходим дальше (ручная ⏭ тоже остаётся в пределах, если очередь из 1)
       if (audioPlayMode === 'ayah-loop') {
         // бесконечный повтор текущего аята
@@ -4832,17 +4846,361 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     document.getElementById('audio-report-missing')?.addEventListener('click', function() {
       try {
         var cur = audioQueue && audioQueue[audioQueueIdx];
-        if (!cur || !cur.surah || !cur.ayah) { toast('Сейчас не проигрывается аят'); return; }
-        var curReciter = (state.settings && state.settings.reciter) || '';
-        markReciterAyahMissing(curReciter, cur.surah, cur.ayah);
-        toast('Запомнил — в следующий раз сразу предложу запасного чтеца для этого аята');
-        cur._triedFallbackReciter = true;
-        var fb = 'ar.aymansuwaid';
-        if (curReciter !== fb) {
-          cur.url = ayahAudioUrl(cur.surah, cur.ayah, fb);
-          playQueueItem(audioQueueIdx);
+        if (!cur || !cur.surah || !cur.ayah) { toast(isKk() ? 'Қазір аят ойнап тұрған жоқ' : 'Сейчас не проигрывается аят'); return; }
+        _askAyahReciter(cur, audioQueueIdx, false);
+      } catch(e) {}
+    });
+    document.getElementById('audio-pick-reciter')?.addEventListener('click', function() {
+      openReciterPicker({
+        title: isKk() ? 'Қариды таңдаңыз' : 'Выберите чтеца',
+        current: (state.settings && state.settings.reciter) || '',
+        onPick: function(id) { _applyPlayerReciter(id); }
+      });
+    });
+
+    // ===== build 6.27: плеер — обрезка тишины, предзагрузка, свёртка, выбор чтеца, таймер сна =====
+    var _trimInfo = {}, _trimBusy = {}, _curTrim = null, _curTrimUrl = '';
+    function _trimEnabled() {
+      var s = state.settings || {};
+      if (s.trimSilence === false) return false;
+      if (s.reciter === 'ar.husarymuallim') return false; // учебная запись: паузы нужны для повторения
+      return true;
+    }
+    function _trimAnalyze(url, blob) {
+      if (!url || !blob || _trimInfo[url] !== undefined || _trimBusy[url]) return;
+      var Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      if (!Ctx || !blob.arrayBuffer) { _trimInfo[url] = null; return; }
+      _trimBusy[url] = true;
+      blob.arrayBuffer().then(function(buf) {
+        var ctx = new Ctx(1, 1, 22050);
+        return new Promise(function(res, rej) {
+          var p = ctx.decodeAudioData(buf, res, rej);
+          if (p && p.then) p.then(res, rej);
+        });
+      }).then(function(ab) {
+        var ch = ab.getChannelData(0), sr = ab.sampleRate, win = Math.max(1, Math.floor(sr * 0.01));
+        var thr = 0.012, first = -1, last = -1;
+        for (var i = 0; i + win <= ch.length; i += win) {
+          var s2 = 0;
+          for (var j = i; j < i + win; j++) s2 += ch[j] * ch[j];
+          if (Math.sqrt(s2 / win) > thr) { if (first < 0) first = i; last = i + win; }
+        }
+        var dur = ch.length / sr, info = null;
+        if (first >= 0) {
+          var st = Math.max(0, first / sr - 0.08), en = Math.min(dur, last / sr + 0.30);
+          info = { start: st > 0.25 ? st : 0, end: (dur - en) > 0.6 ? en : 0, dur: dur };
+        }
+        _trimInfo[url] = info;
+        delete _trimBusy[url];
+        if (info && _curTrimUrl === url && _trimEnabled()) {
+          _curTrim = info; info.fired = false;
+          if (info.start && audioEl.currentTime < info.start) { try { audioEl.currentTime = info.start; } catch(e) {} }
+        }
+      }).catch(function() { _trimInfo[url] = null; delete _trimBusy[url]; });
+    }
+    function _trimAttach(url, srcUrl) {
+      _curTrimUrl = url;
+      var info = _trimInfo[url];
+      _curTrim = (info && _trimEnabled()) ? info : null;
+      if (_curTrim) {
+        _curTrim.fired = false;
+        if (_curTrim.start) {
+          audioEl.addEventListener('loadedmetadata', function() {
+            try { if (_curTrimUrl === url && audioEl.currentTime < _curTrim.start) audioEl.currentTime = _curTrim.start; } catch(e) {}
+          }, { once: true });
+        }
+      } else if (info === undefined && typeof srcUrl === 'string' && srcUrl.indexOf('blob:') === 0) {
+        fetch(srcUrl).then(function(r) { return r.blob(); }).then(function(b) { _trimAnalyze(url, b); }).catch(function() {});
+      }
+    }
+    // предзагрузка двух следующих аятов, чтобы между файлами не было паузы на сеть
+    function _preloadNext(idx) {
+      try {
+        if (!audioQueue.length || audioPlayMode === 'ayah-loop') return;
+        var wrap = (audioPlayMode === 'surah-loop' || _sleepCountActive());
+        for (var k = 1; k <= 2; k++) {
+          var n = idx + k;
+          if (n >= audioQueue.length) { if (!wrap) break; n = n % audioQueue.length; }
+          var it = audioQueue[n];
+          if (!it || !it.url || /translate_tts/.test(it.url)) continue;
+          var u = it.url;
+          if (it.surah && it.ayah && !it._recOverride && state.settings && state.settings.reciter === 'ar.husary') {
+            var e = getWordTiming(it.surah, it.ayah);
+            if (e && e.audio_url) u = e.audio_url;
+          }
+          (function(u) {
+            if (_audioCacheMemUrls[u]) return;
+            _audioCacheGet(u).then(function(b) {
+              if (b) {
+                if (!_audioCacheMemUrls[u]) _audioCacheMemUrls[u] = URL.createObjectURL(b);
+                _trimAnalyze(u, b);
+              } else {
+                _audioCacheFetchInBackground(u);
+              }
+            });
+          })(u);
         }
       } catch(e) {}
+    }
+
+
+    // ===== build 6.27: транскрипция аятов и дуа (латиница / ru / kk / выкл) =====
+    function translitModeNow() {
+      var s = state.settings || {};
+      var m = s.translitMode;
+      if (m === 'latin' || m === 'ru' || m === 'kk' || m === 'off') return m;
+      return s.showTranslit === false ? 'off' : 'latin';
+    }
+    var _qtl = {}, _qtlBusy = {};
+    function _qtlLoad(num) {
+      if (_qtl[num]) return _qtl[num];
+      try { var r = localStorage.getItem('qtl6:' + num); if (r) { _qtl[num] = JSON.parse(r); return _qtl[num]; } } catch(e) {}
+      return null;
+    }
+    function _qtlPaint(num) {
+      try {
+        document.querySelectorAll('.ayah-translit[data-s="' + num + '"]').forEach(function(el) {
+          var t = _qtl[num] && _qtl[num][el.getAttribute('data-a')];
+          if (t) el.textContent = t;
+        });
+      } catch(e) {}
+    }
+    // проверенная латинская транскрипция (tanzil.net) из пакета quran-json / alquran.cloud; нет сети — остаётся расчётная
+    async function ensureLatinTranslit(num) {
+      if (_qtlLoad(num) || _qtlBusy[num]) return;
+      _qtlBusy[num] = 1;
+      var map = null;
+      try {
+        var r = await fetch('https://cdn.jsdelivr.net/npm/quran-json@3.1.2/dist/chapters/' + num + '.json');
+        if (r.ok) {
+          var j = await r.json();
+          if (j && j.verses && j.verses.length) {
+            map = {};
+            j.verses.forEach(function(v) { if (v && v.transliteration) map[v.id] = String(v.transliteration).trim(); });
+          }
+        }
+      } catch(e) {}
+      if (!map || !Object.keys(map).length) {
+        map = null;
+        try {
+          var r2 = await fetch('https://api.alquran.cloud/v1/surah/' + num + '/en.transliteration');
+          if (r2.ok) {
+            var j2 = await r2.json();
+            if (j2 && j2.data && j2.data.ayahs) {
+              map = {};
+              j2.data.ayahs.forEach(function(a) { map[a.numberInSurah] = String(a.text).trim(); });
+              if (num !== 1 && num !== 9 && map[1] && /^bismi/i.test(map[1])) map[1] = map[1].split(/\s+/).slice(4).join(' ');
+            }
+          }
+        } catch(e) {}
+      }
+      delete _qtlBusy[num];
+      if (map && Object.keys(map).length) {
+        _qtl[num] = map;
+        try { localStorage.setItem('qtl6:' + num, JSON.stringify(map)); } catch(e) {}
+        _qtlPaint(num);
+      }
+    }
+    function ayahTranslitText(num, a) {
+      var md = translitModeNow();
+      if (md === 'off') return '';
+      if (md === 'latin') {
+        var c = _qtlLoad(num);
+        if (c && c[a.number]) return c[a.number];
+        try { ensureLatinTranslit(num); } catch(e) {}
+        return (window.arabicToLatin && a.text) ? window.arabicToLatin(a.text) : '';
+      }
+      return (window.arTrans && a.text) ? window.arTrans(a.text, md === 'kk') : '';
+    }
+    function ayahTranslitHtml(num, a) {
+      var t = '';
+      try { t = ayahTranslitText(num, a); } catch(e) {}
+      if (!t) return '';
+      return '<div class="ayah-translit" dir="ltr" data-s="' + num + '" data-a="' + a.number + '">' + String(t).replace(/</g, '&lt;') + '</div>';
+    }
+
+    // ----- свёртка плеера -----
+    (function() {
+      var bar = document.getElementById('audio-bar');
+      var btn = document.getElementById('audio-collapse');
+      var mini = document.getElementById('audio-mini-play');
+      var main = document.getElementById('audio-play-pause');
+      if (!bar || !btn) return;
+      function apply(c) {
+        bar.classList.toggle('collapsed', !!c);
+        btn.textContent = c ? '▴' : '▾';
+        btn.title = c ? (isKk() ? 'Ашу' : 'Развернуть плеер') : (isKk() ? 'Жинау' : 'Свернуть плеер');
+        try { localStorage.setItem('quran_audio_collapsed_v1', c ? '1' : '0'); } catch(e) {}
+      }
+      var c0 = false;
+      try { c0 = localStorage.getItem('quran_audio_collapsed_v1') === '1'; } catch(e) {}
+      apply(c0);
+      btn.addEventListener('click', function() { apply(!bar.classList.contains('collapsed')); });
+      if (mini && main) {
+        mini.addEventListener('click', function() { main.click(); });
+        var sync = function() { mini.textContent = main.textContent; };
+        try { new MutationObserver(sync).observe(main, { childList: true, characterData: true, subtree: true }); } catch(e) {}
+        sync();
+      }
+    })();
+
+    // ----- группы чтецов (учебные сверху, затем для слушания) -----
+    function _isStudyReciter(id) { return id === 'ar.husarymuallim'; }
+    function reciterGroups() {
+      var list = (typeof RECITER_LIST !== 'undefined') ? RECITER_LIST : [];
+      return [
+        { study: true, items: list.filter(function(r) { return _isStudyReciter(r.id); }) },
+        { study: false, items: list.filter(function(r) { return !_isStudyReciter(r.id); }) }
+      ];
+    }
+    function reciterSelectHtml() {
+      var kk = isKk(), g = reciterGroups();
+      function opt(r) { return '<option value="' + r.id + '">' + (kk ? r.kk : r.ru) + '</option>'; }
+      return '<optgroup label="' + (kk ? '📚 Оқу үшін' : '📚 Учебные') + '">' + g[0].items.map(opt).join('') + '</optgroup>' +
+        '<option disabled value=""> </option>' +
+        '<optgroup label="' + (kk ? '🎧 Тыңдау үшін' : '🎧 Для слушания') + '">' + g[1].items.map(opt).join('') + '</optgroup>';
+    }
+    function openReciterPicker(o) {
+      o = o || {};
+      var old = document.getElementById('reciter-picker'); if (old) old.remove();
+      var kk = isKk();
+      var ov = document.createElement('div');
+      ov.id = 'reciter-picker';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center';
+      var box = document.createElement('div');
+      box.style.cssText = 'background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:1rem 1rem 0 0;width:100%;max-width:560px;max-height:82vh;overflow:auto;padding:0.9rem 0.9rem 1.1rem';
+      var h = '<div style="font-weight:700;margin-bottom:0.2rem">' + (o.title || '') + '</div>';
+      if (o.note) h += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem">' + o.note + '</div>';
+      var g = reciterGroups();
+      function btn(r) {
+        var on = r.id === o.current;
+        return '<button type="button" data-rid="' + r.id + '" class="btn" style="display:block;width:100%;text-align:left;margin:0.2rem 0;' + (on ? 'border-color:var(--accent);' : '') + '">' + (on ? '✓ ' : '') + (kk ? r.kk : r.ru) + '</button>';
+      }
+      h += '<div style="font-size:0.75rem;color:var(--text-muted);margin:0.4rem 0 0.1rem">' + (kk ? '📚 Оқу үшін' : '📚 Учебные') + '</div>' + g[0].items.map(btn).join('');
+      h += '<div style="height:0.9rem"></div><div style="font-size:0.75rem;color:var(--text-muted);margin:0 0 0.1rem">' + (kk ? '🎧 Тыңдау үшін' : '🎧 Для слушания') + '</div>' + g[1].items.map(btn).join('');
+      if (o.showWhole) h += '<label style="display:flex;gap:0.4rem;align-items:center;margin-top:0.7rem;font-size:0.85rem"><input type="checkbox" id="rp-whole"> ' + (kk ? 'Бүкіл сүре үшін' : 'Для всей суры') + '</label>';
+      h += '<div style="display:flex;gap:0.4rem;margin-top:0.7rem">' +
+        (o.onSkip ? '<button type="button" class="btn" id="rp-skip" style="flex:1">' + (kk ? 'Аятты өткізу' : 'Пропустить аят') + '</button>' : '') +
+        '<button type="button" class="btn" id="rp-cancel" style="flex:1">' + (kk ? 'Бас тарту' : 'Отмена') + '</button></div>';
+      box.innerHTML = h; ov.appendChild(box); document.body.appendChild(ov);
+      function close() { try { ov.remove(); } catch(e) {} }
+      ov.addEventListener('click', function(e) { if (e.target === ov) close(); });
+      box.querySelector('#rp-cancel').addEventListener('click', close);
+      var sk = box.querySelector('#rp-skip'); if (sk) sk.addEventListener('click', function() { close(); o.onSkip(); });
+      box.querySelectorAll('[data-rid]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var whole = !!(box.querySelector('#rp-whole') && box.querySelector('#rp-whole').checked);
+          close();
+          if (o.onPick) o.onPick(b.getAttribute('data-rid'), whole);
+        });
+      });
+    }
+    function _applyPlayerReciter(id) {
+      try {
+        _reciterInit();
+        state.settings.reciterBy[_reciterCtx] = id;
+        state.settings.reciter = id;
+        saveState();
+        try { fillReciterSelects(); } catch(e) {}
+        audioQueue.forEach(function(it) {
+          if (it && it.surah && it.ayah) { it.url = ayahAudioUrl(it.surah, it.ayah); it._recOverride = null; it._pickerShown = false; }
+        });
+        if (audioQueue[audioQueueIdx] && (!audioEl.paused || audioEl.src)) playQueueItem(audioQueueIdx);
+        toast(isKk() ? 'Қари ауыстырылды' : 'Чтец изменён');
+      } catch(e) {}
+    }
+    function _applyAyahReciter(item, id, idx) {
+      try {
+        var cur = (state.settings && state.settings.reciter) || '';
+        item.url = ayahAudioUrl(item.surah, item.ayah, id);
+        item._recOverride = id; item._pickerShown = false; item._triedFallbackReciter = true;
+        markReciterAyahMissing(cur, item.surah, item.ayah, id);
+        playQueueItem(idx);
+      } catch(e) {}
+    }
+    function _askAyahReciter(item, idx, isError) {
+      var kk = isKk();
+      try { audioEl.pause(); } catch(e) {}
+      openReciterPicker({
+        title: isError ? (kk ? 'Бұл қариде ' + item.ayah + '-аят жоқ' : 'У этого чтеца нет аята ' + item.ayah) : (kk ? 'Аят үшін қариды таңдаңыз' : 'Чтец для этого аята'),
+        note: kk ? 'Қай қаридің жазбасымен ойнатуды өзіңіз таңдаңыз.' : 'Выберите, чьей записью проиграть. Автоматически я ничего не подставляю.',
+        current: item._recOverride || (state.settings && state.settings.reciter) || '',
+        showWhole: true,
+        onPick: function(id, whole) { if (whole) _applyPlayerReciter(id); else _applyAyahReciter(item, id, idx); },
+        onSkip: (isError && idx < audioQueue.length - 1) ? function() { playQueueItem(idx + 1); } : null
+      });
+    }
+
+    // ----- таймер сна -----
+    var _sleep = null, _sleepTick = null;
+    function _sleepCountActive() { return !!(_sleep && _sleep.mode === 'ayah'); }
+    function _sleepLabel() {
+      if (!_sleep) return '';
+      if (_sleep.mode === 'ayah') return ' · ⏱ ' + (isKk() ? 'қалды ' : 'осталось ') + Math.max(0, _sleep.total - _sleep.played);
+      var m = Math.max(0, Math.ceil((_sleep.deadline - Date.now()) / 60000));
+      return ' · ⏱ ' + m + (isKk() ? ' мин' : ' мин');
+    }
+    function _sleepStop(msg) {
+      _sleep = null;
+      if (_sleepTick) { clearInterval(_sleepTick); _sleepTick = null; }
+      try { audioEl.pause(); } catch(e) {}
+      if (msg) toast(msg);
+      try { updateAudioSub(); _sleepRender(); } catch(e) {}
+    }
+    function _sleepCancel() {
+      _sleep = null;
+      if (_sleepTick) { clearInterval(_sleepTick); _sleepTick = null; }
+      try { updateAudioSub(); _sleepRender(); } catch(e) {}
+    }
+    // вызывается в конце КАЖДОГО проигранного аята; true — таймер остановил плеер
+    function _sleepOnAyahEnd() {
+      if (!_sleep) return false;
+      if (_sleep.mode === 'ayah') {
+        _sleep.played++;
+        if (_sleep.played >= _sleep.total) { _sleepStop(isKk() ? 'Таймер: аяттар аяқталды' : 'Таймер: нужное число аятов прослушано'); return true; }
+      } else if (Date.now() >= _sleep.deadline) {
+        _sleepStop(isKk() ? 'Таймер: уақыт өтті, аят аяқталды' : 'Таймер: время вышло, аят дослушан'); return true;
+      }
+      try { updateAudioSub(); } catch(e) {}
+      return false;
+    }
+    function _sleepRender() {
+      var pn = document.getElementById('audio-sleep-panel');
+      if (!pn || pn.style.display === 'none') return;
+      var kk = isKk();
+      var trimOn = !(state.settings && state.settings.trimSilence === false);
+      var h = '<div class="sl-row"><select id="sleep-mode"><option value="min">' + (kk ? 'Минут' : 'Минуты') + '</option><option value="ayah">' + (kk ? 'Аяттар' : 'Аяты') + '</option></select>' +
+        '<input type="number" id="sleep-val" min="1" max="9999" value="' + ((_sleep && _sleep.mode === 'ayah') ? _sleep.total : 10) + '">' +
+        '<button type="button" class="btn-player" id="sleep-start">' + (kk ? 'Бастау' : 'Старт') + '</button>' +
+        (_sleep ? '<button type="button" class="btn-player" id="sleep-cancel">' + (kk ? 'Өшіру' : 'Отмена') + '</button>' : '') + '</div>' +
+        '<div class="sl-hint">' + (kk
+          ? 'Минут: уақыт біткенде ағымдағы аят аяқталғанша ойнайды. Аяттар: ағымдағы аятты қоса санайды, сүре өзі қайталанады — «🔁 Сүре» қосудың қажеті жоқ.'
+          : 'Минуты: по истечении времени плеер доиграет текущий аят и остановится. Аяты: считая текущий; сура сама повторяется по кругу, режим «🔁 Сура» включать не нужно (повтор аята работает).') + '</div>' +
+        '<label style="display:flex;gap:0.4rem;align-items:center;margin-top:0.4rem;font-size:0.8rem"><input type="checkbox" id="sleep-trim"' + (trimOn ? ' checked' : '') + '> ' + (kk ? 'Аяттар арасындағы үнсіздікті қию (оқу қарисынан басқа)' : 'Обрезать тишину между аятами (кроме учебного чтеца)') + '</label>';
+      pn.innerHTML = h;
+      var md = pn.querySelector('#sleep-mode'); if (_sleep) md.value = _sleep.mode;
+      pn.querySelector('#sleep-start').addEventListener('click', function() {
+        var v = parseInt(pn.querySelector('#sleep-val').value, 10);
+        if (!v || v < 1) v = 1;
+        var mode = pn.querySelector('#sleep-mode').value;
+        _sleep = mode === 'ayah' ? { mode: 'ayah', total: v, played: 0 } : { mode: 'min', total: v, deadline: Date.now() + v * 60000 };
+        if (_sleepTick) clearInterval(_sleepTick);
+        _sleepTick = setInterval(function() { try { updateAudioSub(); } catch(e) {} }, 15000);
+        toast(isKk() ? 'Таймер қосылды' : 'Таймер запущен');
+        updateAudioSub(); _sleepRender();
+      });
+      var cn = pn.querySelector('#sleep-cancel'); if (cn) cn.addEventListener('click', function() { _sleepCancel(); toast(isKk() ? 'Таймер өшірілді' : 'Таймер отменён'); });
+      pn.querySelector('#sleep-trim').addEventListener('change', function(e) {
+        state.settings.trimSilence = !!e.target.checked;
+        saveState();
+        if (!e.target.checked) _curTrim = null;
+      });
+    }
+    document.getElementById('audio-sleep-btn')?.addEventListener('click', function() {
+      var pn = document.getElementById('audio-sleep-panel');
+      if (!pn) return;
+      pn.style.display = pn.style.display === 'none' ? '' : 'none';
+      _sleepRender();
     });
 
     const seekEl = document.getElementById('audio-seek');
@@ -4863,6 +5221,13 @@ document.getElementById('audio-stop').addEventListener('click', () => {
           _lastListenT = t;
         }
       }
+      try {
+        if (_curTrim && _curTrim.end && !_curTrim.fired && !audioEl.paused && audioEl.currentTime >= _curTrim.end && _trimEnabled()) {
+          _curTrim.fired = true;
+          audioEl.dispatchEvent(new Event('ended'));
+          return;
+        }
+      } catch(e) {}
       const cur = document.getElementById('audio-time-cur');
       const dur = document.getElementById('audio-time-dur');
       if (cur) cur.textContent = fmtTime(audioEl.currentTime);
@@ -4874,19 +5239,23 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     audioEl.addEventListener('play', () => {
       _lastListenT = Math.floor(audioEl.currentTime || 0);
       document.getElementById('audio-play-pause').textContent = '⏸';
+      try { navigator.mediaSession.playbackState = 'playing'; } catch(e) {}
     });
     audioEl.addEventListener('pause', () => {
       try { twWordTip(null); } catch(e) {}
       document.getElementById('audio-play-pause').textContent = '▶';
+      try { navigator.mediaSession.playbackState = 'paused'; } catch(e) {}
       // не скрываем бар на паузе
       if (audioQueue.length || audioEl.src) updateAudioBarVisibility();
       try { if (typeof updateLockPlayerLabels === 'function') updateLockPlayerLabels(); } catch(e) {}
       try { if (typeof renderLastAudio === 'function') renderLastAudio(); } catch(e) {}
     });
     audioEl.addEventListener('ended', () => {
+      if (_sleepOnAyahEnd()) return;
       if (audioRepeatLeft > 1) {
         audioRepeatLeft--;
         updateAudioSub();
+        try { if (_curTrim) { _curTrim.fired = false; audioEl.currentTime = _curTrim.start || 0; } } catch(e) {}
         audioEl.play();
         return;
       }
@@ -4897,6 +5266,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         try { if (typeof updateLockPlayerLabels === 'function') updateLockPlayerLabels(); } catch(e) {}
         return;
       }
+      try { audioEl.pause(); } catch(e) {}
       document.getElementById('audio-play-pause').textContent = '▶';
       document.getElementById('audio-sub').textContent = 'Готово';
       window._forceAudioBar = false;
@@ -5059,7 +5429,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         surahs.forEach(s => {
           const opt = document.createElement('option');
           opt.value = s.number;
-          opt.textContent = `${s.number}. ${s.englishName} (${s.numberOfAyahs})`;
+          opt.textContent = `${s.number}. ${surahShortName(s.number, s.englishName)} (${s.numberOfAyahs})`;
           sel.appendChild(opt);
         });
       });
@@ -5537,6 +5907,17 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     });
 
     // Settings
+    (function () {
+      var ts = document.getElementById('setting-translit');
+      if (!ts) return;
+      ts.value = translitModeNow();
+      ts.addEventListener('change', function (e) {
+        state.settings.translitMode = e.target.value;
+        state.settings.showTranslit = e.target.value !== 'off';
+        saveState();
+        toast(isKk() ? 'Транскрипция өзгертілді' : 'Транскрипция изменена');
+      });
+    })();
     document.getElementById('setting-translation').addEventListener('change', e => {
       state.settings.translation = e.target.value;
       state.cache = {}; // invalidate
@@ -5581,7 +5962,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     function fillReciterSelects() {
       _reciterInit();
       const kk = isKk();
-      const opts = RECITER_LIST.map(function(r) { return '<option value="' + r.id + '">' + (kk ? r.kk : r.ru) + '</option>'; }).join('');
+      const opts = reciterSelectHtml(); // build 6.27: учебные сверху, затем пустая строка и «для слушания»
       RECITER_TABS.forEach(function(t) {
         _RECITER_SELECTS[t].forEach(function(id) { const el = document.getElementById(id); if (el) { el.innerHTML = opts; el.value = state.settings.reciterBy[t]; } });
       });
@@ -8852,7 +9233,7 @@ function speakLetter(ch, name, ttsOnly) {
           '</div>';
       }
       if (next) {
-        html += '<div class="card" style="border-color:var(--accent);background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 75%, #7c3aed) 100%);border:none;margin-bottom:0.75rem">' +
+        html += '<div class="card" style="border-color:var(--accent);background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 78%, #000) 100%);border:none;margin-bottom:0.75rem">' +
           '<div style="color:rgba(255,255,255,0.85);font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">' + (kk ? 'Келесі сабақ' : 'Следующий урок') + '</div>' +
           '<div style="color:#fff;font-weight:700;font-size:1.15rem;margin-top:0.3rem">' + skillTitle(next) + '</div>' +
           '<button type="button" class="btn" id="teacher-start-next" style="width:100%;margin-top:0.7rem;background:rgba(255,255,255,0.18);color:#fff;border-color:rgba(255,255,255,0.3)">▶ ' + (kk ? 'Үйрену' : 'Учить') + '</button>' +
@@ -9108,7 +9489,7 @@ function speakLetter(ch, name, ttsOnly) {
           // докачивать по отдельности. Одна кнопка сверху — качает сразу
           // всё нужное (78-114 + суры для «Напоминания дня»), остальные
           // кнопки остаются, если нужно докачать что-то одно отдельно.
-          '<div class="card" style="border-color:var(--accent);background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 75%, #7c3aed) 100%);border:none">' +
+          '<div class="card" style="border-color:var(--accent);background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 78%, #000) 100%);border:none">' +
           '<b style="color:#fff">' + (isKk() ? '📥 Сайтты офлайнға дайындау' : '📥 Подготовить сайт к офлайну') + '</b>' +
           '<div style="color:rgba(255,255,255,0.85);font-size:0.85rem;margin-top:0.3rem">' + (isKk() ? 'Интернетсіз жұмыс істеу үшін керектің бәрін бірден жүктейді: «Амма» джүзі (78–114) + «Күн ескертуі» сүрелері (2, 6, 17, 24, 31, 49).' : 'Скачает разом всё, что нужно для работы без интернета: джюз «Амма» (78-114) + суры для «Напоминания дня» (2, 6, 17, 24, 31, 49).') + '</div>' +
           '<button type="button" class="btn btn-sm" id="dl-prepare-all" style="margin-top:0.6rem;width:100%;background:rgba(255,255,255,0.18);color:#fff;border-color:rgba(255,255,255,0.3)">' + (isKk() ? '⬇ Офлайн үшін бәрін жүктеу' : '⬇ Скачать всё для офлайна') + '</button>' +
@@ -13917,15 +14298,15 @@ function renderDictation(area) {
       // (положение подобрано так, чтобы кисти были на уровне ушей, а ладони смотрели к кибле)
       const tak = { w: { at: 'ear', o: [1, -8, 12] }, pole: [1, -1, 0.3], hd: [180, -12], tb: [-0.5, -0.8, -1] };
       P.takbir = _sPose(P.stand, { head: 176, R: tak, L: tak });
-      // руки ниже пупка: правая ладонь на тыльной стороне левой, мизинец и
+      // руки ниже пупка (build 6.29: локти у боков, предплечья почти горизонтально): правая ладонь на тыльной стороне левой, мизинец и
       // большой палец обхватывают левое запястье
       P.fold = _sPose(P.stand, { head: 168,
-        R: { w: { at: 'pelvis', o: [18, 18, 3] }, pole: [-0.35, -0.3, 0.85], hd: [94, -80], tb: [0, 1, 0.2] },
-        L: { w: { at: 'pelvis', o: [16.5, 16, 5] }, pole: [-0.35, -0.3, 0.85], hd: [92, -78], tb: [0, 1, 0] } });
+        R: { grip: { y: 0.19, rb: 0.13, lim: 1.0, lw: 3, over: 0.16 }, w: { at: 'pelvis', o: [21.5, 18, 3] }, pole: [0, -0.95, 0.3], hd: [94, -80], tb: [0, 0, -1] },
+        L: { w: { at: 'pelvis', o: [17, 16, 5] }, pole: [0, -0.95, 0.3], hd: [92, -78], tb: [0, 1, 0] } });
       // руку‘: спина расправлена, голова вровень с крестцом, взгляд на верх
       // стоп, ладони обхватывают колени, пальцы раздвинуты, руки отведены от боков
       const rk = { w: { at: 'knee', o: [5, 8, 3] }, pole: [-0.2, 0.2, 1], hd: [6, 2], tb: [0.3, 0, -1] };
-      P.ruku = _sPose(P.stand, { torso: 90, head: 88,
+      P.ruku = _sPose(P.stand, { torso: 90, head: 112, // build 6.25: голова чуть приподнята над линией спины (взгляд к стопам), шея не висит
         R: Object.assign({}, rk, { th: [-8, -2], sh: [6, -1], ft: [83.5, 0] }),
         L: Object.assign({}, rk, { th: [-8, -2], sh: [6, -1], ft: [62, 0] }) });
       // спуск в суджуд: колени → ладони → нос → лоб
@@ -13944,9 +14325,9 @@ function renderDictation(area) {
         L: Object.assign({}, sj, kneeLeg, { th: [0, -2] }) });
       // сидение (ифтираш): на левой стопе, правая стоит на пальцах к кибле,
       // ладони на бёдрах, пальцы вытянуты
-      const sitArm = { w: { at: 'thigh', o: [-4, 7, 2] }, pole: [-0.4, 0, 1], hd: [88, -3], tb: [0.1, 0.3, -1] };
-      P.sit = _sPose(P.stand, { torso: 176, head: 160,
-        R: Object.assign({}, sitArm, { th: [76, 7], sh: [-98, 3], ft: [40, 0], to: [92, 0] }),
+      const sitArm = { w: { at: 'thigh', o: [-6, 5.5, 2] }, pole: [-0.4, 0, 1], hd: [100, -3], tb: [0.1, 0.3, -1] }; // build 6.29: ладони ложатся на ткань бедра, пальцы не висят
+      P.sit = _sPose(P.stand, { torso: 162, head: 160, tipT: 1.14, // build 6.29: корпус чуть вперёд — локти согнуты, кончики пальцев у колен
+        R: Object.assign({}, sitArm, { th: [76, 7], sh: [-98, 3], ft: [40, 0], to: [92, 0], pitch: 60 }),
         L: Object.assign({}, sitArm, { th: [76, 7], sh: [-90, 3], ft: [-95, 6], to: [-95, 6] }) });
       // ташаххуд: указательный поднимается на «ля иляха» и опускается на
       // «илля-Ллах»; остальные пальцы лежат вытянутыми на бедре
@@ -14568,7 +14949,7 @@ function renderDictation(area) {
       sun.castShadow = true;
       sun.shadow.mapSize.set(1024, 1024);
       const sc = sun.shadow.camera; sc.left = -150; sc.right = 150; sc.top = 150; sc.bottom = -150; sc.near = 10; sc.far = 700;
-      sun.shadow.bias = -0.0008; sun.shadow.radius = 4;
+      sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.5; sun.shadow.radius = 4; // build 6.29: без «ряби» тени на груди
       scene.add(sun); scene.add(sun.target);
       const fill = new THREE.DirectionalLight(0xc3d5ff, 0.7);
       fill.position.set(-160, 120, -120);
@@ -14781,6 +15162,7 @@ function renderDictation(area) {
         const dist = 375 / (view.zoom || 1);
         camera.position.set(target[0] + Math.sin(yw) * Math.cos(el) * dist, target[1] + Math.sin(el) * dist, target[2] + Math.cos(yw) * Math.cos(el) * dist);
         camera.lookAt(target[0], target[1], target[2]);
+        if (view.panX || view.panY) { camera.translateX(view.panX || 0); camera.translateY(view.panY || 0); } // build 6.25: свободный сдвиг камеры двумя пальцами
         renderer.render(scene, camera);
         return Math.hypot(target[0] - want[0], target[1] - want[1]) > 0.3;
       }
@@ -14858,6 +15240,7 @@ function renderDictation(area) {
         const dist = 375 / (view.zoom || 1);
         camera.position.set(target[0] + Math.sin(yw) * Math.cos(el) * dist, target[1] + Math.sin(el) * dist, target[2] + Math.cos(yw) * Math.cos(el) * dist);
         camera.lookAt(target[0], target[1], target[2]);
+        if (view.panX || view.panY) { camera.translateX(view.panX || 0); camera.translateY(view.panY || 0); } // build 6.25: свободный сдвиг камеры двумя пальцами
         renderer.render(scene, camera);
         return Math.hypot(target[0] - want[0], target[1] - want[1]) > 0.3;
       }
@@ -14871,7 +15254,7 @@ function renderDictation(area) {
         try { renderer.forceContextLoss(); } catch (e) {}
       }
       if (female) meshes.forEach(function(m) { m.visible = false; });
-      return { render: render, resize: resize, dispose: dispose, canvas: renderer.domElement, onModel: function(fn) { onModel = fn; if (model) fn(); }, hasModel: function() { return !!model; } };
+      return { upp: function(zoom) { return 2 * (375 / (zoom || 1)) * Math.tan(camera.fov * Math.PI / 360) / Math.max(120, renderer.domElement.clientHeight || 300); }, render: render, resize: resize, dispose: dispose, canvas: renderer.domElement, onModel: function(fn) { onModel = fn; if (model) fn(); }, hasModel: function() { return !!model; } };
     }
 
     // ===== 3D-модель человека для «Как читать намаз» — build 6.05, 6.06 =====
@@ -14932,6 +15315,12 @@ function renderDictation(area) {
       };
       // build 6.27: цвета как на рисунках — мужчина: голубая рубаха и светлые брюки; женщина: тёмно-синее платье и розовый платок
       const bodyColors = new Uint8Array(arr('bodyCol'));
+      { // build 6.29: у запястья ткань тела перекрашивается в цвет кожи — при повороте кисти она не торчит из рукава светлыми «лоскутами»
+        const skI = arr('bodySkI'), skW = arr('bodySkW'), hb = [], sc = new THREE.Color(H.colors.skin);
+        H.bones.forEach(function(b, i) { if (b.n === 'hand_r' || b.n === 'hand_l') hb.push(i); });
+        for (let v = 0; v < bodyColors.length / 3; v++) { let w = 0, tw = 0;
+          for (let k = 0; k < 4; k++) { tw += skW[v * 4 + k]; if (hb.indexOf(skI[v * 4 + k]) >= 0) w += skW[v * 4 + k]; }
+          if (tw > 0 && w / tw >= 0.12) { bodyColors[v * 3] = Math.round(sc.r * 255); bodyColors[v * 3 + 1] = Math.round(sc.g * 255); bodyColors[v * 3 + 2] = Math.round(sc.b * 255); } } }
             const body = mkSkinned(arr('bodyPos'), arr('bodyIdx'), arr('bodySkI'), arr('bodySkW'), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }), arr('bodyNrm'), bodyColors);
       const clothMat = new THREE.MeshStandardMaterial({ color: col(FEM ? '#b7c3d9' : H.colors.cloth), roughness: 0.93, metalness: 0, side: THREE.DoubleSide });
       const scarfMat = new THREE.MeshStandardMaterial({ color: col('#c9d3e6'), roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
@@ -14993,7 +15382,7 @@ function renderDictation(area) {
           if (t < 0.07 && t > -0.35 && r < 0.25) continue; keepIx.push(a, b2, c); }
         body.geometry.setIndex(new THREE.BufferAttribute(new Uint16Array(keepIx), 1)); }
       // ---- покой ----
-      if (FEM) { ['hand_r', 'hand_l'].forEach(function(n) { B[n].scale.setScalar(0.9); }); root.updateMatrixWorld(true); } // build 6.28: женские кисти мельче и тоньше
+      { ['hand_r', 'hand_l'].forEach(function(n) { B[n].scale.setScalar(FEM ? 0.9 : 0.92); }); root.updateMatrixWorld(true); } // build 6.29: и мужские кисти мельче (были крупнее руки) // build 6.28: женские кисти мельче и тоньше
       const wp = function(n) { return B[n].getWorldPosition(V()); };
       const rest = {}; bones.forEach(function(b) { rest[b.name] = { q: b.getWorldQuaternion(new THREE.Quaternion()), lq: b.quaternion.clone(), p: wp(b.name) }; });
       const yAxis = function(n) { return V(0, 1, 0).applyQuaternion(rest[n].q); };
@@ -15035,7 +15424,8 @@ function renderDictation(area) {
           const amp = f === 'thumb' ? [0.5, 0.9] : [1.25, 1.55, 1.0];
           segs.forEach(function(n, j) {
             const bn = B[n + sx];
-            const q = rest[bn.name].lq.clone().multiply(new THREE.Quaternion().setFromAxisAngle(ax, Math.max(-0.6, c[k]) * amp[j]));
+            const ck = c[k] < 0 ? (j === 0 ? Math.max(-1.1, c[k]) * 0.9 : 0.02) : c[k]; // build 6.29: поднятый палец гнётся только в основании, остальные суставы прямые
+            const q = rest[bn.name].lq.clone().multiply(new THREE.Quaternion().setFromAxisAngle(ax, ck * amp[j]));
             if (j === 0 && f !== 'thumb' && sp) { const sax = V(0, 0, 1).cross(ax).lengthSq() > 0.5 ? V(0, 0, 1) : V(1, 0, 0); q.multiply(new THREE.Quaternion().setFromAxisAngle(sax, (sx === '_r' ? 1 : -1) * spread[f] * sp * Math.PI / 180)); }
             bn.quaternion.copy(q);
           });
@@ -15105,6 +15495,19 @@ function renderDictation(area) {
             if (/toesR/.test(contacts) && s === 'L') return;
             const sx = s === 'R' ? '_r' : '_l';
             let best = { e: 1e9, a: 0 };
+            // build 6.29: правая стопа в сидении стоит на пальцах круто (≈60° к полу, пятка вверх): подбираем голень и голеностоп
+            if (s === 'R' && P.R && P.R.pitch) {
+              P = Object.assign({}, P, { R: Object.assign({}, P.R) });
+              const sh0 = P.R.sh[0]; let bb = { sc: 1e9, sv: sh0, a: 0 };
+              for (let sv = sh0 - 50; sv <= sh0 + 30; sv += 2) {
+                P.R.sh = [sv, P.R.sh[1]];
+                for (let a = -0.9; a <= 0.9; a += 0.05) { tweak.R = a; setLegs(tweak); root.updateMatrixWorld(true);
+                  const te = Math.abs(wp('ball_leaf_r').y - 0.012 - kneePt('_r').y);
+                  const fv = wp('ball_leaf_r').sub(wp('foot_r')); const pitch = Math.asin(Math.max(-1, Math.min(1, fv.y / fv.length()))) * 180 / Math.PI;
+                  const sc = (te > 0.006 ? 100 + te * 100 : 0) + Math.abs(pitch + P.R.pitch) + Math.abs(sv - sh0) * 0.02;
+                  if (sc < bb.sc) bb = { sc: sc, sv: sv, a: a }; } }
+              P.R.sh = [bb.sv, P.R.sh[1]]; tweak.R = bb.a; return;
+            }
             for (let a = -0.9; a <= 0.9; a += 0.05) { tweak[s] = a; setLegs(tweak); root.updateMatrixWorld(true);
               const e = Math.abs(wp('ball_leaf' + sx).y - 0.012 - (kneePt(sx).y)); if (e < best.e) best = { e: e, a: a }; }
             tweak[s] = best.a;
@@ -15116,6 +15519,7 @@ function renderDictation(area) {
         const armsPass = function(floorY) {
           const anchors = function(s, w) {
             const sx = s === 'R' ? '_r' : '_l', sg = s === 'R' ? 1 : -1;
+            if (w.abs) return w.abs.clone(); // build 6.29: точная цель запястья (кыям, сидение)
             let b0;
             if (w.at === 'sh') b0 = wp('upperarm' + sx);
             else if (w.at === 'ear') b0 = B.Head.localToWorld(lobeLocal[s].clone()).add(hAx.clone().multiplyScalar(0.012));
@@ -15189,6 +15593,216 @@ function renderDictation(area) {
           if (window.__RK) window.__RK.push(best);
         }
         if (/palms/.test(contacts)) { armsPass(0); root.updateMatrixWorld(true); }
+        // build 6.29: общие помощники для кистей — поворот кисти и выбор разворота «ладонью к телу»
+        const setHand = function(sx, d, t) { setWorld('hand' + sx, d, t, yAxis('hand' + sx), rest['thumb_01' + sx].p.clone().sub(rest['hand' + sx].p)); B['hand' + sx].updateMatrixWorld(true); };
+        const handFacing = function(sx, d, cand, palmTo) {
+          // перебор разворота кисти вокруг её оси: ладонь (куда сгибаются пальцы) смотрит в сторону palmTo
+          let best = cand, bd = 1e9;
+          for (let k = 0; k < 24; k++) { const t = cand.clone().applyAxisAngle(d, k * Math.PI / 12);
+            setHand(sx, d, t);
+            setFingers(sx, { c: [0, 0, 0, 0, 0], sp: 0 }); B['hand' + sx].updateMatrixWorld(true); const t0 = wp('middle_04_leaf' + sx).add(wp('ring_04_leaf' + sx));
+            setFingers(sx, { c: [0.3, 0.45, 0.45, 0.45, 0.45], sp: 0 }); B['hand' + sx].updateMatrixWorld(true); const t1 = wp('middle_04_leaf' + sx).add(wp('ring_04_leaf' + sx));
+            const dd = -t1.sub(t0).normalize().dot(palmTo); if (dd < bd) { bd = dd; best = t; } }
+          // поворот ладони делает предплечье (пронация), а не запястье — иначе кожа у запястья перекручивается в «лоскуты»
+          const la = B['lowerarm' + sx]; la.updateMatrixWorld(true);
+          const faW = wp('hand' + sx).sub(wp('lowerarm' + sx)).normalize(), q0 = la.getWorldQuaternion(new THREE.Quaternion());
+          let ba = 0, bv = 1e9;
+          for (let a = -Math.PI; a < Math.PI; a += Math.PI / 24) {
+            setWorldQ('lowerarm' + sx, new THREE.Quaternion().setFromAxisAngle(faW, a).multiply(q0)); la.updateMatrixWorld(true); setHand(sx, d, best);
+            const v = B['hand' + sx].quaternion.angleTo(rest['hand' + sx].lq) + Math.abs(a) * 0.05; if (v < bv) { bv = v; ba = a; } }
+          setWorldQ('lowerarm' + sx, new THREE.Quaternion().setFromAxisAngle(faW, ba).multiply(q0)); la.updateMatrixWorld(true);
+          setHand(sx, d, best);
+          if (window.__GRIPM) window.__GRIPM.push(['tw' + sx, ba, bv, d.angleTo(faW), B['hand' + sx].quaternion.angleTo(rest['hand' + sx].lq)]);
+          return best;
+        };
+        const perpTo = function(v, d) { return v.clone().sub(d.clone().multiplyScalar(v.dot(d))).normalize(); };
+        if (P.R && P.R.grip) {
+          // build 6.29: кыям (ханафи) — кисти у живота чуть ниже пупка, локти согнуты и у боков.
+          // Левая ладонь лежит на животе (пальцы вправо), правая ладонь — на тыльной стороне левой кисти,
+          // три средних пальца вдоль левого предплечья, большой и мизинец обхватывают запястье.
+          root.updateMatrixWorld(true);
+          const up = V(0, 1, 0), latR = wp('upperarm_r').sub(wp('upperarm_l')).setY(0).normalize();
+          const fwd = new THREE.Vector3().crossVectors(latR, up).normalize();
+          if (fwd.dot(map([1, 0, 0])) < 0) fwd.negate();
+          const pel = wp('pelvis'), s1 = wp('spine_01');
+          const ax0 = V(s1.x, 0, (pel.z + s1.z) / 2), hY = pel.y + (P.R.grip.y || 0.095); let Rb = P.R.grip.rb || 0.13;
+          const radv = function(p) { const v = p.clone().sub(ax0); v.y = 0; return v; };
+          const rL = fwd.clone().multiplyScalar(Rb).addScaledVector(latR, -0.045).normalize();
+          { // build 6.29: радиус живота берётся по настоящей ткани камиса (луч), чтобы левая ладонь лежала на животе, а не висела перед ним
+            const keepR = P.R.w, keepL = P.L.w; P.R.w = { at: 'sh', o: [0, -60, 30] }; P.L.w = { at: 'sh', o: [0, -60, 30] };
+            armsPass(null); root.updateMatrixWorld(true); robeNoHand = true; buildRobe(); robe.updateMatrixWorld(true); robeNoHand = false;
+            const o = ax0.clone().setY(hY), rc = new THREE.Raycaster(o.clone().addScaledVector(rL, 0.5), rL.clone().negate(), 0, 0.6), hs = rc.intersectObject(robe, false);
+            if (hs.length) Rb = 0.5 - hs[0].distance;
+            if (window.__GRIPM) window.__GRIPM.push(['belly', Rb]);
+            P.R.w = keepR; P.L.w = keepL; }
+          const Lw = ax0.clone().setY(hY).addScaledVector(rL, Rb + 0.012);
+          const w0 = { R: P.R.w, L: P.L.w };
+          P.L.w = { abs: Lw }; P.R.w = { abs: Lw.clone().addScaledVector(rL, 0.03).addScaledVector(latR, 0.05).addScaledVector(up, 0.012) };
+          armsPass(null); root.updateMatrixWorld(true);
+          const fa = wp('hand_r').sub(wp('lowerarm_r')).normalize(), lf = wp('lowerarm_l').sub(wp('hand_l')).normalize();
+          const rN = radv(Lw).normalize();
+          let dR = perpTo(fa.clone().addScaledVector(lf, P.R.grip.lw || 2), rN);
+          const lim = P.R.grip.lim || 0.8; if (dR.angleTo(fa) > lim) { const axq = new THREE.Vector3().crossVectors(fa, dR).normalize(); dR = perpTo(fa.clone().applyAxisAngle(axq, lim), rN); }
+          let outR = P.R.grip.out || 0.045;
+          const fgL = [0.12, 0, 0, 0, 0];
+          for (let pass = 0; pass < 3; pass++) {
+          P.R.w = { abs: Lw.clone().addScaledVector(rL, outR).addScaledVector(dR, -0.048).addScaledVector(up, -0.015).addScaledVector(V(lf.x, 0, lf.z).normalize(), -(P.R.grip.over != null ? P.R.grip.over : 0.035)) }; // сдвиг только по горизонтали — кисти не опускаются P.L.w = { abs: Lw }; // ладонь ближе к кисти левой руки — закрывает её тыльную сторону
+          armsPass(null); root.updateMatrixWorld(true);
+          P.R.w = w0.R; P.L.w = w0.L;
+          { // запястье сгибается не больше ~23° от линии предплечья, иначе кожа у запястья ломается
+            const fa2 = wp('hand_r').sub(wp('lowerarm_r')).normalize(), lim2 = P.R.grip.lim || 0.8;
+            if (dR.angleTo(fa2) > lim2) { const axq = new THREE.Vector3().crossVectors(fa2, dR).normalize(); dR = fa2.clone().applyAxisAngle(axq, lim2); } }
+          const fe0 = wp('lowerarm_r'), fe1 = wp('hand_r'), feL = fe0.distanceTo(fe1), fed = fe1.clone().sub(fe0).normalize();
+          // левая кисть: ладонью к животу, пальцы вправо по животу
+          const dL = perpTo(latR.clone().addScaledVector(up, 0.05), radv(wp('hand_l')).normalize());
+          handFacing('_l', dL, perpTo(up, dL), radv(wp('hand_l')).normalize().negate());
+          { let bc = 0, be = 1e9;
+            for (let c = 0; c <= 0.2; c += 0.02) { fgL[1] = c; fgL[2] = c; fgL[3] = c * 1.05; fgL[4] = c * 1.1; setFingers('_l', { c: fgL, sp: 0 }); B.hand_l.updateMatrixWorld(true);
+              let e = c * 0.02;
+              ['index', 'middle', 'ring', 'pinky'].forEach(function(f) { e += Math.abs(radv(wp(f + '_04_leaf_l')).length() - (Rb + 0.01));
+                [f + '_02_l', f + '_03_l', f + '_04_leaf_l'].forEach(function(n) { const q = wp(n); e += Math.max(0, Rb + 0.006 - radv(q).length()) * 4;
+                  if (pass > 0) { const t = Math.min(1, Math.max(0, q.clone().sub(fe0).dot(fed) / feL)); if (t > 0.02) e += Math.max(0, 0.054 - q.distanceTo(fe0.clone().addScaledVector(fed, t * feL))) * 6; } }); });
+              if (e < be) { be = e; bc = c; } }
+            fgL[1] = bc; fgL[2] = bc; fgL[3] = bc * 1.05; fgL[4] = bc * 1.1; setFingers('_l', { c: fgL, sp: 0 }); B.hand_l.updateMatrixWorld(true); }
+          const palmR = wp('hand_r').lerp(wp('middle_01_r'), 0.5);
+          { // большой палец левой руки прижат к кисти и под правым предплечьем, не торчит сквозь рукав
+            const t1 = B.thumb_01_l, ax1 = fax.thumb_l; let bA = 0, bC = fgL[0], bE = 1e9;
+            for (let aa = -1.4; aa <= 1.4; aa += 0.1) for (let cc = 0; cc <= 0.9; cc += 0.05) {
+              fgL[0] = cc; setFingers('_l', { c: fgL, sp: 0 }); t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, aa)); B.hand_l.updateMatrixWorld(true);
+              let e = Math.abs(aa) * 0.002 + cc * 0.002;
+              ['thumb_02_l', 'thumb_03_l', 'thumb_04_leaf_l'].forEach(function(n) { const q = wp(n); e += Math.max(0, Rb + 0.004 - radv(q).length()) * 4;
+                const t = Math.min(1, Math.max(0, q.clone().sub(fe0).dot(fed) / feL)); e += Math.max(0, 0.056 - q.distanceTo(fe0.clone().addScaledVector(fed, t * feL))) * 6; });
+              e += Math.abs(radv(wp('thumb_04_leaf_l')).length() - (Rb + 0.012)) * 0.5; e += Math.max(0, wp('thumb_04_leaf_l').y - wp('hand_l').y + 0.01) * 2 + Math.max(0, wp('thumb_04_leaf_l').distanceTo(palmR) - 0.03) * 0.6 + Math.max(0, radv(wp('thumb_04_leaf_l')).length() - radv(wp('hand_l')).length()) * 3; // палец вниз и под правой ладонью — не торчит «шестым пальцем»
+              if (e < bE) { bE = e; bA = aa; bC = cc; } }
+            fgL[0] = bC; setFingers('_l', { c: fgL, sp: 0 }); t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, bA)); B.hand_l.updateMatrixWorld(true); }
+          // правое предплечье (в рукаве) лежит поверх пальцев левой руки, а не проходит сквозь них
+          { const e0 = wp('lowerarm_r'), e1 = wp('hand_r'), eL = e0.distanceTo(e1), ed = e1.clone().sub(e0).normalize(); let def = 0;
+            ['index', 'middle', 'ring', 'pinky', 'thumb'].forEach(function(f) { [f + '_02_l', f + '_03_l', f + '_04_leaf_l'].forEach(function(n) {
+              const q = wp(n), t = Math.min(1, Math.max(0, q.clone().sub(e0).dot(ed) / eL)); if (t <= 0.02) return;
+              const dd = 0.054 - q.distanceTo(e0.clone().addScaledVector(ed, t * eL)); if (dd > def) { def = dd; if (window.__GRIPM) window.__GRIPM.push(['worst', n, dd, t]); } }); });
+            if (window.__GRIPM) window.__GRIPM.push(['overlap', pass, def, outR, miss.R, miss.L]);
+            if (def < 0.003 || pass === 2) break; outR = Math.min(outR + def * 0.5, 0.075); }
+          }
+          // правая кисть: ладонью на тыльную сторону левой, пальцы к левому локтю
+          const a0 = wp('lowerarm_l'), a1 = wp('hand_l'), aL = a0.distanceTo(a1), ax = a1.clone().sub(a0).normalize();
+          { // ладонь правой руки смотрит на левое предплечье (обхват), а не просто к животу
+            const pcR = wp('hand_r').lerp(wp('middle_01_r'), 0.5), tq = Math.min(1, Math.max(0, pcR.clone().sub(a0).dot(ax) / aL));
+            const toArm = a0.clone().lerp(a1, tq).sub(pcR).normalize();
+            handFacing('_r', dR, perpTo(up, dR), toArm.lerp(radv(wp('hand_r')).normalize().negate(), P.R.grip.pb != null ? P.R.grip.pb : 0.3).normalize()); }
+          root.updateMatrixWorld(true);
+          const segD = function(pt) { const t = Math.min(1, Math.max(0, pt.clone().sub(a0).dot(ax) / aL)); return { d: pt.distanceTo(a0.clone().lerp(a1, t)), t: t }; };
+          const Rw = 0.046, fgc = [0.2, 0.1, 0.1, 0.1, 0.2];
+          const cost1 = function(f, tgt) {
+            const jn = f === 'thumb' ? ['thumb_03', 'thumb_04_leaf'] : [f + '_02', f + '_03', f + '_04_leaf'];
+            let pen = 0;
+            jn.forEach(function(n) { const pt = wp(n + '_r'), q = segD(pt); if (q.t > 0.02 && q.t < 0.99) pen += Math.max(0, Rw + 0.005 - q.d) * 5; pen += Math.max(0, Rb - 0.004 - radv(pt).length()) * 5; });
+            return pen + Math.abs(segD(wp(f + '_04_leaf_r')).d - tgt);
+          };
+          const fit = function(f, lo, hi, tgt, apply) {
+            let bc = lo, be = 1e9;
+            for (let c = lo; c <= hi + 1e-6; c += 0.02) { apply(c); setFingers('_r', { c: fgc, sp: 0 }); B.hand_r.updateMatrixWorld(true);
+              const e = cost1(f, tgt) + c * 0.03; if (e < be - 1e-9) { be = e; bc = c; } }
+            apply(bc); setFingers('_r', { c: fgc, sp: 0 }); B.hand_r.updateMatrixWorld(true);
+          };
+          fit('middle', 0, 0.24, Rw + 0.012, function(c) { fgc[1] = c * 0.95; fgc[2] = c; fgc[3] = c * 1.05; });
+          // точка «под» левым запястьем (со стороны, противоположной правой ладони): туда тянутся большой палец и мизинец
+          const Wq = a0.clone().lerp(a1, 0.9), pcR2 = wp('hand_r').lerp(wp('middle_01_r'), 0.5);
+          const farD = perpTo(Wq.clone().sub(pcR2), ax), farT = Wq.clone().addScaledVector(farD, Rw * 0.75);
+                    { // большой палец: поворот в основании (к ладони) + сгиб — кончик ложится на левое запястье с другой стороны
+            const t1 = B.thumb_01_r, ax1 = fax.thumb_r; let bA = 0, bE = 1e9, bC = 0.05;
+            for (let aa = -1.4; aa <= 1.4; aa += 0.05) for (let cc = 0.05; cc <= 0.9; cc += 0.05) {
+              t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, aa)); fgc[0] = cc; setFingers('_r', { c: fgc, sp: 0 }); B.hand_r.updateMatrixWorld(true);
+              const e = cost1('thumb', Rw + 0.008) * 0.5 + wp('thumb_04_leaf_r').distanceTo(farT) + Math.abs(aa) * 0.004 + cc * 0.004; if (e < bE) { bE = e; bA = aa; bC = cc; } }
+            fgc[0] = bC; setFingers('_r', { c: fgc, sp: 0 }); t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, bA)); B.hand_r.updateMatrixWorld(true);
+            if (window.__GRIPM) window.__GRIPM.push(['thumb01', bA, bC, bE]); }
+          if (window.__GRIPM) { const q = segD(wp('thumb_04_leaf_r')); window.__GRIPM.push(['thumbD', fgc[0], q.d, q.t, radv(wp('thumb_04_leaf_r')).length()]); }
+          { let bc = 0.05, be = 1e9; for (let c = 0.05; c <= 0.8; c += 0.02) { fgc[4] = c; setFingers('_r', { c: fgc, sp: 0 }); B.hand_r.updateMatrixWorld(true);
+            const e = cost1('pinky', Rw + 0.006) * 0.5 + wp('pinky_04_leaf_r').distanceTo(farT) * 0.5 + c * 0.01; if (e < be) { be = e; bc = c; } }
+            fgc[4] = bc; setFingers('_r', { c: fgc, sp: 0 }); B.hand_r.updateMatrixWorld(true); }
+          root.updateMatrixWorld(true);
+          if (window.__GRIPM) { const r3 = function(v) { return [v.x, v.y, v.z]; }; window.__GRIPM.push(['fgR'].concat(fgc), ['fgL'].concat(fgL));
+            ['pelvis', 'spine_01', 'lowerarm_r', 'lowerarm_l', 'hand_r', 'hand_l', 'middle_04_leaf_r', 'middle_04_leaf_l', 'thumb_04_leaf_r', 'pinky_04_leaf_r'].forEach(function(n) { window.__GRIPM.push([n].concat(r3(wp(n)))); }); }
+        }
+        if (P.R && P.R.w && P.R.w.at === 'thigh' && P.L && P.L.w && P.L.w.at === 'thigh') {
+          // build 6.29: сидение — ладони лежат на бёдрах, пальцы к коленям и мягко повторяют изгиб бедра и колена
+          root.updateMatrixWorld(true);
+          const wSit0 = { R: P.R.w, L: P.L.w }, fin = {};
+          ['_r', '_l'].forEach(function(sx) {
+            const s = sx === '_r' ? 'R' : 'L', S = P[s];
+            const th = wp('thigh' + sx), kn = wp('calf' + sx), tl = th.distanceTo(kn), td = kn.clone().sub(th).normalize();
+            const rT = function(t) { return 0.092 - 0.02 * t + 0.016; };
+            const sd = function(p) { const t = Math.min(1, Math.max(0, p.clone().sub(th).dot(td) / tl)); const q = th.clone().lerp(kn, t); return { d: p.distanceTo(q) - rT(t), n: p.clone().sub(q).normalize() }; };
+            const orient = function() {
+              const n0 = sd(wp('hand' + sx)).n, dH = perpTo(td, n0);
+              handFacing(sx, dH, new THREE.Vector3().crossVectors(n0, dH).normalize(), n0.clone().negate());
+            };
+            orient();
+            // касание считается по настоящей ткани (луч до поверхности камиса), а не по примерной форме ноги
+            robeNoHand = true; buildRobe(); robe.updateMatrixWorld(true);
+            const rc = new THREE.Raycaster(); rc.far = 0.6;
+            const clothH = function(p, n) { rc.set(p.clone().addScaledVector(n, 0.3), n.clone().negate()); const hs = rc.intersectObject(robe, false); return hs.length ? 0.3 - hs[0].distance : 0.3; };
+            const nUp = perpTo(V(0, 1, 0), td);
+            // передний край колена на ткани: где верх ткани вдоль бедра начинает уходить вниз
+            let hMax = -1, tEdge = 1.2;
+            for (let t = 0.5; t <= 1.6; t += 0.02) { const q = th.clone().addScaledVector(td, t * tl); const h = clothH(q.clone().addScaledVector(nUp, 0.2), nUp) ; const top = h < 0 ? -1 : 0.2 - h;
+              if (top > hMax) hMax = top; else if (hMax > 0 && top < hMax - 0.03) { tEdge = t; break; } }
+            if (window.__GRIPM) { const pr = []; for (let t = 0.6; t <= 1.6; t += 0.05) { const q = th.clone().addScaledVector(td, t * tl); const h = clothH(q.clone().addScaledVector(nUp, 0.2), nUp); pr.push(t.toFixed(2) + ':' + ((0.2 - h) * 1000).toFixed(0)); } window.__GRIPM.push(['prof' + sx, tl.toFixed(3)].concat(pr)); }
+            let tipGoal = tEdge - (P.tipBack != null ? P.tipBack : 0.005) / tl + (S.tipAdd || 0);
+            const nAt = function(p) { return sd(p).n; };
+            { // подбор положения кисти: кончики пальцев у края колена, ладонь на ткани (перебор по высоте и вдоль бедра)
+              const W0 = wp('hand' + sx), nF = nAt(W0.clone()), w0 = S.w;
+              const evalAt = function(o, a) { S.w = { abs: W0.clone().addScaledVector(nF, o).addScaledVector(td, a) }; armsPass(null); root.updateMatrixWorld(true); orient();
+                setFingers(sx, { c: [0.1, 0.06, 0.06, 0.08, 0.1], sp: 0 }); B['hand' + sx].updateMatrixWorld(true);
+                const pc = wp('hand' + sx).lerp(wp('middle_01' + sx), 0.6), h = clothH(pc, nAt(pc)), tTip = wp('middle_04_leaf' + sx).sub(th).dot(td) / tl;
+                return Math.abs(h - 0.014) * 3 + Math.max(0, tTip - tipGoal) * tl * 2 + Math.max(0, tipGoal - tTip) * tl + miss[s] * 4; };
+              let bo = 0, ba = 0, be = 1e9;
+              for (let a = -0.04; a <= 0.16; a += 0.02) for (let o = -0.06; o <= 0.04; o += 0.01) { const e = evalAt(o, a); if (e < be) { be = e; bo = o; ba = a; } }
+              for (let a = ba - 0.015; a <= ba + 0.015; a += 0.005) for (let o = bo - 0.008; o <= bo + 0.008; o += 0.002) { const e = evalAt(o, a); if (e < be) { be = e; bo = o; ba = a; } }
+              evalAt(bo, ba);
+              if (window.__GRIPM) window.__GRIPM.push(['palm' + sx, !!P.finger, bo, ba, be, tipGoal, miss[s], wp('middle_04_leaf' + sx).sub(th).dot(td) / tl, wp('hand' + sx).z]);
+            }
+            const fg0 = (S.fg && S.fg.c) || [0.1, 0.06, 0.06, 0.08, 0.1], c = fg0.slice();
+            ['thumb', 'index', 'middle', 'ring', 'pinky'].forEach(function(f, k) {
+              if (fg0[k] < 0) return; // поднятый указательный палец не трогаем
+              const jn = f === 'thumb' ? ['thumb_03', 'thumb_04_leaf'] : [f + '_02', f + '_03', f + '_04_leaf'];
+              let bc = 0, be = 1e9;
+              for (let v = -0.1; v <= 0.9; v += 0.02) { c[k] = v; setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); B['hand' + sx].updateMatrixWorld(true);
+                let e = Math.abs(v) * 0.004;
+                jn.forEach(function(n, jj) { const q = wp(n + sx), h = clothH(q, nAt(q)); const w = jj === jn.length - 1 ? 1.5 : 1;
+                  e += Math.abs(h - 0.008) * w + Math.max(0, 0.004 - h) * 6; });
+                if (e < be) { be = e; bc = v; } }
+              c[k] = bc;
+            });
+            { // большой палец ложится на ткань рядом с ладонью (поворот в основании + сгиб), а не висит сбоку
+              const t1 = B['thumb_01' + sx], ax1 = fax['thumb' + sx]; let bA = 0, bC = c[0], bE = 1e9;
+              for (let aa = -1.2; aa <= 1.2; aa += 0.1) for (let cc = -0.2; cc <= 0.9; cc += 0.05) {
+                c[0] = cc; setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, aa)); B['hand' + sx].updateMatrixWorld(true);
+                let e = Math.abs(aa) * 0.003;
+                ['thumb_03', 'thumb_04_leaf'].forEach(function(n) { const q = wp(n + sx), h = clothH(q, nAt(q)); e += Math.abs(h - 0.009) + Math.max(0, 0.004 - h) * 6; });
+                if (e < bE) { bE = e; bA = aa; bC = cc; } }
+              c[0] = bC; S._thumbA = bA; }
+            if (window.__GRIPM) { setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); B['hand' + sx].updateMatrixWorld(true); window.__GRIPM.push(['fh' + sx, tEdge.toFixed(2)].concat(['middle_04_leaf', 'ring_04_leaf', 'pinky_04_leaf', 'thumb_04_leaf', 'middle_02'].map(function(n) { const q = wp(n + sx); return (clothH(q, nAt(q)) * 1000).toFixed(0) + '@' + (q.clone().sub(th).dot(td) / tl).toFixed(2); })).concat(c.map(function(x) { return x.toFixed(2); }))); }
+            robeNoHand = false;
+            if (fg0[1] < 0) { // поднятый указательный: кончик заметно над тканью (~4 см), а не лежит вдоль колена
+              let bv = fg0[1], be = 1e9;
+              for (let v = -0.2; v >= -1.1; v -= 0.05) { c[1] = v; setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); B['hand' + sx].updateMatrixWorld(true);
+                const q = wp('index_04_leaf' + sx), e = Math.abs(clothH(q, nAt(q)) - 0.042); if (e < be) { be = e; bv = v; } }
+              c[1] = bv; }
+            fin[sx] = { c: c, q: B['hand' + sx].getWorldQuaternion(new THREE.Quaternion()) };
+            setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); if (S._thumbA) B['thumb_01' + sx].quaternion.copy(rest[B['thumb_01' + sx].name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(fax['thumb' + sx], S._thumbA)); B['hand' + sx].updateMatrixWorld(true);
+            if (window.__GRIPM) window.__GRIPM.push(['sit' + sx].concat(c));
+            if (window.__GRIPM) window.__GRIPM.push(['sd' + sx].concat(['hand', 'middle_01', 'middle_02', 'middle_03', 'middle_04_leaf', 'pinky_04_leaf', 'thumb_04_leaf'].map(function(n) { const q = wp(n + sx), t = q.clone().sub(th).dot(td) / tl; return Math.round(sd(q).d * 1000) + '@' + t.toFixed(2); })));
+          });
+          // build 6.29: второй проход руки сбрасывал первую кисть (правую) — теперь обе руки решаются с найденными целями и кисти восстанавливаются
+          armsPass(null); root.updateMatrixWorld(true);
+          ['_r', '_l'].forEach(function(sx) { const S = P[sx === '_r' ? 'R' : 'L'], f = fin[sx]; if (!f) return;
+            setWorldQ('hand' + sx, f.q); setFingers(sx, { c: f.c, sp: (S.fg && S.fg.sp) || 0 });
+            if (S._thumbA) B['thumb_01' + sx].quaternion.copy(rest[B['thumb_01' + sx].name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(fax['thumb' + sx], S._thumbA));
+            B['hand' + sx].updateMatrixWorld(true); });
+          P.R.w = wSit0.R; P.L.w = wSit0.L;
+          root.updateMatrixWorld(true);
+          if (window.__GRIPM) ['thigh_r', 'calf_r', 'middle_04_leaf_r', 'thigh_l', 'calf_l', 'middle_04_leaf_l', 'hand_r', 'hand_l'].forEach(function(n) { const q = wp(n); window.__GRIPM.push(['W', !!P.finger, n, q.x.toFixed(3), q.y.toFixed(3), q.z.toFixed(3)]); });
+        }
         if (/seat/.test(contacts)) {
           // сидение на левой стопе: таз опускается до верха стопы
           root.updateMatrixWorld(true); skeleton.update();
@@ -15268,7 +15882,7 @@ function renderDictation(area) {
       // бёдра — одно полотно без стыков. Сечение — выпуклая оболочка простых форм
       // тела (таз, талия, грудь, плечи, бёдра, голени) + запас ткани, провис вниз
       // и мелкие складки. Подол падает вниз и ложится на пол.
-      const RB = 40, RN = 40, SB = 20, SN = 26;
+      const RB = 56, RN = 52, SB = 20, SN = 26;
       const mkTube = function(nb, nr) {
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nb * nr * 3), 3));
@@ -15276,22 +15890,29 @@ function renderDictation(area) {
         g.setIndex(ix);
         const m = new THREE.Mesh(g, clothMat); m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; root.add(m); return m;
       };
-      const robe = mkTube(RB, RN), sleeves = [mkTube(SB, SN), mkTube(SB, SN)];
+      const robe = mkTube(RB, RN), sleeves = [mkTube(SB, SN), mkTube(SB, SN)]; { const sm = clothMat.clone(); sm.side = THREE.FrontSide; sleeves.forEach(function(m) { m.material = sm; }); } // build 6.29: изнанка рукава — тёмная ткань в тени, а не светлый «полумесяц»
       // build 6.27: шарики в плече и локте закрывают стык трубы при сгибе, манжета закрывает открытый край рукава
       const sleeveBits = [];
-      const sleeveJoint = [0, 1].map(function() { const mk2 = function() { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), clothMat); m.castShadow = true; m.frustumCulled = false; root.add(m); sleeveBits.push(m); return m; }; return { sh: mk2(), el: mk2(), cuff: (function() { const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.14, 8, 22), clothMat); m.castShadow = true; m.frustumCulled = false; root.add(m); sleeveBits.push(m); return m; })() }; });
+      { const im = new THREE.MeshStandardMaterial({ color: col(FEM ? '#b7c3d9' : H.colors.cloth).multiplyScalar(0.3), roughness: 1, metalness: 0, side: THREE.BackSide }); sleeves.forEach(function(m) { const inner = new THREE.Mesh(m.geometry, im); inner.frustumCulled = false; root.add(inner); sleeveBits.push(inner); }); }
+      const sleeveJoint = [0, 1].map(function() { const mk2 = function() { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), clothMat); m.castShadow = true; m.frustumCulled = false; root.add(m); sleeveBits.push(m); return m; }; return { sh: mk2(), el: mk2(), cuff: (function() { const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.16, 10, 32), clothMat); m.castShadow = true; m.frustumCulled = false; root.add(m); sleeveBits.push(m); return m; })() }; });
       // build 6.27: платок-накидка (хиджаб) — лежит поверх одежды на плечах и груди; впереди длиннее, сзади короче
       const SCN = 12;
       let scarf = null;
       if (FEM) { scarf = mkTube(RB, SCN); scarf.material = scarfMat; }
       // «просвечивающий» режим (вид ступней в сидении): ткань почти прозрачна, видны бёдра, голени и ступни
-      const thighMat = new THREE.MeshStandardMaterial({ color: 0x6b7078, roughness: 0.9, metalness: 0 });
+      const thighMat = new THREE.MeshStandardMaterial({ color: 0x6b7078, roughness: 0.9, metalness: 0, transparent: true, opacity: 0.5 }); // build 6.29: ноги полупрозрачные — ступни видны сквозь голени
       const thighs = [0, 1].map(function() { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.058, 1, 16), thighMat); m.visible = false; m.frustumCulled = false; m.castShadow = true; root.add(m); return m; });
+      // build 6.29: в просвечивающем режиме ноги — скруглённые бёдра и голени (без открытых «труб»)
+      const legBits = [];
+      const legPart = function(geo) { const m = new THREE.Mesh(geo, thighMat); m.visible = false; m.frustumCulled = false; m.castShadow = true; root.add(m); legBits.push(m); return m; };
+      const shinCyl = [0, 1].map(function() { return legPart(new THREE.CylinderGeometry(0.046, 0.036, 1, 16)); });
+      const ballG = new THREE.SphereGeometry(1, 16, 12);
+      const balls = [0, 1, 2, 3, 4, 5].map(function() { return legPart(ballG); });
       let ghostOn = false;
       function setGhost(on) {
         on = !!on; if (on === ghostOn) return; ghostOn = on;
         clothMat.transparent = on; clothMat.opacity = on ? 0.13 : 1; clothMat.depthWrite = !on; clothMat.needsUpdate = true;
-        thighs.forEach(function(m) { m.visible = on; });
+        thighs.forEach(function(m) { m.visible = on; }); legBits.forEach(function(m) { m.visible = on; });
         robe.castShadow = sleeves[0].castShadow = sleeves[1].castShadow = !on; sleeves[0].visible = sleeves[1].visible = !on; sleeveBits.forEach(function(m) { m.visible = !on; });
       }
       const prim = function(a, b, lx, fz, ax, af, ab, t0, t1) {
@@ -15345,6 +15966,7 @@ function renderDictation(area) {
       };
       const stationVal = function(vals, u) { const i = Math.max(0, Math.min(vals.length - 2, Math.floor(u))); const w = Math.max(0, Math.min(1, u - i)); return vals[i] + (vals[i + 1] - vals[i]) * w; };
       const dq = function(n) { return B[n].getWorldQuaternion(new THREE.Quaternion()).multiply(rest[n].q.clone().invert()); };
+      let robeNoHand = false; // build 6.29: ткань без вдавливания кистями — по ней подбирается касание ладоней и пальцев
       function buildRobe() {
         const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
         const L = function(n) { return wp(n).applyMatrix4(inv); };
@@ -15359,14 +15981,14 @@ function renderDictation(area) {
         const one = V(1, 0, 0);
         const prims = [
           prim(hipMid.clone().addScaledVector(fP.u, -0.05), s1, fP.l, fP.f, 0.165, 0.095, 0.1),
-          prim(s1, s2, f1.l, f1.f, 0.15, 0.092, 0.098),
-          prim(s2, s3.clone().addScaledVector(f3.u, 0.08), f3.l, f3.f, 0.165, 0.095, 0.1),
+          prim(s1, s2, f1.l, f1.f, 0.15, FEM ? 0.092 : 0.07, FEM ? 0.098 : 0.085),
+          prim(s2, s3.clone().addScaledVector(f3.u, 0.08), f3.l, f3.f, 0.165, FEM ? 0.095 : 0.078, FEM ? 0.1 : 0.09),
           prim(shL.clone().lerp(shR, 0.16).addScaledVector(f3.u, -0.02), shR.clone().lerp(shL, 0.16).addScaledVector(f3.u, -0.02), f3.u, f3.f, 1, 1, 1, 0.052),
           prim(nk, shR, one, f3.f, 1, 1, 1, 0.045), prim(nk, shL, one, f3.f, 1, 1, 1, 0.045),
           prim(nk, hd, one, f3.f, 1, 1, 1, 0.052),
           prim(hipMid.clone().addScaledVector(fP.f, 0.012), hipMid.clone().addScaledVector(fP.f, 0.012), one, fP.f, 1, 1, 1, 0.118),
-          prim(thR, kR, one, fP.f, 1, 1, 1, 0.082, 0.062), prim(thL, kL, one, fP.f, 1, 1, 1, 0.082, 0.062),
-          prim(kR, aR, one, fP.f, 1, 1, 1, 0.065, 0.045), prim(kL, aL, one, fP.f, 1, 1, 1, 0.065, 0.045)
+          prim(thR, kR, one, fP.f, 1, 1, 1, 0.092, 0.072), prim(thL, kL, one, fP.f, 1, 1, 1, 0.092, 0.072), // build 6.29: ткань не рвётся у колен
+          prim(kR, aR, one, fP.f, 1, 1, 1, 0.08, 0.06), prim(kL, aL, one, fP.f, 1, 1, 1, 0.08, 0.06)
         ];
         // женская одежда: ткань падает прямо от плеч до пола, ничего не облегает — запас на груди, бёдрах и у стоп
         const bR = L('ball_r'), bL = L('ball_l');
@@ -15378,14 +16000,16 @@ function renderDictation(area) {
         const press = [], pressHand = [];
         ['_r', '_l'].forEach(function(sx) { const e = L('lowerarm' + sx), h = L('hand' + sx);
           press.push(prim(e, h, one, fP.f, 1, 1, 1, 0.062, 0.05));
-          const pc = h.clone().lerp(L('middle_01' + sx), 0.6); press.push(prim(pc, pc, one, fP.f, 1, 1, 1, 0.05));
+          const pc = h.clone().lerp(L('middle_01' + sx), 0.6); if (robeNoHand) return; press.push(prim(pc, pc, one, fP.f, 1, 1, 1, 0.05));
+          ['index', 'middle', 'ring', 'pinky', 'thumb'].forEach(function(fn) { press.push(prim(L(fn + '_01' + sx), L(fn + '_04_leaf' + sx), one, fP.f, 1, 1, 1, 0.018, 0.013)); }); // толщина пальца — без глубоких борозд // build 6.29: пальцы тоже вдавливают ткань — не проходят сквозь одежду
           // женская одежда: кисти всегда поверх ткани (ткань уходит под ладонь), чтобы было видно, где лежат руки
-          pressHand.push(prim(pc, pc, one, fP.f, 1, 1, 1, 0.05)); });
+          pressHand.push(prim(pc, pc, one, fP.f, 1, 1, 1, FEM ? 0.05 : 0.026));
+          if (!FEM) ['index', 'middle', 'ring', 'pinky', 'thumb'].forEach(function(fn) { pressHand.push(prim(L(fn + '_01' + sx), L(fn + '_04_leaf' + sx), one, fP.f, 1, 1, 1, 0.01, 0.007)); }); });
         // линия камиса
         const thighDir = kneeMid.clone().sub(hipMid).normalize();
         const hemLen = Math.max(0.02, Math.min(0.21, kneeMid.y - floorY));
         const P = [nk.clone().addScaledVector(V(0, 1, 0).applyQuaternion(dq('neck_01')), FEM ? 0.058 : 0.084), s3, s2, s1, hipMid, hipMid.clone().addScaledVector(thighDir, 0.22), kneeMid, kneeMid.clone().add(V(0, -hemLen, 0))];
-        let slackV = [0.042, 0.04, 0.026, 0.034, 0.045, 0.055, 0.062, 0.062];
+        let slackV = FEM ? [0.042, 0.04, 0.026, 0.034, 0.045, 0.055, 0.062, 0.062] : [0.024, 0.014, 0.01, 0.014, 0.03, 0.05, 0.062, 0.062]; // build 6.29: мужской камис на груди и животе ближе к телу — без «подушки»
         let sagV = [0, 0.008, 0.012, 0.018, 0.028, 0.04, 0.05, 0.05];
         let foldV = [0, 0.002, 0.003, 0.004, 0.005, 0.007, 0.009, 0.012];
         if (FEM) {
@@ -15417,20 +16041,20 @@ function renderDictation(area) {
           const Hh = pts.length >= 3 ? hull2(pts) : null;
           const slack = stationVal(slackV, st.u), sag = stationVal(sagV, st.u), fold = stationVal(foldV, st.u);
           // женская одежда: спереди на груди запас меньше (ткань падает прямо вниз), на бёдрах сверху — меньше, чтобы лежащие на коленях кисти были видны
-          const wT = FEM ? Math.max(0, Math.min(1, 1 - st.u / 3.5)) : 0;
+          const wT = Math.max(0, Math.min(1, 1 - st.u / 3.5)); // build 6.29: и у мужской одежды на груди спереди запас меньше — без «шара» на груди
           const wL = FEM ? Math.max(0, Math.min(1, (st.u - 3.6) / 0.8)) * Math.max(0, Math.min(1, (6.6 - st.u) / 0.8)) : 0;
           const R = [];
           for (let k = 0; k < RB; k++) { const th = k / RB * Math.PI * 2, cx = Math.cos(th), sy = Math.sin(th);
             let h = Hh ? rayHull(Hh, cx, sy) : -1; if (h < 0) h = 0.05;
             const d = lx.clone().multiplyScalar(cx).addScaledVector(fz, sy);
             const down = Math.max(0, -d.y);
-            const sl = FEM ? slack * (1 - 0.6 * wT * Math.max(0, d.dot(f3.f)) - 0.5 * wL * Math.max(0, d.y)) : slack;
-            R.push({ d: d, h: h, sl: sl, dent: 1e9, r: h + sl + sag * down * Math.sqrt(down) + fold * Math.sin(th * 9 + r * 0.35) }); }
+            const sl = FEM ? slack * (1 - 0.6 * wT * Math.max(0, d.dot(f3.f)) - 0.5 * wL * Math.max(0, d.y)) : slack * (1 - 0.6 * wT * Math.max(0, d.dot(f3.f)));
+            R.push({ d: d, h: h, sl: sl, dent: 1e9, r: h + sl + sag * down * Math.sqrt(down) + fold * (FEM ? 1 : Math.max(0, Math.min(1, st.u - 4))) * Math.sin(th * 9 + r * 0.35) }); } // складки только на подоле — на груди без ряби
           // женская одежда: кисть всегда поверх ткани — ткань в этом месте уходит под ладонь (радиус «вмятины» сглаживается вместе с остальным)
-          if (FEM && pressHand.length) R.forEach(function(o) {
+          if (pressHand.length) R.forEach(function(o) { // build 6.29: и у мужской одежды ткань уходит под ладонь и пальцы — не закрывает их
             let inside = false, tt = o.r; const qq = V();
             for (; tt > o.h + 0.008; tt -= 0.006) { qq.copy(c).addScaledVector(o.d, tt); if (inAny(pressHand, qq)) inside = true; else if (inside) break; }
-            if (inside) o.dent = Math.max(o.h + 0.006, tt - 0.01);
+            if (inside) o.dent = Math.max(o.h + 0.006, tt - (FEM ? 0.01 : 0.001)); // мужская: ткань вплотную под пальцами — без зазора и тени
           });
           // сгладить по кругу
           const rr = R.map(function(o) { return Math.min(o.r, o.dent); });
@@ -15439,17 +16063,26 @@ function renderDictation(area) {
         });
         // сгладить вдоль камиса (без «поясов» на стыках форм тела)
         // сгладить по кругу ещё раз (углы выпуклой оболочки на сгибе таз → бёдра дают «срезы»)
-        for (let it = 0; it < 3; it++) rings.forEach(function(g) { const R = g.R, rr = R.map(function(o) { return o.r; });
+        for (let it = 0; it < 7; it++) rings.forEach(function(g) { const R = g.R, rr = R.map(function(o) { return o.r; });
           for (let k = 0; k < RB; k++) R[k].r = Math.min(R[k].dent, Math.max(R[k].min, (rr[(k + RB - 1) % RB] + 2 * rr[k] + rr[(k + 1) % RB]) / 4)); });
-        for (let it = 0; it < 14; it++) for (let k = 0; k < RB; k++) {
+        for (let it = 0; it < 30; it++) for (let k = 0; k < RB; k++) { // build 6.29: больше сглаживания ткани — без граней на бёдрах и ягодицах
           const col = rings.map(function(g) { return g.R[k].r; });
           for (let r = 2; r < RN - 1; r++) { const o = rings[r].R[k]; o.r = Math.min(o.dent, Math.max(o.min, (col[r - 1] + 2 * col[r] + col[r + 1]) / 4)); } }
         // воротник: верхние кольца ровные по кругу (без «зубцов» от неровностей формы шеи)
         rings.forEach(function(g, r) { if (r > 3) return; const R = g.R; let m = 0; for (let k = 0; k < RB; k++) m += R[k].r; m /= RB; const w = r / 4; for (let k = 0; k < RB; k++) R[k].r = m * (1 - w) + R[k].r * w; });
+        const radF = new Float32Array(RN * RB);
         rings.forEach(function(g, r) { const c = g.c, R = g.R, q = V();
           for (let k = 0; k < RB; k++) { const o = R[k]; let rad = o.r, guard = 0;
-            while (rad > o.h + 0.008 && guard++ < 24) { q.copy(c).addScaledVector(o.d, rad); if (!inAny(press, q)) break; rad -= 0.006; }
-            q.copy(c).addScaledVector(o.d, rad); if (q.y < floorY) q.y = floorY;
+            while (rad > o.h + 0.008 && guard++ < 70) { q.copy(c).addScaledVector(o.d, rad); if (!inAny(press, q)) break; rad -= 0.002; } // build 6.29: шаг мельче — без «ступенек» там, где рука прижимает ткань
+            radF[r * RB + k] = rad; }
+        });
+        // build 6.29: после вдавливания руками ткань сглаживается по кругу и вдоль (убирает «ступеньки» у рук)
+        for (let it = 0; it < 4; it++) { const prev = radF.slice();
+          for (let r = 2; r < RN - 1; r++) for (let k = 0; k < RB; k++) { const i = r * RB + k;
+            const a = (prev[i - RB] + prev[i + RB] + prev[r * RB + (k + 1) % RB] + prev[r * RB + (k + RB - 1) % RB]) / 4;
+            radF[i] = Math.max(rings[r].R[k].h + 0.008, (prev[i] * 2 + a) / 3); } }
+        rings.forEach(function(g, r) { const c = g.c, R = g.R, q = V();
+          for (let k = 0; k < RB; k++) { const o = R[k]; q.copy(c).addScaledVector(o.d, radF[r * RB + k]); if (q.y < floorY) q.y = floorY;
             att.setXYZ(r * RB + k, q.x, q.y, q.z); }
         });
         att.needsUpdate = true; robe.geometry.computeVertexNormals(); robe.geometry.computeBoundingSphere();
@@ -15470,31 +16103,37 @@ function renderDictation(area) {
           sg.needsUpdate = true; scarf.geometry.computeVertexNormals(); scarf.geometry.computeBoundingSphere();
         }
         [[thR, kR], [thL, kL]].forEach(function(pr, i) { const a = pr[0], b = pr[1], d = b.clone().sub(a), len = d.length(); if (len < 1e-6) return;
-          thighs[i].position.copy(a).lerp(b, 0.5); thighs[i].quaternion.setFromUnitVectors(V(0, 1, 0), d.normalize()); thighs[i].scale.set(1, len, 1); });
+          thighs[i].position.copy(a).lerp(b, 0.5); thighs[i].quaternion.setFromUnitVectors(V(0, 1, 0), d.normalize()); thighs[i].scale.set(1, len, 1);
+          const an = i ? aL : aR, d2 = an.clone().sub(b), l2 = d2.length();
+          balls[i * 3].position.copy(a); balls[i * 3].scale.setScalar(0.058);
+          balls[i * 3 + 1].position.copy(b); balls[i * 3 + 1].scale.setScalar(0.046);
+          balls[i * 3 + 2].position.copy(an); balls[i * 3 + 2].scale.setScalar(0.036);
+          if (l2 > 1e-6) { shinCyl[i].position.copy(b).lerp(an, 0.5); shinCyl[i].quaternion.setFromUnitVectors(V(0, 1, 0), d2.normalize().negate()); shinCyl[i].scale.set(1, l2, 1); } });
         // рукава: от плеча (внутри камиса) до запястья, книзу провисают
         ['_r', '_l'].forEach(function(sx, si) {
           const cl = L('clavicle' + sx), ua = L('upperarm' + sx), el = L('lowerarm' + sx), hn = L('hand' + sx);
           const faD = hn.clone().sub(el).normalize();
           const wr = hn.clone().addScaledVector(faD, -0.012), uaD = ua.clone().sub(el).normalize();
-          const elIn = el.clone().addScaledVector(uaD, 0.04), elOut = el.clone().addScaledVector(faD, 0.04);
+          const elIn = el.clone().addScaledVector(uaD, 0.075), elOut = el.clone().addScaledVector(faD, 0.075); // build 6.29: локоть — плавный изгиб рукава без угла
           const outer = elIn.clone().sub(el).add(elOut.clone().sub(el)).multiplyScalar(-1); if (outer.lengthSq() > 1e-8) outer.normalize();
           const elMid = el.clone().addScaledVector(outer, 0.01);
           const Q = [cl.clone().lerp(ua, 0.9).add(V(0, -0.02, 0)), ua, elIn, elMid, elOut, wr];
-          const rV = FEM ? [0.03, 0.05, 0.056, 0.058, 0.058, 0.058] : [0.03, 0.046, 0.05, 0.052, 0.05, 0.044];
+          const rV = FEM ? [0.03, 0.05, 0.056, 0.058, 0.058, 0.058] : [0.03, 0.044, 0.045, 0.046, 0.045, 0.041]; // build 6.29: локоть и предплечье уже
           const jt = sleeveJoint[si];
           jt.sh.position.copy(ua); jt.sh.scale.setScalar(FEM ? 0.046 : 0.04);
-          jt.el.position.copy(elMid); jt.el.scale.setScalar(FEM ? 0.056 : 0.049);
-          jt.cuff.position.copy(wr); jt.cuff.scale.setScalar(FEM ? 0.058 : 0.044); jt.cuff.quaternion.setFromUnitVectors(V(0, 0, 1), faD);
+          jt.el.position.copy(elMid); jt.el.scale.setScalar(FEM ? 0.056 : 0.044);
+          jt.cuff.position.copy(wr).addScaledVector(faD, -0.002); jt.cuff.scale.setScalar(FEM ? 0.058 : 0.0001); // build 6.29: у мужского рукава нет кольца-«браслета», край рукава ровный // build 6.29: кромка рукава вровень с тканью, а не браслет jt.cuff.quaternion.setFromUnitVectors(V(0, 0, 1), faD);
           const Ss = pathSample(Q, SN), ga = sleeves[si].geometry.attributes.position;
           let lx = null;
           Ss.forEach(function(st, r) { const T = st.t;
             if (!lx) { lx = Math.abs(T.y) < 0.9 ? V(0, 1, 0).cross(T) : V(1, 0, 0).cross(T); }
             lx.sub(T.clone().multiplyScalar(lx.dot(T))).normalize();
             const fz = new THREE.Vector3().crossVectors(lx, T).normalize();
-            const rad = stationVal(rV, st.u), last = r === SN - 1;
+            const last = r === SN - 1, rad = stationVal(rV, st.u) * (FEM ? 1 : (r === SN - 1 ? 0.62 : r === SN - 2 ? 0.86 : 1)); // build 6.29: край мужского рукава прилегает к запястью — без открытой трубы и лоскутов
             for (let k = 0; k < SB; k++) { const th = k / SB * Math.PI * 2; const d = lx.clone().multiplyScalar(Math.cos(th)).addScaledVector(fz, Math.sin(th));
               const down = Math.max(0, -d.y);
-              const p = st.p.clone().addScaledVector(d, rad + (last ? 0 : (FEM ? 0.03 : 0.026) * down * Math.min(1, st.u)) + (last ? 0 : 0.002 * Math.sin(th * 5 + r)));
+              const endF = Math.min(1, (SN - 1 - r) / 6); // build 6.29: провис и складки плавно сходят на нет к краю рукава — без лоскутов у манжеты
+              const p = st.p.clone().addScaledVector(d, rad + endF * ((FEM ? 0.03 : 0.026) * down * Math.min(1, st.u) + 0.002 * Math.sin(th * 5 + r)));
               if (p.y < floorY) p.y = floorY; ga.setXYZ(r * SB + k, p.x, p.y, p.z); } });
           ga.needsUpdate = true; sleeves[si].geometry.computeVertexNormals(); sleeves[si].geometry.computeBoundingSphere();
         });
@@ -16340,7 +16979,7 @@ function renderDictation(area) {
         '<div id="salah-3d"></div>' +
         '<svg id="salah-anim-svg" viewBox="-72 -196 232 226" style="width:100%;height:auto;display:block;cursor:grab;touch-action:none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + (kk ? 'Намаз анимациясы' : 'Анимация намаза') + '"></svg>' +
         '<div id="salah-anim-step" style="position:absolute;top:0.4rem;left:0.55rem;font-size:0.75rem;color:#cbd5e1;pointer-events:none"></div>' +
-        '<div style="position:absolute;bottom:0.35rem;right:0.55rem;font-size:0.66rem;color:#94a3b8;pointer-events:none">' + (kk ? '✥ айналдыру · ＋/－ жақындату' : '✥ вращайте · ＋/－ приблизить') + '</div>' +
+        '<div style="position:absolute;bottom:0.35rem;right:0.55rem;font-size:0.66rem;color:#94a3b8;pointer-events:none">' + (kk ? '✥ айналдыру · екі саусақ — жылжыту · ＋/－' : '✥ вращайте · два пальца — сдвиг и масштаб · ＋/－') + '</div>' +
         '<div style="position:absolute;bottom:0.35rem;left:0.55rem;font-size:0.66rem;color:#fbbf24;pointer-events:none">┄▸ ' + (kk ? 'көз қарау бағыты' : 'куда смотреть') + '</div>' +
         '</div>' +
         '<input type="range" id="salah-anim-seek" min="0" max="1" value="0" step="1" style="width:100%;margin-top:0.45rem">' +
@@ -16369,7 +17008,7 @@ function renderDictation(area) {
       const stepEl = box.querySelector('#salah-anim-step');
       const seek = box.querySelector('#salah-anim-seek');
       seek.max = String(steps.length - 1);
-      const st = { i: 0, t: 0, play: true, speed: 1, yaw: 28, yawTarget: 28, el: 12, elTarget: 12, zoom: 1, last: 0, more: false, lastGazeK: -1, ghost: false };
+      const st = { i: 0, t: 0, play: true, speed: 1, yaw: 28, yawTarget: 28, el: 12, elTarget: 12, zoom: 1, panX: 0, panY: 0, last: 0, more: false, lastGazeK: -1, ghost: false };
       let r3d = null, r3dBusy = false;
       const host3d = box.querySelector('#salah-3d');
       const defs = '<defs><marker id="salah-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#d9a441"/></marker>' +
@@ -16481,7 +17120,7 @@ function renderDictation(area) {
         st.lastGazeK = k;
         if (r3d) {
           const prevS = st.i > 0 ? steps[st.i - 1] : s;
-          try { r3dBusy = r3d.render(poseAt(), { yaw: st.yaw, el: st.el, zoom: st.zoom, focus: st.focus, ghost: st.ghost, frame: { a: poseOf(prevS), b: poseOf(s), k: s.tr ? Math.min(1, st.t / s.tr) : 1 } }, G.gaze, k, matX); return; }
+          try { r3dBusy = r3d.render(poseAt(), { yaw: st.yaw, el: st.el, zoom: st.zoom, panX: st.panX, panY: st.panY, focus: st.focus, ghost: st.ghost, frame: { a: poseOf(prevS), b: poseOf(s), k: s.tr ? Math.min(1, st.t / s.tr) : 1 } }, G.gaze, k, matX); return; }
           catch (e) { try { r3d.dispose(); } catch (_) {} r3d = null; if (host3d) host3d.innerHTML = ''; if (FEMALE) femNoFigure(); else svg.style.display = ''; }
         }
         if (FEMALE) return; // 2D-схема нарисована мужской фигурой — для женской версии её не показываем
@@ -16562,8 +17201,8 @@ function renderDictation(area) {
             if (st.ghost) { feetMode(false); st.focus = null; st.zoom = 1; st.elTarget = 12; draw(); }
             else { setPlay(false); if (!isSit(steps[st.i])) { const j = steps.findIndex(isSit); if (j >= 0) go(j, true); } feetMode(true); draw(); }
           }
-          else if (a.indexOf('fx-') === 0) { feetMode(false); const f = a.slice(3); st.focus = f === 'all' ? null : f; st.zoom = f === 'all' ? 1 : (f === 'head' ? 3.6 : 3.0); draw(); }
-          else if (a === 'zin' || a === 'zout') { st.zoom = Math.max(0.6, Math.min(4, st.zoom * (a === 'zin' ? 1.25 : 0.8))); draw(); }
+          else if (a.indexOf('fx-') === 0) { feetMode(false); const f = a.slice(3); st.focus = f === 'all' ? null : f; st.zoom = f === 'all' ? 1 : (f === 'head' ? 3.6 : 3.0); st.panX = st.panY = 0; draw(); }
+          else if (a === 'zin' || a === 'zout') { st.zoom = Math.max(0.6, Math.min(4, st.zoom * (a === 'zin' ? 1.25 : 0.8))); if (st.zoom <= 1.02) st.panX = st.panY = 0; draw(); }
           else if (a === 'cam-top') { st.elTarget = st.ghost ? 62 : 80; st.yawTarget = Math.round(st.yaw / 360) * 360 + 30; }
           else if (a.indexOf('cam-') === 0) { const y = parseFloat(a.slice(4)); st.yawTarget = camYaw(Math.round((st.yaw - y) / 360) * 360 + y); st.elTarget = 12; }
         });
@@ -16581,7 +17220,8 @@ function renderDictation(area) {
         const ids = Object.keys(ptrs);
         if (ids.length === 2) {
           const a = ptrs[ids[0]], b = ptrs[ids[1]];
-          pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z: st.zoom }; drag = null;
+          const rc = stage.getBoundingClientRect();
+          pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z: st.zoom, mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2, px: st.panX, py: st.panY, cx: (a[0] + b[0]) / 2 - (rc.left + rc.width / 2), cy: (a[1] + b[1]) / 2 - (rc.top + rc.height / 2) }; drag = null;
         } else { drag = { x: e.clientX, y: e.clientY, yaw: st.yawTarget, el: st.elTarget }; }
       });
       stage.addEventListener('pointermove', function(e) {
@@ -16591,6 +17231,13 @@ function renderDictation(area) {
         if (pinch && ids.length >= 2) {
           const a = ptrs[ids[0]], b = ptrs[ids[1]];
           st.zoom = Math.max(0.6, Math.min(4, pinch.z * (Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d)));
+          // build 6.25: приближение к точке между пальцами + сдвиг камеры двумя пальцами (раньше приближало только к центру)
+          if (r3d && r3d.upp) {
+            const u0 = r3d.upp(pinch.z), u1 = r3d.upp(st.zoom), mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+            st.panX = Math.max(-130, Math.min(130, pinch.px + pinch.cx * (u0 - u1) - (mx - pinch.mx) * u1));
+            st.panY = Math.max(-130, Math.min(130, pinch.py - pinch.cy * (u0 - u1) + (my - pinch.my) * u1));
+            if (st.zoom <= 1.02) st.panX = st.panY = 0;
+          }
           draw(); return;
         }
         if (!drag) return;
@@ -16600,21 +17247,32 @@ function renderDictation(area) {
       });
       const end = function(e) { delete ptrs[e.pointerId]; if (Object.keys(ptrs).length < 2) pinch = null; if (!Object.keys(ptrs).length) drag = null; };
       stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
-      stage.addEventListener('wheel', function(e) { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); st.zoom = Math.max(0.6, Math.min(4, st.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12))); draw(); }, { passive: false });
+      stage.addEventListener('wheel', function(e) { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); st.zoom = Math.max(0.6, Math.min(4, st.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12))); if (st.zoom <= 1.02) st.panX = st.panY = 0; draw(); }, { passive: false });
       // 3D-фигура: подгружаем three.js; если WebGL недоступен — остаётся 2D-схема
       if (FEMALE) svg.style.display = 'none';
+      // build 6.25: пока 3D-фигура грузится — тёмная заглушка, а не старый плоский рисунок и упрощённая фигура
+      let loadVeil = null;
+      const dropVeil = function() { if (loadVeil) { try { loadVeil.remove(); } catch (e) {} loadVeil = null; } };
       if (!FEMALE && host3d && typeof loadSalahThree === 'function') {
+        svg.style.display = 'none';
+        if (getComputedStyle(host3d).position === 'static') host3d.style.position = 'relative';
+        host3d.style.minHeight = host3d.style.minHeight || '16rem';
+        loadVeil = document.createElement('div');
+        loadVeil.style.cssText = 'position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#94a3b8;font-size:0.85rem;text-align:center;padding:1rem';
+        loadVeil.textContent = kk ? '3D фигура жүктелуде…' : 'Загрузка 3D-фигуры…';
+        host3d.appendChild(loadVeil);
+        setTimeout(dropVeil, 20000);
         loadSalahThree().then(function(T) {
           if (!box.isConnected) return;
           try {
             r3d = salah3dCreate(host3d, T, kk, FEMALE);
-            if (r3d.onModel) r3d.onModel(function() { if (box.isConnected) { r3dBusy = true; draw(); } });
+            if (r3d.onModel) r3d.onModel(function() { dropVeil(); if (box.isConnected) { r3dBusy = true; draw(); } });
             svg.style.display = 'none';
             const fr = box.querySelector('#salah-focus-row'); if (fr) fr.style.display = 'flex';
             draw();
             if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(function() { if (r3d && box.isConnected) { r3d.resize(); draw(); } else ro.disconnect(); }); ro.observe(host3d); }
-          } catch (e) { r3d = null; host3d.innerHTML = ''; if (FEMALE) femNoFigure(); else svg.style.display = ''; salahDiag(host3d, 'WebGL/3D: ' + (e && e.message || e)); }
-        }).catch(function(e) { if (FEMALE) femNoFigure(); salahDiag(host3d, 'three.module.min.js не загружен: ' + (e && e.message || e)); });
+          } catch (e) { dropVeil(); r3d = null; host3d.innerHTML = ''; if (FEMALE) femNoFigure(); else svg.style.display = ''; salahDiag(host3d, 'WebGL/3D: ' + (e && e.message || e)); }
+        }).catch(function(e) { dropVeil(); if (FEMALE) femNoFigure(); else svg.style.display = ''; salahDiag(host3d, 'three.module.min.js не загружен: ' + (e && e.message || e)); });
       } else if (FEMALE) femHidden();
       caption(); draw();
       requestAnimationFrame(frame);
@@ -16862,7 +17520,8 @@ function renderDictation(area) {
         el.querySelector('#hisn-back').addEventListener('click', function() { hisnStop(); window._hisnCat = null; renderHisn(); });
         const trBtn = el.querySelector('#hisn-tr-toggle');
         if (trBtn) trBtn.addEventListener('click', function() {
-          state.settings.showTranslit = !(window.translitEnabled && window.translitEnabled());
+          if (translitModeNow() !== 'off') { state.settings.translitPrev = translitModeNow(); state.settings.translitMode = 'off'; state.settings.showTranslit = false; }
+          else { state.settings.translitMode = state.settings.translitPrev || 'latin'; state.settings.showTranslit = true; }
           try { saveState(); } catch (e) {}
           renderHisn();
         });
@@ -20076,6 +20735,7 @@ bKk:
         notifications: 'Хабарландырулар — жаңа достық сұраныстары, форум/сұрақтарға жауаптар, чаттардағы реакциялар мен атап өтулер.'
       };
       const SEC_HELP = kk ? SEC_HELP_KK : SEC_HELP_RU;
+      window._secHelp = { ru: SEC_HELP_RU, kk: SEC_HELP_KK }; // build 6.25: «Что это за раздел» («?») берёт полный текст отсюда
       const MAIN_HELP_RU = [
         { t: 'Помощь «?» (тур по сайту)', s: 'Зелёная кнопка слева внизу', d: 'Интерактивный тур по главным экранам.\n\n• Нажмите «?» слева внизу — шаги: Ежедневное, Суры, Теория, Практика, Ещё, Настройки, Аккаунт.\n• «Далее» / «Назад» / «Пропустить».\n• Скрыть кнопку: Настройки → Другое → «Кнопка помощи».\n• Эта текстовая справка (меню «Ещё» → Справка) — подробные описания разделов; тур — короткое знакомство.' },
         { t: 'Ежедневное', s: 'Главная вкладка внизу', d: 'Домашний экран после входа.\n\n• Виджет времён намаза (Фаджр…Иша; по желанию Духа/Тахаджуд) — город и метод из «Время намаза».\n• Аят дня: арабский, перевод; нажатие на аят — контекст до/после.\n• Дуа, хадис, сунна, слово — листать; у дуа 🔊.\n• Имя Аллаха из 99.\n• История / дуа / хадис / имя без повтора около 7 дней.\nВсё для быстрого взгляда утром и вечером.' },
@@ -21090,6 +21750,7 @@ bKk:
             '<select id="pt-lead" style="padding:0.35rem 0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
             [5,10,15,20].map(function(m){ return '<option value="'+m+'"'+((+(state.settings.prayerNotifLead||10)===m)?' selected':'')+'>'+m+' '+tLabel('мин до намаза')+'</option>'; }).join('') +
             '</select></div>' +
+            (typeof pushSettingsHtml==='function'?pushSettingsHtml():'') +
             '<div class="setting-row"><span>'+tLabel('Звук азана при намазе')+'</span>' +
             '<button type="button" class="btn btn-sm '+(adhanOn?'btn-primary':'')+'" id="pt-adhan">'+tLabel(adhanOn?'Вкл':'Выкл')+'</button></div>' +
             '<div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem"><span>'+tLabel('Чтец азана (суннит.)')+'</span>' +
@@ -21186,7 +21847,7 @@ let body = '';
                     const frac2 = (typeof prayerProgressFraction === 'function') ? prayerProgressFraction(info) : null;
                     const icon2 = (typeof PRAYER_ICONS !== 'undefined' && PRAYER_ICONS[info.key]) || '🕌';
                     const untilWord2 = selKey ? (kk2 ? 'дейін' : 'До выбранного —') : (kk2 ? 'Келесіге дейін' : 'До ближайшего —');
-                    countdownCardHtml = '<div class="card" style="background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 80%, #7c3aed) 100%);box-shadow:0 4px 14px rgba(0,0,0,0.12);border:none">' +
+                    countdownCardHtml = '<div class="card" style="background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 78%, #000) 100%);box-shadow:0 4px 14px rgba(0,0,0,0.12);border:none">' +
                       '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">' +
                       '<span style="color:rgba(255,255,255,0.92);font-size:0.82rem;font-weight:500">' + icon2 + ' ' + untilWord2 + ' ' + label2 + (info.isTomorrow ? (' <span style="opacity:0.75">(' + (kk2 ? 'ертең' : 'завтра') + ')</span>') : '') + '</span>' +
                       '<span style="color:rgba(255,255,255,0.8);font-size:0.78rem;font-variant-numeric:tabular-nums">' + info.time + '</span>' +
@@ -21919,6 +22580,7 @@ let body = '';
             Object.keys(names).forEach(function(k) {
               if (k === 'duha' && !(state.settings && state.settings.widgetDuha === true)) return;
               if (k === 'tahajjud' && !(state.settings && state.settings.widgetTahajjud)) return;
+              if (typeof pushPrayerOn === 'function' && !pushPrayerOn(k)) return;
               const when = parseWhen(t[k]);
               if (!when) return;
               const offsets = (fireKeys.indexOf(k) >= 0 && leadMin > 0) ? [leadMin * 60, 0] : [0];
@@ -21926,6 +22588,7 @@ let body = '';
                 const target = when.getTime() - off * 1000;
                 const lateSec = (now.getTime() - target) / 1000;
                 if (lateSec < 0 || lateSec >= ALERT_WINDOW) return;
+                if (typeof pushQuiet === 'function' && pushQuiet(new Date(target))) return;
                 const stamp = 'pn_' + k + '_' + todayKey + '_' + off;
                 if (sessionStorage.getItem(stamp)) return;
                 sessionStorage.setItem(stamp, '1');
@@ -23769,7 +24432,7 @@ function renderDict() {
             const s = m.surah.number;
             const a = m.numberInSurah;
             return '<div class="card" style="cursor:pointer" data-s="'+s+'" data-a="'+a+'">' +
-              '<div class="surah-meta">'+s+':' + a + ' · ' + (m.surah.englishName || '') + '</div>' +
+              '<div class="surah-meta">'+s+':' + a + ' · ' + surahShortName(s, m.surah.englishName || '') + '</div>' +
               '<div class="ayah-translation">' + (m.text || '') + '</div></div>';
           }).join('');
         box.querySelectorAll('[data-s]').forEach(el => {
@@ -32111,7 +32774,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
                 const frac = (typeof prayerProgressFraction === 'function') ? prayerProgressFraction(info) : null;
                 const icon = (typeof PRAYER_ICONS !== 'undefined' && PRAYER_ICONS[info.key]) || '🕌';
                 const untilWord = selKey ? (kk ? 'дейін' : 'До выбранного —') : (kk ? 'Келесіге дейін' : 'До ближайшего —');
-                countdownHtml = '<div style="margin-top:0.65rem;padding:0.75rem 0.85rem;border-radius:0.85rem;background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 80%, #7c3aed) 100%);box-shadow:0 4px 14px rgba(0,0,0,0.12)">' +
+                countdownHtml = '<div style="margin-top:0.65rem;padding:0.75rem 0.85rem;border-radius:0.85rem;background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 78%, #000) 100%);box-shadow:0 4px 14px rgba(0,0,0,0.12)">' +
                   '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">' +
                   '<span style="color:rgba(255,255,255,0.92);font-size:0.78rem;font-weight:500">' + icon + ' ' + untilWord + ' ' + label + (info.isTomorrow ? (' <span style="opacity:0.75">(' + (kk ? 'ертең' : 'завтра') + ')</span>') : '') + '</span>' +
                   '<span style="color:rgba(255,255,255,0.8);font-size:0.75rem;font-variant-numeric:tabular-nums">' + info.time + '</span>' +
@@ -32140,12 +32803,18 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
                   : ('background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.5rem 0.6rem;font-size:0.82rem;cursor:pointer;transition:transform 0.15s' + (isPast ? ';opacity:0.5' : ''));
                 const labelStyle = isActive ? 'color:rgba(255,255,255,0.88)' : 'color:var(--text-muted)';
                 const valStyle = isActive ? 'font-size:1.08rem;color:#fff' : ('font-size:1.08rem' + (isPast ? ';color:var(--text-muted)' : ''));
-                return '<div data-select-prayer="'+key+'" style="'+cellStyle+'"><span style="'+labelStyle+'">'+icon+' '+triple[1]+(isActive?' ✦':'')+'</span><br><b style="'+valStyle+'">'+triple[2]+'</b></div>';
+                return '<div data-select-prayer="'+key+'" data-ts="'+(timeDate ? timeDate.getTime() : '')+'" data-act="'+(isActive ? '1' : '0')+'" style="'+cellStyle+'"><span style="'+labelStyle+'">'+icon+' '+triple[1]+(isActive?' ✦':'')+'</span><br><b style="'+valStyle+'">'+triple[2]+'</b></div>';
               }).join('') +
               '</div></div>';
           }
         }
-      } catch(e) {}
+      } catch(e) { prayerMini = ''; }
+      // build 6.25: если времена показать нельзя (нет города/данных или ошибка расчёта) — не пустой блок, а карточка-ссылка в «Время намаза»
+      if (!prayerMini) {
+        const kk0 = (typeof isKk === 'function') && isKk();
+        prayerMini = '<div class="card" style="margin-bottom:0.75rem;cursor:pointer" data-go="prayertimes"><b>🕌 ' + tLabel('Намаз') + '</b>' +
+          '<div class="ayah-translation" style="margin-top:0.35rem">' + (kk0 ? 'Намаз уақыттары әлі көрсетілмейді: қаланы таңдап, деректерді жүктеңіз. Басыңыз — «Намаз уақыты» бөлімі ашылады.' : 'Времена намаза пока не показаны: выберите город и скачайте данные. Нажмите — откроется раздел «Время намаза».') + '</div></div>';
+      }
       const tipCard = '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b>' +
         '<div class="tip-body ayah-translation" style="margin-top:0.35rem">' +
         (isKk ?
@@ -32268,7 +32937,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         try { greetCollapsed = localStorage.getItem('quran_dh_greet_collapsed') === '1'; } catch(e) {}
         let dateLabel = '';
         try { dateLabel = now.toLocaleDateString(isKk ? 'kk-KZ' : 'ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }); } catch(e) {}
-        greetingBar = '<div class="card" style="margin-bottom:0.75rem;background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 75%, #7c3aed) 100%);border:none;box-shadow:var(--shadow-accent)" data-go-greeting-name="1" title="'+(isKk?'Атыңызды баптауларда орнатыңыз':'Настроить имя в настройках')+'">' +
+        greetingBar = '<div class="card" style="margin-bottom:0.75rem;background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 78%, #000) 100%);border:none;box-shadow:var(--shadow-accent)" data-go-greeting-name="1" title="'+(isKk?'Атыңызды баптауларда орнатыңыз':'Настроить имя в настройках')+'">' +
           '<div style="min-width:0;position:relative;padding-right:2rem">' +
           '<button type="button" data-dh-greet-toggle="1" aria-label="'+(isKk?'Бүктеу / жаю':'Свернуть / развернуть')+'" title="'+(isKk?'Бүктеу / жаю':'Свернуть / развернуть')+'" style="position:absolute;top:-0.15rem;right:-0.25rem;width:2rem;height:2rem;border:none;border-radius:50%;background:rgba(255,255,255,0.18);color:#fff;font-size:1rem;cursor:pointer">'+(greetCollapsed?'▾':'▴')+'</button>' +
           (greetAr ? '<div class="dh-greet-more arabic" dir="rtl" style="font-size:calc(1.1rem * var(--ar-scale, 1));color:#fff;opacity:0.95'+(greetCollapsed?';display:none':'')+'">'+greetAr+'</div>' : '') +
@@ -32354,6 +33023,12 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         }
         const cd = document.getElementById('dh-prayer-countdown');
         if (!cd) { clearInterval(window._dhPrayerCountdownTimer); return; }
+        // build 6.25: «Восход» (и любая карточка, не бывшая целью отсчёта) серела только после полной перерисовки; теперь — каждую секунду
+        document.querySelectorAll('[data-select-prayer][data-ts]').forEach(function(c) {
+          if (c.dataset.act === '1' || !c.dataset.ts) return;
+          const past = +c.dataset.ts < Date.now(), b = c.querySelector('b');
+          c.style.opacity = past ? '0.5' : ''; if (b) b.style.color = past ? 'var(--text-muted)' : '';
+        });
         const until = +cd.dataset.until;
         if (!until) return;
         const diff = until - Date.now();
@@ -36177,6 +36852,7 @@ c.addEventListener('click', () => {
         if (blob) {
           _audioCacheSet(url, blob).catch(function(e) { console.warn('audio cache write failed', e); });
           _audioCacheMemUrls[url] = URL.createObjectURL(blob);
+          try { _trimAnalyze(url, blob); } catch(e) {}
         }
       }).catch(function() { delete _audioCachingInFlight[url]; });
     }
@@ -40425,9 +41101,40 @@ c.addEventListener('click', () => {
               var slot = listEl.querySelector('.chat-reactions-slot[data-slot-mid="'+r.message_id+'"]');
               if (slot) slot.innerHTML = _chatReactionsHtml(r.message_id, myUserId);
             })
-            .subscribe();
+            .subscribe(function(status) {
+              // build 6.25: канал оборвался (сон телефона, смена сети) — через пару секунд подписываемся заново и догружаем пропущенное
+              if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                setTimeout(function() { try { if (listEl.isConnected && window._pchatResync) window._pchatResync(); } catch (e) {} }, 2500);
+              }
+            });
         } catch(e) { console.warn('publicchat subscribe', e); }
       }
+
+      // догрузить сообщения, пропущенные, пока подписка не работала
+      function pchatRefreshNew() {
+        try {
+          sb.from('chat_messages').select('*').not('hidden_for', 'cs', '{'+myUserId+'}').order('created_at', { ascending: false }).limit(30).then(function(res) {
+            var rows = ((res && res.data) || []).slice().reverse();
+            var fresh = rows.filter(function(m) { return !knownIds[m.id]; });
+            if (!fresh.length) return;
+            fresh.forEach(function(m) { m.files = _chatNormalizeFiles(m.files); });
+            if (listEl.querySelector('.empty-state')) listEl.innerHTML = '';
+            var wasAtBottom = (listEl.scrollTop + listEl.clientHeight) >= (listEl.scrollHeight - 40);
+            appendMessages(fresh, wasAtBottom);
+          }).catch(function() {});
+        } catch (e) {}
+      }
+      window._pchatResync = function() {
+        try {
+          if (!listEl.isConnected) { window._pchatResync = null; return; }
+          if (!_publicChatChannel || _publicChatChannel.state !== 'joined') {
+            try { if (_publicChatChannel) sb.removeChannel(_publicChatChannel); } catch (e) {}
+            _publicChatChannel = null;
+            subscribeRealtime();
+          }
+          pchatRefreshNew();
+        } catch (e) {}
+      };
 
       loadHistory();
 
@@ -40746,8 +41453,21 @@ c.addEventListener('click', () => {
               pchatPayload.reply_to_nick = _chatReplyState.nick;
               pchatPayload.reply_to_text = _chatReplyState.text;
             }
-            var res = await sb.from('chat_messages').insert(pchatPayload);
+            var res = await sb.from('chat_messages').insert(pchatPayload).select();
             if (res && res.error) { toast((kk?'Қате: ':'Ошибка: ')+_friendlyErrText(res.error.message, kk)); return; }
+            // build 6.25: своё сообщение показываем сразу (раньше оно появлялось только после обновления страницы, если Realtime-подписка молчала)
+            var savedRow = (res && res.data && res.data[0]) || null;
+            if (!savedRow) {
+              try {
+                var re2 = await sb.from('chat_messages').select('*').eq('user_id', myUserId).order('created_at', { ascending: false }).limit(1);
+                savedRow = (re2 && re2.data && re2.data[0]) || null;
+              } catch(e2) {}
+            }
+            if (savedRow) {
+              savedRow.files = _chatNormalizeFiles(savedRow.files);
+              if (listEl.querySelector('.empty-state')) listEl.innerHTML = '';
+              appendMessages([savedRow], true);
+            }
             lastSentAt = Date.now();
             lastSentText = text;
             startCooldownUi();
@@ -51027,7 +51747,7 @@ function startApp() {
       const n = +parts[1];
       return fetchSurah(n).then(function(d) {
         const ay = d.ayahs || [];
-        const nm = (d.meta && (d.meta.englishName || d.meta.name)) || ('№' + n);
+        const nm = surahShortName(n, d.meta && (d.meta.englishName || d.meta.name));
         return {
           title: (kk ? 'Сүре ' : 'Сура ') + n + ' · ' + nm,
           ayahs: ay.map(function(a) { return { n: a.number, ar: a.text, trans: a.translation || '' }; }),
@@ -51090,7 +51810,7 @@ function startApp() {
         const meta = state.surahsMeta || [];
         for (let n = 1; n <= 114; n++) {
           const m = meta.find(function(x) { return x.number === n; });
-          const nm = m ? (m.englishName || m.name) : '';
+          const nm = surahShortName(n, m ? (m.englishName || m.name) : '');
           h += row('s:' + n, (kk ? 'Сүре ' : 'Сура ') + n + (nm ? ' · ' + nm : ''), m && m.numberOfAyahs ? (m.numberOfAyahs + (kk ? ' аят' : ' аят.')) : '', !!o.items['s:' + n]);
         }
         if (!meta.length) fetchSurahsMeta().then(function() { if (window._memoTab === 's' && !_memoSession) renderMemorize(); }).catch(function() {});
@@ -51183,17 +51903,20 @@ function startApp() {
       { id: 'tf', ic: '✅', t: 'Верно / неверно', d: 'оценить утверждение' },
       { id: 'build', ic: '🧩', t: 'Собери из слов', d: 'расставить слова по порядку' },
       { id: 'num', ic: '🔢', t: 'Число', d: 'номер, количество (на сложной — вводится)' },
-      { id: 'listen', ic: '🎧', t: 'На слух', d: 'узнать аят по звучанию (нужен интернет)' }
+      { id: 'listen', ic: '🎧', t: 'На слух', d: 'узнать аят, дуа или букву по звучанию' }
     ];
-    const QZ_DIFF = [{ id: 'easy', t: 'Лёгкая', opts: 3 }, { id: 'mid', t: 'Средняя', opts: 5 }, { id: 'hard', t: 'Сложная', opts: 8 }];
+    const QZ_DIFF = [
+      { id: 'easy', t: 'Лёгкая', opts: 3, note: '3 варианта · к арабскому тексту показаны транскрипция и перевод · короткие суры' },
+      { id: 'mid', t: 'Средняя', opts: 5, note: '5 вариантов · к арабскому тексту показан только перевод · суры шире' },
+      { id: 'hard', t: 'Сложная', opts: 8, note: '8 вариантов · только арабский текст · любые суры · числа вводятся' }];
     const QZ_TIMERS = [10, 20, 30, 60, 0];
     const QZ_COUNTS = [5, 10, 15, 20, 25];
     const QZ_TOPICS = [
       { id: 'surah', grp: 'ext', ic: '📖', t: 'Суры Корана', d: 'номера, число аятов, аяты', types: ['choice', 'tf', 'num', 'build', 'listen'] },
-      { id: 'dua', grp: 'ext', ic: '🤲', t: 'Дуа (Хисн аль-муслим)', d: 'когда читают, что означают', types: ['choice', 'tf', 'build'] },
+      { id: 'dua', grp: 'ext', ic: '🤲', t: 'Дуа (Хисн аль-муслим)', d: 'когда читают, что означают', types: ['choice', 'tf', 'build', 'listen'] },
       { id: 'names', grp: 'site', ic: '☪️', t: '99 имён Аллаха', d: 'имя и его значение', types: ['choice', 'tf'] },
-      { id: 'salah', grp: 'site', ic: '🧎', t: 'Намаз (по книге)', d: 'вопросы из раздела «Как читать намаз»', types: ['choice'] },
-      { id: 'letters', grp: 'site', ic: '🔤', t: 'Арабские буквы', d: 'названия букв', types: ['choice'] }
+      { id: 'salah', grp: 'site', ic: '🧎', t: 'Намаз (по книге)', d: 'вопросы из раздела «Как читать намаз»', types: ['choice', 'tf'] },
+      { id: 'letters', grp: 'site', ic: '🔤', t: 'Арабские буквы', d: 'названия букв, звуки', types: ['choice', 'tf', 'listen'] }
     ];
     let _qz = null;        // текущая игра: { cfg, qs, i, ans, rem, answered, paused }
     let _qzTimer = null, _qzAudio = null;
@@ -51240,6 +51963,44 @@ function startApp() {
       }
       set.delete(correct);
       return Array.from(set);
+    }
+
+
+    function qzTr(ar) { try { return (typeof arTrans === 'function') ? arTrans(ar, false) : ''; } catch (e) { return ''; } }
+    function qzWords(ar) { return String(ar).trim().split(/\s+/); }
+    function qzTypesAvail(topics) { // объединение видов вопросов по выбранным темам
+      const set = new Set();
+      (topics || []).forEach(function(tid) { const t = QZ_TOPICS.find(function(x) { return x.id === tid; }); if (t) t.types.forEach(function(x) { set.add(x); }); });
+      return set;
+    }
+    function qzWordPool(r, list, getAr) {
+      const out = [];
+      qzShuf(r, list).slice(0, 80).forEach(function(x) { qzWords(getAr(x)).forEach(function(w) { out.push(w); }); });
+      return out;
+    }
+    // «вставьте пропущенное слово»: в тексте слово заменено на ＿＿＿, варианты — слова похожей длины из других текстов
+    function qzGap(r, base, id, ar, mean, wordPool, N, qText) {
+      const words = qzWords(ar), cand = [];
+      words.forEach(function(w, i) { if (qzNorm(w).replace(/[^ء-ي]/g, '').length >= 3 && !/[﴾﴿۞۩]/.test(w)) cand.push(i); });
+      if (words.length < 3 || !cand.length) return null;
+      const i = qzPick(r, cand), right = words[i], rn = qzNorm(right), seen = new Set([rn]), wr = [];
+      qzShuf(r, wordPool).forEach(function(w) { const k = qzNorm(w); if (wr.length < N - 1 && k.length >= 2 && !seen.has(k) && Math.abs(k.length - rn.length) <= 2) { seen.add(k); wr.push(w); } });
+      if (wr.length < 2) return null;
+      const shown = words.map(function(w, j) { return j === i ? '＿＿＿' : w; }).join(' ');
+      return Object.assign({}, base, { id: id + '.' + i, kind: 'choice', type: 'choice', ar: shown, aidTr: '', noTr: true, aidMean: mean || '', q: qText, correctText: right, opts: qzOpts(r, right, wr, N) });
+    }
+    function qzNear(s, diff, pool, lo, hi) { // неправильные номера сур: на лёгкой — любые из набора, иначе соседи
+      const base = diff === 'easy' ? pool : qzRange(Math.max(lo, s - 7), Math.min(hi, s + 7));
+      return base.filter(function(y) { return y !== s; });
+    }
+    // подсказки к арабскому тексту по сложности: лёгкая — транскрипция + перевод, средняя — перевод, сложная — ничего
+    function qzAidHtml(q, diff, force) {
+      if (!q || q.noAid) return '';
+      let h = '';
+      const tr = q.aidTr, mean = q.aidMean;
+      if (tr && (force || (diff === 'easy' && !q.noTr))) h += '<div class="ayah-translation" style="text-align:center;font-style:italic;margin-top:0.25rem;line-height:1.5">' + qzEsc(tr) + '</div>';
+      if (mean && (force || ((diff === 'easy' || diff === 'mid') && !q.noMean))) h += '<div class="ayah-translation" style="text-align:center;margin-top:0.25rem;font-size:0.88rem;line-height:1.5">' + (q.kind === 'build' ? 'Перевод: ' : '') + qzEsc(mean) + '</div>';
+      return h;
     }
 
     // ---- данные ----
@@ -51292,9 +52053,9 @@ function startApp() {
       const ayList = ay.length ? ay : ctx.ayahs;
       const nm = qzSurahName;
       const kinds = [];
-      if (type === 'choice') { kinds.push('cnt', 'n2num', 'num2n'); if (ayList.length) kinds.push('ay2s', 'ay2n'); }
+      if (type === 'choice') { kinds.push('cnt', 'n2num', 'num2n', 'next', 'prev'); if (ayList.length) kinds.push('ay2s', 'ay2n', 'gap', 'gap'); }
       else if (type === 'num') { kinds.push('cnt', 'n2num'); if (ayList.length) kinds.push('ay2n'); }
-      else if (type === 'tf') { kinds.push('tf_cnt', 'tf_num'); if (ayList.length) kinds.push('tf_ay'); }
+      else if (type === 'tf') { kinds.push('tf_cnt', 'tf_num', 'tf_next', 'tf_cmp'); if (ayList.length) kinds.push('tf_ay', 'tf_ay'); }
       else if (type === 'build') { if (ctx.ayahs.length) kinds.push('build'); }
       else if (type === 'listen') { if (ctx.ayahs.length && navigator.onLine) kinds.push('listen'); }
       if (!kinds.length) return null;
@@ -51314,7 +52075,29 @@ function startApp() {
         const wr = diff === 'easy' ? pool.filter(function(x) { return x !== s; }) : qzRange(Math.max(1, s - 6), Math.min(114, s + 6)).filter(function(x) { return x !== s; });
         return Object.assign({}, base, { id: 's.n2n.' + s, kind: 'choice', q: 'Как называется сура №' + s + '?', correctText: nm(s), expl: 'Сура №' + s + ' — «' + nm(s) + '».', opts: qzOpts(r, nm(s), wr.map(nm), N) });
       }
-      if (kind === 'ay2s' || kind === 'ay2n' || kind === 'tf_ay' || kind === 'build' || kind === 'listen') {
+      if (kind === 'next' || kind === 'prev') {
+        const cand = pool.filter(function(x) { return kind === 'next' ? x < 114 : x > 1; });
+        if (!cand.length) return null;
+        const t = qzPick(r, cand), target = kind === 'next' ? t + 1 : t - 1;
+        const wr = qzNear(target, diff, pool.concat([target]), 1, 114).filter(function(y) { return y !== t; });
+        return Object.assign({}, base, { id: 's.' + kind + '.' + t, kind: 'choice', correctText: nm(target),
+          q: kind === 'next' ? qzPick(r, ['Какая сура идёт сразу после суры «' + nm(t) + '»?', 'За сурой «' + nm(t) + '» следует сура…']) : qzPick(r, ['Какая сура идёт сразу перед сурой «' + nm(t) + '»?', 'Перед сурой «' + nm(t) + '» стоит сура…']),
+          expl: 'Порядок: №' + Math.min(t, target) + ' «' + nm(Math.min(t, target)) + '», затем №' + Math.max(t, target) + ' «' + nm(Math.max(t, target)) + '».', opts: qzOpts(r, nm(target), wr.map(nm), N) });
+      }
+      if (kind === 'tf_next') {
+        const cand = pool.filter(function(x) { return x < 114; }); if (!cand.length) return null;
+        const t = qzPick(r, cand), truth = r() < 0.5; let shown = t + 1;
+        if (!truth) { const wr = qzNear(t + 1, diff, pool, 1, 114).filter(function(y) { return y !== t; }); if (!wr.length) return null; shown = qzPick(r, wr); }
+        return Object.assign({}, base, { id: 's.tfnx.' + t + '.' + shown, kind: 'tf', q: 'Сразу после суры «' + nm(t) + '» идёт сура «' + nm(shown) + '».', truth: truth, correctText: truth ? 'Верно' : ('Неверно (после неё — «' + nm(t + 1) + '»)'), expl: 'После суры №' + t + ' «' + nm(t) + '» идёт №' + (t + 1) + ' «' + nm(t + 1) + '».' });
+      }
+      if (kind === 'tf_cmp') {
+        const a = qzPick(r, pool); let b = qzPick(r, pool), g = 0;
+        while ((b === a || SURAH_AYAH_COUNTS[b] === SURAH_AYAH_COUNTS[a]) && g++ < 40) b = qzPick(r, pool);
+        if (b === a || SURAH_AYAH_COUNTS[b] === SURAH_AYAH_COUNTS[a]) return null;
+        const ca = SURAH_AYAH_COUNTS[a], cb = SURAH_AYAH_COUNTS[b], truth = ca > cb;
+        return Object.assign({}, base, { id: 's.tfcmp.' + a + '.' + b, kind: 'tf', q: 'В суре «' + nm(a) + '» больше аятов, чем в суре «' + nm(b) + '».', truth: truth, correctText: truth ? 'Верно' : 'Неверно', expl: '«' + nm(a) + '» — ' + ca + ' аят(ов), «' + nm(b) + '» — ' + cb + ' аят(ов).' });
+      }
+      if (kind === 'ay2s' || kind === 'ay2n' || kind === 'tf_ay' || kind === 'gap' || kind === 'build' || kind === 'listen') {
         let x = qzPick(r, ayList);
         if (kind === 'build') {
           const lim = qzBuildLimit(diff), c2 = ctx.ayahs.filter(function(y) { return y.words.length >= 3 && y.words.length <= lim; });
@@ -51327,12 +52110,13 @@ function startApp() {
         }
         const where = 'Сура №' + x.n + ' «' + nm(x.n) + '», аят ' + x.a + '.';
         const expl = where + (x.tr ? ' Перевод: ' + x.tr : '');
-        const b2 = Object.assign({}, base, { mem: 's:' + x.n, ar: x.ar, expl: expl });
+        const b2 = Object.assign({}, base, { mem: 's:' + x.n, ar: x.ar, expl: expl, aidTr: qzTr(x.ar), aidMean: x.tr });
+        if (kind === 'gap') return qzGap(r, b2, 's.gap.' + x.n + '.' + x.a, x.ar, x.tr, qzWordPool(r, ctx.ayahs, function(y) { return y.ar; }), N, qzPick(r, ['Какое слово пропущено в аяте суры «' + nm(x.n) + '»?', 'Вставьте пропущенное слово (сура «' + nm(x.n) + '», аят ' + x.a + ').']));
         if (kind === 'ay2s') return Object.assign(b2, { id: 's.a2s.' + x.n + '.' + x.a, kind: 'choice', q: 'Из какой суры этот аят?', correctText: nm(x.n), opts: qzOpts(r, nm(x.n), (diff === 'easy' ? pool : qzRange(Math.max(1, x.n - 8), Math.min(114, x.n + 8))).filter(function(y) { return y !== x.n; }).map(nm), N) });
         if (kind === 'listen') return Object.assign(b2, { id: 's.lis.' + x.n + '.' + x.a, type: 'listen', kind: 'choice', ar: '', audio: (typeof ayahAudioUrl === 'function') ? ayahAudioUrl(x.n, x.a) : null, q: 'Прослушайте аят. Из какой он суры?', correctText: nm(x.n), opts: qzOpts(r, nm(x.n), (diff === 'easy' ? pool : qzRange(Math.max(1, x.n - 8), Math.min(114, x.n + 8))).filter(function(y) { return y !== x.n; }).map(nm), N) });
         if (kind === 'ay2n') {
           const cc = SURAH_AYAH_COUNTS[x.n]; if (cc < 4) return null;
-          const o = numQ('s.a2n.' + x.n + '.' + x.a, 'Какой по счёту этот аят суры «' + nm(x.n) + '»?', x.a, 1, cc, qzRange(1, cc), expl, { ar: x.ar, mem: 's:' + x.n });
+          const o = numQ('s.a2n.' + x.n + '.' + x.a, 'Какой по счёту этот аят суры «' + nm(x.n) + '»?', x.a, 1, cc, qzRange(1, cc), expl, { ar: x.ar, mem: 's:' + x.n, aidTr: qzTr(x.ar), aidMean: x.tr });
           return o;
         }
         if (kind === 'tf_ay') {
@@ -51343,7 +52127,7 @@ function startApp() {
         if (kind === 'build') {
           const dn = diff === 'easy' ? 0 : (diff === 'mid' ? 2 : 4);
           const decoyPool = [].concat.apply([], ctx.ayahs.filter(function(y) { return y !== x; }).slice(0, 60).map(function(y) { return y.words; }));
-          return Object.assign(b2, { id: 's.bld.' + x.n + '.' + x.a, kind: 'build', ar: '', q: 'Соберите аят суры «' + nm(x.n) + '» (аят ' + x.a + ') из слов.', hint: x.tr, words: x.words, pool: qzShuf(r, x.words.concat(qzDecoys(r, x.words, decoyPool, dn))), correctText: x.ar });
+          return Object.assign(b2, { id: 's.bld.' + x.n + '.' + x.a, kind: 'build', ar: '', q: 'Соберите аят суры «' + nm(x.n) + '» (аят ' + x.a + ') из слов.', aidTr: qzTr(x.ar), aidMean: x.tr, words: x.words, pool: qzShuf(r, x.words.concat(qzDecoys(r, x.words, decoyPool, dn))), correctText: x.ar });
         }
       }
       if (kind === 'tf_cnt') {
@@ -51364,38 +52148,51 @@ function startApp() {
       const diff = cfg.diff, N = QZ_DIFF.find(function(x) { return x.id === diff; }).opts;
       const items = ctx.hisn, cats = ctx.cats;
       const catOf = function(it) { return cats.find(function(c) { return c.id === it.c; }); };
-      const kinds = type === 'choice' ? ['when', 'mean'] : (type === 'tf' ? ['tf'] : ['build']);
+      const kinds = type === 'choice' ? ['when', 'mean', 'which', 'gap', 'when'] : (type === 'tf' ? ['tf', 'tf_mean'] : (type === 'listen' ? ['listen'] : ['build']));
       const kind = qzPick(r, kinds);
+      const nW = function(x) { return qzWords(x.ar).length; };
       let it;
-      if (kind === 'build') {
-        const lim = qzBuildLimit(diff), c2 = items.filter(function(x) { const w = x.ar.trim().split(/\s+/).length; return w >= 3 && w <= lim; });
-        if (!c2.length) return null; it = qzPick(r, c2);
-      } else if (kind === 'mean') {
-        const c2 = items.filter(function(x) { return x.ru && x.ru.length <= 140; });
-        if (!c2.length) return null; it = qzPick(r, c2);
-      } else it = qzPick(r, items);
+      if (kind === 'build') { const lim = qzBuildLimit(diff), c2 = items.filter(function(x) { return nW(x) >= 3 && nW(x) <= lim; }); if (!c2.length) return null; it = qzPick(r, c2); }
+      else if (kind === 'gap') { const lim = qzBuildLimit(diff) + 8, c2 = items.filter(function(x) { return nW(x) >= 4 && nW(x) <= lim; }); if (!c2.length) return null; it = qzPick(r, c2); }
+      else if (kind === 'listen') { const lim = cfg.timer ? Math.max(5, Math.floor(cfg.timer * 1.2)) : 40, c2 = items.filter(function(x) { return nW(x) <= lim; }); if (!c2.length) return null; it = qzPick(r, c2); }
+      else if (kind === 'mean' || kind === 'tf_mean' || kind === 'which') { const c2 = items.filter(function(x) { return x.ru && x.ru.length <= 140; }); if (!c2.length) return null; it = qzPick(r, c2); }
+      else it = qzPick(r, items);
       const cat = catOf(it); if (!cat) return null;
       const arShow = qzTrim(it.ar, 220);
       const expl = 'Хисн аль-муслим, раздел «' + cat.ru + '». ' + qzTrim(it.ru, 200);
-      const base = { topic: 'dua', type: type, mem: 'd:' + it.a, ar: arShow, expl: expl };
+      const base = { topic: 'dua', type: type, mem: 'd:' + it.a, ar: arShow, expl: expl, aidTr: qzTr(arShow), aidMean: qzTrim(it.ru, 220) };
+      const catWr = function() { const same = diff === 'hard' ? cats.filter(function(c) { return c.g === cat.g && c.id !== cat.id; }) : []; return (same.length >= N - 1 ? same : cats.filter(function(c) { return c.id !== cat.id; })).map(function(c) { return c.ru; }); };
       if (kind === 'when') {
-        const same = diff === 'hard' ? cats.filter(function(c) { return c.g === cat.g && c.id !== cat.id; }) : [];
-        const wr = (same.length >= N - 1 ? same : cats.filter(function(c) { return c.id !== cat.id; })).map(function(c) { return c.ru; });
-        return Object.assign(base, { id: 'd.when.' + it.a, kind: 'choice', q: 'В каких случаях читают это дуа?', correctText: cat.ru, opts: qzOpts(r, cat.ru, wr, N) });
+        return Object.assign(base, { id: 'd.when.' + it.a, kind: 'choice', q: qzPick(r, ['В каких случаях читают это дуа?', 'Когда нужно прочитать это дуа?', 'Для какой ситуации это дуа?']), correctText: cat.ru, opts: qzOpts(r, cat.ru, catWr(), N) });
+      }
+      if (kind === 'listen') {
+        return Object.assign(base, { id: 'd.lis.' + it.a, type: 'listen', kind: 'choice', ar: '', audio: 'audio-hisn/' + it.a + '.mp3', q: 'Прослушайте дуа. В каких случаях его читают?', correctText: cat.ru, opts: qzOpts(r, cat.ru, catWr(), N) });
       }
       if (kind === 'mean') {
         const sameCat = items.filter(function(x) { return x !== it && x.ru && x.ru.length <= 140 && (diff !== 'hard' || x.c === it.c); });
         const wr = (sameCat.length >= N - 1 ? sameCat : items.filter(function(x) { return x !== it && x.ru && x.ru.length <= 140; })).map(function(x) { return x.ru; });
-        return Object.assign(base, { id: 'd.mean.' + it.a, kind: 'choice', q: 'Что означает это дуа?', correctText: it.ru, opts: qzOpts(r, it.ru, wr, N) });
+        return Object.assign(base, { id: 'd.mean.' + it.a, kind: 'choice', noMean: true, q: 'Что означает это дуа?', correctText: it.ru, opts: qzOpts(r, it.ru, wr, N) });
+      }
+      if (kind === 'which') {
+        const wr = items.filter(function(x) { return x !== it && x.c !== it.c && x.ru && x.ru.length <= 140; }).map(function(x) { return x.ru; });
+        return Object.assign(base, { id: 'd.which.' + it.a, kind: 'choice', ar: '', noAid: true, q: 'Какое дуа читают в случае: «' + cat.ru + '»?', correctText: it.ru, opts: qzOpts(r, it.ru, wr, N) });
+      }
+      if (kind === 'gap') {
+        return qzGap(r, base, 'd.gap.' + it.a, arShow, qzTrim(it.ru, 220), qzWordPool(r, items, function(x) { return x.ar; }), N, 'Какое слово пропущено в дуа?');
       }
       if (kind === 'tf') {
         const truth = r() < 0.5; let shown = cat;
         if (!truth) shown = qzPick(r, cats.filter(function(c) { return c.id !== cat.id; }));
         return Object.assign(base, { id: 'd.tf.' + it.a + '.' + shown.id, kind: 'tf', q: 'Это дуа читают в случае: «' + shown.ru + '».', truth: truth, correctText: truth ? 'Верно' : ('Неверно (раздел «' + cat.ru + '»)') });
       }
+      if (kind === 'tf_mean') {
+        const truth = r() < 0.5; let shown = it;
+        if (!truth) { const o = items.filter(function(x) { return x !== it && x.c !== it.c && x.ru && x.ru.length <= 140; }); if (!o.length) return null; shown = qzPick(r, o); }
+        return Object.assign(base, { id: 'd.tfm.' + it.a + '.' + shown.a, kind: 'tf', noMean: true, q: 'Это дуа означает: «' + shown.ru + '»', truth: truth, correctText: truth ? 'Верно' : 'Неверно' });
+      }
       const words = it.ar.trim().split(/\s+/), dn = diff === 'easy' ? 0 : (diff === 'mid' ? 2 : 4);
       const decoyPool = [].concat.apply([], items.filter(function(x) { return x !== it; }).slice(0, 50).map(function(x) { return x.ar.trim().split(/\s+/); }));
-      return Object.assign(base, { id: 'd.bld.' + it.a, kind: 'build', ar: '', q: 'Соберите дуа из слов. Раздел: «' + cat.ru + '».', hint: qzTrim(it.ru, 160), words: words, pool: qzShuf(r, words.concat(qzDecoys(r, words, decoyPool, dn))), correctText: it.ar });
+      return Object.assign(base, { id: 'd.bld.' + it.a, kind: 'build', ar: '', aidTr: qzTr(it.ar), aidMean: qzTrim(it.ru, 160), q: 'Соберите дуа из слов. Раздел: «' + cat.ru + '».', words: words, pool: qzShuf(r, words.concat(qzDecoys(r, words, decoyPool, dn))), correctText: it.ar });
     }
 
     function qzSimilar(a, b) { // слишком похожие по смыслу значения (общий корень слова) — не ставим рядом
@@ -51405,29 +52202,50 @@ function startApp() {
     }
     function qzGenNames(type, cfg, r, ctx) {
       const N = QZ_DIFF.find(function(x) { return x.id === cfg.diff; }).opts, L = ctx.names;
-      const kinds = type === 'choice' ? ['mean', 'tr', 'ar'] : ['tf'];
+      const kinds = type === 'choice' ? ['mean', 'tr', 'ar', 'tr'] : ['tf', 'tf_ar'];
       const kind = qzPick(r, kinds), it = qzPick(r, L);
       const base = { topic: 'names', type: type, mem: null, expl: it.tr + ' — ' + it.mean + '.' };
       const okMeans = L.filter(function(x) { return x !== it && !qzSimilar(x.mean, it.mean) && x.tr !== it.tr; });
-      if (kind === 'mean') return Object.assign(base, { id: 'n.mean.' + it.tr, kind: 'choice', ar: it.ar, q: 'Что означает имя Аллаха «' + it.tr + '»?', correctText: it.mean, opts: qzOpts(r, it.mean, okMeans.map(function(x) { return x.mean; }), N) });
-      if (kind === 'tr') return Object.assign(base, { id: 'n.tr.' + it.tr, kind: 'choice', q: 'Какое имя Аллаха означает: «' + it.mean + '»?', correctText: it.tr, opts: qzOpts(r, it.tr, okMeans.map(function(x) { return x.tr; }), N) });
-      if (kind === 'ar') return Object.assign(base, { id: 'n.ar.' + it.tr, kind: 'choice', ar: it.ar, q: 'Как читается это имя Аллаха?', correctText: it.tr, opts: qzOpts(r, it.tr, L.filter(function(x) { return x !== it && x.tr !== it.tr; }).map(function(x) { return x.tr; }), N) });
+      if (kind === 'mean') return Object.assign(base, { id: 'n.mean.' + it.tr, kind: 'choice', ar: it.ar, noAid: true, q: qzPick(r, ['Что означает имя Аллаха «' + it.tr + '»?', 'Как переводится имя «' + it.tr + '»?']), correctText: it.mean, opts: qzOpts(r, it.mean, okMeans.map(function(x) { return x.mean; }), N) });
+      if (kind === 'tr') return Object.assign(base, { id: 'n.tr.' + it.tr, kind: 'choice', q: qzPick(r, ['Какое имя Аллаха означает: «' + it.mean + '»?', 'Кого так называют: «' + it.mean + '»? Выберите имя Аллаха.']), correctText: it.tr, opts: qzOpts(r, it.tr, okMeans.map(function(x) { return x.tr; }), N) });
+      if (kind === 'ar') return Object.assign(base, { id: 'n.ar.' + it.tr, kind: 'choice', ar: it.ar, noTr: true, aidMean: it.mean, q: 'Как читается это имя Аллаха?', correctText: it.tr, opts: qzOpts(r, it.tr, L.filter(function(x) { return x !== it && x.tr !== it.tr; }).map(function(x) { return x.tr; }), N) });
+      if (kind === 'tf_ar') {
+        const truth = r() < 0.5; let shown = it;
+        if (!truth) shown = qzPick(r, L.filter(function(x) { return x !== it && x.tr !== it.tr && x.ar !== it.ar; }));
+        return Object.assign(base, { id: 'n.tfa.' + it.tr + '.' + shown.tr, kind: 'tf', ar: shown.ar, noAid: true, q: 'Это — имя Аллаха «' + it.tr + '».', truth: truth, correctText: truth ? 'Верно' : ('Неверно (это «' + shown.tr + '»)') });
+      }
       const truth = r() < 0.5; let shown = it;
       if (!truth) shown = qzPick(r, okMeans);
       return Object.assign(base, { id: 'n.tf.' + it.tr + '.' + shown.tr, kind: 'tf', q: 'Имя «' + it.tr + '» означает: «' + shown.mean + '».', truth: truth, correctText: truth ? 'Верно' : ('Неверно (' + it.mean + ')') });
     }
     function qzGenSalah(type, cfg, r, ctx) {
       const N = QZ_DIFF.find(function(x) { return x.id === cfg.diff; }).opts, q = qzPick(r, ctx.salah);
-      const idx = ctx.salah.indexOf(q), correct = q.a[0][0];
+      const idx = ctx.salah.indexOf(q), correct = q.a[0][0], expl = 'По книге «Аль-Фикх аль-Муйассар», раздел «Как читать намаз».';
+      if (type === 'tf') {
+        if (q.a.length < 2) return null;
+        const truth = r() < 0.5, shown = truth ? correct : qzPick(r, q.a.slice(1))[0];
+        return { id: 'h.tf.' + idx + '.' + (truth ? 0 : shown), topic: 'salah', type: 'tf', kind: 'tf', mem: null, q: 'Верно ли: «' + q.q[0].replace(/\?\s*$/, '') + ' — ' + shown + '»?', truth: truth, correctText: truth ? 'Верно' : ('Неверно (правильно: ' + correct + ')'), expl: expl };
+      }
       return { id: 'h.' + idx, topic: 'salah', type: 'choice', kind: 'choice', mem: null, q: q.q[0], correctText: correct,
-        opts: qzOpts(r, correct, q.a.slice(1).map(function(x) { return x[0]; }), Math.min(N, q.a.length)),
-        expl: 'По книге «Аль-Фикх аль-Муйассар», раздел «Как читать намаз».' };
+        opts: qzOpts(r, correct, q.a.slice(1).map(function(x) { return x[0]; }), Math.min(N, q.a.length)), expl: expl };
     }
     function qzGenLetters(type, cfg, r, ctx) {
       const N = QZ_DIFF.find(function(x) { return x.id === cfg.diff; }).opts, L = ctx.letters, it = qzPick(r, L);
-      return { id: 'l.' + it.name, topic: 'letters', type: 'choice', kind: 'choice', mem: null, ar: it.ch, q: 'Как называется эта буква?', correctText: it.name,
-        opts: qzOpts(r, it.name, L.filter(function(x) { return x.name !== it.name; }).map(function(x) { return x.name; }), N),
-        expl: 'Буква «' + it.name + '» (' + it.tr + ').' };
+      const others = L.filter(function(x) { return x.name !== it.name; });
+      const base = { topic: 'letters', mem: null, expl: 'Буква «' + it.name + '» (' + it.tr + ').' };
+      if (type === 'tf') {
+        const truth = r() < 0.5, shown = truth ? it : qzPick(r, others);
+        return Object.assign(base, { id: 'l.tf.' + it.name + '.' + shown.name, type: 'tf', kind: 'tf', ar: it.ch, noAid: true, q: 'Эта буква называется «' + shown.name + '».', truth: truth, correctText: truth ? 'Верно' : ('Неверно (это «' + it.name + '»)') });
+      }
+      if (type === 'listen') {
+        if (!it.audio) return null;
+        const byChar = r() < 0.4;
+        return Object.assign(base, { id: 'l.lis.' + (byChar ? 'c.' : 'n.') + it.name, type: 'listen', kind: 'choice', ar: '', audio: LETTER_AUDIO_BASE + it.audio,
+          q: byChar ? 'Послушайте. Какая это буква?' : 'Послушайте букву. Как она называется?', correctText: byChar ? it.ch : it.name,
+          opts: qzOpts(r, byChar ? it.ch : it.name, others.map(function(x) { return byChar ? x.ch : x.name; }), N) });
+      }
+      if (r() < 0.35) return Object.assign(base, { id: 'l.c.' + it.name, type: 'choice', kind: 'choice', q: qzPick(r, ['Какая буква называется «' + it.name + '»?', 'Выберите букву «' + it.name + '».']), correctText: it.ch, opts: qzOpts(r, it.ch, others.map(function(x) { return x.ch; }), N) });
+      return Object.assign(base, { id: 'l.' + it.name, type: 'choice', kind: 'choice', ar: it.ch, noAid: true, q: 'Как называется эта буква?', correctText: it.name, opts: qzOpts(r, it.name, others.map(function(x) { return x.name; }), N) });
     }
 
     function qzBuildQuestions(cfg, seed) {
@@ -51508,6 +52326,7 @@ function startApp() {
     function qzSettings() {
       const el = document.getElementById('quiz-body'); if (!el) return;
       const cfg = window._qzCfg || (window._qzCfg = qzCfg());
+      const avail = qzTypesAvail(cfg.topics), noTopics = !cfg.topics.length;
       const card = function(on, attr, ic, t, d) {
         return '<button type="button" class="qz-card' + (on ? ' on' : '') + '" ' + attr + '><span class="qz-ic">' + ic + '</span><span><b>' + t + '</b>' + (d ? '<small>' + d + '</small>' : '') + '</span></button>';
       };
@@ -51515,7 +52334,7 @@ function startApp() {
         const ts = QZ_TOPICS.filter(function(t) { return t.grp === g; });
         return '<div style="display:flex;align-items:center;gap:0.5rem;margin:0.7rem 0 0.3rem"><b style="flex:1">' + title + '</b><button type="button" class="btn btn-sm" data-qz-all="' + g + '">выбрать все</button></div>' +
           '<div class="ayah-translation" style="font-size:0.78rem;margin-bottom:0.3rem">' + note + '</div><div class="qz-grid">' +
-          ts.map(function(t) { return card(cfg.topics.indexOf(t.id) >= 0, 'data-qz-topic="' + t.id + '"', t.ic, t.t, t.d); }).join('') + '</div>';
+          ts.map(function(t) { return card(cfg.topics.indexOf(t.id) >= 0, 'data-qz-topic="' + t.id + '"', t.ic, t.t, t.d + ' · ' + t.types.map(function(x) { return QZ_TYPES.find(function(y) { return y.id === x; }).ic; }).join(' ')); }).join('') + '</div>';
       };
       const skipped = cfg.topics.filter(function(tid) { const t = QZ_TOPICS.find(function(x) { return x.id === tid; }); return t && !t.types.some(function(x) { return cfg.types.indexOf(x) >= 0; }); })
         .map(function(tid) { return QZ_TOPICS.find(function(x) { return x.id === tid; }).t; });
@@ -51526,9 +52345,10 @@ function startApp() {
           grp('ext', 'Из внешних источников', 'Коран и «Хисн аль-муслим»: тексты и переводы взяты из внешних источников.') +
           grp('site', 'Из текстов сайта', 'Тексты нашего сайта. Если нашли ошибку — нажмите «Сообщить об ошибке» в вопросе.') + '</div>' +
         '<div class="card"><div style="display:flex;align-items:center;gap:0.5rem"><b style="flex:1">Виды вопросов</b><button type="button" class="btn btn-sm" data-qz-all="types">выбрать все</button></div><div class="qz-grid" style="margin-top:0.4rem">' +
-          QZ_TYPES.map(function(t) { return card(cfg.types.indexOf(t.id) >= 0, 'data-qz-type="' + t.id + '"', t.ic, t.t, t.d); }).join('') + '</div>' +
-          (skipped.length ? '<div class="ayah-translation" style="color:var(--danger);margin-top:0.4rem;font-size:0.82rem">Для тем без подходящего вида вопросов не будет: ' + qzEsc(skipped.join(', ')) + '.</div>' : '') + '</div>' +
+          QZ_TYPES.map(function(t) { const dis = !noTopics && !avail.has(t.id); return dis ? card(false, 'disabled aria-disabled="true" data-qz-off="1"', t.ic, t.t, 'нет для выбранных тем') : card(cfg.types.indexOf(t.id) >= 0, 'data-qz-type="' + t.id + '"', t.ic, t.t, t.d); }).join('') + '</div>' +
+          (skipped.length ? '<div class="ayah-translation" style="color:var(--danger);margin-top:0.4rem;font-size:0.82rem">Для этих тем не отмечен ни один подходящий вид, вопросов по ним не будет: ' + qzEsc(skipped.join(', ')) + '.</div>' : '') + '</div>' +
         '<div class="card"><b>Сложность</b><div class="qz-row">' + QZ_DIFF.map(function(d) { return '<button type="button" class="btn btn-sm' + (cfg.diff === d.id ? ' btn-primary' : '') + '" data-qz-diff="' + d.id + '">' + d.t + ' · ' + d.opts + ' вар.</button>'; }).join('') + '</div>' +
+          '<div style="margin-top:0.4rem;font-size:0.82rem;line-height:1.5">' + QZ_DIFF.map(function(d) { return '<div style="' + (cfg.diff === d.id ? 'color:var(--text);font-weight:600' : 'color:var(--text-muted)') + '">' + (cfg.diff === d.id ? '▸ ' : '· ') + d.t + ': ' + d.note + '</div>'; }).join('') + '</div>' +
           '<div class="ayah-translation" style="font-size:0.78rem;margin-top:0.3rem">Чем сложнее — тем больше вариантов ответа, а числа на «сложной» нужно вводить самому. Если в вопросе вариантов меньше, показывается сколько есть.</div></div>' +
         '<div class="card"><b>Количество вопросов</b><div class="qz-row">' + QZ_COUNTS.map(function(n) { return '<button type="button" class="btn btn-sm' + (cfg.count === n ? ' btn-primary' : '') + '" data-qz-count="' + n + '">' + n + '</button>'; }).join('') +
           '<input type="number" inputmode="numeric" id="qz-count-in" min="1" max="100" placeholder="своё" value="' + (custom ? cfg.count : '') + '" style="width:5.5rem;padding:0.35rem;border-radius:0.45rem;border:1px solid ' + (custom ? 'var(--accent)' : 'var(--border)') + ';background:var(--bg);color:var(--text)"></div>' +
@@ -51543,7 +52363,7 @@ function startApp() {
       el.querySelectorAll('[data-qz-all]').forEach(function(b) {
         b.addEventListener('click', function() {
           const g = b.getAttribute('data-qz-all');
-          if (g === 'types') { cfg.types = QZ_TYPES.map(function(t) { return t.id; }); }
+          if (g === 'types') { cfg.types = QZ_TYPES.filter(function(t) { return noTopics || avail.has(t.id); }).map(function(t) { return t.id; }); }
           else { const ids = QZ_TOPICS.filter(function(t) { return t.grp === g; }).map(function(t) { return t.id; }); const all = ids.every(function(x) { return cfg.topics.indexOf(x) >= 0; }); cfg.topics = cfg.topics.filter(function(x) { return ids.indexOf(x) < 0; }); if (!all) cfg.topics = cfg.topics.concat(ids); }
           re();
         });
@@ -51565,6 +52385,7 @@ function startApp() {
       if (!preset) {
         if (!cfg.topics.length) { if (warn) warn.textContent = 'Выберите хотя бы одну тему.'; return; }
         if (!cfg.types.length) { if (warn) warn.textContent = 'Выберите хотя бы один вид вопросов.'; return; }
+        { const av = qzTypesAvail(cfg.topics); if (!cfg.types.some(function(x) { return av.has(x); })) { if (warn) warn.textContent = 'Выбранные виды вопросов не подходят к выбранным темам — отметьте доступный (не серый) вид.'; return; } }
         if (btn) btn.disabled = true;
         try { if (cfg.topics.indexOf('dua') >= 0 && typeof HISN_ITEMS === 'undefined') await loadHisnData(); } catch (e) { if (warn) warn.textContent = 'Не удалось загрузить дуа — проверьте интернет или уберите эту тему.'; if (btn) btn.disabled = false; return; }
       }
@@ -51590,8 +52411,9 @@ function startApp() {
         (cfg.timer ? '<div class="qz-bar"><i id="qz-bar-i" style="width:' + Math.max(0, Math.min(100, _qz.rem / cfg.timer * 100)) + '%"></i></div><div id="qz-sec" class="ayah-translation" style="text-align:right;font-size:0.8rem">' + Math.ceil(_qz.rem) + ' с</div>' : '') +
         '<div class="card qz-q"><div class="quiz-q" style="margin-bottom:0.5rem">' + qzEsc(q.q) + '</div>' +
         (q.ar ? '<div class="arabic" dir="rtl" style="font-size:calc(1.5rem * var(--ar-scale, 1));line-height:2.1;text-align:center">' + qzEsc(q.ar) + '</div>' : '') +
+        qzAidHtml(q, cfg.diff) +
         (q.audio ? '<div style="text-align:center;margin:0.4rem 0"><button type="button" class="btn btn-primary" id="qz-play">🔊 Слушать</button><div id="qz-audio-msg" class="ayah-translation" style="font-size:0.8rem"></div></div>' : '') +
-        (q.kind === 'build' && q.hint ? '<div class="ayah-translation" style="margin-top:0.4rem;font-size:0.85rem">Перевод: ' + qzEsc(q.hint) + '</div>' : '') + '</div>';
+        ((q.kind === 'build' && q.ar === '') ? qzAidHtml(q, cfg.diff) : '') + '</div>';
       if (q.kind === 'choice') h += '<div class="quiz-opts qz-opts">' + q.opts.map(function(o, i) { return '<button type="button" data-qz-opt="' + i + '"' + (q.type === 'choice' && /^[؀-ۿ]/.test(o.t) ? ' dir="rtl"' : '') + '>' + qzEsc(o.t) + '</button>'; }).join('') + '</div>';
       else if (q.kind === 'tf') h += '<div class="qz-row"><button type="button" class="btn" style="flex:1" data-qz-tf="1">Верно</button><button type="button" class="btn" style="flex:1" data-qz-tf="0">Неверно</button></div>';
       else if (q.kind === 'input') h += '<div class="qz-row"><input type="number" inputmode="numeric" id="qz-num" placeholder="число" style="flex:1;padding:0.6rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:1.1rem"><button type="button" class="btn btn-primary" id="qz-num-ok">Ответить</button></div>';
@@ -51654,7 +52476,7 @@ function startApp() {
       const el = document.getElementById('quiz-body'); if (!el || !_qz) return;
       const q = qzCurrent(), a = _qz.ans[_qz.i] || { ok: false }, last = _qz.i >= _qz.qs.length - 1;
       let h = '<div class="qz-top"><span>Вопрос ' + (_qz.i + 1) + ' из ' + _qz.qs.length + '</span><span style="flex:1"></span><button type="button" class="btn btn-sm" id="qz-exit">✕ Выйти</button></div>' +
-        '<div class="card qz-q"><div class="quiz-q" style="margin-bottom:0.5rem">' + qzEsc(q.q) + '</div>' + (q.ar ? '<div class="arabic" dir="rtl" style="font-size:calc(1.5rem * var(--ar-scale, 1));line-height:2.1;text-align:center">' + qzEsc(q.ar) + '</div>' : '') + '</div>';
+        '<div class="card qz-q"><div class="quiz-q" style="margin-bottom:0.5rem">' + qzEsc(q.q) + '</div>' + (q.ar ? '<div class="arabic" dir="rtl" style="font-size:calc(1.5rem * var(--ar-scale, 1));line-height:2.1;text-align:center">' + qzEsc(q.ar) + '</div>' + qzAidHtml(q, 'easy', true) : '') + '</div>';
       h += '<div class="card" style="border-color:' + (a.ok ? 'var(--success)' : 'var(--danger)') + '"><b>' + (a.ok ? '✅ Верно' : (a.timeout ? '⏰ Время вышло' : '❌ Неверно')) + '</b>' +
         (a.ok ? '' : '<div style="margin-top:0.35rem">Правильный ответ: <b' + (q.kind === 'build' ? ' dir="rtl"' : '') + '>' + qzEsc(q.correctText) + '</b></div>') +
         (q.expl ? '<div class="ayah-translation" style="margin-top:0.4rem;line-height:1.55">' + qzEsc(q.expl) + '</div>' : '') + '</div>';
@@ -51838,6 +52660,7 @@ function startApp() {
     function sgClose() {
       var o = document.getElementById('sg-ov');
       if (o) o.classList.remove('open');
+      document.documentElement.classList.remove('sg-lock'); document.body.classList.remove('sg-lock');
     }
 
     // универсальное окно: {title, body, buttons:[{label, cls, fn}], check:{label, key}, dots}
@@ -51848,16 +52671,18 @@ function startApp() {
         o.id = 'sg-ov';
         o.setAttribute('role', 'dialog');
         o.setAttribute('aria-modal', 'true');
-        o.innerHTML = '<div id="sg-card"><h3 id="sg-title"></h3><div id="sg-prog"></div><div id="sg-body"></div><label id="sg-check" style="display:none"><input type="checkbox" id="sg-check-in"><span></span></label><div id="sg-btns"></div></div>';
+        o.innerHTML = '<div id="sg-card"><button type="button" id="sg-x" aria-label="Закрыть">✕</button><h3 id="sg-title"></h3><div id="sg-prog"></div><div id="sg-body"></div><label id="sg-check" style="display:none"><input type="checkbox" id="sg-check-in"><span></span></label><div id="sg-btns"></div></div>';
         document.body.appendChild(o);
         o.addEventListener('click', function(e) { if (e.target === o && o._dismiss !== false) sgClose(); });
+        o.querySelector('#sg-x').addEventListener('click', function() { if (o._dismiss !== false) sgClose(); });
       }
       o._dismiss = cfg.dismiss !== false;
+      o.querySelector('#sg-x').style.display = o._dismiss ? '' : 'none';
       o.querySelector('#sg-title').textContent = cfg.title || '';
       o.querySelector('#sg-prog').textContent = cfg.prog || '';
       o.querySelector('#sg-prog').style.display = cfg.prog ? '' : 'none';
       var bd = o.querySelector('#sg-body');
-      bd.textContent = cfg.body || '';
+      if (cfg.html != null) { bd.innerHTML = cfg.html; bd.classList.add('sg-html'); } else { bd.textContent = cfg.body || ''; bd.classList.remove('sg-html'); }
       bd.scrollTop = 0;
       var ck = o.querySelector('#sg-check');
       if (cfg.check) {
@@ -51880,6 +52705,8 @@ function startApp() {
         bt.appendChild(el);
       });
       o.classList.add('open');
+      // пока подсказка открыта, страница под ней не прокручивается
+      document.documentElement.classList.add('sg-lock'); document.body.classList.add('sg-lock');
     }
 
     function sgGo(view) {
@@ -51887,18 +52714,48 @@ function startApp() {
       try { showView(view); } catch (e) {}
     }
 
-    function sgOverview(i) {
+    // первая строка описания раздела — для карты сайта
+    function sgOneLine(id, kk) {
+      var t = '';
+      try {
+        var H = SG_HELP[id]; if (H) t = kk ? H[1] : H[0];
+        if (!t) {
+          if (!window._secHelp) { try { renderHelp(); } catch (e) {} }
+          var m = window._secHelp, f = m && (kk ? m.kk[id] : m.ru[id]);
+          if (f) { var ls = String(f).split('\n').filter(function(x) { return x.trim(); }); t = (ls[1] || ls[0] || '').replace(/^[•\-\s]+/, ''); }
+        }
+      } catch (e) {}
+      t = String(t || '');
+      return t.length > 115 ? t.slice(0, 112) + '…' : t;
+    }
+    // «Обзор сайта» — карта всех разделов списком (в отличие от «Интерактивного тура», который идёт по шагам с подсветкой)
+    function sgOverview() {
       var kk = tourLang();
-      var n = SG_OVERVIEW.length;
-      i = Math.max(0, Math.min(n - 1, i || 0));
-      var p = SG_OVERVIEW[i];
-      var L = kk ? p.kk : p.ru;
-      var btns = [];
-      btns.push({ label: kk ? 'Артқа' : 'Назад', cls: i === 0 ? 'sg-hide' : '', fn: function() { sgOverview(i - 1); } });
-      if (p.go) btns.push({ label: kk ? 'Ашу' : 'Открыть', fn: function() { sgGo(p.go); } });
-      if (i < n - 1) btns.push({ label: kk ? 'Келесі' : 'Далее', cls: 'btn-primary', fn: function() { sgOverview(i + 1); } });
-      else btns.push({ label: kk ? 'Дайын' : 'Готово', cls: 'btn-primary', fn: sgClose });
-      sgShow({ title: L.t, body: L.b, prog: (kk ? 'Шолу · ' : 'Обзор · ') + (i + 1) + ' / ' + n, buttons: btns });
+      var LB = (kk ? (typeof SECTION_STAT_LABELS_KK !== 'undefined' ? SECTION_STAT_LABELS_KK : {}) : (typeof SECTION_STAT_LABELS !== 'undefined' ? SECTION_STAT_LABELS : {}));
+      var tabs = kk ? { dailyhub: 'Күнделікті', home: 'Сүрелер', study: 'Оқу', online: 'Онлайн', more: 'Тағы' } : { dailyhub: 'Ежедневное', home: 'Суры', study: 'Учёба', online: 'Онлайн', more: 'Ещё' };
+      var tabIc = { dailyhub: '☀️', home: '☰', study: '📖', online: '💬', more: '⋯' };
+      var GR = [['knowledge', 'Знание', 'Білім'], ['worship', 'Поклонение', 'Ғибадат'], ['quran', 'Коран', 'Құран'], ['games', 'Игры', 'Ойындар'], ['life', 'Жизнь', 'Өмір'], ['online', 'Онлайн', 'Онлайн'], ['system', 'Система', 'Жүйе']];
+      var row = function(id, ic, label) {
+        var d = sgOneLine(id, kk);
+        return '<button type="button" class="sg-row" data-sg-go="' + sgEsc(id) + '"><span class="sg-ic">' + ic + '</span><span class="sg-tx"><b>' + sgEsc(label) + '</b>' + (d ? '<small>' + sgEsc(d) + '</small>' : '') + '</span></button>';
+      };
+      var h = '<div class="sg-intro">' + (kk
+        ? 'Сайттың барлық бөлімдері тізіммен. Бөлімді басыңыз — ол ашылады. Түймелерді жарықтандырып, қадамдап көрсету — «Интерактивті тур».'
+        : 'Все разделы сайта одним списком. Нажмите раздел — он откроется. Пошаговый показ с подсветкой кнопок — это «Интерактивный тур».') + '</div>';
+      h += '<div class="sg-gh">' + (kk ? 'Төменгі қойындылар' : 'Вкладки внизу') + '</div>' + ['dailyhub', 'home', 'study', 'online', 'more'].map(function(id) { return row(id, tabIc[id], tabs[id]); }).join('');
+      GR.forEach(function(g) {
+        var items = (typeof MORE_MENU_DEFAULT !== 'undefined' ? MORE_MENU_DEFAULT : []).filter(function(it) { return it.group === g[0] && it.id !== 'storagelimits' && it.id !== 'registration' && it.id !== 'reports'; });
+        if (!items.length) return;
+        h += '<div class="sg-gh">' + (kk ? g[2] : g[1]) + '</div>' + items.map(function(it) { return row(it.id, it.icon, LB[it.id] || it.label); }).join('');
+      });
+      sgShow({
+        title: kk ? 'Сайтқа шолу' : 'Обзор сайта', html: h,
+        buttons: [
+          { label: kk ? 'Интерактивті тур' : 'Интерактивный тур', fn: function() { sgClose(); openSiteTour(); } },
+          { label: kk ? 'Жабу' : 'Закрыть', cls: 'btn-primary', fn: sgClose }
+        ]
+      });
+      document.querySelectorAll('#sg-body [data-sg-go]').forEach(function(b) { b.addEventListener('click', function() { sgGo(b.getAttribute('data-sg-go')); }); });
     }
 
     function sgCurrentViewId() {
@@ -51916,9 +52773,14 @@ function startApp() {
         name = h ? h.textContent.replace(/\s+/g, ' ').trim() : '';
       } catch (e) {}
       var H = SG_HELP[id];
-      var body;
+      var body, full = '';
+      try {
+        if (!window._secHelp) { try { renderHelp(); } catch (e) {} }
+        var m = window._secHelp; full = (m && (kk ? m.kk[id] : m.ru[id])) || '';
+      } catch (e) {}
       if (H) body = kk ? H[1] : H[0];
-      else body = kk ? 'Бұл бөлімнің қысқаша сипаттамасы әзірге жоқ. Толығырақ — «Тағы» → «Анықтама», ал сайтқа жалпы шолу — төмендегі түйме арқылы.'
+      if (full && (!body || String(full).length > String(body).length)) body = full;
+      if (!body) body = kk ? 'Бұл бөлімнің қысқаша сипаттамасы әзірге жоқ. Толығырақ — «Тағы» → «Анықтама», ал сайтқа жалпы шолу — төмендегі түйме арқылы.'
                       : 'Для этого раздела короткого описания пока нет. Подробнее — «Ещё» → «Справка», а общий обзор сайта — кнопкой ниже.';
       sgShow({
         title: name || (kk ? 'Бұл бөлім' : 'Этот раздел'),
@@ -53299,14 +54161,39 @@ function startApp() {
       }
 
       var cache = {};
+      // build 6.27: латиница (по умолчанию) строится из той же проверенной кириллической версии
+      // правилами замены букв; эмфатические (ṣ, ṭ, ḥ) при этом не различаются — «приблизительно».
+      var LATMAP = { 'а': 'a', 'б': 'b', 'в': 'w', 'г': 'gh', 'д': 'd', 'е': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'ы': 'y', 'э': 'e', 'ю': 'yu', 'я': 'ya', 'ь': '', 'ъ': '', '\u2018': '\u02BF', 'һ': 'h', 'ғ': 'gh', 'қ': 'q' };
+      function cyrToLat(t) {
+        t = String(t || '').replace(/дж/g, 'j').replace(/Дж/g, 'J');
+        var out = '';
+        for (var i = 0; i < t.length; i++) {
+          var ch = t.charAt(i), lo = ch.toLowerCase(), m = LATMAP[lo];
+          if (m === undefined) { out += ch; continue; }
+          out += (ch !== lo && m) ? m.charAt(0).toUpperCase() + m.slice(1) : m;
+        }
+        return out;
+      }
+      window.arabicToLatin = function (ar) {
+        var key = 'lat|' + ar;
+        if (cache[key] === undefined) { try { cache[key] = cyrToLat(arabicToCyr(ar, 'ru')); } catch (e) { cache[key] = ''; } }
+        return cache[key];
+      };
       window.arabicToCyr = arabicToCyr;
       window.arTrans = function (ar, kkFlag) {
-        var lang = kkFlag === undefined ? ((state.settings && state.settings.lang) === 'kk' ? 'kk' : 'ru') : (kkFlag ? 'kk' : 'ru');
+        if (kkFlag === undefined) {
+          var md = translitModeNow();
+          if (md === 'off') return '';
+          if (md === 'latin') return window.arabicToLatin(ar);
+          kkFlag = (md === 'kk');
+        }
+        var lang = kkFlag ? 'kk' : 'ru';
         var key = lang + '|' + ar;
         if (cache[key] === undefined) { try { cache[key] = arabicToCyr(ar, lang); } catch (e) { cache[key] = ''; } }
         return cache[key];
       };
-      window.translitEnabled = function () { return !(state.settings && state.settings.showTranslit === false); };
+      window.translitMode = translitModeNow;
+      window.translitEnabled = function () { return translitModeNow() !== 'off'; };
     })();
 
 
@@ -53402,4 +54289,182 @@ function startApp() {
       if (typeof saveState === 'function') saveState();
     }
   } catch (e) {}
+})();
+
+// ===== build 6.25: даты Рамадана и праздников — ежедневная проверка файла calendar-overrides.json =====
+// Календарь в сайте — таблица HIJRI_EVENTS (астрономический расчёт). Когда ДУМК утверждает даты (они могут сдвигаться на день),
+// достаточно поправить маленький файл calendar-overrides.json в репозитории — сайт раз в сутки подтянет его сам, не трогая тяжёлые файлы.
+// Формат: { "2027": { "ramadan": { "g": "2027-02-08", "gEnd": "2027-03-08" }, "eid_adha": { "g": "2027-05-16" } } }
+(function calendarOverrides() {
+  var KEY = 'quran_cal_over', DAY = 'quran_cal_over_day';
+  function apply(o) {
+    try {
+      if (typeof HIJRI_EVENTS === 'undefined' || !o || typeof o !== 'object') return;
+      Object.keys(o).forEach(function(y) {
+        if (y.charAt(0) === '_' || !o[y] || typeof o[y] !== 'object') return;
+        var arr = HIJRI_EVENTS[y] || (HIJRI_EVENTS[y] = []);
+        Object.keys(o[y]).forEach(function(k) {
+          var v = o[y][k]; if (!v || typeof v !== 'object' || !/^\d{4}-\d{2}-\d{2}$/.test(String(v.g || ''))) return;
+          var e = arr.find(function(x) { return x.key === k; });
+          if (e) Object.assign(e, v); else arr.push(Object.assign({ key: k }, v));
+        });
+      });
+    } catch (e) {}
+  }
+  try { var c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c) apply(c); } catch (e) {}
+  var today = new Date().toISOString().slice(0, 10);
+  try { if (localStorage.getItem(DAY) === today) return; } catch (e) {}
+  try {
+    fetch('calendar-overrides.json?d=' + today, { cache: 'no-store' }).then(function(r) { return r.ok ? r.json() : null; }).then(function(j) {
+      if (!j || typeof j !== 'object') return;
+      apply(j);
+      try { localStorage.setItem(KEY, JSON.stringify(j)); localStorage.setItem(DAY, today); } catch (e) {}
+      try { var v = document.querySelector('.view.active'); if (v && v.id === 'view-dailyhub' && typeof renderDailyHub === 'function') renderDailyHub(); } catch (e) {}
+    }).catch(function() {});
+  } catch (e) {}
+})();
+
+// build 6.25: при возврате на вкладку / появлении сети проверяем общий чат — подписка могла оборваться
+(function pchatResyncHooks() {
+  function go() { try { if (typeof window._pchatResync === 'function') window._pchatResync(); } catch (e) {} }
+  document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'visible') go(); });
+  window.addEventListener('online', go);
+  window.addEventListener('focus', go);
+})();
+
+
+// ========== Уведомления всем: настройки + Web Push (Supabase), без аккаунта ==========
+var PUSH_VAPID_PUBLIC = 'BOXlEEurJZd4TCtLVjucWG__BC3v8fEjIMBd7gsCzYrUpRi9JrAVV_11suVwb6krUf305o1iXehNAiDyeEVyrAw';
+var PUSH_PRAYERS = [['fajr','Фаджр','Таң'],['duha','Духа','Духа'],['dhuhr','Зухр','Бесін'],['asr','Аср','Екінті'],['maghrib','Магриб','Ақшам'],['isha','Иша','Құптан']];
+function pushPrayerOn(k) {
+  const m = state.settings && state.settings.pushPrayers;
+  if (!m || m[k] == null) return k !== 'duha';
+  return !!m[k];
+}
+function pushQuiet(d) {
+  const st = state.settings || {};
+  if (!st.quietOn || !st.quietFrom || !st.quietTo) return false;
+  const f = st.quietFrom.split(':'), t = st.quietTo.split(':');
+  const a = +f[0] * 60 + +f[1], b = +t[0] * 60 + +t[1], x = d.getHours() * 60 + d.getMinutes();
+  if (a === b) return false;
+  return a < b ? (x >= a && x < b) : (x >= a || x < b);
+}
+function pushSettingsHtml() {
+  const kk = (typeof isKk === 'function') && isKk();
+  const st = state.settings || {};
+  const L = function(r, q) { return kk ? q : r; };
+  const chips = PUSH_PRAYERS.map(function(p) {
+    const on = pushPrayerOn(p[0]);
+    return '<button type="button" class="btn btn-sm ' + (on ? 'btn-primary' : '') + '" data-pn-prayer="' + p[0] + '" style="flex:1 1 30%">' + (kk ? p[2] : p[1]) + '</button>';
+  }).join('');
+  return '<div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem"><span>' + L('О каких намазах напоминать', 'Қай намаздар туралы еске салу') + '</span>' +
+    '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">' + chips + '</div></div>' +
+    '<div class="setting-row"><span>' + L('Тихие часы (без уведомлений)', 'Тыныш уақыт (хабарламасыз)') + '</span>' +
+    '<button type="button" class="btn btn-sm ' + (st.quietOn ? 'btn-primary' : '') + '" id="pn-quiet">' + (st.quietOn ? L('Вкл', 'Қосулы') : L('Выкл', 'Өшірулі')) + '</button></div>' +
+    (st.quietOn ? '<div class="setting-row"><span>' + L('С / до', 'Бастап / дейін') + '</span><span style="display:flex;gap:0.3rem">' +
+      '<input type="time" id="pn-qf" value="' + (st.quietFrom || '23:00') + '" style="padding:0.3rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
+      '<input type="time" id="pn-qt" value="' + (st.quietTo || '05:00') + '" style="padding:0.3rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"></span></div>' : '') +
+    '<div class="setting-row"><span>' + L('Звук уведомления', 'Хабарлама дыбысы') + '</span>' +
+    '<button type="button" class="btn btn-sm ' + (st.pushSound !== false ? 'btn-primary' : '') + '" id="pn-sound">' + (st.pushSound !== false ? L('Вкл', 'Қосулы') : L('Выкл', 'Өшірулі')) + '</button></div>' +
+    '<div class="ayah-translation" id="pn-status" style="font-size:calc(0.78rem * var(--ru-scale, 1));margin-top:0.25rem;min-height:1.1rem">' +
+    L('Уведомления приходят и при закрытом сайте (аккаунт не нужен). На iPhone — только если добавить сайт на экран «Домой».', 'Хабарламалар сайт жабық болса да келеді (аккаунт керек емес). iPhone-да — сайтты «Басты экранға» қосқанда ғана.') + '</div>';
+}
+function pushB64ToU8(b) {
+  const pad = '='.repeat((4 - b.length % 4) % 4);
+  const raw = atob((b + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  const o = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) o[i] = raw.charCodeAt(i);
+  return o;
+}
+function pushBuildSchedule() {
+  const loc = state.prayerLoc || state.prayerLocSaved;
+  if (!loc || loc.lat == null || typeof resolveDayTimes !== 'function') return [];
+  const kk = (typeof isKk === 'function') && isKk();
+  const mk = (state.settings && state.settings.prayerMethod) || 'DUMK';
+  const lead = Math.max(0, Math.min(30, +(state.settings.prayerNotifLead || 10)));
+  const out = [], now = Date.now();
+  for (let d = 0; d < 7; d++) {
+    const day = new Date(); day.setDate(day.getDate() + d);
+    let t; try { t = resolveDayTimes(+loc.lat, +loc.lon, day, mk); } catch (e) { continue; }
+    if (!t) continue;
+    PUSH_PRAYERS.forEach(function(p) {
+      const k = p[0]; if (!pushPrayerOn(k) || !t[k] || t[k] === '--:--') return;
+      const hm = String(t[k]).split(':');
+      const when = new Date(day.getFullYear(), day.getMonth(), day.getDate(), +hm[0], +hm[1], 0, 0);
+      const nm = kk ? p[2] : p[1];
+      const offs = (k !== 'duha' && lead > 0) ? [lead, 0] : [0];
+      offs.forEach(function(o) {
+        const at = new Date(when.getTime() - o * 60000);
+        if (at.getTime() < now || pushQuiet(at)) return;
+        out.push({ t: at.getTime(),
+          title: o ? (kk ? (lead + ' минуттан соң · ' + nm) : ('Через ' + lead + ' мин · ' + nm)) : (nm + ' · ' + t[k]),
+          body: (loc.city || (kk ? 'Намаз' : 'Намаз')) + (o ? (kk ? ' — дайындалыңыз' : ' — подготовьтесь') : ''),
+          tag: 'pray-' + k + '-' + o + '-' + at.getDate() });
+      });
+    });
+  }
+  return out;
+}
+async function pushSync(forceAsk) {
+  const stEl = function(m) { const e = document.getElementById('pn-status'); if (e && m) e.textContent = m; };
+  const kk = (typeof isKk === 'function') && isKk();
+  try {
+    if (!state.settings || !state.settings.prayerNotif) { await pushUnsub(); return; }
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      stEl(kk ? 'Бұл браузер фондық хабарламаны қолдамайды — сайт ашық кезде ғана.' : 'Этот браузер не умеет фоновые уведомления — только пока сайт открыт.'); return;
+    }
+    if (Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: pushB64ToU8(PUSH_VAPID_PUBLIC) });
+    const j = sub.toJSON();
+    const sb = (typeof getSb === 'function') ? getSb() : null;
+    if (!sb) return;
+    const r = await sb.rpc('push_register', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth,
+      p_silent: (state.settings.pushSound === false), p_schedule: pushBuildSchedule() });
+    if (r && r.error) stEl(kk ? 'Серверге жазу болмады: ' + r.error.message : 'Не удалось записаться на сервер: ' + r.error.message);
+    else stEl(kk ? '✓ Фондық хабарлама қосулы' : '✓ Фоновые уведомления включены');
+  } catch (e) { stEl((kk ? 'Қате: ' : 'Ошибка: ') + (e && e.message || e)); }
+}
+async function pushUnsub() {
+  try {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration(); if (!reg) return;
+    const sub = await reg.pushManager.getSubscription(); if (!sub) return;
+    const sb = getSb(); if (sb) await sb.rpc('push_unregister', { p_endpoint: sub.endpoint });
+    await sub.unsubscribe();
+  } catch (e) {}
+}
+(function pushUiInit() {
+  let tm = null;
+  function later() { clearTimeout(tm); tm = setTimeout(function() { try { saveState(); schedulePrayerNotifications(); pushSync(); } catch (e) {} }, 600); }
+  function rerender() { try { if (typeof renderPrayerTimes === 'function') renderPrayerTimes(); } catch (e) {} }
+  document.addEventListener('click', function(ev) {
+    const t = ev.target && ev.target.closest ? ev.target.closest('[data-pn-prayer],#pn-quiet,#pn-sound,#pt-notif') : null;
+    if (!t) return;
+    const st = state.settings;
+    if (t.id === 'pt-notif') { setTimeout(function() { pushSync(); }, 1200); return; }
+    if (t.dataset.pnPrayer) {
+      st.pushPrayers = st.pushPrayers || {};
+      const k = t.dataset.pnPrayer; st.pushPrayers[k] = !pushPrayerOn(k);
+      t.classList.toggle('btn-primary', st.pushPrayers[k]);
+    } else if (t.id === 'pn-quiet') {
+      st.quietOn = !st.quietOn; if (!st.quietFrom) { st.quietFrom = '23:00'; st.quietTo = '05:00'; }
+      later(); setTimeout(rerender, 100); return;
+    } else if (t.id === 'pn-sound') {
+      st.pushSound = (st.pushSound === false); t.classList.toggle('btn-primary', st.pushSound !== false);
+      t.textContent = st.pushSound !== false ? (isKk() ? 'Қосулы' : 'Вкл') : (isKk() ? 'Өшірулі' : 'Выкл');
+    }
+    later();
+  });
+  document.addEventListener('change', function(ev) {
+    const id = ev.target && ev.target.id;
+    if (id === 'pn-qf') state.settings.quietFrom = ev.target.value;
+    else if (id === 'pn-qt') state.settings.quietTo = ev.target.value;
+    else if (id === 'pt-lead') { setTimeout(function() { pushSync(); }, 800); return; }
+    else return;
+    later();
+  });
+  window.addEventListener('load', function() { setTimeout(function() { pushSync(); }, 5000); });
+  document.addEventListener('visibilitychange', function() { if (!document.hidden) setTimeout(function() { pushSync(); }, 1500); });
 })();
