@@ -787,6 +787,7 @@ _applyAriaLabelsFromTitles();
       const themePickerTitleEl = document.getElementById('theme-picker-title');
       if (themePickerTitleEl) themePickerTitleEl.textContent = isKk ? '🌓 Тақырыпты таңдаңыз' : '🌓 Выберите тему';
       try { if (typeof applyFontsizePickerLang === 'function') applyFontsizePickerLang(); } catch(eFp) {}
+      try { if (typeof hdrTongueLang === 'function') hdrTongueLang(); } catch(eHt) {}
 
       document.querySelectorAll('[data-i18n]').forEach(el => {
         const k = el.getAttribute('data-i18n');
@@ -2239,6 +2240,56 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         }
         renderHeaderBtnsOrder();
         applyHeaderBtnsLayout();
+      } catch(e) {}
+    }
+    // build 6.28: шапку можно свернуть — язычок ⌃/⌄ у нижнего края шапки или жест (шапку вверх — спрятать, язычок вниз — вернуть)
+    function hdrMeasure() {
+      try {
+        var hd = document.querySelector('header'); if (!hd) return;
+        var col = document.body.classList.contains('hdr-collapsed');
+        var h = hd.offsetHeight || 64;
+        document.documentElement.style.setProperty('--hdr-h', h + 'px');
+        document.documentElement.style.setProperty('--hdr-vis', (col ? 0 : h) + 'px');
+      } catch(e) {}
+    }
+    function hdrTongueLang() {
+      try {
+        var kk = typeof isKk === 'function' && isKk();
+        var col = document.body.classList.contains('hdr-collapsed');
+        var b = document.getElementById('hdr-tongue');
+        if (b) { var tt = col ? (kk ? 'Жоғарғы панельді көрсету' : 'Показать шапку') : (kk ? 'Жоғарғы панельді жасыру' : 'Свернуть шапку'); b.title = tt; b.setAttribute('aria-label', tt); b.textContent = col ? '⌄' : '⌃'; }
+        var l = document.getElementById('setting-hdr-collapsed-label');
+        if (l) l.textContent = kk ? 'Жоғарғы панельді жасыру (қайтару — жоғарыдағы ⌄ тілшесі немесе оны төмен тарту)' : 'Свернуть шапку (вернуть — язычок ⌄ вверху или потянуть его вниз)';
+      } catch(e) {}
+    }
+    function hdrSetCollapsed(v, save) {
+      hdrMeasure();
+      document.body.classList.toggle('hdr-collapsed', !!v);
+      if (save !== false) { try { localStorage.setItem('quran_hdr_collapsed', v ? '1' : '0'); } catch(e) {} }
+      var cb = document.getElementById('setting-hdr-collapsed'); if (cb) cb.checked = !!v;
+      hdrMeasure(); hdrTongueLang();
+    }
+    function initHeaderTongue() {
+      try {
+        if (window._hdrTongueInit) return; window._hdrTongueInit = true;
+        var hd = document.querySelector('header'), tg = document.getElementById('hdr-tongue');
+        if (!hd || !tg) return;
+        var saved = false; try { saved = localStorage.getItem('quran_hdr_collapsed') === '1'; } catch(e) {}
+        hdrSetCollapsed(saved, false);
+        window.addEventListener('resize', hdrMeasure);
+        var skipClick = false;
+        tg.addEventListener('click', function(e) { e.stopPropagation(); if (skipClick) { skipClick = false; return; } hdrSetCollapsed(!document.body.classList.contains('hdr-collapsed')); });
+        var y0 = null;
+        tg.addEventListener('touchstart', function(e) { y0 = e.touches[0].clientY; }, { passive: true });
+        tg.addEventListener('touchend', function(e) { if (y0 == null) return; var dy = e.changedTouches[0].clientY - y0; y0 = null;
+          var col = document.body.classList.contains('hdr-collapsed');
+          if (col && dy > 12) { hdrSetCollapsed(false); skipClick = true; } else if (!col && dy < -12) { hdrSetCollapsed(true); skipClick = true; } });
+        var hy = null, hx = null;
+        hd.addEventListener('touchstart', function(e) { if (e.target === tg) return; hy = e.touches[0].clientY; hx = e.touches[0].clientX; }, { passive: true });
+        hd.addEventListener('touchend', function(e) { if (hy == null) return; var dy = e.changedTouches[0].clientY - hy, dx = e.changedTouches[0].clientX - hx; hy = null;
+          if (dy < -30 && Math.abs(dy) > Math.abs(dx) * 1.5 && !document.body.classList.contains('hdr-collapsed')) hdrSetCollapsed(true); });
+        var cb = document.getElementById('setting-hdr-collapsed');
+        if (cb) cb.addEventListener('change', function() { hdrSetCollapsed(cb.checked); });
       } catch(e) {}
     }
     var HEADER_BTN_MAX_VISIBLE = 6;
@@ -5045,7 +5096,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     })();
 
     // ----- группы чтецов (учебные сверху, затем для слушания) -----
-    function _isStudyReciter(id) { return id === 'ar.husarymuallim'; }
+    function _isStudyReciter(id) { return ['ar.husarymuallim', 'ar.husary', 'ar.minshawi', 'ar.abdulsamad'].indexOf(id) >= 0; } /* учебные: муаллим и мураттал (ровное чтение по правилам); муджаввад и остальные — для слушания */
     function reciterGroups() {
       var list = (typeof RECITER_LIST !== 'undefined') ? RECITER_LIST : [];
       return [
@@ -14288,7 +14339,9 @@ function renderDictation(area) {
       grasp: { c: [0.35, 0.42, 0.42, 0.42, 0.45], sp: 14 },
       flat: { c: [0.08, 0.02, 0.02, 0.02, 0.03], sp: 0 },
       thigh: { c: [0.1, 0.06, 0.06, 0.08, 0.1], sp: 0 },
-      point: { c: [0.1, -0.45, 0.06, 0.08, 0.1], sp: 0 }
+      point: { c: [0.1, -0.45, 0.06, 0.08, 0.1], sp: 0 },
+      knee: { c: [0.2, 0.16, 0.16, 0.18, 0.2], sp: 14 }, // руку': ладонь на колене, пальцы раздвинуты и мягко облегают колено, не кулак
+      tash: { c: [0.55, -0.3, 0.55, 0.75, 0.75], sp: 0, ta: 1 } // ташаххуд (ханафи): большой и средний — «кольцо», безымянный и мизинец сжаты, указательный поднят
     };
     const SALAH_POSES_ANIM = (function() {
       const P = {};
@@ -14301,14 +14354,14 @@ function renderDictation(area) {
       // руки ниже пупка (build 6.29: локти у боков, предплечья почти горизонтально): правая ладонь на тыльной стороне левой, мизинец и
       // большой палец обхватывают левое запястье
       P.fold = _sPose(P.stand, { head: 168,
-        R: { grip: { y: 0.19, rb: 0.13, lim: 1.0, lw: 3, over: 0.16 }, w: { at: 'pelvis', o: [21.5, 18, 3] }, pole: [0, -0.95, 0.3], hd: [94, -80], tb: [0, 0, -1] },
-        L: { w: { at: 'pelvis', o: [17, 16, 5] }, pole: [0, -0.95, 0.3], hd: [92, -78], tb: [0, 1, 0] } });
+        R: { grip: { y: 0.15, /* build 6.29: кисти ниже пупка — предплечья идут к локтям чуть вверх, правое проходит над пальцами левой */ rb: 0.16, lim: 0.9, lw: 10, lat: 1.0, out: 0.015, wl: 0.01, dn: 0, pd: 0, pb: 0.5, ph: 0 } /* build 6.29 (сверено с кадром видео): правая кисть чуть выше левой, пальцы горизонтально вдоль левого предплечья; левая ладонь под ней тоже горизонтально */ /* build 6.29: правая кисть продолжает линию предплечья (запястье ~30°, не излом 80°), ладонь на левом запястье, пальцы обхватывают его */, w: { at: 'pelvis', o: [21.5, 18, 3] }, pole: [0.1, -0.9, 0.7] /* build 6.29: локоть у бока, а не в сторону — как на видео */, hd: [94, -80], tb: [0, 0, -1] },
+        L: { w: { at: 'pelvis', o: [14, 16, 5] }, pole: [-0.1, -0.9, 0.5], hd: [92, -78], tb: [0, 1, 0] } });
       // руку‘: спина расправлена, голова вровень с крестцом, взгляд на верх
       // стоп, ладони обхватывают колени, пальцы раздвинуты, руки отведены от боков
-      const rk = { w: { at: 'knee', o: [5, 8, 3] }, pole: [-0.2, 0.2, 1], hd: [6, 2], tb: [0.3, 0, -1] };
-      P.ruku = _sPose(P.stand, { torso: 90, head: 112, // build 6.25: голова чуть приподнята над линией спины (взгляд к стопам), шея не висит
-        R: Object.assign({}, rk, { th: [-8, -2], sh: [6, -1], ft: [83.5, 0] }),
-        L: Object.assign({}, rk, { th: [-8, -2], sh: [6, -1], ft: [62, 0] }) });
+      const rk = { w: { at: 'knee', o: [5, 3, 3] }, /* build 6.33: руки прямые, ладони на коленях */ pole: [-1, 0.6, 0.6], hd: [6, 2], tb: [0.3, 0, -1] };
+      P.ruku = _sPose(P.stand, { torso: 90, head: 110, /* build 6.33: спина горизонтальна (крестец и шея на одной высоте), голова опущена — взгляд на верх стоп; таз ~10 см за пятками, ноги почти отвесно (как на видео) */ // build 6.31: спина почти горизонтальна и лишь слегка поднимается к плечам (~6° над горизонталью) — без «жирафьего» подъёма; голова продолжает линию спины, взгляд к стопам
+        R: Object.assign({}, rk, { th: [4, -2], sh: [6, -1], ft: [83.5, 0] }), // build 6.31: таз чуть отведён назад, ноги прямые с лёгким наклоном — как на видео
+        L: Object.assign({}, rk, { th: [4, -2], sh: [6, -1], ft: [62, 0] }) });
       // спуск в суджуд: колени → ладони → нос → лоб
       const kneeLeg = { th: [24, -2], sh: [-106, -1], ft: [8, 0], to: [92, 0] };
       P.kneel = _sPose(P.stand, { torso: 166, head: 168,
@@ -14325,10 +14378,10 @@ function renderDictation(area) {
         L: Object.assign({}, sj, kneeLeg, { th: [0, -2] }) });
       // сидение (ифтираш): на левой стопе, правая стоит на пальцах к кибле,
       // ладони на бёдрах, пальцы вытянуты
-      const sitArm = { w: { at: 'thigh', o: [-6, 5.5, 2] }, pole: [-0.4, 0, 1], hd: [100, -3], tb: [0.1, 0.3, -1] }; // build 6.29: ладони ложатся на ткань бедра, пальцы не висят
+      const sitArm = { w: { at: 'thigh', o: [-6, 12.5, 2] }, pole: [-0.4, 0, 1], hd: [100, -3], tb: [0.1, 0.3, -1] }; // build 6.29: ладони ложатся на ткань бедра, пальцы не висят
       P.sit = _sPose(P.stand, { torso: 162, head: 160, tipT: 1.14, // build 6.29: корпус чуть вперёд — локти согнуты, кончики пальцев у колен
-        R: Object.assign({}, sitArm, { th: [76, 7], sh: [-98, 3], ft: [40, 0], to: [92, 0], pitch: 60 }),
-        L: Object.assign({}, sitArm, { th: [76, 7], sh: [-90, 3], ft: [-95, 6], to: [-95, 6] }) });
+        R: Object.assign({}, sitArm, { th: [76, 2], sh: [-98, 3], ft: [40, 0], to: [92, 0], pitch: 60 }),
+        L: Object.assign({}, sitArm, { th: [76, 2], sh: [-92, 10], ft: [-100, -5], to: [-106, -8] } /* build 6.33: левая стопа продолжает линию голени назад (щиколотка ~17°, без излома), подошва вверх; колени ближе (как на видео) */) }); /* build 6.31: левая стопа плавно повернута пальцами вправо */ // build 6.30: левая стопа подстелена тыльной стороной вниз, пальцы назад и чуть внутрь — без вывиха в щиколотке
       // ташаххуд: указательный поднимается на «ля иляха» и опускается на
       // «илля-Ллах»; остальные пальцы лежат вытянутыми на бедре
       P.sitFinger = _sPose(P.sit, { finger: 1 });
@@ -14340,9 +14393,9 @@ function renderDictation(area) {
         L: { w: { at: 'knee', o: [4, 6, 3] }, pole: [-0.2, 0.2, 1], hd: [40, 0], tb: [0.2, 0, -1], th: [58, -2], sh: [-22, -1], ft: [36, 0], to: [90, 0] } });
       // пальцы по позам
       const setFg = function(P0, r, l) { P0.R.fg = JSON.parse(JSON.stringify(SALAH_FG[r])); P0.L.fg = JSON.parse(JSON.stringify(SALAH_FG[l || r])); };
-      setFg(P.stand, 'rest'); setFg(P.takbir, 'natural'); setFg(P.fold, 'foldR', 'foldL'); setFg(P.ruku, 'grasp');
+      setFg(P.stand, 'rest'); setFg(P.takbir, 'natural'); setFg(P.fold, 'foldR', 'foldL'); setFg(P.ruku, 'knee');
       setFg(P.kneel, 'thigh'); setFg(P.hands, 'flat'); setFg(P.sajda, 'flat'); setFg(P.sit, 'thigh'); setFg(P.rise, 'grasp');
-      setFg(P.sitFinger, 'point', 'thigh');
+      setFg(P.sitFinger, 'tash', 'thigh');
       P.sitRing = _sPose(P.sit, {}); setFg(P.sitRing, 'thigh');
       setFg(P.salamR, 'thigh'); setFg(P.salamL, 'thigh');
       // build 6.05: дуа после намаза (распространённая практика, не часть намаза): сидя, ладони раскрыты к небу перед грудью
@@ -14867,7 +14920,7 @@ function renderDictation(area) {
       }
     };
     function salahDetailSvg(id, kk, fem) {
-      const f = SALAH_DETAILS[id];
+      const f = SALAH_DETAILS[id] || (id === 'fingerRest' ? SALAH_DETAILS.finger : null);
       if (!f) return '';
       // женская версия: вся одежда на рисунках — свободная ткань женской фигуры (никаких рубахи и штанов)
       const keep = fem ? Object.assign({}, _SD) : null;
@@ -14883,7 +14936,7 @@ function renderDictation(area) {
       return '<div><img src="salah-details/' + id + '.webp" alt="" loading="lazy" style="width:100%;aspect-ratio:6/7;object-fit:cover;display:block;border-radius:0.45rem 0.45rem 0 0" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">' +
         '<div style="display:none">' + svgHtml + '</div></div>';
     }
-    const SALAH_DETAIL_IMG = { ears: 1, fold: 1, knee: 1, sajdaHands: 1, sajdaFeet: 1, iftirash: 1, finger: 1, stance: 1, shouldersF: 1, foldF: 1, sajdaHandsF: 1, tawarrukF: 1 };
+    const SALAH_DETAIL_IMG = { ears: 1, fold: 1, knee: 1, sajdaHands: 1, sajdaFeet: 1, iftirash: 1, fingerRest: 1, finger: 1, stance: 1, shouldersF: 1, foldF: 1, sajdaHandsF: 1, tawarrukF: 1 };
 
     // Пояснения к рисункам «крупно» — текстом под рисунком
     const SALAH_DETAIL_NOTES = {
@@ -14899,8 +14952,10 @@ function renderDictation(area) {
               kk: ['Бүйірден көрініс, киім мөлдір.', 'Аяқ саусақтары еденге тіреледі, құбылаға қарайды.'] },
       iftirash: { ru: ['Вид сверху-сбоку, одежда прозрачная.', 'Левая стопа подстелена — на ней сидят.', 'Правая стопа стоит на пальцах, пальцы обращены к кибле.', 'Так сидят в первом и в последнем сидении (ку‘уд).'],
               kk: ['Жоғарыдан-бүйірден көрініс, киім мөлдір.', 'Сол табан төселген — соның үстіне отырады.', 'Оң табан саусақ ұшында тұрады, саусақтар құбылаға қарайды.', 'Бірінші және соңғы отырыста осылай отырады.'] },
-      finger: { ru: ['Кисть лежит на бедре.', 'На «ля иляха» указательный палец правой руки поднимается, на «илля-Ллах» — опускается.'],
-              kk: ['Қол санда жатады.', '«Лә иләһә» дегенде оң қолдың сұқ саусағы көтеріледі, «иллаллаһ» дегенде түсіріледі.'] },
+      fingerRest: { ru: ['Почти весь ташаххуд обе кисти лежат на бёдрах, пальцы вытянуты к коленям.', 'Палец поднимается только на словах «ля иляха».'],
+              kk: ['Тәшәһһудтың басым бөлігінде екі қол да санда жатады, саусақтар тізеге қарай созылған.', 'Саусақ тек «лә иләһә» дегенде көтеріледі.'] },
+      finger: { ru: ['На «ля иляха» указательный палец правой руки поднимается; большой и средний — «кольцо».', 'На «илля-Ллах» палец опускается, и кисть снова лежит, как на первом рисунке.'],
+              kk: ['«Лә иләһә» дегенде оң қолдың сұқ саусағы көтеріледі; бас бармақ пен ортан саусақ — «сақина».', '«Иллаллаһ» дегенде саусақ түседі, қол бірінші суреттегідей қайта жатады.'] },
       shouldersF: { ru: ['Вид спереди.', 'Женщина поднимает руки до уровня плеч, ладони обращены к кибле.', 'Пальцы в естественном положении — не сжаты и не растопырены.'],
               kk: ['Алдынан көрініс.', 'Әйел қолын иық деңгейіне дейін көтереді, алақан құбылаға қарайды.', 'Саусақтар табиғи күйде — қысылмаған да, ашылмаған да.'] },
       foldF: { ru: ['Вид спереди: руки — на груди.', 'Правая ладонь лежит на тыльной стороне левой кисти.', 'Без «кольца»: мизинец и большой палец запястье не обхватывают.'],
@@ -14942,6 +14997,10 @@ function renderDictation(area) {
       host.appendChild(renderer.domElement);
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(34, 1 / 0.97, 1, 3000);
+      const fitSize = function() { /* build 6.28: высоту сцены можно ограничить (фигура сверху, текст снизу) — кадр шире, фигура не искажается */
+        const w = host.clientWidth || W0, mh = +host.getAttribute('data-maxh') || 0, h = Math.round(mh ? Math.min(w * 0.97, Math.max(200, mh)) : w * 0.97);
+        renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); };
+      fitSize();
       scene.add(new THREE.HemisphereLight(0xe6eeff, 0x4a3426, 1.25));
       const sun = new THREE.DirectionalLight(0xfff6ea, 2.4);
       sun.position.set(110, 260, 170);
@@ -14964,7 +15023,6 @@ function renderDictation(area) {
       g.lineWidth = 3; g.strokeRect(42, 42, 746, 246);
       g.fillStyle = '#8f2a36'; g.beginPath(); g.moveTo(600, 70); g.lineTo(690, 70);
       g.arc(690, 165, 95, -Math.PI / 2, Math.PI / 2); g.lineTo(600, 260); g.closePath(); g.fill(); g.lineWidth = 4; g.stroke();
-      for (let i = 0; i < 9; i++) { g.fillStyle = 'rgba(217,164,65,0.35)'; g.beginPath(); g.arc(110 + i * 55, 165, 6, 0, Math.PI * 2); g.fill(); }
       const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
       const matTop = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 });
       const matSide = M(0x4a1019, 0.95);
@@ -15150,7 +15208,7 @@ function renderDictation(area) {
           gazeCone.quaternion.setFromUnitVectors(UP, V3(dvec));
           gazeCone.material.opacity = Math.min(1, gazeK);
         }
-        glow.visible = (pose && pose.finger || 0) > 0.3;
+        glow.visible = false; // build 6.30: без жёлтой подсветки пальца
         if (glow.visible) { glow.position.copy(I.indexTip); glow.material.opacity = 0.45 * pose.finger; }
         const pel = v3(I.pelvis), hc = v3(I.headC);
         let want = [(pel[0] + hc[0]) / 2 * 0.6 + 45 * 0.4, Math.max(20, (pel[1] + hc[1]) / 2 * 0.82), 0];
@@ -15162,6 +15220,7 @@ function renderDictation(area) {
         const dist = 375 / (view.zoom || 1);
         camera.position.set(target[0] + Math.sin(yw) * Math.cos(el) * dist, target[1] + Math.sin(el) * dist, target[2] + Math.cos(yw) * Math.cos(el) * dist);
         camera.lookAt(target[0], target[1], target[2]);
+        if (typeof floor !== 'undefined' && floor.material) floor.material.opacity = 0.28 * Math.max(0, Math.min(1, (view.el - 8) / 22)); // build 6.31: при взгляде сбоку тень на «полу» за ковриком не висит в воздухе
         if (view.panX || view.panY) { camera.translateX(view.panX || 0); camera.translateY(view.panY || 0); } // build 6.25: свободный сдвиг камеры двумя пальцами
         renderer.render(scene, camera);
         return Math.hypot(target[0] - want[0], target[1] - want[1]) > 0.3;
@@ -15226,7 +15285,7 @@ function renderDictation(area) {
           gazeCone.quaternion.setFromUnitVectors(UP, V3(dvec));
           gazeCone.material.opacity = Math.min(1, gazeK);
         }
-        glow.visible = body.finger > 0.3 && !!P.R._indexTip;
+        glow.visible = false;
         if (glow.visible) { glow.position.set(P.R._indexTip[0], P.R._indexTip[1], P.R._indexTip[2]); glow.material.opacity = 0.45 * body.finger; }
         // камера: вращение по горизонтали и вертикали, приближение
         const cx = (body.pelvis[0] + body.headC[0]) / 2 * 0.6 + 45 * 0.4;
@@ -15240,14 +15299,12 @@ function renderDictation(area) {
         const dist = 375 / (view.zoom || 1);
         camera.position.set(target[0] + Math.sin(yw) * Math.cos(el) * dist, target[1] + Math.sin(el) * dist, target[2] + Math.cos(yw) * Math.cos(el) * dist);
         camera.lookAt(target[0], target[1], target[2]);
+        if (typeof floor !== 'undefined' && floor.material) floor.material.opacity = 0.28 * Math.max(0, Math.min(1, (view.el - 8) / 22)); // build 6.31: при взгляде сбоку тень на «полу» за ковриком не висит в воздухе
         if (view.panX || view.panY) { camera.translateX(view.panX || 0); camera.translateY(view.panY || 0); } // build 6.25: свободный сдвиг камеры двумя пальцами
         renderer.render(scene, camera);
         return Math.hypot(target[0] - want[0], target[1] - want[1]) > 0.3;
       }
-      function resize() {
-        const w = host.clientWidth || W0;
-        renderer.setSize(w, Math.round(w * 0.97));
-      }
+      function resize() { fitSize(); }
       function dispose() {
         try { if (model) model.dispose(); } catch (e) {}
         try { renderer.dispose(); } catch (e) {}
@@ -15293,7 +15350,18 @@ function renderDictation(area) {
       const bones = H.bones.map(function(b) { const o = new THREE.Bone(); o.name = b.n; o.position.fromArray(b.p); o.quaternion.fromArray(b.q); o.scale.fromArray(b.s); return o; });
       H.bones.forEach(function(b, i) { (b.pa >= 0 ? bones[b.pa] : arm).add(bones[i]); });
       const B = {}; bones.forEach(function(b) { B[b.name] = b; });
+      // build 6.32: пропорции пальцев — см. ниже (растяжение в привязке кожи, без масштаба костей)
       const invA = arr('boneInv'); const inverses = bones.map(function(_, i) { return new THREE.Matrix4().fromArray(Array.from(invA.subarray(i * 16, i * 16 + 16))); });
+      { /* build 6.32: пропорции фаланг как у живой руки (у модели три фаланги почти равны — пальцы «сосиски»): основная длиннее, средняя и концевая короче.
+           Каждая фаланга растягивается вдоль своей оси в привязке кожи, а следующий сустав сдвигается на новую длину — толщина пальца и сгибы не искажаются. */
+        const K = { thumb: [1, 0.9, 0.675], index: [1.233, 0.835, 0.734], middle: [1.176, 0.913, 0.643], ring: [1.152, 0.943, 0.646], pinky: [1.149, 0.724, 0.871] };
+        const ix = {}; bones.forEach(function(b, i) { ix[b.name] = i; });
+        ['_r', '_l'].forEach(function(sx) { Object.keys(K).forEach(function(f) {
+          const ns = [f + '_01', f + '_02', f + '_03', f + '_04_leaf'];
+          for (let j = 0; j < 3; j++) { const k = K[f][j], a = ix[ns[j] + sx], c = B[ns[j + 1] + sx]; if (a == null || !c || k === 1) continue;
+            c.position.multiplyScalar(k); inverses[a].premultiply(new THREE.Matrix4().makeScale(1, k, 1)); }
+          if (f === 'thumb') ['thumb_02', 'thumb_03'].forEach(function(n) { const a = ix[n + sx]; if (a != null) inverses[a].premultiply(new THREE.Matrix4().makeScale(1.12, 1, 1.12)); }); }); });
+      }
       const skeleton = new THREE.Skeleton(bones, inverses);
       const bindM = new THREE.Matrix4().fromArray(H.bind);
       const col = function(c) { return new THREE.Color(c); };
@@ -15316,22 +15384,58 @@ function renderDictation(area) {
       // build 6.27: цвета как на рисунках — мужчина: голубая рубаха и светлые брюки; женщина: тёмно-синее платье и розовый платок
       const bodyColors = new Uint8Array(arr('bodyCol'));
       { // build 6.29: у запястья ткань тела перекрашивается в цвет кожи — при повороте кисти она не торчит из рукава светлыми «лоскутами»
-        const skI = arr('bodySkI'), skW = arr('bodySkW'), hb = [], sc = new THREE.Color(H.colors.skin);
-        H.bones.forEach(function(b, i) { if (b.n === 'hand_r' || b.n === 'hand_l') hb.push(i); });
+        const skI = arr('bodySkI'), skW = arr('bodySkW'), hb = [], sc = new THREE.Color(H.colors.skin); var neckColV = []; /* build 6.31: вершины шеи под воротом: стоя — кожа, в наклоне — ткань */
+        H.bones.forEach(function(b, i) { if (b.n === 'hand_r' || b.n === 'hand_l' || (!FEM && /^lowerarm/.test(b.n))) hb.push(i); }); /* build 6.32: у мужчины предплечье под рукавом тоже кожа — в проёме рукава не видно белой «рубашки», нарисованной на модели */
+        { // build 6.30: голова и шея — ровный цвет кожи (у модели волосы, борода и ворот рубашки нарисованы по вершинам «рваными» зубцами), стопы — кожа без зубцов брюк
+          const hd = [], ft = [], cl = [], tr = new THREE.Color('#283450');
+          const nk = []; H.bones.forEach(function(b, i) { if (/^Head/.test(b.n)) hd.push(i); if (/^neck/.test(b.n)) nk.push(i); if (/^(foot|ball)/.test(b.n)) ft.push(i); if (/^calf/.test(b.n)) cl.push(i); });
+          // низ брюк — ровная горизонтальная кромка у щиколотки (по высоте вершины, а не по смешанным весам костей)
+          const bp = arr('bodyPos'), nV = bp.length / 3; let upAx = 1;
+          { const avg = function(set, ax) { let t = 0, n = 0; for (let v = 0; v < nV; v++) { let w = 0, tw2 = 0; for (let k = 0; k < 4; k++) { tw2 += skW[v * 4 + k]; if (set.indexOf(skI[v * 4 + k]) >= 0) w += skW[v * 4 + k]; } if (tw2 && w / tw2 > 0.9) { t += bp[v * 3 + ax]; n++; } } return n ? t / n : 0; };
+            let best = 0; for (let ax = 0; ax < 3; ax++) { const d = Math.abs(avg(hd, ax) - avg(ft, ax)); if (d > best) { best = d; upAx = ax; } } }
+          const upSg = (function() { let a = 0, b = 0, na = 0, nb = 0; for (let v = 0; v < nV; v++) { const i0 = skI[v * 4]; if (hd.indexOf(i0) >= 0) { a += bp[v * 3 + upAx]; na++; } if (ft.indexOf(i0) >= 0) { b += bp[v * 3 + upAx]; nb++; } } return (na && nb && a / na < b / nb) ? -1 : 1; })();
+          let ankle = -1e9; for (let v = 0; v < nV; v++) { let w = 0, tw2 = 0; for (let k = 0; k < 4; k++) { tw2 += skW[v * 4 + k]; if (ft.indexOf(skI[v * 4 + k]) >= 0) w += skW[v * 4 + k]; } if (tw2 && w / tw2 > 0.97) ankle = Math.max(ankle, bp[v * 3 + upAx] * upSg); }
+          for (let v = 0; v < bodyColors.length / 3; v++) { let wh = 0, wf = 0, wc = 0, tw = 0;
+            let wn = 0; for (let k = 0; k < 4; k++) { const w = skW[v * 4 + k], b = skI[v * 4 + k]; tw += w; if (nk.indexOf(b) >= 0) wn += w; if (hd.indexOf(b) >= 0) wh += w; if (ft.indexOf(b) >= 0) wf += w; if (cl.indexOf(b) >= 0) wc += w; }
+            if (!tw || FEM) continue;
+            let c = null; if (wh / tw >= 0.5) c = sc; else if (wn / tw >= 0.5) { c = new THREE.Color(H.colors.cloth); neckColV.push(v); } /* шея под воротом — цвет ткани, не торчит пятнами */ else if ((wf + wc) / tw >= 0.5) c = sc; // стопа — кожа, голень — брюки, граница по весам (ровная)
+            if (c) { bodyColors[v * 3] = Math.round(c.r * 255); bodyColors[v * 3 + 1] = Math.round(c.g * 255); bodyColors[v * 3 + 2] = Math.round(c.b * 255); } } }
         for (let v = 0; v < bodyColors.length / 3; v++) { let w = 0, tw = 0;
           for (let k = 0; k < 4; k++) { tw += skW[v * 4 + k]; if (hb.indexOf(skI[v * 4 + k]) >= 0) w += skW[v * 4 + k]; }
-          if (tw > 0 && w / tw >= 0.12) { bodyColors[v * 3] = Math.round(sc.r * 255); bodyColors[v * 3 + 1] = Math.round(sc.g * 255); bodyColors[v * 3 + 2] = Math.round(sc.b * 255); } } }
+          if (tw > 0 && w / tw >= 0.05) { bodyColors[v * 3] = Math.round(sc.r * 255); bodyColors[v * 3 + 1] = Math.round(sc.g * 255); bodyColors[v * 3 + 2] = Math.round(sc.b * 255); } } }
             const body = mkSkinned(arr('bodyPos'), arr('bodyIdx'), arr('bodySkI'), arr('bodySkW'), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }), arr('bodyNrm'), bodyColors);
-      const clothMat = new THREE.MeshStandardMaterial({ color: col(FEM ? '#b7c3d9' : H.colors.cloth), roughness: 0.93, metalness: 0, side: THREE.DoubleSide });
+            if (!FEM) { /* build 6.32: у модели на предплечье у запястья вылеплен рваный край рубашки (зубцы) — под рукавом они прорезали ткань; сглаживаем их до толщины запястья */
+              const pa = body.geometry.attributes.position, skI2 = arr('bodySkI'), skW2 = arr('bodySkW'), bI = bindM.clone().invert(), dbg = [];
+              ['_r', '_l'].forEach(function(sx) { const ia = bones.indexOf(B['lowerarm' + sx]), ih = bones.indexOf(B['hand' + sx]), armB = []; bones.forEach(function(b, i) { if (new RegExp('^lowerarm_twist.*' + sx + '$').test(b.name)) armB.push(i); }); /* + кости скручивания предплечья — их зубцы тоже */
+                const pL = V().setFromMatrixPosition(inverses[ia].clone().invert()), pH = V().setFromMatrixPosition(inverses[ih].clone().invert()), ax = pH.clone().sub(pL), fl = ax.length(); ax.divideScalar(fl);
+                const list = [], rs = [];
+                for (let v = 0; v < pa.count; v++) { let w = 0, tw = 0; for (let k = 0; k < 4; k++) { tw += skW2[v * 4 + k]; const b = skI2[v * 4 + k]; if (b === ia || b === ih || armB.indexOf(b) >= 0) w += skW2[v * 4 + k]; } if (!tw || w / tw < 0.6) continue;
+                  const p = V(pa.getX(v), pa.getY(v), pa.getZ(v)).applyMatrix4(bindM), d = p.clone().sub(pH), t = -d.dot(ax) / fl; if (t < -0.02 || t > 0.35) continue; const rad = d.clone().addScaledVector(ax, -d.dot(ax)); const r = rad.length(); list.push([v, p, t, rad, r]); if (t > 0.02 && t < 0.25) rs.push(r); }
+                rs.sort(function(a, b) { return a - b; }); const med = rs.length ? rs[Math.floor(rs.length * 0.7)] : 0; let n = 0;
+                list.forEach(function(e) { const lim = med * (1 + 1.0 * Math.max(0, e[2] - 0.15) + 8 * Math.max(0, 0.03 - e[2])); /* build 6.32: у самой кисти — плавный переход, без ступеньки (она давала острый лоскут при сгибе) */ if (e[4] > lim && e[4] > 1e-6) { const p = e[1].clone().addScaledVector(e[3], lim / e[4] - 1).applyMatrix4(bI); pa.setXYZ(e[0], p.x, p.y, p.z); n++; } });
+                dbg.push([sx, +fl.toFixed(3), +med.toFixed(4), rs.length, n]); });
+              pa.needsUpdate = true; }
+      const clothMat = new THREE.MeshStandardMaterial({ color: col(FEM ? '#b7c3d9' : H.colors.cloth), roughness: 0.93, metalness: 0, side: THREE.DoubleSide, polygonOffset: !FEM, polygonOffsetFactor: 3, polygonOffsetUnits: 25 }); // build 6.30: у мужской одежды глубина чуть отодвинута — кисти и пальцы не прячутся под тканью
       const scarfMat = new THREE.MeshStandardMaterial({ color: col('#c9d3e6'), roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
       // лицо-маска и тюбетейка — на кости головы
       { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr('facePos')), 3)); g.setIndex(new THREE.BufferAttribute(new Uint16Array(arr('faceIdx')), 1)); g.computeVertexNormals();
-        const f = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col(H.colors.skin), roughness: 0.8, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
-        new THREE.Matrix4().fromArray(H.faceM).decompose(f.position, f.quaternion, f.scale); B.Head.add(f); }
-      let kufi;
+        const f = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col(H.colors.skin), roughness: 0.8, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -70 }));
+        new THREE.Matrix4().fromArray(H.faceM).decompose(f.position, f.quaternion, f.scale); f.position.add(V(0, 0.006, 0.006)); B.Head.add(f); } // build 6.30: маска лица чуть вперёд — черты лица не проступают
+      let kufi; const KUFI_T = 0.56, KUFI_C = 0.93, KUFI_G = 0.012, KUFI_S = 60;
       if (!FEM) {
-        kufi = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: col(H.colors.cap), roughness: 0.9 }));
-        new THREE.Matrix4().fromArray(H.kufiM).decompose(kufi.position, kufi.quaternion, kufi.scale); kufi.castShadow = true; B.Head.add(kufi);
+        kufi = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI * KUFI_T), new THREE.MeshStandardMaterial({ color: col(H.colors.cap), roughness: 0.9 }));
+        new THREE.Matrix4().fromArray(H.kufiM).decompose(kufi.position, kufi.quaternion, kufi.scale); kufi.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.15)); kufi.scale.multiply(new THREE.Vector3(1.06, 1.04, 1.1)); /* край спереди ровный — зубцы волос на лбу закрыты */ { /* build 6.29: шапка облегает голову: купол по каждому направлению прижимается к коже (+4 мм) и сглаживается — сзади и по бокам ничего не висит */
+          try { root.updateMatrixWorld(true); if (body.skeleton) body.skeleton.update(); B.Head.add(kufi); kufi.updateWorldMatrix(true, false);
+            const skI = arr('bodySkI'), skW = arr('bodySkW'), hi = H.bones.findIndex(function(b) { return b.n === 'Head'; }), hp = [], vq = V(), inv_ = new THREE.Matrix4().copy(kufi.matrixWorld).invert();
+            const ni = H.bones.findIndex(function(b) { return /^neck/.test(b.n); });
+            B.Head.children.forEach(function(m) { if (!m.isMesh || m === kufi || !m.geometry || !m.geometry.attributes.position) return; m.updateWorldMatrix(true, false); const ps = m.geometry.attributes.position; for (let j = 0; j < ps.count; j++) { vq.set(ps.getX(j), ps.getY(j), ps.getZ(j)).applyMatrix4(m.matrixWorld).applyMatrix4(inv_); if (vq.y > -0.3) hp.push(vq.clone()); } });
+            for (let v = 0; v < skI.length / 4; v++) { let w = 0; for (let k = 0; k < 4; k++) if (skI[v * 4 + k] === hi || skI[v * 4 + k] === ni) w += skW[v * 4 + k]; if (w < 0.6) continue; body.getVertexPosition(v, vq); vq.applyMatrix4(body.matrixWorld).applyMatrix4(inv_); if (vq.y > -0.3) hp.push(vq.clone()); }
+            const fl = V(0, 0, 1).transformDirection(inv_).normalize(); /* спереди шапка свободнее, сзади плотно */ const g = kufi.geometry, pa = g.attributes.position, n = pa.count, rr = new Float32Array(n), dd = [], sc = (kufi.scale.x + kufi.scale.y + kufi.scale.z) / 3;
+            for (let i = 0; i < n; i++) { const d = V(pa.getX(i), pa.getY(i), pa.getZ(i)).normalize(); dd.push(d); let m = 0; for (let j = 0; j < hp.length; j++) { const l = hp[j].length(); if (l > 1e-6 && hp[j].dot(d) / l > KUFI_C) m = Math.max(m, l); } const fw = Math.max(0, Math.min(1, d.dot(fl) * 1.2 + 0.4)); rr[i] = m > 0 ? Math.min(1.08, m + (d.y < 0.25 && fw < 0.5 ? 0.0025 : 0.003 + (KUFI_G - 0.003) * fw) / sc) : 1; }
+            const nb = []; for (let i = 0; i < n; i++) nb.push([]); const ix = g.index.array; for (let k = 0; k < ix.length; k += 3) for (let a = 0; a < 3; a++) { const x = ix[k + a], y = ix[k + (a + 1) % 3]; nb[x].push(y); nb[y].push(x); }
+            const r0 = rr.slice(); for (let it = 0; it < KUFI_S; it++) { const c = rr.slice(); for (let i = 0; i < n; i++) { let s = 0; nb[i].forEach(function(j) { s += c[j]; }); const av = nb[i].length ? s / nb[i].length : c[i]; rr[i] = Math.max(r0[i], av); } }
+            for (let i = 0; i < n; i++) { const p = dd[i].clone().multiplyScalar(rr[i]); pa.setXYZ(i, p.x, p.y, p.z); }
+            pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); } catch (e) {} } /* build 6.29: тюбетейка сидит ровнее — задний край выше, не свисает за затылок */ kufi.castShadow = true; B.Head.add(kufi);
       } else {
         // build 6.21: женский головной убор — капюшон-химар из той же ткани: закрывает волосы, шею и спускается на плечи; открыто только лицо
         const prof0 = [[0.228, 0], [0.226, 0.035], [0.217, 0.06], [0.202, 0.08], [0.182, 0.094], [0.15, 0.105], [0.12, 0.11], [0.09, 0.109], [0.06, 0.103], [0.03, 0.097], [0.0, 0.093], [-0.03, 0.09], [-0.08, 0.092]]; // build 6.27: по размерам головы модели (ширина ±0.09, макушка 0.21)
@@ -15376,13 +15480,19 @@ function renderDictation(area) {
       // build 6.27: у основания шеи сетка тела расширяется «воронкой» с рваным краем (трапеции) — выше воротника она торчала клочьями; срезаем её ниже узкой части шеи
       { const nb = B.neck_01.getWorldPosition(V()), hb = B.Head.getWorldPosition(V()), ax = hb.clone().sub(nb).normalize(), vv = V();
         const pos = body.geometry.attributes.position, ix = body.geometry.index.array, tt = new Float32Array(pos.count), rr = new Float32Array(pos.count);
-        for (let i = 0; i < pos.count; i++) { body.getVertexPosition(i, vv); vv.applyMatrix4(body.matrixWorld); const d = vv.clone().sub(nb); tt[i] = d.dot(ax); rr[i] = d.addScaledVector(ax, -tt[i]).length(); }
-        const keepIx = [];
+        const zz = new Float32Array(pos.count); for (let i = 0; i < pos.count; i++) { body.getVertexPosition(i, vv); vv.applyMatrix4(body.matrixWorld); const d = vv.clone().sub(nb); tt[i] = d.dot(ax); d.addScaledVector(ax, -tt[i]); rr[i] = d.length(); zz[i] = rr[i] > 1e-6 ? d.z / rr[i] : 0; }
+        var HEM_T = 0.06; /* build 6.31: низ штанины выше щиколотки (сунна) — край не пересекает стопу ни в одной позе */
+        const calfV = new Uint8Array(pos.count); if (!FEM) { const skI = arr('bodySkI'), skW = arr('bodySkW'); for (let v = 0; v < pos.count; v++) { let bi = -1, bw = 0; for (let k = 0; k < 4; k++) if (skW[v * 4 + k] > bw) { bw = skW[v * 4 + k]; bi = skI[v * 4 + k]; } if (bi >= 0 && /^calf/.test(H.bones[bi].n)) calfV[v] = 1; }
+          /* build 6.31: кожа голени скрыта только ВНУТРИ штанины — по расстоянию вдоль голени от щиколотки (а не по высоте над полом), поэтому шов кожи всегда под тканью в любой позе */
+          const vq = V(), sideAx = {}; ['_r', '_l'].forEach(function(sx) { const f = B['foot' + sx].getWorldPosition(V()), c = B['calf' + sx].getWorldPosition(V()); sideAx[sx] = { f: f, d: c.clone().sub(f).normalize() }; });
+          for (let v = 0; v < pos.count; v++) { calfV[v] = 0; let bi = -1, bw = 0; for (let k = 0; k < 4; k++) if (skW[v * 4 + k] > bw) { bw = skW[v * 4 + k]; bi = skI[v * 4 + k]; } const nm = bi >= 0 ? H.bones[bi].n : ''; const mm = /^(calf|foot|ball)(.*)?(_[rl])$/.exec(nm); if (!mm) continue;
+            const ax = sideAx[mm[3]]; body.getVertexPosition(v, vq); vq.applyMatrix4(body.matrixWorld); if (vq.clone().sub(ax.f).dot(ax.d) > HEM_T + 0.045) calfV[v] = 1; } } /* build 6.31: голень под штаниной скрыта — штанина отдельная гладкая труба */
+        const keepIx = [], keepBent = [], keepGhost = []; /* build 6.31: в наклоне убираются и клочья кожи шире шеи у воротника (стоя они закрыты воротником и нужны) */
         for (let i = 0; i < ix.length; i += 3) { const a = ix[i], b2 = ix[i + 1], c = ix[i + 2], t = (tt[a] + tt[b2] + tt[c]) / 3, r = (rr[a] + rr[b2] + rr[c]) / 3;
-          if (t < 0.07 && t > -0.35 && r < 0.25) continue; keepIx.push(a, b2, c); }
-        body.geometry.setIndex(new THREE.BufferAttribute(new Uint16Array(keepIx), 1)); }
+          if (t < 0.07 && t > -0.35 && r < 0.25) continue; keepGhost.push(a, b2, c); if (calfV[a] + calfV[b2] + calfV[c] >= 1) continue; if (!(t >= 0.07 && t < 0 && r > 1)) keepIx.push(a, b2, c); if (!(t >= 0.07 && t < 0.095 && r > 0.07)) keepBent.push(a, b2, c); }
+        body.userData.ixStand = new THREE.BufferAttribute(new Uint16Array(keepIx), 1); body.userData.ixBent = new THREE.BufferAttribute(new Uint16Array(keepBent), 1); body.userData.ixGhost = new THREE.BufferAttribute(new Uint16Array(keepGhost), 1); body.geometry.setIndex(body.userData.ixStand); }
       // ---- покой ----
-      { ['hand_r', 'hand_l'].forEach(function(n) { B[n].scale.setScalar(FEM ? 0.9 : 0.92); }); root.updateMatrixWorld(true); } // build 6.29: и мужские кисти мельче (были крупнее руки) // build 6.28: женские кисти мельче и тоньше
+      { ['hand_r', 'hand_l'].forEach(function(n) { B[n].scale.setScalar(FEM ? 0.9 : 0.96); }); root.updateMatrixWorld(true); } if (!FEM) { ['_r', '_l'].forEach(function(sx) { B['lowerarm' + sx].position.multiplyScalar(1.14); B['hand' + sx].position.multiplyScalar(1.08); }); root.updateMatrixWorld(true); } /* build 6.33: руки модели были ~10 см короче нормы (запястье на 54% роста вместо ~49%) — в кыяме рука почти выпрямлялась и локоть уходил внутрь */ /* build 6.32: мужская кисть ≈10,8% роста (антропометрическая норма) */ // build 6.29: и мужские кисти мельче (были крупнее руки) // build 6.28: женские кисти мельче и тоньше
       const wp = function(n) { return B[n].getWorldPosition(V()); };
       const rest = {}; bones.forEach(function(b) { rest[b.name] = { q: b.getWorldQuaternion(new THREE.Quaternion()), lq: b.quaternion.clone(), p: wp(b.name) }; });
       const yAxis = function(n) { return V(0, 1, 0).applyQuaternion(rest[n].q); };
@@ -15414,6 +15524,12 @@ function renderDictation(area) {
       };
       const vtx = V();
       const bodyVert = function(i) { body.getVertexPosition(i, vtx); return vtx.applyMatrix4(body.matrixWorld); };
+      // build 6.30: вершины кожи кистей (по главной кости) — ткань в сидении опускается строго под них
+      const handVI = { _r: [], _l: [] }, legVI = [], neckVI = []; { const skI = arr('bodySkI'), skW = arr('bodySkW'), nm = H.bones.map(function(b) { return b.n; });
+        for (let v = 0; v < skI.length / 4; v++) { let bi = -1, bw = 0; for (let k = 0; k < 4; k++) if (skW[v * 4 + k] > bw) { bw = skW[v * 4 + k]; bi = skI[v * 4 + k]; }
+          const m = bi >= 0 ? /^(hand|thumb|index|middle|ring|pinky)(_.*)?_([rl])$/.exec(nm[bi] || '') : null; const m2 = (!m && bi >= 0) ? /^lowerarm(_twist.*)?_([rl])$/.exec(nm[bi] || '') : null;
+          if (m) handVI['_' + m[3]].push(v); else if (m2) handVI['_' + m2[2]].push(-1 - v);
+          else if (bi >= 0 && /^(thigh|calf)/.test(nm[bi] || '')) legVI.push(v); else if (bi >= 0 && /^(neck|spine_03|clavicle)/.test(nm[bi] || '')) neckVI.push(v); } }
       // пальцы: сгиб по фалангам + развод (sp, градусы) у основания
       const setFingers = function(sx, fg) {
         const c = fg ? fg.c : [0.2, 0.18, 0.22, 0.28, 0.32], sp = (fg && fg.sp) || 0;
@@ -15421,7 +15537,7 @@ function renderDictation(area) {
         ['thumb', 'index', 'middle', 'ring', 'pinky'].forEach(function(f, k) {
           const ax = fax[f + sx];
           const segs = f === 'thumb' ? ['thumb_02', 'thumb_03'] : [f + '_01', f + '_02', f + '_03'];
-          const amp = f === 'thumb' ? [0.5, 0.9] : [1.25, 1.55, 1.0];
+          const amp = f === 'thumb' ? [0.5, 0.9] : (fg && fg.amp ? (Array.isArray(fg.amp) ? fg.amp : (fg.amp[f] || [1.25, 1.55, 1.0])) : [1.25, 1.55, 1.0]);
           segs.forEach(function(n, j) {
             const bn = B[n + sx];
             const ck = c[k] < 0 ? (j === 0 ? Math.max(-1.1, c[k]) * 0.9 : 0.02) : c[k]; // build 6.29: поднятый палец гнётся только в основании, остальные суставы прямые
@@ -15583,7 +15699,7 @@ function renderDictation(area) {
           // подаются вперёд, а корпус чуть ниже горизонтали (спина остаётся прямой,
           // голова — на одной линии со спиной)
           let best = null;
-          for (let dt = 0; dt <= 12; dt += 2) for (let cf = 0.08; cf <= 0.57; cf += 0.07) {
+          for (let dt = 0; dt <= 0; dt += 2) /* build 6.30: спина в руку‘ горизонтальна, как на видео */ for (let cf = 0.21; cf <= 0.21; cf += 0.07) { /* плечи чуть вперёд-вниз: ладони на коленях, локти слегка согнуты */
             root.position.y = 0; setTorso(P.torso + dt, P.head + dt); setLegs(null); clavF = cf; root.updateMatrixWorld(true);
             armsPass(null); const e = Math.max(miss.R, miss.L), sc = Math.max(0, e - 0.006) * 20 + dt * 0.002 + cf * 0.01;
             if (!best || sc < best.sc) best = { sc: sc, dt: dt, cf: cf, e: e };
@@ -15627,7 +15743,7 @@ function renderDictation(area) {
           const pel = wp('pelvis'), s1 = wp('spine_01');
           const ax0 = V(s1.x, 0, (pel.z + s1.z) / 2), hY = pel.y + (P.R.grip.y || 0.095); let Rb = P.R.grip.rb || 0.13;
           const radv = function(p) { const v = p.clone().sub(ax0); v.y = 0; return v; };
-          const rL = fwd.clone().multiplyScalar(Rb).addScaledVector(latR, -0.045).normalize();
+          const rL = fwd.clone().multiplyScalar(Rb).addScaledVector(latR, -0.02).normalize(); /* build 6.29: кисти сходятся по центру — локти симметричны */
           { // build 6.29: радиус живота берётся по настоящей ткани камиса (луч), чтобы левая ладонь лежала на животе, а не висела перед ним
             const keepR = P.R.w, keepL = P.L.w; P.R.w = { at: 'sh', o: [0, -60, 30] }; P.L.w = { at: 'sh', o: [0, -60, 30] };
             armsPass(null); root.updateMatrixWorld(true); robeNoHand = true; buildRobe(); robe.updateMatrixWorld(true); robeNoHand = false;
@@ -15635,18 +15751,21 @@ function renderDictation(area) {
             if (hs.length) Rb = 0.5 - hs[0].distance;
             if (window.__GRIPM) window.__GRIPM.push(['belly', Rb]);
             P.R.w = keepR; P.L.w = keepL; }
-          const Lw = ax0.clone().setY(hY).addScaledVector(rL, Rb + 0.012);
+          const Lw = ax0.clone().setY(hY).addScaledVector(rL, Rb + 0.012); /* build 6.29: левая ладонь прижата к животу */
           const w0 = { R: P.R.w, L: P.L.w };
           P.L.w = { abs: Lw }; P.R.w = { abs: Lw.clone().addScaledVector(rL, 0.03).addScaledVector(latR, 0.05).addScaledVector(up, 0.012) };
           armsPass(null); root.updateMatrixWorld(true);
           const fa = wp('hand_r').sub(wp('lowerarm_r')).normalize(), lf = wp('lowerarm_l').sub(wp('hand_l')).normalize();
           const rN = radv(Lw).normalize();
-          let dR = perpTo(fa.clone().addScaledVector(lf, P.R.grip.lw || 2), rN);
+          let dR = perpTo(fa.clone().addScaledVector(lf, P.R.grip.lw || 2).addScaledVector(up, -(P.R.grip.dn || 0)), rN); /* build 6.33: правая кисть идёт наискось вниз и обхватывает левое запястье (как на видео) */
+          if (P.R.grip.lat) dR = perpTo(latR.clone().negate().addScaledVector(lf, P.R.grip.lat).addScaledVector(up, -(P.R.grip.dn || 0)), rN); /* build 6.29: правая ладонь на тыльной стороне левой кисти, пальцы к левому локтю — предплечья почти на одной линии поперёк живота (как на видео) */
           const lim = P.R.grip.lim || 0.8; if (dR.angleTo(fa) > lim) { const axq = new THREE.Vector3().crossVectors(fa, dR).normalize(); dR = perpTo(fa.clone().applyAxisAngle(axq, lim), rN); }
           let outR = P.R.grip.out || 0.045;
           const fgL = [0.12, 0, 0, 0, 0];
           for (let pass = 0; pass < 3; pass++) {
-          P.R.w = { abs: Lw.clone().addScaledVector(rL, outR).addScaledVector(dR, -0.048).addScaledVector(up, -0.015).addScaledVector(V(lf.x, 0, lf.z).normalize(), -(P.R.grip.over != null ? P.R.grip.over : 0.035)) }; // сдвиг только по горизонтали — кисти не опускаются P.L.w = { abs: Lw }; // ладонь ближе к кисти левой руки — закрывает её тыльную сторону
+          { /* build 6.33: правая ладонь лежит прямо на левом запястье (центр ладони — на запястье, снаружи), обе кисти на животе; левая кисть остаётся на животе на всех проходах */
+            P.L.w = { abs: Lw }; const Wl = Lw.clone().addScaledVector(V(lf.x, 0, lf.z).normalize(), P.R.grip.wl != null ? P.R.grip.wl : 0.015), nW = radv(Wl).normalize();
+            P.R.w = { abs: Wl.clone().addScaledVector(nW, outR).addScaledVector(dR, -(P.R.grip.pc != null ? P.R.grip.pc : 0.05)).addScaledVector(up, P.R.grip.ph || 0) }; }
           armsPass(null); root.updateMatrixWorld(true);
           P.R.w = w0.R; P.L.w = w0.L;
           { // запястье сгибается не больше ~23° от линии предплечья, иначе кожа у запястья ломается
@@ -15654,71 +15773,75 @@ function renderDictation(area) {
             if (dR.angleTo(fa2) > lim2) { const axq = new THREE.Vector3().crossVectors(fa2, dR).normalize(); dR = fa2.clone().applyAxisAngle(axq, lim2); } }
           const fe0 = wp('lowerarm_r'), fe1 = wp('hand_r'), feL = fe0.distanceTo(fe1), fed = fe1.clone().sub(fe0).normalize();
           // левая кисть: ладонью к животу, пальцы вправо по животу
-          const dL = perpTo(latR.clone().addScaledVector(up, 0.05), radv(wp('hand_l')).normalize());
+          const dL = perpTo(latR.clone().addScaledVector(fwd, -0.8).addScaledVector(up, -0.8), /* build 6.29: пальцы левой уходят вниз под правое запястье — не проходят сквозь правую руку */ /* build 6.29: пальцы левой огибают живот */ radv(wp('hand_l')).normalize()); /* build 6.33: левая кисть горизонтально на животе, пальцы вправо и огибают живот — правое предплечье лежит поверх неё */
           handFacing('_l', dL, perpTo(up, dL), radv(wp('hand_l')).normalize().negate());
           { let bc = 0, be = 1e9;
-            for (let c = 0; c <= 0.2; c += 0.02) { fgL[1] = c; fgL[2] = c; fgL[3] = c * 1.05; fgL[4] = c * 1.1; setFingers('_l', { c: fgL, sp: 0 }); B.hand_l.updateMatrixWorld(true);
+            for (let c = 0; c <= 0.35; c += 0.02) { fgL[1] = c; /* build 6.29: левая кисть ничего не держит — пальцы расслаблены, не кулак */ fgL[2] = c; fgL[3] = c * 1.05; fgL[4] = c * 1.1; setFingers('_l', { c: fgL, sp: 0, amp: [1.5, 0.7, 0.3] }); B.hand_l.updateMatrixWorld(true);
               let e = c * 0.02;
               ['index', 'middle', 'ring', 'pinky'].forEach(function(f) { e += Math.abs(radv(wp(f + '_04_leaf_l')).length() - (Rb + 0.01));
                 [f + '_02_l', f + '_03_l', f + '_04_leaf_l'].forEach(function(n) { const q = wp(n); e += Math.max(0, Rb + 0.006 - radv(q).length()) * 4;
-                  if (pass > 0) { const t = Math.min(1, Math.max(0, q.clone().sub(fe0).dot(fed) / feL)); if (t > 0.02) e += Math.max(0, 0.054 - q.distanceTo(fe0.clone().addScaledVector(fed, t * feL))) * 6; } }); });
+                  if (pass > 0) { const t = Math.min(1, Math.max(0, q.clone().sub(fe0).dot(fed) / feL)); if (t > 0.02) { const pa = fe0.clone().addScaledVector(fed, t * feL); e += Math.max(0, 0.055 - q.distanceTo(pa)) * 30 + Math.max(0, radv(q).length() - (radv(pa).length() - 0.03)) * 30; } /* build 6.29: пальцы левой подгибаются под правое предплечье, а не протыкают правый рукав */ } }); });
               if (e < be) { be = e; bc = c; } }
-            fgL[1] = bc; fgL[2] = bc; fgL[3] = bc * 1.05; fgL[4] = bc * 1.1; setFingers('_l', { c: fgL, sp: 0 }); B.hand_l.updateMatrixWorld(true); }
+            fgL[1] = bc; fgL[2] = bc; fgL[3] = bc * 1.05; fgL[4] = bc * 1.1; setFingers('_l', { c: fgL, sp: 0, amp: [1.5, 0.7, 0.3] }); B.hand_l.updateMatrixWorld(true); }
           const palmR = wp('hand_r').lerp(wp('middle_01_r'), 0.5);
           { // большой палец левой руки прижат к кисти и под правым предплечьем, не торчит сквозь рукав
             const t1 = B.thumb_01_l, ax1 = fax.thumb_l; let bA = 0, bC = fgL[0], bE = 1e9;
             for (let aa = -1.4; aa <= 1.4; aa += 0.1) for (let cc = 0; cc <= 0.9; cc += 0.05) {
-              fgL[0] = cc; setFingers('_l', { c: fgL, sp: 0 }); t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, aa)); B.hand_l.updateMatrixWorld(true);
+              fgL[0] = cc; setFingers('_l', { c: fgL, sp: 0, amp: [1.5, 0.7, 0.3] }); t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, aa)); B.hand_l.updateMatrixWorld(true);
               let e = Math.abs(aa) * 0.002 + cc * 0.002;
               ['thumb_02_l', 'thumb_03_l', 'thumb_04_leaf_l'].forEach(function(n) { const q = wp(n); e += Math.max(0, Rb + 0.004 - radv(q).length()) * 4;
                 const t = Math.min(1, Math.max(0, q.clone().sub(fe0).dot(fed) / feL)); e += Math.max(0, 0.056 - q.distanceTo(fe0.clone().addScaledVector(fed, t * feL))) * 6; });
               e += Math.abs(radv(wp('thumb_04_leaf_l')).length() - (Rb + 0.012)) * 0.5; e += Math.max(0, wp('thumb_04_leaf_l').y - wp('hand_l').y + 0.01) * 2 + Math.max(0, wp('thumb_04_leaf_l').distanceTo(palmR) - 0.03) * 0.6 + Math.max(0, radv(wp('thumb_04_leaf_l')).length() - radv(wp('hand_l')).length()) * 3; // палец вниз и под правой ладонью — не торчит «шестым пальцем»
               if (e < bE) { bE = e; bA = aa; bC = cc; } }
-            fgL[0] = bC; setFingers('_l', { c: fgL, sp: 0 }); t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, bA)); B.hand_l.updateMatrixWorld(true); }
+            if (!FEM) { bA = 0.6; bC = 0.3; } /* build 6.29: большой палец левой руки лежит вдоль ладони на животе — не протыкает рукав */
+            fgL[0] = bC; setFingers('_l', { c: fgL, sp: 0, amp: [1.5, 0.7, 0.3] }); t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, bA)); B.hand_l.updateMatrixWorld(true); }
           // правое предплечье (в рукаве) лежит поверх пальцев левой руки, а не проходит сквозь них
           { const e0 = wp('lowerarm_r'), e1 = wp('hand_r'), eL = e0.distanceTo(e1), ed = e1.clone().sub(e0).normalize(); let def = 0;
             ['index', 'middle', 'ring', 'pinky', 'thumb'].forEach(function(f) { [f + '_02_l', f + '_03_l', f + '_04_leaf_l'].forEach(function(n) {
               const q = wp(n), t = Math.min(1, Math.max(0, q.clone().sub(e0).dot(ed) / eL)); if (t <= 0.02) return;
-              const dd = 0.054 - q.distanceTo(e0.clone().addScaledVector(ed, t * eL)); if (dd > def) { def = dd; if (window.__GRIPM) window.__GRIPM.push(['worst', n, dd, t]); } }); });
+              const pa = e0.clone().addScaledVector(ed, t * eL), dd = Math.max(0.042 - q.distanceTo(pa), radv(q).length() - (radv(pa).length() - 0.025)); /* build 6.29: пальцы левой должны быть ПОД правым предплечьем (ближе к животу), а не перед ним */ if (dd > def) { def = dd; if (window.__GRIPM) window.__GRIPM.push(['worst', n, dd, t]); } }); });
             if (window.__GRIPM) window.__GRIPM.push(['overlap', pass, def, outR, miss.R, miss.L]);
-            if (def < 0.003 || pass === 2) break; outR = Math.min(outR + def * 0.5, 0.075); }
+            if (def < 0.003 || pass === 2) break; outR = Math.min(outR + def * 0.9, 0.04); /* build 6.29: правая ладонь лежит НА левом запястье (центр ладони ~4,7 см от оси запястья), а не висит перед ним */ /* build 6.29: правая ладонь прижата к левой кисти, а не висит перед ней */ }
           }
           // правая кисть: ладонью на тыльную сторону левой, пальцы к левому локтю
           const a0 = wp('lowerarm_l'), a1 = wp('hand_l'), aL = a0.distanceTo(a1), ax = a1.clone().sub(a0).normalize();
           { // ладонь правой руки смотрит на левое предплечье (обхват), а не просто к животу
             const pcR = wp('hand_r').lerp(wp('middle_01_r'), 0.5), tq = Math.min(1, Math.max(0, pcR.clone().sub(a0).dot(ax) / aL));
             const toArm = a0.clone().lerp(a1, tq).sub(pcR).normalize();
-            handFacing('_r', dR, perpTo(up, dR), toArm.lerp(radv(wp('hand_r')).normalize().negate(), P.R.grip.pb != null ? P.R.grip.pb : 0.3).normalize()); }
+            handFacing('_r', dR, perpTo(up, dR), toArm.lerp(radv(wp('hand_r')).normalize().negate(), P.R.grip.pb != null ? P.R.grip.pb : 0.3).normalize().addScaledVector(up, -(P.R.grip.pd || 0)).normalize()); /* build 6.29: правая ладонь сверху на левом запястье (ладонь вниз-к телу), а не ребром */ }
           root.updateMatrixWorld(true);
           const segD = function(pt) { const t = Math.min(1, Math.max(0, pt.clone().sub(a0).dot(ax) / aL)); return { d: pt.distanceTo(a0.clone().lerp(a1, t)), t: t }; };
-          const Rw = 0.046, fgc = [0.2, 0.1, 0.1, 0.1, 0.2];
+          const AMPR = { index: [1.4, 0.55, 0.25], middle: [1.4, 0.55, 0.25], ring: [1.4, 0.55, 0.25] } /* build 6.29: три пальца правой почти прямые и лежат вдоль левого предплечья (сгиб в основании), а не кулак */, Rw = 0.032, fgc = [0.2, 0.1, 0.1, 0.1, 0.2];
           const cost1 = function(f, tgt) {
             const jn = f === 'thumb' ? ['thumb_03', 'thumb_04_leaf'] : [f + '_02', f + '_03', f + '_04_leaf'];
             let pen = 0;
-            jn.forEach(function(n) { const pt = wp(n + '_r'), q = segD(pt); if (q.t > 0.02 && q.t < 0.99) pen += Math.max(0, Rw + 0.005 - q.d) * 5; pen += Math.max(0, Rb - 0.004 - radv(pt).length()) * 5; });
-            return pen + Math.abs(segD(wp(f + '_04_leaf_r')).d - tgt);
+            const Rf = function(tt) { return (1 - tt) * aL < 0.05 ? 0.03 : 0.05; }; /* build 6.29: у запястья (рукав подтянут) обхват по коже, дальше — по рукаву */ jn.forEach(function(n) { const pt = wp(n + '_r'), q = segD(pt); if (q.t > 0.02 && q.t < 0.99) pen += Math.max(0, Rf(q.t) + 0.004 - q.d) * 5; pen += Math.max(0, Rb - 0.004 - radv(pt).length()) * 5; });
+            const qe = segD(wp(f + '_04_leaf_r')); return pen + Math.abs(qe.d - Rf(qe.t) - 0.006);
           };
           const fit = function(f, lo, hi, tgt, apply) {
             let bc = lo, be = 1e9;
-            for (let c = lo; c <= hi + 1e-6; c += 0.02) { apply(c); setFingers('_r', { c: fgc, sp: 0 }); B.hand_r.updateMatrixWorld(true);
+            for (let c = lo; c <= hi + 1e-6; c += 0.02) { apply(c); setFingers('_r', { c: fgc, sp: 0, amp: AMPR }); B.hand_r.updateMatrixWorld(true);
               const e = cost1(f, tgt) + c * 0.03; if (e < be - 1e-9) { be = e; bc = c; } }
-            apply(bc); setFingers('_r', { c: fgc, sp: 0 }); B.hand_r.updateMatrixWorld(true);
+            apply(bc); setFingers('_r', { c: fgc, sp: 0, amp: AMPR }); B.hand_r.updateMatrixWorld(true);
           };
-          fit('middle', 0, 0.24, Rw + 0.012, function(c) { fgc[1] = c * 0.95; fgc[2] = c; fgc[3] = c * 1.05; });
+          fit('middle', 0.15, 1.2, Rw - 0.008, /* build 6.29: правая ладонь лежит на левом запястье, три пальца вдоль левого предплечья (не чашкой в воздухе) */ function(c) { fgc[1] = c * 0.75; fgc[2] = c; fgc[3] = c * 1.05; });
           // точка «под» левым запястьем (со стороны, противоположной правой ладони): туда тянутся большой палец и мизинец
-          const Wq = a0.clone().lerp(a1, 0.9), pcR2 = wp('hand_r').lerp(wp('middle_01_r'), 0.5);
-          const farD = perpTo(Wq.clone().sub(pcR2), ax), farT = Wq.clone().addScaledVector(farD, Rw * 0.75);
+          const Wq = a0.clone().lerp(a1, 0.97), pcR2 = wp('hand_r').lerp(wp('middle_01_r'), 0.5);
+          const farD = perpTo(Wq.clone().sub(pcR2), ax), farT = Wq.clone().addScaledVector(farD, Rw * 0.75), upW = perpTo(up, ax);
+          const thT = Wq.clone().addScaledVector(upW, 0.035).addScaledVector(farD, 0.01) /* build 6.29: большой палец лежит ПО левому запястью сверху, а не сквозь него */, pkT = Wq.clone().addScaledVector(upW, -0.03).addScaledVector(farD, 0.03); /* build 6.33: большой палец лежит по верху левого запястья (без крючка), мизинец обхватывает снизу («кольцо») */
                     { // большой палец: поворот в основании (к ладони) + сгиб — кончик ложится на левое запястье с другой стороны
-            const t1 = B.thumb_01_r, ax1 = fax.thumb_r; let bA = 0, bE = 1e9, bC = 0.05;
-            for (let aa = -1.4; aa <= 1.4; aa += 0.05) for (let cc = 0.05; cc <= 0.9; cc += 0.05) {
-              t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, aa)); fgc[0] = cc; setFingers('_r', { c: fgc, sp: 0 }); B.hand_r.updateMatrixWorld(true);
-              const e = cost1('thumb', Rw + 0.008) * 0.5 + wp('thumb_04_leaf_r').distanceTo(farT) + Math.abs(aa) * 0.004 + cc * 0.004; if (e < bE) { bE = e; bA = aa; bC = cc; } }
-            fgc[0] = bC; setFingers('_r', { c: fgc, sp: 0 }); t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, bA)); B.hand_r.updateMatrixWorld(true);
-            if (window.__GRIPM) window.__GRIPM.push(['thumb01', bA, bC, bE]); }
+            const t1 = B.thumb_01_r, ax1 = fax.thumb_r, dT = B.thumb_02_r.position.clone().normalize(), ax2 = new THREE.Vector3().crossVectors(dT, ax1).normalize(); let bQ = new THREE.Quaternion(), bE = 1e9, bC = 0.3;
+            /* build 6.29: большой палец подбирается по двум осям — обхватывает левое запястье сверху, а не лежит вдоль предплечья */
+            for (let aa = -1.2; aa <= 1.21; aa += 0.1) for (let bb = -1.2; bb <= 1.21; bb += 0.1) for (let cc = 0.1; cc <= 0.41; cc += 0.1) { /* build 6.29: большой палец не поджимается в ладонь */
+              const qT = new THREE.Quaternion().setFromAxisAngle(ax1, aa).multiply(new THREE.Quaternion().setFromAxisAngle(ax2, bb));
+              t1.quaternion.copy(rest[t1.name].lq).multiply(qT); fgc[0] = cc; setFingers('_r', { c: fgc, sp: 0, amp: AMPR }); B.hand_r.updateMatrixWorld(true);
+              const e = cost1('thumb', Rw + 0.008) * 3 + wp('thumb_04_leaf_r').distanceTo(thT) * 2 + (Math.abs(aa) + Math.abs(bb)) * 0.002; if (e < bE) { bE = e; bQ = qT; bC = cc; } }
+            fgc[0] = bC; setFingers('_r', { c: fgc, sp: 0, amp: AMPR }); t1.quaternion.copy(rest[t1.name].lq).multiply(bQ); B.hand_r.updateMatrixWorld(true);
+            if (window.__GRIPM) window.__GRIPM.push(['thumb01', bC, bE]); }
           if (window.__GRIPM) { const q = segD(wp('thumb_04_leaf_r')); window.__GRIPM.push(['thumbD', fgc[0], q.d, q.t, radv(wp('thumb_04_leaf_r')).length()]); }
-          { let bc = 0.05, be = 1e9; for (let c = 0.05; c <= 0.8; c += 0.02) { fgc[4] = c; setFingers('_r', { c: fgc, sp: 0 }); B.hand_r.updateMatrixWorld(true);
-            const e = cost1('pinky', Rw + 0.006) * 0.5 + wp('pinky_04_leaf_r').distanceTo(farT) * 0.5 + c * 0.01; if (e < be) { be = e; bc = c; } }
-            fgc[4] = bc; setFingers('_r', { c: fgc, sp: 0 }); B.hand_r.updateMatrixWorld(true); }
+          { let bc = 0.05, be = 1e9; for (let c = 0.05; c <= 1.8; c += 0.02) { fgc[4] = c; setFingers('_r', { c: fgc, sp: 0, amp: AMPR }); B.hand_r.updateMatrixWorld(true);
+            const e = cost1('pinky', Rw + 0.006) * 1.0 + c * 0.002; /* build 6.29: мизинец ложится на левое запястье, а не висит */ if (e < be) { be = e; bc = c; } }
+            fgc[4] = Math.max(bc, 1.3); setFingers('_r', { c: fgc, sp: 0, amp: AMPR }); /* build 6.29: мизинец подогнут под запястье (кольцо с большим пальцем), а не вытянут как остальные */ B.hand_r.updateMatrixWorld(true); }
           root.updateMatrixWorld(true);
           if (window.__GRIPM) { const r3 = function(v) { return [v.x, v.y, v.z]; }; window.__GRIPM.push(['fgR'].concat(fgc), ['fgL'].concat(fgL));
             ['pelvis', 'spine_01', 'lowerarm_r', 'lowerarm_l', 'hand_r', 'hand_l', 'middle_04_leaf_r', 'middle_04_leaf_l', 'thumb_04_leaf_r', 'pinky_04_leaf_r'].forEach(function(n) { window.__GRIPM.push([n].concat(r3(wp(n)))); }); }
@@ -15747,14 +15870,14 @@ function renderDictation(area) {
             for (let t = 0.5; t <= 1.6; t += 0.02) { const q = th.clone().addScaledVector(td, t * tl); const h = clothH(q.clone().addScaledVector(nUp, 0.2), nUp) ; const top = h < 0 ? -1 : 0.2 - h;
               if (top > hMax) hMax = top; else if (hMax > 0 && top < hMax - 0.03) { tEdge = t; break; } }
             if (window.__GRIPM) { const pr = []; for (let t = 0.6; t <= 1.6; t += 0.05) { const q = th.clone().addScaledVector(td, t * tl); const h = clothH(q.clone().addScaledVector(nUp, 0.2), nUp); pr.push(t.toFixed(2) + ':' + ((0.2 - h) * 1000).toFixed(0)); } window.__GRIPM.push(['prof' + sx, tl.toFixed(3)].concat(pr)); }
-            let tipGoal = tEdge - (P.tipBack != null ? P.tipBack : 0.005) / tl + (S.tipAdd || 0);
+            let tipGoal = tEdge - (P.tipBack != null ? P.tipBack : 0.05) / tl + (S.tipAdd || 0);
             const nAt = function(p) { return sd(p).n; };
             { // подбор положения кисти: кончики пальцев у края колена, ладонь на ткани (перебор по высоте и вдоль бедра)
               const W0 = wp('hand' + sx), nF = nAt(W0.clone()), w0 = S.w;
               const evalAt = function(o, a) { S.w = { abs: W0.clone().addScaledVector(nF, o).addScaledVector(td, a) }; armsPass(null); root.updateMatrixWorld(true); orient();
                 setFingers(sx, { c: [0.1, 0.06, 0.06, 0.08, 0.1], sp: 0 }); B['hand' + sx].updateMatrixWorld(true);
                 const pc = wp('hand' + sx).lerp(wp('middle_01' + sx), 0.6), h = clothH(pc, nAt(pc)), tTip = wp('middle_04_leaf' + sx).sub(th).dot(td) / tl;
-                return Math.abs(h - 0.014) * 3 + Math.max(0, tTip - tipGoal) * tl * 2 + Math.max(0, tipGoal - tTip) * tl + miss[s] * 4; };
+                return Math.abs(h + 0.006) * 3 + Math.max(0, tTip - tipGoal) * tl * 2 + Math.max(0, tipGoal - tTip) * tl + miss[s] * 4; };
               let bo = 0, ba = 0, be = 1e9;
               for (let a = -0.04; a <= 0.16; a += 0.02) for (let o = -0.06; o <= 0.04; o += 0.01) { const e = evalAt(o, a); if (e < be) { be = e; bo = o; ba = a; } }
               for (let a = ba - 0.015; a <= ba + 0.015; a += 0.005) for (let o = bo - 0.008; o <= bo + 0.008; o += 0.002) { const e = evalAt(o, a); if (e < be) { be = e; bo = o; ba = a; } }
@@ -15764,32 +15887,39 @@ function renderDictation(area) {
             const fg0 = (S.fg && S.fg.c) || [0.1, 0.06, 0.06, 0.08, 0.1], c = fg0.slice();
             ['thumb', 'index', 'middle', 'ring', 'pinky'].forEach(function(f, k) {
               if (fg0[k] < 0) return; // поднятый указательный палец не трогаем
+              if (S.fg && S.fg.ta && (k === 0 || k >= 2)) return; // ташаххуд: «кольцо» большой+средний, безымянный и мизинец сжаты — как заданы
               const jn = f === 'thumb' ? ['thumb_03', 'thumb_04_leaf'] : [f + '_02', f + '_03', f + '_04_leaf'];
               let bc = 0, be = 1e9;
-              for (let v = -0.1; v <= 0.9; v += 0.02) { c[k] = v; setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); B['hand' + sx].updateMatrixWorld(true);
-                let e = Math.abs(v) * 0.004;
+              const cb = [0, 0.14, 0.16, 0.18, 0.22][k]; for (let v = cb - 0.04; v <= cb + 0.121; v += 0.02) { c[k] = v; setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 3 }); B['hand' + sx].updateMatrixWorld(true);
+                let e = Math.abs(v - cb) * 0.03;
                 jn.forEach(function(n, jj) { const q = wp(n + sx), h = clothH(q, nAt(q)); const w = jj === jn.length - 1 ? 1.5 : 1;
-                  e += Math.abs(h - 0.008) * w + Math.max(0, 0.004 - h) * 6; });
+                  e += jj === jn.length - 1 ? Math.abs(h + 0.0045) * 3 + Math.max(0, h + 0.0035) * 6 : Math.max(0, h + 0.005) * 3; }); /* build 6.32: подушечка пальца (≈5 мм от оси) лежит на ткани, а не срезана ею */ /* build 6.30: кончики на ткани (чуть над ней), а не на 8 мм внутри */
                 if (e < be) { be = e; bc = v; } }
               c[k] = bc;
             });
             { // большой палец ложится на ткань рядом с ладонью (поворот в основании + сгиб), а не висит сбоку
-              const t1 = B['thumb_01' + sx], ax1 = fax['thumb' + sx]; let bA = 0, bC = c[0], bE = 1e9;
-              for (let aa = -1.2; aa <= 1.2; aa += 0.1) for (let cc = -0.2; cc <= 0.9; cc += 0.05) {
-                c[0] = cc; setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); t1.quaternion.copy(rest[t1.name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(ax1, aa)); B['hand' + sx].updateMatrixWorld(true);
-                let e = Math.abs(aa) * 0.003;
-                ['thumb_03', 'thumb_04_leaf'].forEach(function(n) { const q = wp(n + sx), h = clothH(q, nAt(q)); e += Math.abs(h - 0.009) + Math.max(0, 0.004 - h) * 6; });
-                if (e < bE) { bE = e; bA = aa; bC = cc; } }
-              c[0] = bC; S._thumbA = bA; }
+              const t1 = B['thumb_01' + sx], ax1 = fax['thumb' + sx], dT = B['thumb_02' + sx].position.clone().normalize(), ax2 = new THREE.Vector3().crossVectors(dT, ax1).normalize(); let bQ = null, bC = c[0], bE = 1e9;
+              /* build 6.32: большой палец поворачивается в основании в двух плоскостях — может лечь вдоль указательного, а не висеть вниз */
+              for (let aa = -1.2; aa <= 1.21; aa += 0.2) for (let bb = -1.0; bb <= 1.01; bb += 0.2) for (let cc = -0.2; cc <= 0.31; cc += 0.1) {
+                c[0] = cc; setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); const qT = new THREE.Quaternion().setFromAxisAngle(ax1, aa).multiply(new THREE.Quaternion().setFromAxisAngle(ax2, bb)).multiply(new THREE.Quaternion().setFromAxisAngle(dT, -0.3)); /* build 6.32: большой палец чуть отведён и повёрнут ногтем вбок, как у живой руки */ t1.quaternion.copy(rest[t1.name].lq).multiply(qT); B['hand' + sx].updateMatrixWorld(true);
+                let e = (Math.abs(aa) + Math.abs(bb)) * 0.01 + Math.max(0, cc - 0.1) * 0.02;
+                ['thumb_03', 'thumb_04_leaf'].forEach(function(n) { const q = wp(n + sx), h = clothH(q, nUp); e += Math.max(0, h + 0.004) * 20 + Math.max(0, -h - 0.018) * 2; }); /* не внутри ткани и не высоко над ней (высота — по вертикали) */
+                if (S.fg && S.fg.ta) e += wp('thumb_04_leaf' + sx).distanceTo(wp('middle_04_leaf' + sx)) * 30; // кольцо: кончик большого касается кончика среднего
+                else { const dI = wp('thumb_04_leaf' + sx).distanceTo(wp('index_02' + sx)); e += Math.max(0, dI - 0.065) * 25 + Math.max(0, 0.04 - dI) * 25; const tA = wp('thumb_04_leaf' + sx).sub(wp('thumb_02' + sx)).normalize(), iA = wp('index_04_leaf' + sx).sub(wp('index_01' + sx)).normalize(); e += Math.abs(tA.angleTo(iA) - 0.6) * 0.08; } // большой палец лежит у указательного
+                if (e < bE) { bE = e; bQ = qT; bC = cc; } }
+              if (!(S.fg && S.fg.ta)) { /* build 6.32: большой палец как у живой руки на колене — отведён от указательного и ложится вниз по внутренней стороне колена, слегка согнут (поза задана по анатомии, а не подбором) */
+                const b0 = sx === '_l' ? -0.2 : 0.2; bE = 1e9; /* build 6.32: поза анатомическая, но подушечка большого пальца лежит НА ткани (не утоплена) */
+                for (let aa = -0.3; aa <= 0.31; aa += 0.1) for (let bb = b0 - 0.3; bb <= b0 + 0.31; bb += 0.1) for (let cc = 0.1; cc <= 0.51; cc += 0.1) {
+                  c[0] = cc; setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); const qT = new THREE.Quaternion().setFromAxisAngle(ax1, aa).multiply(new THREE.Quaternion().setFromAxisAngle(ax2, bb)).multiply(new THREE.Quaternion().setFromAxisAngle(dT, -0.3)); t1.quaternion.copy(rest[t1.name].lq).multiply(qT); B['hand' + sx].updateMatrixWorld(true);
+                  let e = (Math.abs(aa) + Math.abs(bb - b0) + Math.abs(cc - 0.3)) * 0.05;
+                  ['thumb_03', 'thumb_04_leaf'].forEach(function(n) { const q = wp(n + sx), h = clothH(q, nUp); e += Math.max(0, h + 0.0045) * 40 + Math.max(0, -h - 0.012) * 3; });
+                  if (e < bE) { bE = e; bQ = qT; bC = cc; } } }
+              c[0] = bC; S._thumbQ = bQ; S._thumbA = 0; }
             if (window.__GRIPM) { setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); B['hand' + sx].updateMatrixWorld(true); window.__GRIPM.push(['fh' + sx, tEdge.toFixed(2)].concat(['middle_04_leaf', 'ring_04_leaf', 'pinky_04_leaf', 'thumb_04_leaf', 'middle_02'].map(function(n) { const q = wp(n + sx); return (clothH(q, nAt(q)) * 1000).toFixed(0) + '@' + (q.clone().sub(th).dot(td) / tl).toFixed(2); })).concat(c.map(function(x) { return x.toFixed(2); }))); }
             robeNoHand = false;
-            if (fg0[1] < 0) { // поднятый указательный: кончик заметно над тканью (~4 см), а не лежит вдоль колена
-              let bv = fg0[1], be = 1e9;
-              for (let v = -0.2; v >= -1.1; v -= 0.05) { c[1] = v; setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); B['hand' + sx].updateMatrixWorld(true);
-                const q = wp('index_04_leaf' + sx), e = Math.abs(clothH(q, nAt(q)) - 0.042); if (e < be) { be = e; bv = v; } }
-              c[1] = bv; }
+            if (fg0[1] < 0) c[1] = -0.3; // build 6.30: указательный вытянут и чуть приподнят — без перегиба назад в основании
             fin[sx] = { c: c, q: B['hand' + sx].getWorldQuaternion(new THREE.Quaternion()) };
-            setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); if (S._thumbA) B['thumb_01' + sx].quaternion.copy(rest[B['thumb_01' + sx].name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(fax['thumb' + sx], S._thumbA)); B['hand' + sx].updateMatrixWorld(true);
+            setFingers(sx, { c: c, sp: (S.fg && S.fg.sp) || 0 }); if (S._thumbQ) B['thumb_01' + sx].quaternion.copy(rest[B['thumb_01' + sx].name].lq).multiply(S._thumbQ); B['hand' + sx].updateMatrixWorld(true);
             if (window.__GRIPM) window.__GRIPM.push(['sit' + sx].concat(c));
             if (window.__GRIPM) window.__GRIPM.push(['sd' + sx].concat(['hand', 'middle_01', 'middle_02', 'middle_03', 'middle_04_leaf', 'pinky_04_leaf', 'thumb_04_leaf'].map(function(n) { const q = wp(n + sx), t = q.clone().sub(th).dot(td) / tl; return Math.round(sd(q).d * 1000) + '@' + t.toFixed(2); })));
           });
@@ -15797,7 +15927,7 @@ function renderDictation(area) {
           armsPass(null); root.updateMatrixWorld(true);
           ['_r', '_l'].forEach(function(sx) { const S = P[sx === '_r' ? 'R' : 'L'], f = fin[sx]; if (!f) return;
             setWorldQ('hand' + sx, f.q); setFingers(sx, { c: f.c, sp: (S.fg && S.fg.sp) || 0 });
-            if (S._thumbA) B['thumb_01' + sx].quaternion.copy(rest[B['thumb_01' + sx].name].lq).multiply(new THREE.Quaternion().setFromAxisAngle(fax['thumb' + sx], S._thumbA));
+            if (S._thumbQ) B['thumb_01' + sx].quaternion.copy(rest[B['thumb_01' + sx].name].lq).multiply(S._thumbQ);
             B['hand' + sx].updateMatrixWorld(true); });
           P.R.w = wSit0.R; P.L.w = wSit0.L;
           root.updateMatrixWorld(true);
@@ -15893,14 +16023,18 @@ function renderDictation(area) {
       const robe = mkTube(RB, RN), sleeves = [mkTube(SB, SN), mkTube(SB, SN)]; { const sm = clothMat.clone(); sm.side = THREE.FrontSide; sleeves.forEach(function(m) { m.material = sm; }); } // build 6.29: изнанка рукава — тёмная ткань в тени, а не светлый «полумесяц»
       // build 6.27: шарики в плече и локте закрывают стык трубы при сгибе, манжета закрывает открытый край рукава
       const sleeveBits = [];
-      { const im = new THREE.MeshStandardMaterial({ color: col(FEM ? '#b7c3d9' : H.colors.cloth).multiplyScalar(0.3), roughness: 1, metalness: 0, side: THREE.BackSide }); sleeves.forEach(function(m) { const inner = new THREE.Mesh(m.geometry, im); inner.frustumCulled = false; root.add(inner); sleeveBits.push(inner); }); }
-      const sleeveJoint = [0, 1].map(function() { const mk2 = function() { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), clothMat); m.castShadow = true; m.frustumCulled = false; root.add(m); sleeveBits.push(m); return m; }; return { sh: mk2(), el: mk2(), cuff: (function() { const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.16, 10, 32), clothMat); m.castShadow = true; m.frustumCulled = false; root.add(m); sleeveBits.push(m); return m; })() }; });
+      const HEM_R = 0.06;
+      const neckFill = FEM ? null : (function() { const m = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 24, 1, true), new THREE.MeshStandardMaterial({ color: col(H.colors.skin), roughness: 0.82, metalness: 0 })); m.visible = false; m.frustumCulled = false; root.add(m); return m; })(); // build 6.31: в наклоне шея между воротником и головой — ровная, без рваных краёв сетки
+      const cuffRing = FEM ? [] : [0, 1].map(function() { const m = new THREE.Mesh(new THREE.RingGeometry(0.03, HEM_R + 0.0015, 28, 1), new THREE.MeshStandardMaterial({ color: col('#283450'), roughness: 0.82, metalness: 0, side: THREE.DoubleSide })); m.frustumCulled = false; root.add(m); return m; }); // build 6.31: низ штанины закрыт кольцом — не видно пустой трубы
+      const trouserCuff = FEM ? [] : [0, 1].map(function() { const m = new THREE.Mesh(new THREE.LatheGeometry([[HEM_R, 0], [0.06, 0.07], [0.05, 0.25], [0.055, 0.5], [0.062, 0.7], [0.063, 0.85], [0.062, 1]].map(function(q) { return new THREE.Vector2(q[0], q[1] - 0.5); }), 28), new THREE.MeshStandardMaterial({ color: col('#283450'), roughness: 0.82, metalness: 0, side: THREE.DoubleSide })); m.frustumCulled = false; m.castShadow = true; root.add(m); return m; }); // build 6.30: низ брюк — ровная манжета, без зубцов на щиколотке
+      { const im = FEM ? new THREE.MeshStandardMaterial({ color: col('#b7c3d9').multiplyScalar(0.8), roughness: 1, metalness: 0, side: THREE.BackSide }) : new THREE.MeshBasicMaterial({ color: col(H.colors.cloth).multiplyScalar(0.45), side: THREE.BackSide }); sleeves.forEach(function(m) { const inner = new THREE.Mesh(m.geometry, im); inner.frustumCulled = false; root.add(inner); sleeveBits.push(inner); }); }
+      const sleeveJoint = [0, 1].map(function() { const mk2 = function() { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), clothMat); m.castShadow = true; m.frustumCulled = false; root.add(m); sleeveBits.push(m); return m; }; return { sh: mk2(), el: mk2(), cap: (function() { const m = new THREE.Mesh(new THREE.RingGeometry(0.05, 1, 32), (FEM ? new THREE.MeshStandardMaterial({ color: col(FEM ? '#b7c3d9' : H.colors.cloth).multiplyScalar(FEM ? 0.62 : 0.5), roughness: 1, metalness: 0, side: THREE.DoubleSide }) : new THREE.MeshBasicMaterial({ color: col(H.colors.cloth).multiplyScalar(0.5), side: THREE.DoubleSide }))); m.frustumCulled = false; root.add(m); sleeveBits.push(m); return m; })(), cuff: (function() { const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.16, 10, 32), clothMat); m.castShadow = FEM; /* build 6.30: тонкая мужская кромка не даёт тени-«трещины» на ткани */ m.frustumCulled = false; root.add(m); sleeveBits.push(m); return m; })() }; });
       // build 6.27: платок-накидка (хиджаб) — лежит поверх одежды на плечах и груди; впереди длиннее, сзади короче
       const SCN = 12;
       let scarf = null;
       if (FEM) { scarf = mkTube(RB, SCN); scarf.material = scarfMat; }
       // «просвечивающий» режим (вид ступней в сидении): ткань почти прозрачна, видны бёдра, голени и ступни
-      const thighMat = new THREE.MeshStandardMaterial({ color: 0x6b7078, roughness: 0.9, metalness: 0, transparent: true, opacity: 0.5 }); // build 6.29: ноги полупрозрачные — ступни видны сквозь голени
+      const thighMat = new THREE.MeshStandardMaterial({ color: FEM ? 0x6b7078 : 0x283450, roughness: 0.85, metalness: 0, transparent: true, opacity: 0.5 }); // build 6.29: ноги полупрозрачные — ступни видны сквозь голени
       const thighs = [0, 1].map(function() { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.058, 1, 16), thighMat); m.visible = false; m.frustumCulled = false; m.castShadow = true; root.add(m); return m; });
       // build 6.29: в просвечивающем режиме ноги — скруглённые бёдра и голени (без открытых «труб»)
       const legBits = [];
@@ -15913,6 +16047,7 @@ function renderDictation(area) {
         on = !!on; if (on === ghostOn) return; ghostOn = on;
         clothMat.transparent = on; clothMat.opacity = on ? 0.13 : 1; clothMat.depthWrite = !on; clothMat.needsUpdate = true;
         thighs.forEach(function(m) { m.visible = on; }); legBits.forEach(function(m) { m.visible = on; });
+        /* build 6.31: в прозрачном виде голени — те же тёмные штанины (один цвет), бёдра полупрозрачные того же цвета */ if (!FEM) shinCyl.forEach(function(m) { m.visible = false; }); /* в прозрачном виде штанина — как полупрозрачная нога, без «трубки» */
         robe.castShadow = sleeves[0].castShadow = sleeves[1].castShadow = !on; sleeves[0].visible = sleeves[1].visible = !on; sleeveBits.forEach(function(m) { m.visible = !on; });
       }
       const prim = function(a, b, lx, fz, ax, af, ab, t0, t1) {
@@ -15950,13 +16085,13 @@ function renderDictation(area) {
         return best;
       };
       // гладкая линия через опорные точки; на выходе — n точек через равные отрезки
-      const pathSample = function(P, n) {
+      const pathSample = function(P, n, tw) {
         const dense = [], tag = [];
         for (let i = 0; i < P.length - 1; i++) { const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)];
           for (let j = 0; j < 16; j++) { const t = j / 16, t2 = t * t, t3 = t2 * t;
             dense.push(V(0, 0, 0).addScaledVector(p0, -0.5 * t3 + t2 - 0.5 * t).addScaledVector(p1, 1.5 * t3 - 2.5 * t2 + 1).addScaledVector(p2, -1.5 * t3 + 2 * t2 + 0.5 * t).addScaledVector(p3, 0.5 * t3 - 0.5 * t2)); tag.push(i + t); } }
         dense.push(P[P.length - 1].clone()); tag.push(P.length - 1);
-        const cum = [0]; for (let i = 1; i < dense.length; i++) cum.push(cum[i - 1] + dense[i].distanceTo(dense[i - 1]));
+        const cum = [0]; for (let i = 1; i < dense.length; i++) { let ad = 0; if (tw && i > 1 && tag[i] >= 3.5 && tag[i] <= 6.5) { const a1 = dense[i - 1].clone().sub(dense[i - 2]), a2 = dense[i].clone().sub(dense[i - 1]); if (a1.lengthSq() > 1e-10 && a2.lengthSq() > 1e-10) ad = tw * a1.angleTo(a2); } cum.push(cum[i - 1] + dense[i].distanceTo(dense[i - 1]) + ad); }
         const total = cum[cum.length - 1] || 1e-6, out = []; let j = 0;
         for (let k = 0; k < n; k++) { const s = total * k / (n - 1); while (j < dense.length - 2 && cum[j + 1] < s) j++;
           const w = Math.max(0, Math.min(1, (s - cum[j]) / ((cum[j + 1] - cum[j]) || 1e-6)));
@@ -15966,6 +16101,7 @@ function renderDictation(area) {
       };
       const stationVal = function(vals, u) { const i = Math.max(0, Math.min(vals.length - 2, Math.floor(u))); const w = Math.max(0, Math.min(1, u - i)); return vals[i] + (vals[i + 1] - vals[i]) * w; };
       const dq = function(n) { return B[n].getWorldQuaternion(new THREE.Quaternion()).multiply(rest[n].q.clone().invert()); };
+      const SLV_BACK = 0.04, SLV_DRAPE = false;
       let robeNoHand = false; // build 6.29: ткань без вдавливания кистями — по ней подбирается касание ладоней и пальцев
       function buildRobe() {
         const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
@@ -15979,16 +16115,24 @@ function renderDictation(area) {
         const fP = fr('pelvis'), f1 = fr('spine_01'), f3 = fr('spine_03');
         const shR = uaR.clone().lerp(uaL, 0.04), shL = uaL.clone().lerp(uaR, 0.04);
         const one = V(1, 0, 0);
+        const hgt = hipMid.y - floorY, wB = FEM ? 0 : Math.max(0, Math.min(1, (0.95 - f1.u.y) / 0.45)), hw = Math.max(0, Math.min(1, (hgt - 0.56) / 0.08)); /* build 6.32: веса вместо порогов — в переходах между позами ткань меняется плавно, без скачков */
+        const sitK = (!FEM && hgt < 0.3) ? 1.0 : 1 + 0.22 * wB; // build 6.27: в сидении ноги толще в расчёте ткани — голень и колено не торчат сквозь неё
+        if (body.userData.ixBent) { const wb = (f1.u.y < 0.5 && hipMid.y - floorY > 0.6); if (body.userData.isBent !== wb) { body.geometry.setIndex(wb === 'g' ? body.userData.ixGhost : wb ? body.userData.ixBent : body.userData.ixStand); body.userData.isBent = wb; const ca = body.geometry.attributes.color, cc = wb === true ? col(H.colors.cloth) : col(H.colors.skin); if (ca && typeof neckColV !== 'undefined') { neckColV.forEach(function(v) { ca.setXYZ(v, cc.r, cc.g, cc.b); }); ca.needsUpdate = true; } } }
+        if (neckFill) { const na = hd.clone().sub(nk), nl = na.length(); neckFill.visible = (false || f1.u.y < 0.5) && nl > 1e-4;
+          if (neckFill.visible) { na.divideScalar(nl); const p0 = nk.clone().addScaledVector(na, 0.0), p1 = hd.clone(); neckFill.position.copy(p0).lerp(p1, 0.5); neckFill.quaternion.setFromUnitVectors(V(0, 1, 0), na); neckFill.scale.set(0.056, p1.distanceTo(p0), 0.056); /* build 6.29: в поклоне шея под подбородком без тёмного провала и без горба сверху */ } }
+        const bkB = FEM ? 0 : Math.max(0, Math.min(1, (0.95 - f1.u.y) / 0.6)), bkW = 1 + bkB * 0.22, bkD = 1 + bkB * 0.3; /* build 6.31: в поклоне грудь и талия не уже, чем в кыяме (раньше сужались на 13–20%) */
+        const lgK = sitK + (1 - sitK) * hw; /* build 6.32: в поклоне колени и голени уже бёдер */
+        const twR = FEM ? 0 : Math.max(0, Math.min(1, (0.95 - f1.u.y) / 0.6)) * hw;
         const prims = [
-          prim(hipMid.clone().addScaledVector(fP.u, -0.05), s1, fP.l, fP.f, 0.165, 0.095, 0.1),
-          prim(s1, s2, f1.l, f1.f, 0.15, FEM ? 0.092 : 0.07, FEM ? 0.098 : 0.085),
-          prim(s2, s3.clone().addScaledVector(f3.u, 0.08), f3.l, f3.f, 0.165, FEM ? 0.095 : 0.078, FEM ? 0.1 : 0.09),
+          prim(hipMid.clone().addScaledVector(fP.u, -0.05), s1, fP.l, fP.f, 0.165, FEM ? 0.095 : 0.085, FEM ? 0.1 : 0.085),
+          prim(s1, s2, f1.l, f1.f, 0.15 * (1 + bkB * 0.06), (FEM ? 0.092 : 0.07) * bkD, (FEM ? 0.098 : 0.085) * bkD),
+          prim(s2, s3.clone().addScaledVector(f3.u, 0.08), f3.l, f3.f, 0.165 * bkW, (FEM ? 0.095 : 0.078) * bkD, (FEM ? 0.1 : 0.09) * bkD),
           prim(shL.clone().lerp(shR, 0.16).addScaledVector(f3.u, -0.02), shR.clone().lerp(shL, 0.16).addScaledVector(f3.u, -0.02), f3.u, f3.f, 1, 1, 1, 0.052),
           prim(nk, shR, one, f3.f, 1, 1, 1, 0.045), prim(nk, shL, one, f3.f, 1, 1, 1, 0.045),
-          prim(nk, hd, one, f3.f, 1, 1, 1, 0.052),
-          prim(hipMid.clone().addScaledVector(fP.f, 0.012), hipMid.clone().addScaledVector(fP.f, 0.012), one, fP.f, 1, 1, 1, 0.118),
-          prim(thR, kR, one, fP.f, 1, 1, 1, 0.092, 0.072), prim(thL, kL, one, fP.f, 1, 1, 1, 0.092, 0.072), // build 6.29: ткань не рвётся у колен
-          prim(kR, aR, one, fP.f, 1, 1, 1, 0.08, 0.06), prim(kL, aL, one, fP.f, 1, 1, 1, 0.08, 0.06)
+          prim(nk, hd, one, f3.f, 1, 1, 1, FEM ? 0.052 : 0.058),
+          prim(hipMid.clone().addScaledVector(fP.f, FEM ? 0.012 : -0.01 - 0.035 * wB * (1 - bkB)), hipMid.clone().addScaledVector(fP.f, FEM ? 0.012 : -0.01 - 0.035 * wB * (1 - bkB)), one, fP.f, 1, 1, 1, 0.118), // build 6.30: живот не выпирает дальше груди
+          prim(thR, kR, one, fP.f, 1, 1, 1, 0.092 * sitK, 0.072 * lgK), prim(thL, kL, one, fP.f, 1, 1, 1, 0.092 * sitK, 0.072 * lgK), // build 6.29: ткань не рвётся у колен
+          prim(kR, aR, one, fP.f, 1, 1, 1, 0.088 * lgK, 0.066 * lgK), prim(kL, aL, one, fP.f, 1, 1, 1, 0.088 * lgK, 0.066 * lgK)
         ];
         // женская одежда: ткань падает прямо от плеч до пола, ничего не облегает — запас на груди, бёдрах и у стоп
         const bR = L('ball_r'), bL = L('ball_l');
@@ -16003,15 +16147,16 @@ function renderDictation(area) {
           const pc = h.clone().lerp(L('middle_01' + sx), 0.6); if (robeNoHand) return; press.push(prim(pc, pc, one, fP.f, 1, 1, 1, 0.05));
           ['index', 'middle', 'ring', 'pinky', 'thumb'].forEach(function(fn) { press.push(prim(L(fn + '_01' + sx), L(fn + '_04_leaf' + sx), one, fP.f, 1, 1, 1, 0.018, 0.013)); }); // толщина пальца — без глубоких борозд // build 6.29: пальцы тоже вдавливают ткань — не проходят сквозь одежду
           // женская одежда: кисти всегда поверх ткани (ткань уходит под ладонь), чтобы было видно, где лежат руки
-          pressHand.push(prim(pc, pc, one, fP.f, 1, 1, 1, FEM ? 0.05 : 0.026));
-          if (!FEM) ['index', 'middle', 'ring', 'pinky', 'thumb'].forEach(function(fn) { pressHand.push(prim(L(fn + '_01' + sx), L(fn + '_04_leaf' + sx), one, fP.f, 1, 1, 1, 0.01, 0.007)); }); });
+          pressHand.push(FEM ? prim(pc, pc, one, fP.f, 1, 1, 1, 0.05) : prim(h, L('middle_01' + sx), one, fP.f, 1, 1, 1, 0.04, 0.046));
+          if (!FEM) ['index', 'middle', 'ring', 'pinky', 'thumb'].forEach(function(fn) { pressHand.push(prim(L(fn + '_01' + sx), L(fn + '_04_leaf' + sx), one, fP.f, 1, 1, 1, fn === 'thumb' ? 0.024 : 0.024, fn === 'thumb' ? 0.02 : 0.02)); }); });
         // линия камиса
         const thighDir = kneeMid.clone().sub(hipMid).normalize();
         const hemLen = Math.max(0.02, Math.min(0.21, kneeMid.y - floorY));
-        const P = [nk.clone().addScaledVector(V(0, 1, 0).applyQuaternion(dq('neck_01')), FEM ? 0.058 : 0.084), s3, s2, s1, hipMid, hipMid.clone().addScaledVector(thighDir, 0.22), kneeMid, kneeMid.clone().add(V(0, -hemLen, 0))];
+        const P = [nk.clone().addScaledVector(V(0, 1, 0).applyQuaternion(dq('neck_01')), FEM ? 0.058 : (f1.u.y < 0.5 ? 0.11 : 0.11)), s3, s2, s1, hipMid, hipMid.clone().addScaledVector(thighDir, 0.22), kneeMid, kneeMid.clone().add(V(0, -hemLen, 0))];
         let slackV = FEM ? [0.042, 0.04, 0.026, 0.034, 0.045, 0.055, 0.062, 0.062] : [0.024, 0.014, 0.01, 0.014, 0.03, 0.05, 0.062, 0.062]; // build 6.29: мужской камис на груди и животе ближе к телу — без «подушки»
         let sagV = [0, 0.008, 0.012, 0.018, 0.028, 0.04, 0.05, 0.05];
         let foldV = [0, 0.002, 0.003, 0.004, 0.005, 0.007, 0.009, 0.012];
+        if (!FEM && hw * wB > 0) { const k_ = hw * wB; slackV = slackV.slice(); slackV[5] += (0.032 - slackV[5]) * k_; slackV[6] += (0.036 - slackV[6]) * k_; slackV[7] += (0.04 - slackV[7]) * k_; } /* build 6.31: в поклоне низ камиса ближе к ногам — не «пышное платье» */
         if (FEM) {
           // путь ткани продолжается по голеням и стопам до пола: подол закрывает ноги в любой позе
           const anMid = aR.clone().add(aL).multiplyScalar(0.5), toeMid = bR.clone().add(bL).multiplyScalar(0.5);
@@ -16021,9 +16166,10 @@ function renderDictation(area) {
           foldV = [0, 0.002, 0.003, 0.004, 0.006, 0.009, 0.012, 0.012, 0.008];
         }
         const latHip = thR.clone().sub(thL).normalize(), latSh = uaR.clone().sub(uaL).normalize();
-        const S = pathSample(P, RN);
+        const S = pathSample(P, RN, FEM ? 0 : 0.15); /* build 6.32: на изгибах (таз, колени) колец больше — ткань скруглена, без плоского «ящика» */
         const att = robe.geometry.attributes.position;
         const TMAX = 0.36, ST = 0.015, rings = [];
+        const sitMode = !FEM && hipMid.y - floorY < 0.3; let lastHh = null;
         // точка тела относится к кольцу, только если это кольцо (или соседнее) — ближайшее к ней:
         // иначе на изгибах (таз ↔ бёдра) косое сечение «цепляет» бедро или спину далеко от себя
         const nearRing = function(q) { let bi = 0, bd = 1e9; for (let i = 0; i < S.length; i++) { const d = S[i].p.distanceToSquared(q); if (d < bd) { bd = d; bi = i; } } return bi; };
@@ -16038,7 +16184,8 @@ function renderDictation(area) {
             const d = lx.clone().multiplyScalar(cx).addScaledVector(fz, sy);
             let hit = -1; for (let t = TMAX; t >= 0; t -= ST) { q.copy(c).addScaledVector(d, t); if (inAny(near, q) && (r === 0 || Math.abs(nearRing(q) - r) <= 2)) { hit = t; break; } }
             if (hit >= 0) { let lo = hit, hi = hit + ST; for (let it = 0; it < 5; it++) { const m = (lo + hi) / 2; q.copy(c).addScaledVector(d, m); if (inAny(near, q)) lo = m; else hi = m; } pts.push([lo * cx, lo * sy]); } }
-          const Hh = pts.length >= 3 ? hull2(pts) : null;
+          let Hh = pts.length >= 3 ? hull2(pts) : null;
+          if (sitMode) { if (Hh && st.u >= 5.7 && st.u <= 6.2) lastHh = Hh; else if (Hh && st.u < 5.7) lastHh = null; if (lastHh && st.u > 6.2) Hh = lastHh; } // build 6.27: в сидении за коленом нет частей тела — берём сечение колена, иначе подол сужается и колени торчат
           const slack = stationVal(slackV, st.u), sag = stationVal(sagV, st.u), fold = stationVal(foldV, st.u);
           // женская одежда: спереди на груди запас меньше (ткань падает прямо вниз), на бёдрах сверху — меньше, чтобы лежащие на коленях кисти были видны
           const wT = Math.max(0, Math.min(1, 1 - st.u / 3.5)); // build 6.29: и у мужской одежды на груди спереди запас меньше — без «шара» на груди
@@ -16048,13 +16195,13 @@ function renderDictation(area) {
             let h = Hh ? rayHull(Hh, cx, sy) : -1; if (h < 0) h = 0.05;
             const d = lx.clone().multiplyScalar(cx).addScaledVector(fz, sy);
             const down = Math.max(0, -d.y);
-            const sl = FEM ? slack * (1 - 0.6 * wT * Math.max(0, d.dot(f3.f)) - 0.5 * wL * Math.max(0, d.y)) : slack * (1 - 0.6 * wT * Math.max(0, d.dot(f3.f)));
+            const sl = FEM ? slack * (1 - 0.6 * wT * Math.max(0, d.dot(f3.f)) - 0.5 * wL * Math.max(0, d.y)) : slack * (1 - 0.6 * wT * Math.max(0, d.dot(f3.f))) * (1 - 0.9 * twR * Math.max(0, Math.min(1, (st.u - 4.4) / 1.6)) * Math.abs(d.dot(latHip))); /* build 6.32: в поклоне подол сзади и с боков сужается к коленям — бёдра шире колен */
             R.push({ d: d, h: h, sl: sl, dent: 1e9, r: h + sl + sag * down * Math.sqrt(down) + fold * (FEM ? 1 : Math.max(0, Math.min(1, st.u - 4))) * Math.sin(th * 9 + r * 0.35) }); } // складки только на подоле — на груди без ряби
           // женская одежда: кисть всегда поверх ткани — ткань в этом месте уходит под ладонь (радиус «вмятины» сглаживается вместе с остальным)
           if (pressHand.length) R.forEach(function(o) { // build 6.29: и у мужской одежды ткань уходит под ладонь и пальцы — не закрывает их
             let inside = false, tt = o.r; const qq = V();
             for (; tt > o.h + 0.008; tt -= 0.006) { qq.copy(c).addScaledVector(o.d, tt); if (inAny(pressHand, qq)) inside = true; else if (inside) break; }
-            if (inside) o.dent = Math.max(o.h + 0.006, tt - (FEM ? 0.01 : 0.001)); // мужская: ткань вплотную под пальцами — без зазора и тени
+            if (inside) o.dent = Math.max(o.h + 0.006, tt - (FEM ? 0.01 : 0.009)); // мужская: ткань вплотную под пальцами — без зазора и тени
           });
           // сгладить по кругу
           const rr = R.map(function(o) { return Math.min(o.r, o.dent); });
@@ -16068,8 +16215,35 @@ function renderDictation(area) {
         for (let it = 0; it < 30; it++) for (let k = 0; k < RB; k++) { // build 6.29: больше сглаживания ткани — без граней на бёдрах и ягодицах
           const col = rings.map(function(g) { return g.R[k].r; });
           for (let r = 2; r < RN - 1; r++) { const o = rings[r].R[k]; o.r = Math.min(o.dent, Math.max(o.min, (col[r - 1] + 2 * col[r] + col[r + 1]) / 4)); } }
+        // build 6.30: камис не облипает тело — по каждой линии вдоль туловища ткань натянута через выпуклости (лопатки, ягодицы, грудь)
+        // и не проваливается в прогиб поясницы и талию: профиль радиуса — верхняя выпуклая оболочка
+        if (!FEM && f1.u.y > 0.55) { const uMax = hipMid.y - floorY > 0.6 ? 4.8 : 4.0, idx = []; for (let r = 0; r < RN; r++) if (S[r].u >= 0.6 && S[r].u <= uMax) idx.push(r);
+          if (idx.length > 2) { const sAt = [0]; for (let j = 1; j < idx.length; j++) sAt.push(sAt[j - 1] + rings[idx[j]].c.distanceTo(rings[idx[j - 1]].c));
+            for (let k = 0; k < RB; k++) { const pts = idx.map(function(r, j) { return [sAt[j], rings[r].R[k].r]; }), H = [];
+              pts.forEach(function(q) { while (H.length >= 2) { const a = H[H.length - 2], b = H[H.length - 1]; if ((b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]) >= 0) H.pop(); else break; } H.push(q); });
+              let h = 0; idx.forEach(function(r, j) { const x = sAt[j]; while (h < H.length - 2 && H[h + 1][0] < x) h++; const a = H[h], b = H[Math.min(h + 1, H.length - 1)];
+                const v = b[0] > a[0] ? a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]) : a[1]; const o = rings[r].R[k]; if (v > o.r) { const lq = o.d.dot(latHip); o.r = Math.min(o.dent, o.r + (v - o.r) * (1 - 0.7 * lq * lq)); } }); } } } /* build 6.32: по бокам ткань не натянута от плеч до бёдер — видна талия, грудь шире талии */
+        // build 6.30: в наклоне (руку', суджуд) спина — ровная линия от лопаток до таза: без провала за ягодицами и без «камней»
+        if (!FEM && f1.u.y < 0.5) {
+          const dors = f1.f.clone().negate(); let r0 = -1, r1 = -1;
+          for (let r = 0; r < RN; r++) { if (r0 < 0 && S[r].u >= 1.0) r0 = r; if (S[r].u <= 4.5) r1 = r; }
+          if (r0 >= 0 && r1 > r0 + 2) for (let k = 0; k < RB; k++) {
+            const w0 = rings[r0].R[k].d.dot(dors); if (w0 < 0.05) continue; const w = Math.min(1, (w0 - 0.05) / 0.45) * Math.min(1, (0.5 - f1.u.y) / 0.3); /* build 6.32: включается плавно при наклоне */
+            const a = rings[r0].R[k].r, b = rings[r1].R[k].r;
+            for (let r = r0 + 1; r < r1; r++) { const o = rings[r].R[k], lin = a + (b - a) * (r - r0) / (r1 - r0); o.r = o.r + (lin - o.r) * w; o.min = Math.min(o.min, o.r); } }
+        }
         // воротник: верхние кольца ровные по кругу (без «зубцов» от неровностей формы шеи)
         rings.forEach(function(g, r) { if (r > 3) return; const R = g.R; let m = 0; for (let k = 0; k < RB; k++) m += R[k].r; m /= RB; const w = r / 4; for (let k = 0; k < RB; k++) R[k].r = m * (1 - w) + R[k].r * w; });
+        // build 6.31: в наклоне воротник удлинён и сужается к шее воронкой (раньше — ровный срез и клочья кожи под ним)
+        if (!FEM && f1.u.y < 0.5) rings.forEach(function(g, r) { if (r > 7) return; const q = r / 7, cap = 0.05 + 0.2 * q * q, /* build 6.33: воротник на затылке без острого угла */ wc = Math.min(1, (0.5 - f1.u.y) / 0.3); for (let k = 0; k < RB; k++) { const o = g.R[k]; o.r += (Math.min(o.r, Math.max(o.min, cap)) - o.r) * wc; } });
+        if (!FEM && f1.u.y < 0.5) { /* build 6.31: в наклоне кожа у основания шеи не прорезает воротник сбоку — ткань чуть обходит её (сзади не трогаем) */
+          const invN = new THREE.Matrix4().copy(root.matrixWorld).invert(), qn = V(), dv = V();
+          for (let j = 0; j < neckVI.length; j++) { qn.copy(bodyVert(neckVI[j])).applyMatrix4(invN);
+            let br = -1, bd = 1e9; for (let r = 0; r < 12; r++) { const dd = qn.distanceTo(rings[r].c); if (dd < bd) { bd = dd; br = r; } } if (br < 0) continue;
+            const g = rings[br], tg = rings[Math.min(RN - 1, br + 1)].c.clone().sub(rings[Math.max(0, br - 1)].c).normalize();
+            dv.copy(qn).sub(g.c); dv.addScaledVector(tg, -dv.dot(tg)); const rad = dv.length(); if (rad < 1e-4) continue; dv.divideScalar(rad); if (dv.dot(f1.f) < -0.35 && hipMid.y - floorY > 0.6) continue;
+            let bk = 0, bdot = -2; for (let k = 0; k < RB; k++) { const dt = g.R[k].d.dot(dv); if (dt > bdot) { bdot = dt; bk = k; } }
+            for (let o = -2; o <= 2; o++) { const R_ = g.R[(bk + o + RB) % RB], need = Math.min(R_.r + 0.012, rad * Math.max(0, R_.d.dot(dv)) + 0.007); if (R_.r < need) R_.r = need; } } }
         const radF = new Float32Array(RN * RB);
         rings.forEach(function(g, r) { const c = g.c, R = g.R, q = V();
           for (let k = 0; k < RB; k++) { const o = R[k]; let rad = o.r, guard = 0;
@@ -16085,6 +16259,133 @@ function renderDictation(area) {
           for (let k = 0; k < RB; k++) { const o = R[k]; q.copy(c).addScaledVector(o.d, radF[r * RB + k]); if (q.y < floorY) q.y = floorY;
             att.setXYZ(r * RB + k, q.x, q.y, q.z); }
         });
+        // build 6.30: спина камиса — по плоскости спины (в осях позвоночника): ткань не выходит за линию «лопатки → крестец».
+        // Стоя ткань висит прямо от лопаток (ягодицы не выпирают), в наклоне спина ровная, ягодицы скруглены, спереди ткань висит от живота к коленям.
+        const preBP = (!FEM && hw > 0 && hw < 1) ? att.array.slice() : null;
+        if (!FEM && hipMid.y - floorY > 0.56) {
+          const bend = Math.max(0, Math.min(1, (0.95 - f1.u.y) / 0.6));
+          const ax = s3.clone().sub(hipMid).normalize(), dors = f1.f.clone().negate(); dors.sub(ax.clone().multiplyScalar(dors.dot(ax))).normalize();
+          const pa = V(), A_ = function(i) { pa.set(att.getX(i), att.getY(i), att.getZ(i)).sub(hipMid); return pa.dot(ax); }, B_ = function(i) { pa.set(att.getX(i), att.getY(i), att.getZ(i)).sub(hipMid); return pa.dot(dors); };
+          let r0 = -1, r1 = -1, rs1 = -1, rkn = -1; for (let r = 0; r < RN; r++) { if (r0 < 0 && S[r].u >= 1.0) r0 = r; if (r1 < 0 && S[r].u >= 2.6) r1 = r; if (rs1 < 0 && S[r].u >= 3.0) rs1 = r; if (rkn < 0 && S[r].u >= 5.9) rkn = r; }
+          const top = function(r) { let b = -1e9, a = 0; for (let k = 0; k < RB; k++) { const i = r * RB + k, bb = B_(i); if (bb > b) { b = bb; a = A_(i); } } return { a: a, b: b }; };
+          if (r0 >= 0 && r1 > r0) {
+            const T0 = top(r0), T1 = top(r1), sl = Math.abs(T0.a - T1.a) > 1e-3 ? Math.max(-0.15, Math.min(0.15, (T0.b - T1.b) / (T0.a - T1.a))) : 0;
+            const sl2 = sl * (1 - bend) + 0.06 * bend, base = bend > 0.5 ? T0 : T1; /* в наклоне — горизонтальная линия от плеч, а не наклонная от ягодиц */
+            const lim = function(a) { const tn = Math.max(0, Math.min(1, (a - base.a) / 0.7)); return base.b + sl2 * (a - base.a) + bend * 0.05 * tn * tn * (3 - 2 * tn) - 0.02 - bend * 2.2 * Math.pow(Math.max(0, -a - 0.03), 2); }; /* build 6.31: у шеи спина плавно поднимается (трапеция), без ступеньки под воротом */
+            let aRear = 1e9; for (let r = 0; r < RN; r++) { if (S[r].u < 3.3 || S[r].u > 5.6) continue; for (let k = 0; k < RB; k++) { const i = r * RB + k; if (B_(i) > 0) aRear = Math.min(aRear, A_(i)); } }
+            let bB = 1e9, aB = 0, aK = -1e9, bK = 0;
+            if (rs1 >= 0) for (let k = 0; k < RB; k++) { const i = rs1 * RB + k, b = B_(i); if (b < bB) { bB = b; aB = A_(i); } }
+            if (rkn >= 0) for (let k = 0; k < RB; k++) { const i = rkn * RB + k, a = A_(i); if (a > aK) { aK = a; bK = B_(i); } }
+            const R0 = 0.24, ac = aRear + R0, bc = lim(ac) - R0, hR = L('hand_r'), hL = L('hand_l');
+            for (let r = 0; r < RN; r++) { if (S[r].u < (bend > 0.3 ? 0.35 : 1.0) || S[r].u > 6.2) continue; for (let k = 0; k < RB; k++) { const i = r * RB + k; const a = A_(i), b = B_(i); let na = a, nb = b;
+              if (S[r].u <= 6.0) { const l = lim(a); if (b > l) { const over = b - l; nb = l + over * 0.5 * Math.exp(-over * 30); }
+                else if (bend > 0.3 && S[r].u >= 0.35 && S[r].u <= 4.3) { const f = rings[r].R[k].d.dot(dors); if (f > 0.5) nb = b + (l - b) * Math.min(1, (f - 0.5) / 0.35) * bend; } } /* провал спины между лопатками и тазом заполнен — ткань натянута по линии */
+              if (bend > 0 && a < ac && nb > bc) { const da = a - ac, db = nb - bc, Ln = Math.hypot(da, db); if (Ln > R0) { na = ac + da * R0 / Ln; nb = bc + db * R0 / Ln; } }
+              if (false && bend > 0 && rs1 >= 0 && rkn >= 0 && bB > bK && b < bB && b > bK && rings[r].R[k].d.dot(ax) > 0.15) { const la = aK + (aB - aK) * (b - bK) / (bB - bK);
+                pa.set(att.getX(i), att.getY(i), att.getZ(i)); const nh = Math.min(pa.distanceTo(hR), pa.distanceTo(hL)); if (na < la && nh > 0.13) na = na + (la - na) * 0.7 * bend * Math.min(1, (nh - 0.13) / 0.06); }
+              if (na !== a || nb !== b) { const w = (nb !== b && na === a) ? 1 : 1; att.setXYZ(i, att.getX(i) + ax.x * (na - a) * w + dors.x * (nb - b), att.getY(i) + ax.y * (na - a) + dors.y * (nb - b), att.getZ(i) + ax.z * (na - a) + dors.z * (nb - b)); } } } }
+        }
+        if (!FEM && hipMid.y - floorY > 0.56 && f1.u.y < 0.95) { /* build 6.31: поклон — сзади камис падает от ягодиц прямо вниз, а не расширяется к подолу «пышным платьем»; ягодицы чуть полнее */
+          const axB = s3.clone().sub(hipMid).normalize(), pB = V(), aOf = function(i) { pB.set(att.getX(i), att.getY(i), att.getZ(i)).sub(hipMid); return pB.dot(axB); };
+          const RB_K = 0.08, RB_U0 = 4.1, RB_U1 = 5.1, RB_F = 1.0, RB_P = 0.8; const T = kneeMid.clone().sub(hipMid).dot(axB) - RB_K, ss = function(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+          for (let r = 0; r < RN; r++) { const u = S[r].u; if (u < RB_U0) continue; let am = 1e9; for (let k = 0; k < RB; k++) am = Math.min(am, aOf(r * RB + k));
+            const wUp = ss((u - RB_U0) / (RB_U1 - RB_U0)); let dl = 0;
+            if (am > T) dl = (T - am) * wUp * RB_F; else if (u >= RB_U1) dl = (T - am) * RB_P; else dl = (T - am) * RB_P * wUp; dl *= Math.max(0, Math.min(1, (0.75 - f1.u.y) / 0.3)) * hw;
+            if (Math.abs(dl) < 1e-5) continue;
+            for (let k = 0; k < RB; k++) { const rr = -rings[r].R[k].d.dot(axB); if (rr <= 0.6) continue; const w = ss((rr - 0.6) / 0.35), i = r * RB + k;
+              att.setXYZ(i, att.getX(i) + axB.x * dl * w, att.getY(i) + axB.y * dl * w, att.getZ(i) + axB.z * dl * w); } } }
+        if (!FEM && hipMid.y - floorY > 0.56 && f1.u.y < 0.95) { /* build 6.31: ягодицы в поклоне — мягкая выпуклость сзади */ const GB_C = 3.4, GB_H = 1.0, GB_A = 0.04; const axG = s3.clone().sub(hipMid).normalize(); for (let r = 0; r < RN; r++) { const u = S[r].u, x = (u - GB_C) / GB_H; if (Math.abs(x) >= 1) continue; const bw = 0.5 + 0.5 * Math.cos(Math.PI * x);
+          for (let k = 0; k < RB; k++) { const d = rings[r].R[k].d, rr = -d.dot(axG); if (rr <= 0.2) continue; const w = Math.min(1, (rr - 0.2) / 0.6), i = r * RB + k, m = GB_A * bw * w * wB * hw; att.setXYZ(i, att.getX(i) + d.x * m, att.getY(i) + d.y * m, att.getZ(i) + d.z * m); } } }
+        if (!FEM && hipMid.y - floorY > 0.56 && f1.u.y < 0.95) { /* build 6.31: поклон — грудь глубже талии: ткань под грудью висит ниже, талия у́же спереди и с боков */
+          const bdS = Math.max(0, Math.min(1, (0.95 - f1.u.y) / 0.6)), dorsW = f1.f.clone().negate(), axW = s3.clone().sub(hipMid).normalize(); dorsW.sub(axW.clone().multiplyScalar(dorsW.dot(axW))).normalize(); const ltW = new THREE.Vector3().crossVectors(axW, dorsW).normalize();
+          const CH_C = 1.3, CH_H = 0.9, CH_A = 0.035, WA_C = 2.55, WA_H = 0.65, WA_A = 0.0; const bump = function(u, c, h) { const x = (u - c) / h; return Math.abs(x) >= 1 ? 0 : 0.5 + 0.5 * Math.cos(Math.PI * x); };
+          for (let r = 0; r < RN; r++) { const u = S[r].u, bc = bump(u, CH_C, CH_H), bw = bump(u, WA_C, WA_H); if (bc <= 0 && bw <= 0) continue;
+            for (let k = 0; k < RB; k++) { const d = rings[r].R[k].d, fr = Math.max(0, -d.dot(dorsW)), sd = Math.abs(d.dot(ltW)), i = r * RB + k;
+              const del = bdS * wB * hw * (CH_A * bc * fr - WA_A * bw * (fr * 0.9 + sd * 0.6)); if (del === 0) continue;
+              att.setXYZ(i, att.getX(i) + d.x * del, att.getY(i) + d.y * del, att.getZ(i) + d.z * del); } } }
+        if (!FEM && hipMid.y - floorY > 0.56 && f1.u.y < 0.95) { /* build 6.31: поклон — излом на стыке груди и живота сглаживается */
+          const dorsS = f1.f.clone().negate();
+          for (let it = 0; it < 14; it++) { const cp = att.array.slice();
+            for (let r = 1; r < RN - 1; r++) { const uu = S[r].u; if (uu < 1.6 || uu > 5.6) continue; const wu = Math.min(1, (uu - 1.6) / 0.6, (5.6 - uu) / 0.8); for (let k = 0; k < RB; k++) { const dd = rings[r].R[k].d.dot(dorsS); if (dd > 0.5) continue; const w = 0.6 * wu * wB * hw * Math.min(1, (0.5 - dd) / 0.4); const i = r * RB + k, a = ((r - 1) * RB + k) * 3, b = ((r + 1) * RB + k) * 3, c = (r * RB + (k + 1) % RB) * 3, d = (r * RB + (k + RB - 1) % RB) * 3;
+              for (let q = 0; q < 3; q++) att.array[i * 3 + q] = cp[i * 3 + q] * (1 - w) + (cp[a + q] + cp[b + q] + cp[c + q] + cp[d + q]) / 4 * w; } } } } /* build 6.31: сглаживание плавно затухает по краям — без светлой полосы поперёк камиса */
+        if (!FEM && hw > 0 && f1.u.y < 0.97) { /* build 6.32: сзади ниже ягодиц ткань висит отвесно (как занавес), а не заходит под них складкой */
+          const dH = f1.f.clone().negate(); dH.y = 0; if (dH.lengthSq() > 1e-6) { dH.normalize(); const pc = V();
+            for (let k = 0; k < RB; k++) { const dk = rings[8].R[k].d; let run = -1e9, yPrev = 0, on = false;
+              for (let r = 0; r < RN; r++) { const u = S[r].u; if (u < 3.2) continue; const i = r * RB + k; pc.set(att.getX(i), att.getY(i), att.getZ(i)); const fd = rings[r].R[k].d.dot(dH); if (fd < 0.25) { on = false; continue; }
+                const b = pc.dot(dH), wf = Math.min(1, (fd - 0.25) / 0.35);
+                if (on && pc.y < yPrev) { const lim_ = run - 0.18 * (yPrev - pc.y); if (b < lim_) { const m = (lim_ - b) * wf; att.setXYZ(i, pc.x + dH.x * m, pc.y, pc.z + dH.z * m); run = b + m; } else run = b; } else run = b;
+                yPrev = pc.y; on = true; } } } }
+        if (!FEM && hw > 0.99 && f1.u.y > 0.9) { /* build 6.33: стоя спереди камис висит от груди вниз, а не облепляет живот «шаром» со складкой у пояса */
+          const dF = f1.f.clone(); dF.y = 0; if (dF.lengthSq() > 1e-6) { dF.normalize(); const pc = V();
+            for (let k = 0; k < RB; k++) { let run = -1e9, yPrev = 0, on = false;
+              for (let r = 0; r < RN; r++) { const u = S[r].u; if (u < 1.0) continue; if (u > 4.5) break; const i = r * RB + k; pc.set(att.getX(i), att.getY(i), att.getZ(i)); const fd = rings[r].R[k].d.dot(dF); if (fd < 0.2) { on = false; continue; }
+                const b = pc.dot(dF), wf = Math.min(1, (fd - 0.2) / 0.4);
+                if (on && pc.y < yPrev) { const lim_ = run - 0.15 * (yPrev - pc.y); if (b < lim_) { const m = (lim_ - b) * wf; att.setXYZ(i, pc.x + dF.x * m, pc.y, pc.z + dF.z * m); run = b + m; } else run = b; } else run = b;
+                yPrev = pc.y; on = true; } } } }
+        if (preBP) { const A_ = att.array; for (let i = 0; i < A_.length; i++) A_[i] = preBP[i] + (A_[i] - preBP[i]) * hw; } /* build 6.32: на границе высоты таза поправки спины включаются плавно */
+        // build 6.27: в сидении ткань на ногах обтягивает их (расстояние до ног — не больше «запаса» в 2 см), а не раздувается подушкой
+        if (!FEM && hipMid.y - floorY < 0.3) {
+          const lim = [[thR, kR, 0.09, 0.078], [thL, kL, 0.09, 0.078], [kR, aR, 0.092, 0.07], [kL, aL, 0.092, 0.07], [aL, L('ball_l'), 0.065, 0.05], /* build 6.33: подстеленная левая стопа под тканью — не прорывает камис */ [hipMid, hipMid.clone().addScaledVector(V(0, 1, 0), 0.04), 0.115, 0.115], [thR, thL, 0.06, 0.06], [kR, kL, 0.06, 0.06]] /* build 6.32: между бёдрами ткань провисает — большой палец лежит на ней, а не под ней */; // мост между бёдрами — без желоба посередине
+          const GAP = 0.014, pt = V(), best = V();
+          for (let r = 0; r < RN; r++) { if (S[r].u < 3.5) continue; const wS = Math.min(1, (S[r].u - 3.5) / 0.9), wSs = wS * wS * (3 - 2 * wS);
+            for (let k = 0; k < RB; k++) { const i = r * RB + k; pt.set(att.getX(i), att.getY(i), att.getZ(i)); const ox = pt.x, oy = pt.y, oz = pt.z;
+              let bs = 1e9, bax = null, brad = 0;
+              for (let j = 0; j < lim.length; j++) { const a = lim[j][0], b = lim[j][1], ab = b.clone().sub(a), l2 = ab.lengthSq();
+                const t = l2 < 1e-9 ? 0 : Math.max(0, Math.min(1, pt.clone().sub(a).dot(ab) / l2)), ax = a.clone().addScaledVector(ab, t), rad = lim[j][2] + (lim[j][3] - lim[j][2]) * t, sd = pt.distanceTo(ax) - rad;
+                if (sd < bs) { bs = sd; bax = ax; brad = rad; } }
+              if (bax && (bs > GAP || bs < GAP * 0.5)) { const d = pt.clone().sub(bax).normalize(); pt.copy(bax).addScaledVector(d, brad + GAP + 0.006 * Math.sin(k * 0.9 + r * 0.55) * Math.sin(r * 0.31 + 1.3) * Math.max(0, d.y)); { const hy = pt.y - floorY; if (hy < 0.06 && S[r].u > 5.5) { const hd = V(d.x, 0, d.z); if (hd.lengthSq() > 1e-6) { hd.normalize(); pt.addScaledVector(hd, (0.06 - Math.max(0, hy)) * 0.3); } } } /* build 6.30: у пола подол ложится на коврик, а не обрывается стенкой у колен */ if (pt.y < floorY) pt.y = floorY; att.setXYZ(i, ox + (pt.x - ox) * wSs, oy + (pt.y - oy) * wSs, oz + (pt.z - oz) * wSs); } } }
+          // build 6.30: нижний край подола ровный — без «рваных» зубцов
+          for (let it = 0; it < 5; it++) for (let r = RN - 3; r < RN; r++) { if (S[r].u < 4.2) continue; const cp = att.array.slice();
+            for (let k = 0; k < RB; k++) { const i = r * RB + k, c = (r * RB + (k + 1) % RB) * 3, d = (r * RB + (k + RB - 1) % RB) * 3;
+              for (let q = 0; q < 3; q++) att.array[i * 3 + q] = cp[i * 3 + q] * 0.5 + (cp[c + q] + cp[d + q]) * 0.25; } }
+          // сгладить, чтобы не было граней
+          for (let it = 0; it < 6; it++) { const cp = att.array.slice();
+            for (let r = 1; r < RN - 1; r++) { if (S[r].u < 3.5) continue; for (let k = 0; k < RB; k++) { const i = r * RB + k, a = ((r - 1) * RB + k) * 3, b = ((r + 1) * RB + k) * 3, c = (r * RB + (k + 1) % RB) * 3, d = (r * RB + (k + RB - 1) % RB) * 3;
+              for (let q = 0; q < 3; q++) att.array[i * 3 + q] = (cp[i * 3 + q] * 2 + (cp[a + q] + cp[b + q] + cp[c + q] + cp[d + q]) / 4) / 3; } } }
+          // build 6.30: ткань не закрывает кисти: после всех сглаживаний ткань опускается под реальную кожу ладони и пальцев
+          // (мягкий «отпечаток» шире кисти, край без стенки); поднятый палец выше ткани и не мешает
+          if (!robeNoHand) {
+            const hv = []; ['_r', '_l'].forEach(function(sx) { const ids = handVI[sx], hj = L('hand' + sx); for (let j = 0; j < ids.length; j++) { const id = ids[j], q = bodyVert(id < 0 ? -1 - id : id).clone().applyMatrix4(inv); if (id >= 0 || q.distanceTo(hj) < 0.05) hv.push(q); } }); /* + кожа запястья (вершины предплечья у кисти): край ладони не режется тканью */
+            const hc = [L('hand_r'), L('hand_l')], vv = V(), near = new Uint8Array(RN * RB);
+            const lv = []; for (let j = 0; j < legVI.length; j++) { const q = bodyVert(legVI[j]).clone().applyMatrix4(inv); if (q.distanceTo(hc[0]) < 0.3 || q.distanceTo(hc[1]) < 0.3) lv.push(q); } // бедро под кистью: ткань не уходит внутрь тела
+            const clearPass = function() {
+            for (let r = 0; r < RN; r++) { if (S[r].u < 4.2) continue;
+              for (let k = 0; k < RB; k++) { const i = r * RB + k; pt.set(att.getX(i), att.getY(i), att.getZ(i));
+                if (pt.distanceTo(hc[0]) > 0.26 && pt.distanceTo(hc[1]) > 0.26) continue;
+                let bs = 1e9, bax = null, brad = 0;
+                for (let j = 0; j < lim.length; j++) { const a = lim[j][0], b = lim[j][1], ab = b.clone().sub(a), l2 = ab.lengthSq();
+                  const t = l2 < 1e-9 ? 0 : Math.max(0, Math.min(1, pt.clone().sub(a).dot(ab) / l2)), ax = a.clone().addScaledVector(ab, t), rad = lim[j][2] + (lim[j][3] - lim[j][2]) * t, sd = pt.distanceTo(ax) - rad;
+                  if (sd < bs) { bs = sd; bax = ax; brad = rad; } }
+                if (!bax) continue;
+                const d = pt.clone().sub(bax), r0 = d.length(); if (r0 < 1e-6) continue; d.divideScalar(r0);
+                let allow = 1e9;
+                for (let h = 0; h < hv.length; h++) { vv.copy(hv[h]).sub(bax); const t = vv.dot(d); if (t < brad * 0.6) continue;
+                  const lat2 = vv.lengthSq() - t * t; if (lat2 > 0.0025) continue; const lat = Math.sqrt(Math.max(0, lat2));
+                  const al = t - 0.004 + Math.max(0, lat - 0.022) * 0.6; if (al < allow) allow = al; }
+                if (allow < r0 + 0.01) near[i] = 1; /* только там, где над тканью есть кожа кисти */
+                let fl = brad - 0.006; /* ткань может уйти под ладонь чуть ниже расчётного цилиндра, но не ямой до кожи ноги */ for (let h = 0; h < lv.length; h++) { vv.copy(lv[h]).sub(bax); const t = vv.dot(d); if (t + 0.004 <= fl) continue; if (vv.lengthSq() - t * t < 0.0002) fl = t + 0.004; }
+                if (r0 > allow) { pt.copy(bax).addScaledVector(d, Math.max(allow, fl, r0 - 0.008)); /* build 6.32: кисть вдавливает ткань не глубже 8 мм — без борозды от большого пальца */ if (pt.y < floorY) pt.y = floorY; att.setXYZ(i, pt.x, pt.y, pt.z); } } }
+            };
+            clearPass();
+            // край «отпечатка» без перехлёстов треугольников: сгладить вокруг кистей и ещё раз опустить под кожу
+            for (let it = 0; it < 6; it++) { const cp = att.array.slice();
+              for (let r = 1; r < RN - 1; r++) for (let k = 0; k < RB; k++) { const i = r * RB + k; if (!near[i]) continue;
+                const a = ((r - 1) * RB + k) * 3, b = ((r + 1) * RB + k) * 3, c = (r * RB + (k + 1) % RB) * 3, d = (r * RB + (k + RB - 1) % RB) * 3;
+                for (let q = 0; q < 3; q++) att.array[i * 3 + q] = (cp[i * 3 + q] * 2 + (cp[a + q] + cp[b + q] + cp[c + q] + cp[d + q]) / 4) / 3; } }
+            clearPass();
+            // кольца ткани вдоль бедра не заходят друг за друга (тонкие тёмные «трещины» сбоку) — выровнять вне отпечатка кистей
+            for (let it = 0; it < 3; it++) { const cp = att.array.slice();
+              for (let r = 1; r < RN - 1; r++) { if (S[r].u < 4.2) continue; for (let k = 0; k < RB; k++) { const i = r * RB + k; if (near[i]) continue;
+                const a = ((r - 1) * RB + k) * 3, b = ((r + 1) * RB + k) * 3;
+                for (let q = 0; q < 3; q++) att.array[i * 3 + q] = cp[i * 3 + q] * 0.5 + (cp[a + q] + cp[b + q]) * 0.25; } } }
+            clearPass();
+          }
+        }
+        if (!FEM) { // build 6.30: края камиса (ворот и подол) ровные во всех позах — без белых «осколков» у шеи и щиколоток
+          const edge = [0, 1, 2, RN - 3, RN - 2, RN - 1];
+          for (let it = 0; it < 6; it++) edge.forEach(function(r) { const cp = att.array.slice();
+            for (let k = 0; k < RB; k++) { const i = r * RB + k, c = (r * RB + (k + 1) % RB) * 3, d = (r * RB + (k + RB - 1) % RB) * 3;
+              for (let q = 0; q < 3; q++) att.array[i * 3 + q] = cp[i * 3 + q] * 0.5 + (cp[c + q] + cp[d + q]) * 0.25; } }); }
         att.needsUpdate = true; robe.geometry.computeVertexNormals(); robe.geometry.computeBoundingSphere();
         if (FEM && scarf) {
           const sg = scarf.geometry.attributes.position, ring = function(r, k) { return V(att.getX(r * RB + k), att.getY(r * RB + k), att.getZ(r * RB + k)); };
@@ -16107,38 +16408,50 @@ function renderDictation(area) {
           const an = i ? aL : aR, d2 = an.clone().sub(b), l2 = d2.length();
           balls[i * 3].position.copy(a); balls[i * 3].scale.setScalar(0.058);
           balls[i * 3 + 1].position.copy(b); balls[i * 3 + 1].scale.setScalar(0.046);
-          balls[i * 3 + 2].position.copy(an); balls[i * 3 + 2].scale.setScalar(0.036);
+          balls[i * 3 + 2].position.copy(an); balls[i * 3 + 2].scale.setScalar(FEM ? 0.036 : 0.0001); /* у мужчины щиколотка открыта — без тёмного шарика на коже */
           if (l2 > 1e-6) { shinCyl[i].position.copy(b).lerp(an, 0.5); shinCyl[i].quaternion.setFromUnitVectors(V(0, 1, 0), d2.normalize().negate()); shinCyl[i].scale.set(1, l2, 1); } });
+        trouserCuff.forEach(function(m, i) { const k = i ? kL : kR, a = i ? aL : aR, d = k.clone().sub(a); const len = d.length(); if (len < 1e-6) return; d.divideScalar(len);
+          const TR_UP = 0.04, ln = len + TR_UP - HEM_T; m.position.copy(a).addScaledVector(d, HEM_T + ln / 2); m.quaternion.setFromUnitVectors(V(0, 1, 0), d); m.scale.set(1, ln, 1); m.visible = !m.userData.ghostHide; const cr = cuffRing[i]; if (cr) { cr.position.copy(a).addScaledVector(d, HEM_T + 0.001); cr.quaternion.setFromUnitVectors(V(0, 0, 1), d); cr.visible = !cr.userData.ghostHide; } }); // кромка брюк точно на границе цвета — ровный низ штанины
         // рукава: от плеча (внутри камиса) до запястья, книзу провисают
         ['_r', '_l'].forEach(function(sx, si) {
           const cl = L('clavicle' + sx), ua = L('upperarm' + sx), el = L('lowerarm' + sx), hn = L('hand' + sx);
           const faD = hn.clone().sub(el).normalize();
-          const wr = hn.clone().addScaledVector(faD, -0.012), uaD = ua.clone().sub(el).normalize();
+          const hOth = L(sx === '_r' ? 'hand_l' : 'hand_r'), foldW = FEM ? 0 : Math.max(0, Math.min(1, (0.2 - hn.distanceTo(hOth)) / 0.08)) * Math.max(0, Math.min(1, (f1.u.y - 0.85) / 0.1)); /* build 6.29: руки сложены (кыям) — рукав сползает к локтю, запястья открыты, как у живого человека */
+          const wr = hn.clone().addScaledVector(faD, FEM ? -0.012 : -0.005 - (sx === '_r' ? 0 : SLV_BACK) * foldW) /* build 6.29: правый рукав доходит до кисти — закрывает перекрученное запястье (там была «заноза» кожи) */, /* build 6.32: край рукава закрывает стык предплечья и кисти (там у модели острые лоскуты кожи при сгибе) */ uaD = ua.clone().sub(el).normalize();
           const elIn = el.clone().addScaledVector(uaD, 0.075), elOut = el.clone().addScaledVector(faD, 0.075); // build 6.29: локоть — плавный изгиб рукава без угла
           const outer = elIn.clone().sub(el).add(elOut.clone().sub(el)).multiplyScalar(-1); if (outer.lengthSq() > 1e-8) outer.normalize();
           const elMid = el.clone().addScaledVector(outer, 0.01);
-          const Q = [cl.clone().lerp(ua, 0.9).add(V(0, -0.02, 0)), ua, elIn, elMid, elOut, wr];
-          const rV = FEM ? [0.03, 0.05, 0.056, 0.058, 0.058, 0.058] : [0.03, 0.044, 0.045, 0.046, 0.045, 0.041]; // build 6.29: локоть и предплечье уже
+          const bz = function(t) { return elIn.clone().multiplyScalar((1 - t) * (1 - t)).addScaledVector(el, 2 * t * (1 - t)).addScaledVector(elOut, t * t); };
+          const Q = FEM ? [cl.clone().lerp(ua, 0.9).add(V(0, -0.02, 0)), ua, elIn, elMid, elOut, wr] : [cl.clone().lerp(ua, 0.7), ua, elIn, bz(0.25), bz(0.5), bz(0.75), elOut, wr]; // build 6.30: локоть — плавная дуга, без складки-«трещины»
+          const rV = FEM ? [0.03, 0.05, 0.056, 0.058, 0.058, 0.058] : [0.03, 0.046, 0.046, 0.046, 0.045, 0.044, 0.042, 0.037]; /* build 6.32: край мужского рукава плотно к запястью, тень внутри ровная, без чёрного клина */ // build 6.29: локоть и предплечье уже
           const jt = sleeveJoint[si];
           jt.sh.position.copy(ua); jt.sh.scale.setScalar(FEM ? 0.046 : 0.04);
-          jt.el.position.copy(elMid); jt.el.scale.setScalar(FEM ? 0.056 : 0.044);
-          jt.cuff.position.copy(wr).addScaledVector(faD, -0.002); jt.cuff.scale.setScalar(FEM ? 0.058 : 0.0001); // build 6.29: у мужского рукава нет кольца-«браслета», край рукава ровный // build 6.29: кромка рукава вровень с тканью, а не браслет jt.cuff.quaternion.setFromUnitVectors(V(0, 0, 1), faD);
+          jt.el.position.copy(elMid); jt.el.scale.setScalar(FEM ? 0.056 : 0.0001); // build 6.30: шарик локтя внутри трубы рукава — не прорывается белым зубчиком
+          jt.cuff.position.copy(wr); if (FEM) jt.cuff.scale.setScalar(0.058); else jt.cuff.scale.setScalar(0.0001); /* build 6.32: у мужского рукава без отдельного валика — край не светится белым кольцом на запястье */ jt.cuff.quaternion.setFromUnitVectors(V(0, 0, 1), faD); jt.cap.position.copy(wr).addScaledVector(faD, FEM ? 0.0005 : -0.005); jt.cap.quaternion.setFromUnitVectors(V(0, 0, 1), faD); jt.cap.scale.setScalar(FEM ? 0.0001 : 0.0001); /* build 6.31: мужской рукав — открытый край с тенью внутри и скруглённой кромкой; кисть выходит из рукава */ /* build 6.30: торец рукава закрыт тёмной изнанкой — внутри не видно пустоты */ // build 6.30: у рукава есть кромка-«подгиб» (толщина ткани), а не бумажно-тонкий край
           const Ss = pathSample(Q, SN), ga = sleeves[si].geometry.attributes.position;
-          let lx = null;
+          const wrP = []; if (!FEM) { const ids = handVI[sx]; for (let j = 0; j < ids.length; j++) { if (ids[j] >= 0) continue; const q = bodyVert(-1 - ids[j]).clone().applyMatrix4(inv); if (q.distanceTo(wr) < 0.16) wrP.push(q); } } /* build 6.32: кожа запястья — край рукава облегает её */
+          const othF = []; if (!FEM && sx === '_r' && SLV_DRAPE) { const os = sx === '_r' ? '_l' : '_r'; ['thumb', 'index', 'middle', 'ring', 'pinky'].forEach(function(f) { const js = f === 'thumb' ? ['thumb_02', 'thumb_03', 'thumb_04_leaf'] : [f + '_01', f + '_02', f + '_03', f + '_04_leaf']; for (let j = 0; j + 1 < js.length; j++) { const a_ = B[js[j] + os].getWorldPosition(V()).applyMatrix4(inv), b_ = B[js[j + 1] + os].getWorldPosition(V()).applyMatrix4(inv); for (let s_ = 0; s_ <= 1.001; s_ += 0.25) othF.push(a_.clone().lerp(b_, s_)); } }); } /* build 6.33: пальцы другой руки под рукавом — ткань ложится поверх них, а не пропускает их насквозь */
+          let lx = null; const prevR = new Float32Array(SB).fill(1);
           Ss.forEach(function(st, r) { const T = st.t;
             if (!lx) { lx = Math.abs(T.y) < 0.9 ? V(0, 1, 0).cross(T) : V(1, 0, 0).cross(T); }
             lx.sub(T.clone().multiplyScalar(lx.dot(T))).normalize();
             const fz = new THREE.Vector3().crossVectors(lx, T).normalize();
-            const last = r === SN - 1, rad = stationVal(rV, st.u) * (FEM ? 1 : (r === SN - 1 ? 0.62 : r === SN - 2 ? 0.86 : 1)); // build 6.29: край мужского рукава прилегает к запястью — без открытой трубы и лоскутов
+            const last = r === SN - 1, rad = stationVal(rV, st.u) * (FEM ? 1 : 1); // build 6.29: край мужского рукава прилегает к запястью — без открытой трубы и лоскутов
+            let wSm = null; if (!FEM && wrP.length && r >= SN - 3) { wSm = []; for (let k = 0; k < SB; k++) { const th = k / SB * Math.PI * 2; const d = lx.clone().multiplyScalar(Math.cos(th)).addScaledVector(fz, Math.sin(th)); let s = 0; for (let j = 0; j < wrP.length; j++) { const v = wrP[j].clone().sub(st.p); if (Math.abs(v.dot(T)) > 0.02) continue; const sd = v.dot(d); if (sd > s) s = sd; } wSm.push(s); } for (let pass = 0; pass < 3; pass++) { const c = wSm.slice(); for (let k = 0; k < SB; k++) { let a = 0; for (let o = -3; o <= 3; o++) a += c[(k + o + SB * 4) % SB]; wSm[k] = Math.max(a / 7, c[k]); } } }
             for (let k = 0; k < SB; k++) { const th = k / SB * Math.PI * 2; const d = lx.clone().multiplyScalar(Math.cos(th)).addScaledVector(fz, Math.sin(th));
               const down = Math.max(0, -d.y);
-              const endF = Math.min(1, (SN - 1 - r) / 6); // build 6.29: провис и складки плавно сходят на нет к краю рукава — без лоскутов у манжеты
-              const p = st.p.clone().addScaledVector(d, rad + endF * ((FEM ? 0.03 : 0.026) * down * Math.min(1, st.u) + 0.002 * Math.sin(th * 5 + r)));
+              const endF = Math.min(1, (SN - 1 - r) / (FEM ? 6 : 10)); // build 6.29: провис и складки плавно сходят на нет к краю рукава — без лоскутов у манжеты
+              let rr_ = rad + endF * ((FEM ? 0.03 : 0.026) * down * Math.min(1, st.u) + 0.002 * Math.sin(th * 5 + r));
+              if (!FEM && sx === '_r' && foldW > 0) rr_ *= 1 - 0.38 * foldW * Math.max(0, 1 - (SN - 1 - r) / 6); /* build 6.29: в кыяме край правого рукава прилегает к руке и ложится НА левую кисть, а не надевается на неё */ const wE = r >= SN - 3 ? 1 : 0, wM = [0.009, 0.0135, 0.019][SN - 1 - r] || 0.02; /* build 6.32: рукав плавно сужается к запястью — без «шара» у манжеты */
+              if (wE > 0 && wrP.length) { const s = wSm[k]; const tgt = Math.max(0.012, s + wM); if (tgt > rr_) rr_ = tgt; } /* build 6.33: свободный рукав — край не стягивается, только не входит в кожу */ /* build 6.32: край рукава по сглаженному контуру запястья — без зубчиков */
+              for (let j = 0; j < othF.length; j++) { const v = othF[j].clone().sub(st.p), ax_ = v.dot(T); if (Math.abs(ax_) > 0.04) continue; v.addScaledVector(T, -ax_); const rad_ = v.length(); if (rad_ < 1e-5 || rad_ > rad + 0.03) continue; const c_ = v.divideScalar(rad_).dot(d); if (c_ <= 0.2) continue; const wA = Math.pow((c_ - 0.2) / 0.8, 0.7), wX = 1 - Math.pow(Math.abs(ax_) / 0.04, 2), need = rad_ + 0.012; /* build 6.29: правый рукав ложится поверх пальцев левой кисти — пальцы под рукавом, а не сквозь него */ if (need > rr_) rr_ += (need - rr_) * wA * wX; }
+              prevR[k] = rr_; /* build 6.32: к краю рукав только сужается — без «колокола» */
+              const p = st.p.clone().addScaledVector(d, rr_);
               if (p.y < floorY) p.y = floorY; ga.setXYZ(r * SB + k, p.x, p.y, p.z); } });
           ga.needsUpdate = true; sleeves[si].geometry.computeVertexNormals(); sleeves[si].geometry.computeBoundingSphere();
         });
       }
-      function dispose() { [body, robe, sleeves[0], sleeves[1], kufi, scarf].concat(sleeveBits).forEach(function(m) { try { m.geometry.dispose(); } catch (e) {} }); }
+      function dispose() { [body, robe, sleeves[0], sleeves[1], kufi, scarf, neckFill].concat(sleeveBits).forEach(function(m) { try { m.geometry.dispose(); } catch (e) {} }); }
       return { display: display, setFrame: setFrame, getPose: getPose, setGhost: setGhost, dispose: dispose, B: B };
     }
 
@@ -16405,11 +16718,11 @@ function renderDictation(area) {
         n: 'Сидение — как в первом: левая стопа подстелена, правая стоит на пальцах к кибле (ифтираш); ладони на бёдрах, пальцы вытянуты. Взгляд — на колени.',
         nk: 'Отырыс — бірінші отырыстағыдай: сол табан төселген, оң табан құбылаға қараған саусақтарда тұрады (ифтираш); алақан санда, саусақтар созулы. Көз — тізеде.',
         fard: { arkan: [4] }, wajib: { wajib: [7] }, sunna: { sunan: [30] }, more: { mustahabb: [4, 8], makruh: [12, 15] } },
-      finger: { pose: 'sitFinger', gaze: 'lap', detail: ['finger'],
+      finger: { pose: 'sitFinger', gaze: 'lap', detail: ['fingerRest', 'finger'],
         say: { ar: 'أَشْهَدُ أَنْ لَا إِلٰهَ إِلَّا اللّٰهُ', ru: 'Ашхаду ан ля иляха илля-Ллах', kk: 'Әшһәду әл лә иләһә иллаллаһ' },
         t: 'Указательный палец', tk: 'Сұқ саусақ',
-        n: 'При чтении ташаххуда указательный палец правой руки поднимается на словах «ля иляха» и опускается на словах «илля-Ллах».',
-        nk: 'Тәшәһһуд оқығанда оң қолдың сұқ саусағы «лә иләһә» дегенде көтеріледі, «иллаллаһ» дегенде түсіріледі.',
+        n: 'При чтении ташаххуда указательный палец правой руки поднимается на словах «ля иляха» и опускается на словах «илля-Ллах». Большой и средний пальцы смыкаются в «кольцо», безымянный и мизинец сжаты.',
+        nk: 'Тәшәһһуд оқығанда оң қолдың сұқ саусағы «лә иләһә» дегенде көтеріледі, «иллаллаһ» дегенде түсіріледі. Бас бармақ пен ортан қол саусақ «сақина» (сақина) жасайды, үшінші және кішкентай саусақ жұмылады.',
         sunna: { sunan: [31] } },
       salawat: { pose: 'sitRing', gaze: 'lap',
         say: { ar: 'اللّٰهُمَّ صَلِّ عَلَى مُحَمَّدٍ … · اللّٰهُمَّ إِنِّي ظَلَمْتُ نَفْسِي …', ru: 'Салават Пророку ﷺ → дуа (например, «Аллахумма инни залямту нафси…»)', kk: 'Пайғамбарға ﷺ салауат → дұға (мысалы, «Аллаһуммә инни заләмту нәфси…»)' },
@@ -16975,10 +17288,12 @@ function renderDictation(area) {
       const btn = function(id, label, extra) { return '<button type="button" class="btn btn-sm" data-sa="' + id + '"' + (extra || '') + '>' + label + '</button>'; };
       return '<div id="salah-anim" style="margin:0.6rem auto 0;max-width:560px">' +
         '<div id="hs-pos-row" style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center;margin-bottom:0.45rem"></div>' +
+        '<div id="hs-split"><div id="hs-stage">' + /* build 6.28: фигура и текст шага — сверху/снизу на телефоне, слева/справа на широком экране */
         '<div style="position:relative;border-radius:0.6rem;overflow:hidden;background:radial-gradient(ellipse at 50% 35%, #26344d 0%, #141c2b 75%)">' +
         '<div id="salah-3d"></div>' +
         '<svg id="salah-anim-svg" viewBox="-72 -196 232 226" style="width:100%;height:auto;display:block;cursor:grab;touch-action:none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + (kk ? 'Намаз анимациясы' : 'Анимация намаза') + '"></svg>' +
-        '<div id="salah-anim-step" style="position:absolute;top:0.4rem;left:0.55rem;font-size:0.75rem;color:#cbd5e1;pointer-events:none"></div>' +
+        '<div id="salah-anim-step" style="position:absolute;top:0.4rem;left:0.55rem;right:2.6rem;font-size:0.75rem;color:#cbd5e1;pointer-events:none"></div>' +
+        '<button type="button" id="hs-full-btn" title="' + (kk ? 'Толық экран' : 'Во весь экран') + '" style="position:absolute;top:0.3rem;right:0.35rem;width:2rem;height:2rem;border-radius:0.45rem;border:1px solid rgba(148,163,184,0.4);background:rgba(15,23,42,0.55);color:#e2e8f0;font-size:1rem;line-height:1;padding:0;cursor:pointer">⛶</button>' +
         '<div style="position:absolute;bottom:0.35rem;right:0.55rem;font-size:0.66rem;color:#94a3b8;pointer-events:none">' + (kk ? '✥ айналдыру · екі саусақ — жылжыту · ＋/－' : '✥ вращайте · два пальца — сдвиг и масштаб · ＋/－') + '</div>' +
         '<div style="position:absolute;bottom:0.35rem;left:0.55rem;font-size:0.66rem;color:#fbbf24;pointer-events:none">┄▸ ' + (kk ? 'көз қарау бағыты' : 'куда смотреть') + '</div>' +
         '</div>' +
@@ -16986,6 +17301,8 @@ function renderDictation(area) {
         '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem;align-items:center">' +
         btn('prev', '⏮') + btn('play', '⏸', ' style="min-width:3rem"') + btn('next', '⏭') + btn('speed', '1×') + btn('zin', '＋') + btn('zout', '－') +
         '<span style="flex:1"></span>' +
+        '</div></div><div id="hs-text">' +
+        '<div id="hs-cam-row" style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem;align-items:center">' +
         btn('cam-0', kk ? 'Бүйірден' : 'Сбоку') + btn('cam-35', '3/4') + btn('cam-90', kk ? 'Алдынан' : 'Спереди') + (fem ? '' : btn('cam-top', kk ? 'Үстінен' : 'Сверху')) +
         '</div>' +
         '<div id="salah-focus-row" style="display:none;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem;align-items:center"><span style="font-size:0.8rem;color:var(--text-muted)">' + (kk ? 'Жақыннан:' : 'Крупно:') + '</span>' +
@@ -16993,7 +17310,8 @@ function renderDictation(area) {
         '</div>' +
         '<div id="salah-feet-note" class="card" style="display:none;margin-top:0.5rem;border-color:#fbbf24"></div>' +
         '<div id="salah-anim-cap" style="margin-top:0.6rem"></div>' +
-        '<div style="margin-top:0.5rem;font-size:0.72rem;color:var(--text-muted)">' + (kk
+        '</div></div>' +
+        '<div id="hs-foot" style="margin-top:0.5rem;font-size:0.72rem;color:var(--text-muted)">' + (kk
           ? 'Қалып пен үкімдер — ханафи фиқһы бойынша (дереккөз — беттің жоғарғы жағында). Анимацияда кітапта сипатталмаған бөлшектер (мысалы, қолдың тұрған жері, екі сәжде арасындағы аяқ қалпы) әдеттегі қалыппен көрсетілген. Білетін кісіден үйренудің орнын баспайды.'
           : 'Положения и нормы — по ханафитскому фикху (источник — вверху страницы). Детали, которых в книге нет (например, где лежат руки в кауме или как стоят стопы между суджудами), в анимации показаны обычным положением и в тексте не утверждаются. Не заменяет обучения у знающего.') + '</div>' +
         '</div>';
@@ -17066,9 +17384,8 @@ function renderDictation(area) {
           html += '<div style="margin-top:0.6rem;border-top:1px solid var(--border);padding-top:0.4rem"><b style="color:var(--accent)">📖 ' + (kk ? 'Не оқылады' : 'Что читать') + '</b>' + jahr +
             rc.map(function(id) { return hsTextHtml(id, kk, ctx); }).join('') + '</div>';
         }
-        if (G.detail && G.detail.length) {
-          html += '<div style="display:grid;grid-template-columns:repeat(' + G.detail.length + ',minmax(0,1fr));gap:0.4rem;margin:0.55rem auto 0;max-width:' + (G.detail.length > 1 ? '520px' : '280px') + '">' +
-            G.detail.map(function(d) { return '<div style="background:#1e293b;border-radius:0.5rem;border:1px solid var(--border);padding-bottom:0.35rem">' + salahDetailSvg(d, kk, FEMALE) + salahDetailNotesHtml(d, kk) + '</div>'; }).join('') + '</div>';
+        if (G.detail && G.detail.length) { // build 6.28: рисунки «крупно» открываются по кнопке 🔍, а не висят в ленте
+          html += '<div>' + G.detail.map(function(d) { const NM = { ears: ['Руки у ушей', 'Қол құлақ тұсында'], fold: ['Руки под пупком', 'Қол кіндік астында'], foldF: ['Руки на груди', 'Қол кеудеде'], knee: ['Ладони на коленях', 'Алақан тізеде'], sajdaHands: ['Ладони в суджуде', 'Сәждедегі алақан'], sajdaFeet: ['Стопы в суджуде', 'Сәждедегі табан'], iftirash: ['Как сидеть', 'Қалай отырады'], finger: ['Указательный палец', 'Сұқ саусақ'], stance: ['Стопы стоя', 'Тік тұрғандағы табан'], fingerRest: ['Пальцы на бёдрах', 'Саусақтар санда'] }, n = SALAH_DETAIL_NOTES[d], l = NM[d] ? NM[d][kk ? 1 : 0] : (n ? String((kk ? n.kk : n.ru)[0] || '').replace(/[.:]\s*$/, '') : ''); return '<button type="button" class="btn btn-sm hs-zoom-btn" data-hs-pic="' + d + '">🔍 ' + (l ? esc(l.replace(/<[^>]*>/g, '')) : (kk ? 'Жақыннан' : 'Крупно')) + '</button>'; }).join('') + '</div>';
         }
         if (!s.short) {
           html += _hsBlock(kk ? 'Парыз / шарт' : 'Фарз / условие', '#f87171', _hsList(G.fard, kk)) +
@@ -17088,6 +17405,13 @@ function renderDictation(area) {
           }
         }
         cap.innerHTML = html;
+        cap.querySelectorAll('[data-hs-pic]').forEach(function(b) { b.addEventListener('click', function() {
+          const d = b.getAttribute('data-hs-pic'); setPlay(false);
+          const m = document.createElement('div'); m.id = 'hs-pic-modal';
+          m.innerHTML = '<div>' + salahDetailSvg(d, kk, FEMALE) + salahDetailNotesHtml(d, kk) + '<div style="text-align:center;margin-top:0.5rem"><button type="button" class="btn btn-sm">' + (kk ? 'Жабу' : 'Закрыть') + '</button></div></div>';
+          const close = function() { m.remove(); };
+          m.addEventListener('click', function(e) { if (e.target === m || e.target.tagName === 'BUTTON') close(); });
+          document.body.appendChild(m); }); });
         cap.querySelectorAll('[data-hisn-play]').forEach(function(b) { b.addEventListener('click', function() { setPlay(false); try { hisnPlay(b.getAttribute('data-hisn-play')); } catch (e) {} }); });
         try { hsFillSurahs(cap, kk); } catch (e) {}
         cap.querySelector('#salah-anim-more')?.addEventListener('click', function() {
@@ -17269,11 +17593,31 @@ function renderDictation(area) {
             if (r3d.onModel) r3d.onModel(function() { dropVeil(); if (box.isConnected) { r3dBusy = true; draw(); } });
             svg.style.display = 'none';
             const fr = box.querySelector('#salah-focus-row'); if (fr) fr.style.display = 'flex';
-            draw();
+            draw(); if (box._hsLayout) box._hsLayout();
             if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(function() { if (r3d && box.isConnected) { r3d.resize(); draw(); } else ro.disconnect(); }); ro.observe(host3d); }
           } catch (e) { dropVeil(); r3d = null; host3d.innerHTML = ''; if (FEMALE) femNoFigure(); else svg.style.display = ''; salahDiag(host3d, 'WebGL/3D: ' + (e && e.message || e)); }
         }).catch(function(e) { dropVeil(); if (FEMALE) femNoFigure(); else svg.style.display = ''; salahDiag(host3d, 'three.module.min.js не загружен: ' + (e && e.message || e)); });
       } else if (FEMALE) femHidden();
+      { // build 6.28: раскладка «фигура + текст»: телефон вертикально — фигура закреплена сверху, текст листается под ней; широкий экран — слева/справа; ⛶ — фигура на весь экран
+        const fullBtn = box.querySelector('#hs-full-btn');
+        const layout = function() {
+          if (!box.isConnected) { window.removeEventListener('resize', layout); return; }
+          if (window._hsNoLayout) { if (fullBtn) fullBtn.style.display = 'none'; return; } /* служебный флаг для снимков картинок «крупно» — прежний квадратный кадр */
+          const full = box.classList.contains('hs-full'), vw = window.innerWidth, vh = window.innerHeight;
+          const wide = !full && (box.parentElement ? box.parentElement.clientWidth : vw) >= 700;
+          box.classList.toggle('hs-wide', wide);
+          box.classList.toggle('hs-compact', !full && !wide && vh > vw);
+          let hv = 0; try { hv = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-vis')) || 0; } catch (e) {}
+          const mh = full ? vh - 120 : wide ? vh - hv - 105 : (vh > vw ? Math.round(vh * 0.36) : 0);
+          host3d.setAttribute('data-maxh', String(Math.max(0, mh)));
+          if (fullBtn) { fullBtn.textContent = full ? '✕' : '⛶'; fullBtn.title = full ? (kk ? 'Жабу' : 'Закрыть') : (kk ? 'Толық экран' : 'Во весь экран'); }
+          if (r3d) { try { r3d.resize(); draw(); } catch (e) {} }
+        };
+        if (fullBtn) fullBtn.addEventListener('click', function() { const on = !box.classList.contains('hs-full'); box.classList.toggle('hs-full', on); layout(); });
+        window.addEventListener('resize', layout);
+        layout();
+        box._hsLayout = layout;
+      }
       caption(); draw();
       requestAnimationFrame(frame);
     }
@@ -53290,6 +53634,7 @@ function startApp() {
     try { applySwipeTabsSetting(); } catch(e) {}
     try { applyHelpBtnVisibility(); } catch(e) {}
     try { applyHeaderBtnsLayout(); } catch(e) {}
+    try { initHeaderTongue(); } catch(e) {}
     try { document.body.classList.add('hide-ui-hints'); } catch(e) {}
     try { /* подсказки свёрнуты */ if (!localStorage.getItem('quran_tips_default_v2')) { localStorage.removeItem('quran_tip_open'); localStorage.setItem('quran_tips_default_v2','1'); window._tipOpen = {}; } } catch(e) {}
     initLockScreen();

@@ -3647,3 +3647,27 @@ body.reduce-motion .fb-ok, body.reduce-motion .fb-bad { animation: none; }
     #audio-sleep-panel .sl-hint { margin-top: 0.35rem; color: var(--text-muted); font-size: 0.72rem; line-height: 1.35; }
 
     .ayah-translit { margin: 0.1rem 0 0.35rem; color: var(--accent); font-style: italic; line-height: 1.55; font-size: calc(0.9rem * var(--ru-scale, 1)); text-align: left; }
+
+    /* build 6.28: шапку можно свернуть язычком или жестом — верх экрана свободен */
+    header { transition: top 0.22s ease, margin-top 0.22s ease; }
+    body.hdr-collapsed header { top: calc(-1 * var(--hdr-h, 64px)); margin-top: calc(-1 * var(--hdr-h, 64px)); }
+    #hdr-tongue { position: absolute; top: 100%; right: 14px; width: 46px; height: 18px; padding: 0; margin: 0;
+      border: 1px solid var(--border); border-top: none; border-radius: 0 0 10px 10px;
+      background: inherit; color: var(--text-muted); font-size: 13px; line-height: 16px;
+      cursor: pointer; z-index: 51; touch-action: none; }
+    /* build 6.28: «Как читать намаз» — фигура и текст шага рядом: на телефоне фигура сверху (закреплена), текст снизу; на широком экране — слева и справа */
+    #hs-stage { background: var(--bg); }
+    #salah-anim.hs-compact #hs-stage { position: sticky; top: var(--hdr-vis, 0px); z-index: 5; padding-bottom: 0.3rem; box-shadow: 0 6px 10px -8px rgba(0,0,0,0.6); }
+    #salah-anim.hs-compact #hs-cam-row { display: none !important; }
+    #salah-anim.hs-wide { max-width: 1100px !important; }
+    #salah-anim.hs-wide #hs-split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 0.9rem; align-items: start; }
+    #salah-anim.hs-wide #hs-stage { position: sticky; top: calc(var(--hdr-vis, 0px) + 0.4rem); }
+    #salah-anim.hs-wide #salah-anim-cap { margin-top: 0 !important; }
+    #salah-anim.hs-full { position: fixed; inset: 0; z-index: 400; margin: 0 !important; max-width: none !important; background: var(--bg); padding: 0.5rem; overflow: hidden; }
+    #salah-anim.hs-full #hs-split { display: block; }
+    #salah-anim.hs-full #hs-stage { position: static; box-shadow: none; }
+    #salah-anim.hs-full #hs-text, #salah-anim.hs-full #hs-foot, #salah-anim.hs-full #hs-pos-row { display: none !important; }
+    #salah-anim.hs-full #salah-anim-step { font-size: 0.85rem !important; background: rgba(15,23,42,0.6); padding: 0.15rem 0.4rem; border-radius: 0.35rem; }
+    .hs-zoom-btn { margin: 0.45rem 0.35rem 0 0; }
+    #hs-pic-modal { position: fixed; inset: 0; z-index: 500; background: rgba(2,6,23,0.82); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    #hs-pic-modal > div { background: #1e293b; border: 1px solid var(--border); border-radius: 0.6rem; max-width: 420px; width: 100%; max-height: 92vh; overflow: auto; padding-bottom: 0.5rem; }
