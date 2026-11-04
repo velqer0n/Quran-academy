@@ -10447,26 +10447,40 @@ function renderMistakes() {
       s += '<path d="M116,38 Q122,62 119,86 Q117,100 112,112" fill="none" stroke="#c084fc" stroke-width="2.4" stroke-linecap="round"/>';
       s += '<path d="M101,100 Q97,86 102,78 Q108,82 108,98 Z" fill="#94a3b8" opacity="0.9"/>';
       s += '<path d="M101,99 Q100,111 110,113 Q120,111 119,99" stroke="#64748b" stroke-width="1.4" fill="none"/>';
-      // пол рта
-      s += '<path d="M16,70 Q24,86 44,90 Q74,98 100,100" fill="none" stroke="#64748b" stroke-width="1.4"/>';
-      // язык (заливка в цвет «язык» из легенды)
-      s += '<path d="' + mouthTonguePath(curTongue) + '" fill="#38bdf8" fill-opacity="0.82" stroke="#7dd3fc" stroke-width="1.4" stroke-linejoin="round">' +
+      // пол рта (более объёмный)
+      s += '<path d="M16,70 Q24,86 44,90 Q74,98 100,100" fill="none" stroke="#64748b" stroke-width="1.2" opacity="0.6"/>';
+      // язык — с объёмом и лёгким градиентом
+      s += '<defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7dd3fc"/><stop offset="55%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#0ea5e9"/></linearGradient></defs>';
+      s += '<path d="' + mouthTonguePath(curTongue) + '" fill="url(#tg)" fill-opacity="0.92" stroke="#7dd3fc" stroke-width="1.1" stroke-linejoin="round">' +
            A('d', tVals, tKt) + '</path>';
-      // голосовые связки: звонкие — сближены + розовое свечение; глухие — раздвинуты
+      // голосовые связки
       const fx = info.voiced ? [108.2, 111.8] : [105, 115];
       s += (info.voiced ? '<ellipse cx="110" cy="105" rx="9" ry="3.4" fill="#fb7185" opacity="0.25"/>' : '') +
            '<ellipse cx="' + fx[0] + '" cy="105" rx="3" ry="1.5" fill="#fda4af">' + (info.voiced ? A('cx', [108.2, 105.6, 108.2], [0, 0.5, 1], { dur: _mf(0.12 * sc), linear: true, repeat: 8, delay: _mf(T0) }) : '') + '</ellipse>' +
            '<ellipse cx="' + fx[1] + '" cy="105" rx="3" ry="1.5" fill="#fda4af">' + (info.voiced ? A('cx', [111.8, 114.4, 111.8], [0, 0.5, 1], { dur: _mf(0.12 * sc), linear: true, repeat: 8, delay: _mf(T0) }) : '') + '</ellipse>';
-      // нижняя челюсть/зубы (для «аа» челюсть опускается), губы
+      // зубы — более реалистичные (с бликом и формой)
       const jaw = (g.lips === 'wide' && showPose) ? 5 : 0;
       s += '<g' + (jaw ? ' transform="translate(0,' + jaw + ')"' : '') + '>' +
            (g.lips === 'wide' && animate ? '<animateTransform attributeName="transform" type="translate" begin="indefinite" dur="' + D + 's" values="0 0;0 5;0 5" keyTimes="0;' + KT + ';1" data-d="0"/>' : '') +
-           '<rect x="27" y="61" width="6" height="11" rx="2" fill="#cbd5e1"/><rect x="34" y="64" width="6" height="9" rx="2" fill="#cbd5e1"/></g>';
-      s += '<rect x="27" y="35" width="6" height="14" rx="2" fill="#f8fafc"/><rect x="34" y="37" width="6" height="11" rx="2" fill="#f8fafc"/>';
-      s += '<path d="' + lipsNow.u + '" fill="none" stroke="#fb7185" stroke-width="4" stroke-linecap="round">' +
+           // нижние зубы
+           '<path d="M26,62 Q27,58 30,58 Q33,58 34,62 L34,70 Q33,72 30,72 Q27,72 26,70 Z" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="0.6"/>' +
+           '<path d="M34,64 Q35,61 37.5,61 Q40,61 41,64 L41,71 Q40,73 37.5,73 Q35,73 34,71 Z" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.5"/>' +
+           '<path d="M27.5,60 Q30,59 32.5,60" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.7"/>' +
+           '</g>';
+      // верхние зубы
+      s += '<path d="M26,36 Q27,32 30,32 Q33,32 34,36 L34,46 Q33,48 30,48 Q27,48 26,46 Z" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.6"/>' +
+           '<path d="M34,38 Q35,35 37.5,35 Q40,35 41,38 L41,45 Q40,47 37.5,47 Q35,47 34,45 Z" fill="#ffffff" stroke="#f1f5f9" stroke-width="0.5"/>' +
+           '<path d="M27.5,34 Q30,33 32.5,34" fill="none" stroke="#fff" stroke-width="0.9" opacity="0.85"/>';
+      // губы — с заливкой и объёмом
+      const lipGrad = '<defs><linearGradient id="lipU" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fda4af"/><stop offset="100%" stop-color="#fb7185"/></linearGradient>' +
+                      '<linearGradient id="lipL" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fb7185"/><stop offset="100%" stop-color="#e11d48"/></linearGradient></defs>';
+      s += lipGrad;
+      s += '<path d="' + lipsNow.u + '" fill="url(#lipU)" fill-opacity="0.85" stroke="#f43f5e" stroke-width="1.6" stroke-linecap="round">' +
            (g.lips !== 'open' ? (g.lips === 'closed' && info.flow === 'stop' ? A('d', [lipsRestU, MOUTH_LIPS.closed.u, MOUTH_LIPS.closed.u, lipsRestU, lipsRestU], [0, KT, 0.55, 0.62, 1]) : A('d', [lipsRestU, MOUTH_LIPS[g.lips].u, MOUTH_LIPS[g.lips].u], [0, KT, 1])) : '') + '</path>';
-      s += '<path d="' + lipsNow.l + '" fill="none" stroke="#fb7185" stroke-width="4" stroke-linecap="round">' +
+      s += '<path d="' + lipsNow.l + '" fill="url(#lipL)" fill-opacity="0.9" stroke="#e11d48" stroke-width="1.6" stroke-linecap="round">' +
            (g.lips !== 'open' ? (g.lips === 'closed' && info.flow === 'stop' ? A('d', [lipsRestL, MOUTH_LIPS.closed.l, MOUTH_LIPS.closed.l, lipsRestL, lipsRestL], [0, KT, 0.55, 0.62, 1]) : A('d', [lipsRestL, MOUTH_LIPS[g.lips].l, MOUTH_LIPS[g.lips].l], [0, KT, 1])) : '') + '</path>';
+      // лёгкий блик на верхней губе
+      s += '<path d="' + lipsNow.u + '" fill="none" stroke="#fff" stroke-width="0.7" opacity="0.35" stroke-linecap="round"/>';
       // точка артикуляции (цвет = категория из легенды) с пульсацией при показе
       if (g.contact && showPose) {
         s += '<circle cx="' + g.contact[0] + '" cy="' + g.contact[1] + '" r="9" fill="' + col + '" opacity="0.28">' +
@@ -17528,7 +17542,8 @@ function renderDictation(area) {
             else { go(st.i + 1); need = false; }
           } else if (st.t <= s.tr + 450) need = true;
         }
-        if (need || r3dBusy) draw();
+        // build 6.30: не пересчитывать тело чаще ~30 раз/сек — снижает лаги на слабых устройствах
+        if ((need || r3dBusy) && (!st._lastDraw || ts - st._lastDraw > 32)) { st._lastDraw = ts; draw(); }
         requestAnimationFrame(frame);
       };
       box.querySelectorAll('[data-sa]').forEach(function(b) {
