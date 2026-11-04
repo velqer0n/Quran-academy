@@ -14386,15 +14386,16 @@ function renderDictation(area) {
       const tak = { w: { at: 'ear', o: [2, -6, 11] }, pole: [0.6, -0.8, 0.45], hd: [178, -10], tb: [-0.4, -0.7, -1] };
       P.takbir = _sPose(P.stand, { head: 175, R: tak, L: tak });
       // руки ниже пупка: правая ладонь на тыльной стороне левой, мизинец и большой палец обхватывают левое запястье
+      // локти у боков, предплечья почти горизонтально, без выворота сквозь корпус
       P.fold = _sPose(P.stand, { head: 168,
-        R: { grip: { y: 0.14, rb: 0.15, lim: 0.88, lw: 10, lat: 1.0, out: 0.02, wl: 0.01, dn: 0, pd: 0, pb: 0.48, ph: 0 }, w: { at: 'pelvis', o: [20, 17, 4] }, pole: [0.05, -0.85, 0.85], hd: [92, -76], tb: [0, 0, -1] },
-        L: { w: { at: 'pelvis', o: [13, 15, 5.5] }, pole: [-0.05, -0.85, 0.65], hd: [90, -74], tb: [0, 1, 0] } });
+        R: { grip: { y: 0.14, rb: 0.15, lim: 0.88, lw: 10, lat: 1.0, out: 0.02, wl: 0.01, dn: 0, pd: 0, pb: 0.48, ph: 0 }, w: { at: 'pelvis', o: [16, 8, 2] }, pole: [0.55, -0.15, 0.75], hd: [88, -42], tb: [0, 0, -1] },
+        L: { w: { at: 'pelvis', o: [10, 6, 3] }, pole: [-0.45, -0.1, 0.7], hd: [86, -38], tb: [0, 1, 0] } });
       // руку‘: спина расправлена горизонтально, голова продолжает линию спины, взгляд на верх стоп,
       // ладони на коленях с раздвинутыми пальцами, локти отведены от боков (ханафи мужчины)
-      const rk = { w: { at: 'knee', o: [4, 2, 5] }, pole: [-0.4, 0.35, 1.15], hd: [8, 0], tb: [0.2, 0, -1] };
-      P.ruku = _sPose(P.stand, { torso: 92, head: 102,
-        R: Object.assign({}, rk, { th: [1, -1], sh: [2, 0], ft: [83.5, 0] }),
-        L: Object.assign({}, rk, { th: [1, -1], sh: [2, 0], ft: [70, 0] }) });
+      const rk = { w: { at: 'knee', o: [2, 1, 3] }, pole: [-0.55, 0.45, 1.25], hd: [6, 0], tb: [0.15, 0, -1] };
+      P.ruku = _sPose(P.stand, { torso: 90, head: 100,
+        R: Object.assign({}, rk, { th: [0, -1], sh: [1, 0], ft: [83.5, 0] }),
+        L: Object.assign({}, rk, { th: [0, -1], sh: [1, 0], ft: [70, 0] }) });
       // спуск в суджуд: колени → ладони → нос → лоб
       const kneeLeg = { th: [22, -1], sh: [-108, 0], ft: [6, 0], to: [90, 0] };
       P.kneel = _sPose(P.stand, { torso: 164, head: 166,
@@ -14405,10 +14406,10 @@ function renderDictation(area) {
         L: Object.assign({ w: { at: 'knee', o: [28, -4, 6] }, pole: [0.1, 0.4, 1.05], hd: [88, 0], tb: [-0.15, 0, -1] }, kneeLeg, { th: [14, -1] }) });
       // суджуд: лицо между ладонями, пальцы к кибле, локти подняты и отведены от боков и пола,
       // живот отдалён от бёдер, пальцы ног к кибле (ханафи мужчины)
-      const sj = { w: { at: 'ear', o: [1, -6, 7] }, pole: [-0.05, 1.25, 1.1], hd: [88, -2], tb: [-0.25, 0.05, -1] };
-      P.sajda = _sPose(P.stand, { torso: 58, head: 42,
-        R: Object.assign({}, sj, kneeLeg, { th: [2, -1] }),
-        L: Object.assign({}, sj, kneeLeg, { th: [2, -1] }) });
+      const sj = { w: { at: 'ear', o: [2, -8, 8] }, pole: [0.15, 1.45, 1.25], hd: [86, -4], tb: [-0.2, 0.05, -1] };
+      P.sajda = _sPose(P.stand, { torso: 52, head: 38,
+        R: Object.assign({}, sj, kneeLeg, { th: [1, -1] }),
+        L: Object.assign({}, sj, kneeLeg, { th: [1, -1] }) });
       // сидение (ифтираш): на левой стопе, правая стоит на пальцах к кибле,
       // ладони на бёдрах, пальцы вытянуты
       const sitArm = { w: { at: 'thigh', o: [-5, 11, 3] }, pole: [-0.35, 0.05, 1.05], hd: [98, -2], tb: [0.05, 0.25, -1] };
@@ -15452,8 +15453,8 @@ function renderDictation(area) {
       const scarfMat = new THREE.MeshStandardMaterial({ color: col('#c9d3e6'), roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
       // лицо-маска и тюбетейка — на кости головы
       { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr('facePos')), 3)); g.setIndex(new THREE.BufferAttribute(new Uint16Array(arr('faceIdx')), 1)); g.computeVertexNormals();
-        const f = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col(H.colors.skin), roughness: 0.8, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -70 }));
-        new THREE.Matrix4().fromArray(H.faceM).decompose(f.position, f.quaternion, f.scale); f.position.add(V(0, 0.006, 0.006)); B.Head.add(f); } // build 6.30: маска лица чуть вперёд — черты лица не проступают
+        const f = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col(H.colors.skin), roughness: 0.85, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -120 }));
+        new THREE.Matrix4().fromArray(H.faceM).decompose(f.position, f.quaternion, f.scale); f.position.add(V(0, 0.012, 0.014)); f.scale.multiplyScalar(1.08); B.Head.add(f); } // build 6.30: маска лица больше и дальше вперёд — брови и другие черты не проступают
       let kufi; const KUFI_T = 0.56, KUFI_C = 0.93, KUFI_G = 0.012, KUFI_S = 60;
       if (!FEM) {
         kufi = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI * KUFI_T), new THREE.MeshStandardMaterial({ color: col(H.colors.cap), roughness: 0.9 }));
@@ -16157,9 +16158,9 @@ function renderDictation(area) {
         const lgK = sitK + (1 - sitK) * hw; /* build 6.32: в поклоне колени и голени уже бёдер */
         const twR = FEM ? 0 : Math.max(0, Math.min(1, (0.95 - f1.u.y) / 0.6)) * hw;
         const prims = [
-          prim(hipMid.clone().addScaledVector(fP.u, -0.05), s1, fP.l, fP.f, 0.165, FEM ? 0.095 : 0.085, FEM ? 0.1 : 0.085),
-          prim(s1, s2, f1.l, f1.f, 0.15 * (1 + bkB * 0.06), (FEM ? 0.092 : 0.07) * bkD, (FEM ? 0.098 : 0.085) * bkD),
-          prim(s2, s3.clone().addScaledVector(f3.u, 0.08), f3.l, f3.f, 0.165 * bkW, (FEM ? 0.095 : 0.078) * bkD, (FEM ? 0.1 : 0.09) * bkD),
+          prim(hipMid.clone().addScaledVector(fP.u, -0.05), s1, fP.l, fP.f, 0.175, FEM ? 0.095 : 0.095, FEM ? 0.1 : 0.095),
+          prim(s1, s2, f1.l, f1.f, 0.16 * (1 + bkB * 0.06), (FEM ? 0.092 : 0.08) * bkD, (FEM ? 0.098 : 0.095) * bkD),
+          prim(s2, s3.clone().addScaledVector(f3.u, 0.08), f3.l, f3.f, 0.175 * bkW, (FEM ? 0.095 : 0.088) * bkD, (FEM ? 0.1 : 0.1) * bkD),
           prim(shL.clone().lerp(shR, 0.16).addScaledVector(f3.u, -0.02), shR.clone().lerp(shL, 0.16).addScaledVector(f3.u, -0.02), f3.u, f3.f, 1, 1, 1, 0.052),
           prim(nk, shR, one, f3.f, 1, 1, 1, 0.045), prim(nk, shL, one, f3.f, 1, 1, 1, 0.045),
           prim(nk, hd, one, f3.f, 1, 1, 1, FEM ? 0.052 : 0.058),
@@ -16176,7 +16177,7 @@ function renderDictation(area) {
         // давят ткань: предплечья (в рукавах) и ладони
         const press = [], pressHand = [];
         ['_r', '_l'].forEach(function(sx) { const e = L('lowerarm' + sx), h = L('hand' + sx);
-          press.push(prim(e, h, one, fP.f, 1, 1, 1, 0.062, 0.05));
+          press.push(prim(e, h, one, fP.f, 1, 1, 1, 0.068, 0.056));
           const pc = h.clone().lerp(L('middle_01' + sx), 0.6); if (robeNoHand) return; press.push(prim(pc, pc, one, fP.f, 1, 1, 1, 0.05));
           ['index', 'middle', 'ring', 'pinky', 'thumb'].forEach(function(fn) { press.push(prim(L(fn + '_01' + sx), L(fn + '_04_leaf' + sx), one, fP.f, 1, 1, 1, 0.018, 0.013)); }); // толщина пальца — без глубоких борозд // build 6.29: пальцы тоже вдавливают ткань — не проходят сквозь одежду
           // женская одежда: кисти всегда поверх ткани (ткань уходит под ладонь), чтобы было видно, где лежат руки
