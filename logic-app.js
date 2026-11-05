@@ -14412,10 +14412,10 @@ function renderDictation(area) {
         L: Object.assign({}, sj, kneeLeg, { th: [1, -1] }) });
       // сидение (ифтираш): на левой стопе, правая стоит на пальцах к кибле,
       // ладони на бёдрах, пальцы вытянуты
-      const sitArm = { w: { at: 'thigh', o: [-5, 11, 3] }, pole: [-0.35, 0.05, 1.05], hd: [98, -2], tb: [0.05, 0.25, -1] };
-      P.sit = _sPose(P.stand, { torso: 160, head: 158, tipT: 1.12,
-        R: Object.assign({}, sitArm, { th: [74, 1], sh: [-96, 2], ft: [38, 0], to: [90, 0], pitch: 58 }),
-        L: Object.assign({}, sitArm, { th: [74, 1], sh: [-90, 8], ft: [-98, -3], to: [-104, -6] }) });
+      const sitArm = { w: { at: 'thigh', o: [-4, 9, 2] }, pole: [-0.4, 0.1, 1.15], hd: [96, -4], tb: [0.05, 0.2, -1] };
+      P.sit = _sPose(P.stand, { torso: 158, head: 156, tipT: 1.15,
+        R: Object.assign({}, sitArm, { th: [72, 2], sh: [-94, 3], ft: [42, 2], to: [88, 2], pitch: 55 }),
+        L: Object.assign({}, sitArm, { th: [78, -2], sh: [-102, 6], ft: [-92, -5], to: [-98, -8] }) });
       // ташаххуд: указательный поднимается на «ля иляха» и опускается на
       // «илля-Ллах»; остальные пальцы лежат вытянутыми на бедре
       P.sitFinger = _sPose(P.sit, { finger: 1 });
@@ -14483,12 +14483,40 @@ function renderDictation(area) {
       const e = _sEase(Math.max(0, Math.min(1, k)));
       const L = function(a, b) { return a + (b - a) * e; };
       const o = { torso: L(A.torso, B.torso), head: L(A.head, B.head), yaw: L(A.yaw || 0, B.yaw || 0), finger: L(A.finger || 0, B.finger || 0), _mix: null };
+      const toFold = (B === SALAH_POSES_ANIM.fold);
+      const fromFold = (A === SALAH_POSES_ANIM.fold);
+      const toRuku = (B === SALAH_POSES_ANIM.ruku);
+      const fromRuku = (A === SALAH_POSES_ANIM.ruku);
+      const toSajda = (B === SALAH_POSES_ANIM.sajda || B === SALAH_POSES_ANIM.hands);
+      const fromSajda = (A === SALAH_POSES_ANIM.sajda);
       ['R', 'L'].forEach(function(s) {
         o[s] = {};
-        ['th', 'sh', 'ft', 'to', 'hd'].forEach(function(seg) { o[s][seg] = [L(A[s][seg][0], B[s][seg][0]), L(A[s][seg][1], B[s][seg][1])]; });
-        o[s].wA = A[s].w; o[s].wB = B[s].w; o[s].pole = _sLerp3(A[s].pole, B[s].pole, e); o[s].wk = e; o[s].tb = _sLerp3(A[s].tb || [1, 0, 0], B[s].tb || [1, 0, 0], e);
+        // в руку‘ бёдра и голени идут раньше рук
+        const legE = (toRuku || fromRuku) ? Math.min(1, e * 1.35) : e;
+        const armE = (toRuku || fromRuku) ? Math.max(0, (e - 0.25) / 0.75) : e;
+        ['th', 'sh', 'ft', 'to'].forEach(function(seg) { o[s][seg] = [A[s][seg][0] + (B[s][seg][0] - A[s][seg][0]) * legE, A[s][seg][1] + (B[s][seg][1] - A[s][seg][1]) * legE]; });
+        o[s].hd = [A[s].hd[0] + (B[s].hd[0] - A[s].hd[0]) * armE, A[s].hd[1] + (B[s].hd[1] - A[s].hd[1]) * armE];
+        o[s].wA = A[s].w; o[s].wB = B[s].w;
+        let pole = _sLerp3(A[s].pole, B[s].pole, armE);
+        if ((toFold || fromFold) && e > 0.15 && e < 0.85) {
+          const out = s === 'R' ? 1.6 : -1.5;
+          const bias = Math.sin((e - 0.15) / 0.7 * Math.PI);
+          pole = _sNorm(_sAdd(pole, [0, -0.2 * bias, out * bias * 0.8]));
+        }
+        if ((toRuku || fromRuku) && e > 0.2 && e < 0.8) {
+          const out = s === 'R' ? 1.3 : -1.2;
+          const bias = Math.sin((e - 0.2) / 0.6 * Math.PI);
+          pole = _sNorm(_sAdd(pole, [0.1 * bias, 0.3 * bias, out * bias]));
+        }
+        if ((toSajda || fromSajda) && e > 0.15 && e < 0.85) {
+          const out = s === 'R' ? 1.4 : -1.3;
+          const bias = Math.sin((e - 0.15) / 0.7 * Math.PI);
+          pole = _sNorm(_sAdd(pole, [0, 0.6 * bias, out * bias * 0.7]));
+        }
+        o[s].pole = pole;
+        o[s].wk = armE; o[s].tb = _sLerp3(A[s].tb || [1, 0, 0], B[s].tb || [1, 0, 0], armE);
         const fa = A[s].fg || SALAH_FG.rest, fb = B[s].fg || SALAH_FG.rest;
-        o[s].fg = { c: fa.c.map(function(v, i) { return L(v, fb.c[i]); }), sp: L(fa.sp, fb.sp) };
+        o[s].fg = { c: fa.c.map(function(v, i) { return v + (fb.c[i] - v) * armE; }), sp: fa.sp + (fb.sp - fa.sp) * armE };
       });
       return o;
     }
@@ -15022,11 +15050,11 @@ function renderDictation(area) {
     }
     function salah3dCreate(host, THREE, kk, female) {
       const W0 = host.clientWidth || 360;
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'low-power' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.setSize(W0, Math.round(W0 * 0.97));
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.type = THREE.BasicShadowMap;
       renderer.domElement.style.cssText = 'width:100%;height:auto;display:block;touch-action:none;cursor:grab';
       host.appendChild(renderer.domElement);
       const scene = new THREE.Scene();
@@ -15040,7 +15068,7 @@ function renderDictation(area) {
       sun.position.set(110, 260, 170);
       sun.target.position.set(45, 0, 0);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(1024, 1024);
+      sun.shadow.mapSize.set(512, 512);
       const sc = sun.shadow.camera; sc.left = -150; sc.right = 150; sc.top = 150; sc.bottom = -150; sc.near = 10; sc.far = 700;
       sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.5; sun.shadow.radius = 4; // build 6.29: без «ряби» тени на груди
       scene.add(sun); scene.add(sun.target);
@@ -16177,7 +16205,7 @@ function renderDictation(area) {
         // давят ткань: предплечья (в рукавах) и ладони
         const press = [], pressHand = [];
         ['_r', '_l'].forEach(function(sx) { const e = L('lowerarm' + sx), h = L('hand' + sx);
-          press.push(prim(e, h, one, fP.f, 1, 1, 1, 0.068, 0.056));
+          press.push(prim(e, h, one, fP.f, 1, 1, 1, 0.074, 0.06));
           const pc = h.clone().lerp(L('middle_01' + sx), 0.6); if (robeNoHand) return; press.push(prim(pc, pc, one, fP.f, 1, 1, 1, 0.05));
           ['index', 'middle', 'ring', 'pinky', 'thumb'].forEach(function(fn) { press.push(prim(L(fn + '_01' + sx), L(fn + '_04_leaf' + sx), one, fP.f, 1, 1, 1, 0.018, 0.013)); }); // толщина пальца — без глубоких борозд // build 6.29: пальцы тоже вдавливают ткань — не проходят сквозь одежду
           // женская одежда: кисти всегда поверх ткани (ткань уходит под ладонь), чтобы было видно, где лежат руки
@@ -17529,9 +17557,9 @@ function renderDictation(area) {
       };
       const frame = function(ts) {
         if (!box.isConnected) { if (r3d) { try { r3d.dispose(); } catch (e) {} r3d = null; } return; }
-        // build 6.02: раздел скрыт (ушли в другой) — не рисуем каждый кадр, бережём батарею
-        if (box.offsetParent === null) { st.last = 0; requestAnimationFrame(frame); return; }
-        const dt = st.last ? Math.min(100, ts - st.last) : 0;
+        // раздел скрыт — останавливаем цикл полностью, не крутим RAF вхолостую
+        if (box.offsetParent === null) { st.last = 0; st._raf = 0; return; }
+        const dt = st.last ? Math.min(80, ts - st.last) : 0;
         st.last = ts;
         let need = false;
         if (Math.abs(st.yaw - st.yawTarget) > 0.3 || Math.abs(st.el - st.elTarget) > 0.3) { st.yaw += (st.yawTarget - st.yaw) * Math.min(1, dt / 160); st.el += (st.elTarget - st.el) * Math.min(1, dt / 160); need = true; }
@@ -17543,9 +17571,15 @@ function renderDictation(area) {
             else { go(st.i + 1); need = false; }
           } else if (st.t <= s.tr + 450) need = true;
         }
-        // build 6.30: не пересчитывать тело чаще ~30 раз/сек — снижает лаги на слабых устройствах
-        if ((need || r3dBusy) && (!st._lastDraw || ts - st._lastDraw > 32)) { st._lastDraw = ts; draw(); }
-        requestAnimationFrame(frame);
+        // не пересчитывать чаще ~25 раз/сек; r3dBusy сбрасываем через 2 сек на всякий случай
+        if (r3dBusy && st._busySince && ts - st._busySince > 2000) r3dBusy = false;
+        if ((need || r3dBusy) && (!st._lastDraw || ts - st._lastDraw > 40)) {
+          st._lastDraw = ts;
+          if (r3dBusy && !st._busySince) st._busySince = ts;
+          try { draw(); } catch (e) { r3dBusy = false; }
+          if (!r3dBusy) st._busySince = 0;
+        }
+        st._raf = requestAnimationFrame(frame);
       };
       box.querySelectorAll('[data-sa]').forEach(function(b) {
         b.addEventListener('click', function() {
@@ -17649,6 +17683,7 @@ function renderDictation(area) {
           if (r3d) { try { r3d.resize(); draw(); } catch (e) {} }
         };
         if (fullBtn) fullBtn.addEventListener('click', function() { const on = !box.classList.contains('hs-full'); box.classList.toggle('hs-full', on); layout(); });
+        if (box._hsLayout) window.removeEventListener('resize', box._hsLayout);
         window.addEventListener('resize', layout);
         layout();
         box._hsLayout = layout;
