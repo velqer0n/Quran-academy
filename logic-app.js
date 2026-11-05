@@ -14386,10 +14386,10 @@ function renderDictation(area) {
       const tak = { w: { at: 'ear', o: [2, -6, 11] }, pole: [0.6, -0.8, 0.45], hd: [178, -10], tb: [-0.4, -0.7, -1] };
       P.takbir = _sPose(P.stand, { head: 175, R: tak, L: tak });
       // руки ниже пупка: правая ладонь на тыльной стороне левой, мизинец и большой палец обхватывают левое запястье
-      // локти у боков, предплечья почти горизонтально, без выворота сквозь корпус
+      // локти строго у боков и чуть назад, предплечья почти горизонтально к животу
       P.fold = _sPose(P.stand, { head: 168,
-        R: { grip: { y: 0.14, rb: 0.15, lim: 0.88, lw: 10, lat: 1.0, out: 0.02, wl: 0.01, dn: 0, pd: 0, pb: 0.48, ph: 0 }, w: { at: 'pelvis', o: [16, 8, 2] }, pole: [0.55, -0.15, 0.75], hd: [88, -42], tb: [0, 0, -1] },
-        L: { w: { at: 'pelvis', o: [10, 6, 3] }, pole: [-0.45, -0.1, 0.7], hd: [86, -38], tb: [0, 1, 0] } });
+        R: { grip: { y: 0.14, rb: 0.15, lim: 0.88, lw: 10, lat: 1.0, out: 0.02, wl: 0.01, dn: 0, pd: 0, pb: 0.48, ph: 0 }, w: { at: 'pelvis', o: [14, 6, 1] }, pole: [0.2, -0.3, 1.4], hd: [85, -35], tb: [0, 0, -1] },
+        L: { w: { at: 'pelvis', o: [8, 4, 2] }, pole: [-0.15, -0.25, 1.3], hd: [83, -32], tb: [0, 1, 0] } });
       // руку‘: спина расправлена горизонтально, голова продолжает линию спины, взгляд на верх стоп,
       // ладони на коленях с раздвинутыми пальцами, локти отведены от боков (ханафи мужчины)
       const rk = { w: { at: 'knee', o: [2, 1, 3] }, pole: [-0.55, 0.45, 1.25], hd: [6, 0], tb: [0.15, 0, -1] };
@@ -15454,7 +15454,7 @@ function renderDictation(area) {
       // лицо-маска и тюбетейка — на кости головы
       { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr('facePos')), 3)); g.setIndex(new THREE.BufferAttribute(new Uint16Array(arr('faceIdx')), 1)); g.computeVertexNormals();
         const f = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col(H.colors.skin), roughness: 0.85, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -120 }));
-        new THREE.Matrix4().fromArray(H.faceM).decompose(f.position, f.quaternion, f.scale); f.position.add(V(0, 0.012, 0.014)); f.scale.multiplyScalar(1.08); B.Head.add(f); } // build 6.30: маска лица больше и дальше вперёд — брови и другие черты не проступают
+        new THREE.Matrix4().fromArray(H.faceM).decompose(f.position, f.quaternion, f.scale); f.position.add(V(0, 0.004, 0.005)); B.Head.add(f); } // build 6.30: маска лица чуть вперёд, без выступов над шапкой
       let kufi; const KUFI_T = 0.56, KUFI_C = 0.93, KUFI_G = 0.012, KUFI_S = 60;
       if (!FEM) {
         kufi = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI * KUFI_T), new THREE.MeshStandardMaterial({ color: col(H.colors.cap), roughness: 0.9 }));
