@@ -29,6 +29,44 @@ _applyAriaLabelsFromTitles();
   } catch(e) {}
 })();
 
+// build 6.32: журнал ошибок. Последние ~30 ошибок (экран, текст, место в коде) хранятся на устройстве,
+// их видно в Настройки → Данные → Диагностика («Копировать отчёт»), а на карточках «Ошибка» есть кнопка «Скопировать отчёт».
+var QA_ERRLOG_KEY = 'qa_errlog_v1';
+function qaErrRead() { try { return JSON.parse(localStorage.getItem(QA_ERRLOG_KEY) || '[]') || []; } catch (e) { return []; } }
+function qaErrLog(where, err, extra) {
+  try {
+    var msg = (err && err.message) ? err.message : String(err);
+    var stack = (err && err.stack) ? String(err.stack).split('\n').slice(0, 4).map(function(x) { return x.trim().replace(/https?:\/\/[^\/]+\//, ''); }).join(' | ') : '';
+    var list = qaErrRead();
+    var last = list[list.length - 1];
+    var view = window._qaView || '';
+    if (last && last.m === msg && last.w === where && last.v === view) { last.n = (last.n || 1) + 1; last.t = Date.now(); }
+    else list.push({ t: Date.now(), w: where, v: view, m: msg.slice(0, 300), s: (stack || extra || '').slice(0, 500), n: 1 });
+    while (list.length > 30) list.shift();
+    localStorage.setItem(QA_ERRLOG_KEY, JSON.stringify(list));
+  } catch (e) {}
+}
+function qaErrReport(limit) {
+  var list = qaErrRead().slice(-(limit || 30)).reverse();
+  var head = 'Quran Academy ' + (function() { try { return CHANGELOG_LOG[0].v; } catch (e) { return '?'; } })() +
+    ' · ' + new Date().toISOString().replace('T', ' ').slice(0, 19) + ' · ' + (navigator.userAgent || '').slice(0, 120) + ' · экран ' + (window._qaView || '—');
+  if (!list.length) return head + '\nОшибок в журнале нет.';
+  return head + '\n' + list.map(function(x) {
+    var d = new Date(x.t); var tm = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    return '• ' + tm + ' [' + (x.v || '—') + '/' + x.w + ']' + (x.n > 1 ? ' ×' + x.n : '') + ' ' + x.m + (x.s ? '\n   ' + x.s : '');
+  }).join('\n');
+}
+function qaCopyReport(btn) {
+  var txt = qaErrReport(10);
+  var done = function(ok) { try { if (btn) btn.textContent = ok ? '✓ Скопировано' : 'Не удалось скопировать'; } catch (e) {} };
+  try { navigator.clipboard.writeText(txt).then(function() { done(true); }, function() { done(false); }); } catch (e) { done(false); }
+}
+window.addEventListener('error', function(e) {
+  if (e && e.target && e.target !== window) return; // ошибки загрузки картинок/звука — не в журнал
+  qaErrLog('error', e.error || e.message || 'error', (e.filename || '').replace(/https?:\/\/[^\/]+\//, '') + ':' + e.lineno + ':' + e.colno);
+});
+window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', e.reason || 'rejection'); });
+
     // ========== STATE & STORAGE ==========
     const STORAGE_KEY = 'quran-study-v1';
 
@@ -693,6 +731,7 @@ _applyAriaLabelsFromTitles();
         var live = (typeof authRefreshSession === 'function') ? await authRefreshSession() : sess;
         if (!live || !live.userId) return;
         await cloudSyncOnLogin(live.userId);
+        try { if (typeof fsCloudSync === 'function') fsCloudSync(false); } catch (e) {}
       } catch (e) { console.warn('cloudSyncCheckOnBoot', e); }
     }
 
@@ -1211,6 +1250,7 @@ function feedbackEnabled() {
 function enhanceLongTexts(root) {
   const kk = (typeof isKk === 'function') && isKk();
   const mode = (state && state.settings && state.settings.textMode) || 'short';
+  /* build 6.31: «Коротко / Подробно» (ссылка «Читать полностью») пока скрыта по просьбе — тексты открываются сразу целиком; чтобы вернуть, уберите эту обёртку-комментарий
   (root || document).querySelectorAll('.exp-detail:not([data-tl]), .inline-detail:not([data-tl])').forEach(function(det) {
     const len = (det.textContent || '').length;
     if (!len) return;
@@ -1227,6 +1267,7 @@ function enhanceLongTexts(root) {
     more.addEventListener('click', function(e) { e.stopPropagation(); det.classList.toggle('tl-short'); more.textContent = label(); });
     det.appendChild(more);
   });
+  */
 }
 (function longTextInit() {
   let timer = null;
@@ -1373,10 +1414,18 @@ function toast(msg, ms = 2200) {
     }
 
     function isBookmarked(s, a) {
+      try { if (typeof FS !== 'undefined' && FS && FS.savedSet && (FS.migratedFlag || (FS.meta && FS.meta.migrated))) return FS.savedSet.has(s + ':' + a); } catch (e) {}
       return state.bookmarks.some(b => b.surah === s && b.ayah === a);
     }
 
-    function toggleBookmark(s, a, text, translation, folder) {
+    function toggleBookmark(s, a, text, translation, folder, onDone) {
+      // build 6.32: закладки аятов теперь живут в «Папках» (старый список state.bookmarks не трогаем — это резервная копия)
+      try {
+        if (typeof fsToggleAyah === 'function' && !(isAppLockEnabled() && !cryptoKey)) {
+          fsWhenReady(function() { fsToggleAyah(s, a, text, translation); if (onDone) { try { onDone(); } catch (e) {} } });
+          return;
+        }
+      } catch (e) {}
       const idx = state.bookmarks.findIndex(b => b.surah === s && b.ayah === a);
       if (idx >= 0) {
         state.bookmarks.splice(idx, 1);
@@ -1397,6 +1446,7 @@ function toast(msg, ms = 2200) {
         toast('В папку «' + fold + '»');
       }
       saveState();
+      if (onDone) { try { onDone(); } catch (e) {} }
     }
 
     // ========== Arabic → Latin transliteration (for Theory / Adhkar) ==========
@@ -1766,7 +1816,7 @@ const SURAH_CACHE_KEY = 'quran-surah-cache-v2'; // v2: старый кэш не 
             // ar.husary (давно и надёжно там числится), чтобы при таком
             // случае целиком не сломать озвучку суры — сам выбор чтеца
             // (для везде остального, включая everyayah.com) не трогаем.
-            var ALQURAN_CLOUD_SAFE = { 'ar.aymansuwaid': 1, 'ar.husarymuallim': 1, 'ar.jibreel': 1, 'ar.minshawimujawwad': 1, 'ar.abdulbasitmujawwad': 1, 'ar.hanirifai': 1, 'ar.tablawi': 1 };
+            var ALQURAN_CLOUD_SAFE = { 'ar.aymansuwaid': 1, 'ar.husarymuallim': 1, 'ar.jibreel': 1, 'ar.minshawimujawwad': 1, 'ar.abdulbasitmujawwad': 1, 'ar.hanirifai': 1, 'ar.tablawi': 1, 'ar.dosari': 1, 'ar.qatami': 1, 'ar.muaiqly': 1, 'ar.budair': 1, 'ar.qasim': 1, 'ar.sudais': 1, 'ar.shuraim': 1, 'ar.alijaber': 1, 'ar.faresabbad': 1 };
             var acReciter = ALQURAN_CLOUD_SAFE[state.settings.reciter] ? 'ar.husary' : (state.settings.reciter || 'ar.husary');
             const au = await tryFetch('https://api.alquran.cloud/v1/surah/' + num + '/' + acReciter);
             if (au.data && au.data.ayahs) {
@@ -2030,12 +2080,12 @@ async function fetchTafsir(surah, ayah) {
       var _kkTabs = (typeof isKk === 'function') ? isKk() : (state.settings && state.settings.lang === 'kk');
       if (kind === 'myreading') {
         tabs = _kkTabs ? [
-          { id: 'bookmarks', label: 'Бетбелгілер' },
+          { id: 'bookmarks', label: 'Қалталар' },
           { id: 'plans', label: 'Жоспарлар' },
           { id: 'khatm', label: 'Хатым' },
           { id: 'progress', label: 'Үлгерім' }
         ] : [
-          { id: 'bookmarks', label: 'Закладки' },
+          { id: 'bookmarks', label: 'Папки' },
           { id: 'plans', label: 'Планы' },
           { id: 'khatm', label: 'Хатм' },
           { id: 'progress', label: 'Прогресс' }
@@ -2176,8 +2226,8 @@ async function fetchTafsir(surah, ayah) {
       return name;
     }
 
-var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '🌐 Язык интерфейса', search: '🔍 Поиск', settings: '⚙️ Настройки', theme: '🌓 Тема оформления', bookmarks: '🔖 Закладки', cache: '📥 Офлайн и кэш', account: '👤 Мой аккаунт', fontsize: 'Aa Шрифт и размеры', update: '🔄 Обновить сайт', dmlist: '✉️ Личные сообщения', friends: '🧑\u200d🤝\u200d🧑 Друзья', notifications: '🔔 Уведомления', publicchat: '💭 Общий чат', groups: '👥 Групповые чаты', forum: '💬 Форум', myqa: '❓ Мои вопросы/ответы', stats: '📊 Статистика', prayertimes: '🕐 Время намаза и кибла' };
-var HEADER_BTN_LABELS_KK = { lock: '🔒 Қолданба құлпы', lang: '🌐 Интерфейс тілі', search: '🔍 Іздеу', settings: '⚙️ Баптаулар', theme: '🌓 Безендіру тақырыбы', bookmarks: '🔖 Бетбелгілер', cache: '📥 Офлайн және кэш', account: '👤 Менің аккаунтым', fontsize: 'Aa Қаріп және өлшемдер', update: '🔄 Сайтты жаңарту', dmlist: '✉️ Жеке хабарламалар', friends: '🧑\u200d🤝\u200d🧑 Достар', notifications: '🔔 Хабарландырулар', publicchat: '💭 Жалпы чат', groups: '👥 Топтық чаттар', forum: '💬 Форум', myqa: '❓ Менің сұрақ-жауаптарым', stats: '📊 Статистика', prayertimes: '🕐 Намаз уақыты және қибла' };
+var HEADER_BTN_LABELS = { lock: '🔒 Замок приложения', lang: '🌐 Язык интерфейса', search: '🔍 Поиск', settings: '⚙️ Настройки', theme: '🌓 Тема оформления', bookmarks: '📁 Папки', cache: '📥 Офлайн и кэш', account: '👤 Мой аккаунт', fontsize: 'Aa Шрифт и размеры', update: '🔄 Обновить сайт', dmlist: '✉️ Личные сообщения', friends: '🧑\u200d🤝\u200d🧑 Друзья', notifications: '🔔 Уведомления', publicchat: '💭 Общий чат', groups: '👥 Групповые чаты', forum: '💬 Форум', myqa: '❓ Мои вопросы/ответы', stats: '📊 Статистика', prayertimes: '🕐 Время намаза и кибла' };
+var HEADER_BTN_LABELS_KK = { lock: '🔒 Қолданба құлпы', lang: '🌐 Интерфейс тілі', search: '🔍 Іздеу', settings: '⚙️ Баптаулар', theme: '🌓 Безендіру тақырыбы', bookmarks: '📁 Қалталар', cache: '📥 Офлайн және кэш', account: '👤 Менің аккаунтым', fontsize: 'Aa Қаріп және өлшемдер', update: '🔄 Сайтты жаңарту', dmlist: '✉️ Жеке хабарламалар', friends: '🧑\u200d🤝\u200d🧑 Достар', notifications: '🔔 Хабарландырулар', publicchat: '💭 Жалпы чат', groups: '👥 Топтық чаттар', forum: '💬 Форум', myqa: '❓ Менің сұрақ-жауаптарым', stats: '📊 Статистика', prayertimes: '🕐 Намаз уақыты және қибла' };
 function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_BTN_LABELS_KK[id]) || HEADER_BTN_LABELS[id] || id; }
     var HEADER_BTN_ELS = { lock: 'btn-lock-app', lang: 'btn-lang-toggle', search: 'btn-header-search', settings: 'btn-header-settings', theme: 'btn-header-theme', bookmarks: 'btn-header-bookmarks', cache: 'btn-header-cache', account: 'btn-header-account', fontsize: 'btn-header-fontsize', dmlist: 'btn-header-dmlist', friends: 'btn-header-friends', notifications: 'btn-header-notifications', publicchat: 'btn-header-publicchat', groups: 'btn-header-groups', forum: 'btn-header-forum', myqa: 'btn-header-myqa', stats: 'btn-header-stats', prayertimes: 'btn-header-prayertimes' };
     var HEADER_BTN_DEFAULT_ORDER = ['lang', 'theme', 'bookmarks', 'search', 'settings', 'lock', 'cache', 'account', 'fontsize', 'update', 'dmlist', 'friends', 'notifications', 'publicchat', 'groups', 'forum', 'myqa',  'stats', 'prayertimes'];
@@ -2558,7 +2608,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       // виджет-мостик к Учителю не показывались ВООБЩЕ НИ У КОГО, даже у
       // новых пользователей — я добавлял их раньше в другой, мёртвый
       // резервный массив, а не сюда, в настоящий список по умолчанию.
-      var def = ['events','prayer','teachernext','ayah','command','story','dua','name','hadith','sunnah','word'];
+      var def = ['prayer','events','teachernext','ayah','command','story','dua','name','hadith','sunnah','word'];
       var allowed = def.slice();
       try {
         var o = JSON.parse(localStorage.getItem('quran_dailyhub_widgets_order') || 'null');
@@ -2568,7 +2618,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           // новые виджеты из def, которых ещё нет у пользователя — добавить в конец
           def.forEach(function(id){ if (ok.indexOf(id) < 0) ok.push(id); });
           // events — на место стрика (в начало), если пользователь ещё не сохранял events
-          if (ok.indexOf('events') >= 0 && ok.indexOf('events') > 0 && !localStorage.getItem('quran_dailyhub_events_placed')) {
+          if (ok.indexOf('events') >= 0 && ok.indexOf('events') > 1 && !localStorage.getItem('quran_dailyhub_events_placed')) { /* build 6.31: по умолчанию «Время намаза» первым, «Календарь» вторым */
             ok = ok.filter(function(id){ return id !== 'events'; });
             ok.unshift('events');
             try { localStorage.setItem('quran_dailyhub_events_placed', '1'); } catch(e) {}
@@ -2742,6 +2792,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
 
     function showView(name, isBack) {
       try { name = applyViewAlias(name); } catch (e) {}
+      window._qaView = name;
       try { if (name === 'reader') setReciterCtx('surahs'); } catch (e) {}
       try { twWordTip(null); } catch (e) {}
       // build 4.87: если сессия уже была в localStorage при загрузке
@@ -3666,8 +3717,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         list.querySelectorAll('.btn-bookmark').forEach(b => {
           b.addEventListener('click', () => {
             const ayah = data.ayahs.find(x => x.number === +b.dataset.a);
-            toggleBookmark(+b.dataset.s, +b.dataset.a, ayah.text, ayah.translation);
-            openSurah(num);
+            toggleBookmark(+b.dataset.s, +b.dataset.a, ayah.text, ayah.translation, null, () => openSurah(num));
           });
         });
         list.querySelectorAll('.btn-note').forEach(b => {
@@ -3963,7 +4013,17 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         'ar.minshawimujawwad': 'Minshawy_Mujawwad_192kbps',
         'ar.abdulbasitmujawwad': 'Abdul_Basit_Mujawwad_128kbps',
         'ar.hanirifai': 'Hani_Rifai_192kbps',
-        'ar.tablawi': 'Mohammad_al_Tablaway_128kbps'
+        'ar.tablawi': 'Mohammad_al_Tablaway_128kbps',
+        // build 6.32: ещё 9 чтецов «для слушания» (папки сверены с everyayah.com/data/recitations.js)
+        'ar.dosari': 'Yasser_Ad-Dussary_128kbps',
+        'ar.qatami': 'Nasser_Alqatami_128kbps',
+        'ar.muaiqly': 'MaherAlMuaiqly128kbps',
+        'ar.budair': 'Salah_Al_Budair_128kbps',
+        'ar.qasim': 'Muhsin_Al_Qasim_192kbps',
+        'ar.sudais': 'Abdurrahmaan_As-Sudais_192kbps',
+        'ar.shuraim': 'Saood_ash-Shuraym_128kbps',
+        'ar.alijaber': 'Ali_Jaber_64kbps',
+        'ar.faresabbad': 'Fares_Abbad_64kbps'
       };
       return map[r] || 'Ayman_Sowaid_64kbps';
     }
@@ -5652,6 +5712,8 @@ document.getElementById('audio-stop').addEventListener('click', () => {
 
     function renderBookmarks() {
       try { injectMyReadingTabs('bookmarks'); } catch(e) {}
+      // build 6.32: вместо старых закладок — «Папки». Ниже остался прежний экран как запасной вариант.
+      try { if (typeof fsRenderScreen === 'function') { fsRenderScreen(); return; } } catch(e) { console.warn('fsRenderScreen', e); }
 
       const list = document.getElementById('bookmarks-list');
       if (!list) return;
@@ -5990,6 +6052,15 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       { id: 'ar.shaatree', ru: 'Абу Бакр аш-Шатри', kk: 'Әбу Бәкр әш-Шатри' },
       { id: 'ar.hanirifai', ru: 'Хани ар-Рифаи', kk: 'Һани әр-Рифағи' },
       { id: 'ar.tablawi', ru: 'Мухаммад ат-Таблави', kk: 'Мұхаммад әт-Таблауи' },
+      { id: 'ar.dosari', ru: 'Ясир ад-Досари', kk: 'Яссир әд-Досари' },
+      { id: 'ar.qatami', ru: 'Насер аль-Катами', kk: 'Нәсір әл-Қатами' },
+      { id: 'ar.muaiqly', ru: 'Махер аль-Муайкли', kk: 'Махер әл-Муайқли' },
+      { id: 'ar.budair', ru: 'Салах аль-Бударь', kk: 'Салах әл-Бударь' },
+      { id: 'ar.qasim', ru: 'Мухсин аль-Касим', kk: 'Мұхсин әл-Қасим' },
+      { id: 'ar.sudais', ru: 'Абдуррахман ас-Судайс', kk: 'Әбдірахман әс-Судайс' },
+      { id: 'ar.shuraim', ru: 'Сууд аш-Шурайм', kk: 'Сууд әш-Шурайм' },
+      { id: 'ar.alijaber', ru: 'Али Джабер', kk: 'Әли Жәбір' },
+      { id: 'ar.faresabbad', ru: 'Фарес Аббад', kk: 'Фарес Аббад' },
       { id: 'ar.aymansuwaid', ru: 'Айман Сувейд (нет подсветки слов — для него нет тайм-кодов)', kk: 'Айман Сууайд (сөз жарықтанбайды — уақыт белгілері жоқ)' }
     ];
     const RECITER_TABS = ['surahs', 'study', 'tajweed'];
@@ -8304,7 +8375,9 @@ function speakLetter(ch, name, ttsOnly) {
       return m ? m.status : 'new';
     }
     function isSkillUnlocked(skill) {
-      return (skill.prereq || []).every(function(p) { return getSkillStatus(p) === 'mastered'; });
+      // build 6.31: блок уроков снят — можно проходить любой урок в любом порядке
+      // (prereq остаётся лишь порядком «рекомендуемого следующего» в pickNextSkill)
+      return true;
     }
     // build 5.88: интервальное повторение освоенных навыков — раньше
     // «mastered» означало «больше никогда не проверяется», хотя память так
@@ -10447,40 +10520,26 @@ function renderMistakes() {
       s += '<path d="M116,38 Q122,62 119,86 Q117,100 112,112" fill="none" stroke="#c084fc" stroke-width="2.4" stroke-linecap="round"/>';
       s += '<path d="M101,100 Q97,86 102,78 Q108,82 108,98 Z" fill="#94a3b8" opacity="0.9"/>';
       s += '<path d="M101,99 Q100,111 110,113 Q120,111 119,99" stroke="#64748b" stroke-width="1.4" fill="none"/>';
-      // пол рта (более объёмный)
-      s += '<path d="M16,70 Q24,86 44,90 Q74,98 100,100" fill="none" stroke="#64748b" stroke-width="1.2" opacity="0.6"/>';
-      // язык — с объёмом и лёгким градиентом
-      s += '<defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7dd3fc"/><stop offset="55%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#0ea5e9"/></linearGradient></defs>';
-      s += '<path d="' + mouthTonguePath(curTongue) + '" fill="url(#tg)" fill-opacity="0.92" stroke="#7dd3fc" stroke-width="1.1" stroke-linejoin="round">' +
+      // пол рта
+      s += '<path d="M16,70 Q24,86 44,90 Q74,98 100,100" fill="none" stroke="#64748b" stroke-width="1.4"/>';
+      // язык (заливка в цвет «язык» из легенды)
+      s += '<path d="' + mouthTonguePath(curTongue) + '" fill="#38bdf8" fill-opacity="0.82" stroke="#7dd3fc" stroke-width="1.4" stroke-linejoin="round">' +
            A('d', tVals, tKt) + '</path>';
-      // голосовые связки
+      // голосовые связки: звонкие — сближены + розовое свечение; глухие — раздвинуты
       const fx = info.voiced ? [108.2, 111.8] : [105, 115];
       s += (info.voiced ? '<ellipse cx="110" cy="105" rx="9" ry="3.4" fill="#fb7185" opacity="0.25"/>' : '') +
            '<ellipse cx="' + fx[0] + '" cy="105" rx="3" ry="1.5" fill="#fda4af">' + (info.voiced ? A('cx', [108.2, 105.6, 108.2], [0, 0.5, 1], { dur: _mf(0.12 * sc), linear: true, repeat: 8, delay: _mf(T0) }) : '') + '</ellipse>' +
            '<ellipse cx="' + fx[1] + '" cy="105" rx="3" ry="1.5" fill="#fda4af">' + (info.voiced ? A('cx', [111.8, 114.4, 111.8], [0, 0.5, 1], { dur: _mf(0.12 * sc), linear: true, repeat: 8, delay: _mf(T0) }) : '') + '</ellipse>';
-      // зубы — более реалистичные (с бликом и формой)
+      // нижняя челюсть/зубы (для «аа» челюсть опускается), губы
       const jaw = (g.lips === 'wide' && showPose) ? 5 : 0;
       s += '<g' + (jaw ? ' transform="translate(0,' + jaw + ')"' : '') + '>' +
            (g.lips === 'wide' && animate ? '<animateTransform attributeName="transform" type="translate" begin="indefinite" dur="' + D + 's" values="0 0;0 5;0 5" keyTimes="0;' + KT + ';1" data-d="0"/>' : '') +
-           // нижние зубы
-           '<path d="M26,62 Q27,58 30,58 Q33,58 34,62 L34,70 Q33,72 30,72 Q27,72 26,70 Z" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="0.6"/>' +
-           '<path d="M34,64 Q35,61 37.5,61 Q40,61 41,64 L41,71 Q40,73 37.5,73 Q35,73 34,71 Z" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.5"/>' +
-           '<path d="M27.5,60 Q30,59 32.5,60" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.7"/>' +
-           '</g>';
-      // верхние зубы
-      s += '<path d="M26,36 Q27,32 30,32 Q33,32 34,36 L34,46 Q33,48 30,48 Q27,48 26,46 Z" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.6"/>' +
-           '<path d="M34,38 Q35,35 37.5,35 Q40,35 41,38 L41,45 Q40,47 37.5,47 Q35,47 34,45 Z" fill="#ffffff" stroke="#f1f5f9" stroke-width="0.5"/>' +
-           '<path d="M27.5,34 Q30,33 32.5,34" fill="none" stroke="#fff" stroke-width="0.9" opacity="0.85"/>';
-      // губы — с заливкой и объёмом
-      const lipGrad = '<defs><linearGradient id="lipU" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fda4af"/><stop offset="100%" stop-color="#fb7185"/></linearGradient>' +
-                      '<linearGradient id="lipL" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fb7185"/><stop offset="100%" stop-color="#e11d48"/></linearGradient></defs>';
-      s += lipGrad;
-      s += '<path d="' + lipsNow.u + '" fill="url(#lipU)" fill-opacity="0.85" stroke="#f43f5e" stroke-width="1.6" stroke-linecap="round">' +
+           '<rect x="27" y="61" width="6" height="11" rx="2" fill="#cbd5e1"/><rect x="34" y="64" width="6" height="9" rx="2" fill="#cbd5e1"/></g>';
+      s += '<rect x="27" y="35" width="6" height="14" rx="2" fill="#f8fafc"/><rect x="34" y="37" width="6" height="11" rx="2" fill="#f8fafc"/>';
+      s += '<path d="' + lipsNow.u + '" fill="none" stroke="#fb7185" stroke-width="4" stroke-linecap="round">' +
            (g.lips !== 'open' ? (g.lips === 'closed' && info.flow === 'stop' ? A('d', [lipsRestU, MOUTH_LIPS.closed.u, MOUTH_LIPS.closed.u, lipsRestU, lipsRestU], [0, KT, 0.55, 0.62, 1]) : A('d', [lipsRestU, MOUTH_LIPS[g.lips].u, MOUTH_LIPS[g.lips].u], [0, KT, 1])) : '') + '</path>';
-      s += '<path d="' + lipsNow.l + '" fill="url(#lipL)" fill-opacity="0.9" stroke="#e11d48" stroke-width="1.6" stroke-linecap="round">' +
+      s += '<path d="' + lipsNow.l + '" fill="none" stroke="#fb7185" stroke-width="4" stroke-linecap="round">' +
            (g.lips !== 'open' ? (g.lips === 'closed' && info.flow === 'stop' ? A('d', [lipsRestL, MOUTH_LIPS.closed.l, MOUTH_LIPS.closed.l, lipsRestL, lipsRestL], [0, KT, 0.55, 0.62, 1]) : A('d', [lipsRestL, MOUTH_LIPS[g.lips].l, MOUTH_LIPS[g.lips].l], [0, KT, 1])) : '') + '</path>';
-      // лёгкий блик на верхней губе
-      s += '<path d="' + lipsNow.u + '" fill="none" stroke="#fff" stroke-width="0.7" opacity="0.35" stroke-linecap="round"/>';
       // точка артикуляции (цвет = категория из легенды) с пульсацией при показе
       if (g.contact && showPose) {
         s += '<circle cx="' + g.contact[0] + '" cy="' + g.contact[1] + '" r="9" fill="' + col + '" opacity="0.28">' +
@@ -14314,7 +14373,7 @@ function renderDictation(area) {
     function _sLen(a) { return Math.hypot(a[0], a[1], a[2]); }
     function _sNorm(a) { const l = _sLen(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }
     function _sLerp3(a, b, k) { return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
-    // двухзвенная IK с предпочтением естественного сгиба локтя (не "вывих")
+    // двухзвенная IK: плечо S, цель W, длины a,b, подсказка направления локтя
     function _sIK(S, W, a, b, pole) {
       let D = _sSub(W, S);
       let d = _sLen(D);
@@ -14322,32 +14381,12 @@ function renderDictation(area) {
       if (d > dMax) { D = _sMul(D, dMax / d); d = dMax; }
       if (d < dMin) { D = _sMul(D, dMin / d); d = dMin; }
       const n = _sNorm(D);
-      // предпочитаем pole, но если он почти параллелен — берём "вниз и наружу"
       let m = _sSub(pole, _sMul(n, _sDot(pole, n)));
-      if (_sLen(m) < 0.15) {
-        m = _sCross(n, [0, 1, 0]);
-        if (_sLen(m) < 0.15) m = _sCross(n, [1, 0, 0]);
-        m = _sNorm(m);
-        // чуть вниз
-        m = _sNorm(_sAdd(m, [0, -0.4, 0]));
-      } else m = _sNorm(m);
+      if (_sLen(m) < 1e-4) m = [0, -1, 0];
+      m = _sNorm(m);
       const x = (a * a - b * b + d * d) / (2 * d);
       const y = Math.sqrt(Math.max(0, a * a - x * x));
       const E = _sAdd(_sAdd(S, n, x), m, y);
-      // мягкое ограничение угла локтя: не разгибать больше ~175° и не сгибать меньше ~25°
-      const v1 = _sNorm(_sSub(E, S));
-      const v2 = _sNorm(_sSub(W, E));
-      const cosAng = Math.max(-1, Math.min(1, _sDot(v1, v2)));
-      const ang = Math.acos(cosAng) * 180 / Math.PI;
-      if (ang > 175) {
-        // чуть согнуть
-        const mid = _sNorm(_sAdd(v1, v2));
-        return { E: _sAdd(E, _sMul(mid, -2.5)), W: _sAdd(S, D) };
-      }
-      if (ang < 28) {
-        const mid = _sNorm(_sAdd(v1, v2));
-        return { E: _sAdd(E, _sMul(mid, 3)), W: _sAdd(S, D) };
-      }
       return { E: E, W: _sAdd(S, D) };
     }
     // ----- позы -----
@@ -14383,39 +14422,39 @@ function renderDictation(area) {
         R: Object.assign({}, _SP_ARM_DOWN, _SP_LEG), L: Object.assign({}, _SP_ARM_DOWN, _SP_LEG) };
       // такбир: руки подняты до уровня ушей, ладони и пальцы к кибле, пальцы в естественном положении
       // (положение подобрано так, чтобы кисти были на уровне ушей, а ладони смотрели к кибле)
-      const tak = { w: { at: 'ear', o: [2, -6, 11] }, pole: [0.6, -0.8, 0.45], hd: [178, -10], tb: [-0.4, -0.7, -1] };
-      P.takbir = _sPose(P.stand, { head: 175, R: tak, L: tak });
-      // руки ниже пупка: правая ладонь на тыльной стороне левой, мизинец и большой палец обхватывают левое запястье
-      // локти строго у боков и чуть назад, предплечья почти горизонтально к животу
+      const tak = { w: { at: 'ear', o: [1, -8, 8] }, pole: [0.2, -0.7, 0.8] /* build 6.30: локоть вниз и наружу (было вперёд — руки шли через грудь, локти торчали вперёд) */, hd: [180, -12], tb: [-0.5, -0.8, -1] };
+      P.takbir = _sPose(P.stand, { head: 176, R: tak, L: tak });
+      // руки ниже пупка (build 6.29: локти у боков, предплечья почти горизонтально): правая ладонь на тыльной стороне левой, мизинец и
+      // большой палец обхватывают левое запястье
       P.fold = _sPose(P.stand, { head: 168,
-        R: { grip: { y: 0.14, rb: 0.15, lim: 0.88, lw: 10, lat: 1.0, out: 0.02, wl: 0.01, dn: 0, pd: 0, pb: 0.48, ph: 0 }, w: { at: 'pelvis', o: [14, 6, 1] }, pole: [0.2, -0.3, 1.4], hd: [85, -35], tb: [0, 0, -1] },
-        L: { w: { at: 'pelvis', o: [8, 4, 2] }, pole: [-0.15, -0.25, 1.3], hd: [83, -32], tb: [0, 1, 0] } });
-      // руку‘: спина расправлена горизонтально, голова продолжает линию спины, взгляд на верх стоп,
-      // ладони на коленях с раздвинутыми пальцами, локти отведены от боков (ханафи мужчины)
-      const rk = { w: { at: 'knee', o: [2, 1, 3] }, pole: [-0.55, 0.45, 1.25], hd: [6, 0], tb: [0.15, 0, -1] };
-      P.ruku = _sPose(P.stand, { torso: 90, head: 100,
-        R: Object.assign({}, rk, { th: [0, -1], sh: [1, 0], ft: [83.5, 0] }),
-        L: Object.assign({}, rk, { th: [0, -1], sh: [1, 0], ft: [70, 0] }) });
+        R: { grip: { y: 0.15, /* build 6.29: кисти ниже пупка — предплечья идут к локтям чуть вверх, правое проходит над пальцами левой */ rb: 0.16, lim: 0.9, lw: 10, lat: 1.0, out: 0.015, wl: 0.01, dn: 0, pd: 0, pb: 0.5, ph: 0 } /* build 6.29 (сверено с кадром видео): правая кисть чуть выше левой, пальцы горизонтально вдоль левого предплечья; левая ладонь под ней тоже горизонтально */ /* build 6.29: правая кисть продолжает линию предплечья (запястье ~30°, не излом 80°), ладонь на левом запястье, пальцы обхватывают его */, w: { at: 'pelvis', o: [21.5, 18, 3] }, pole: [0.1, -0.9, 0.7] /* build 6.29: локоть у бока, а не в сторону — как на видео */, hd: [94, -80], tb: [0, 0, -1] },
+        L: { w: { at: 'pelvis', o: [14, 16, 5] }, pole: [-0.1, -0.9, 0.5], hd: [92, -78], tb: [0, 1, 0] } });
+      // руку‘: спина расправлена, голова вровень с крестцом, взгляд на верх
+      // стоп, ладони обхватывают колени, пальцы раздвинуты, руки отведены от боков
+      const rk = { w: { at: 'knee', o: [5, 3, 3] }, /* build 6.33: руки прямые, ладони на коленях */ pole: [-1, 0.6, 0.6], hd: [6, 2], tb: [0.3, 0, -1] };
+      P.ruku = _sPose(P.stand, { torso: 90, head: 110, /* build 6.33: спина горизонтальна (крестец и шея на одной высоте), голова опущена — взгляд на верх стоп; таз ~10 см за пятками, ноги почти отвесно (как на видео) */ // build 6.31: спина почти горизонтальна и лишь слегка поднимается к плечам (~6° над горизонталью) — без «жирафьего» подъёма; голова продолжает линию спины, взгляд к стопам
+        R: Object.assign({}, rk, { th: [4, -2], sh: [6, -1], ft: [83.5, 0] }), // build 6.31: таз чуть отведён назад, ноги прямые с лёгким наклоном — как на видео
+        L: Object.assign({}, rk, { th: [4, -2], sh: [6, -1], ft: [62, 0] }) });
       // спуск в суджуд: колени → ладони → нос → лоб
-      const kneeLeg = { th: [22, -1], sh: [-108, 0], ft: [6, 0], to: [90, 0] };
-      P.kneel = _sPose(P.stand, { torso: 164, head: 166,
-        R: Object.assign({ w: { at: 'thigh', o: [5, 3, 5] }, pole: [-0.2, 0.1, 1.1], hd: [68, 0], tb: [0, 0.2, -1] }, kneeLeg),
-        L: Object.assign({ w: { at: 'thigh', o: [5, 3, 5] }, pole: [-0.2, 0.1, 1.1], hd: [68, 0], tb: [0, 0.2, -1] }, kneeLeg) });
-      P.hands = _sPose(P.stand, { torso: 120, head: 124,
-        R: Object.assign({ w: { at: 'knee', o: [28, -4, 6] }, pole: [0.1, 0.4, 1.05], hd: [88, 0], tb: [-0.15, 0, -1] }, kneeLeg, { th: [14, -1] }),
-        L: Object.assign({ w: { at: 'knee', o: [28, -4, 6] }, pole: [0.1, 0.4, 1.05], hd: [88, 0], tb: [-0.15, 0, -1] }, kneeLeg, { th: [14, -1] }) });
-      // суджуд: лицо между ладонями, пальцы к кибле, локти подняты и отведены от боков и пола,
-      // живот отдалён от бёдер, пальцы ног к кибле (ханафи мужчины)
-      const sj = { w: { at: 'ear', o: [2, -8, 8] }, pole: [0.15, 1.45, 1.25], hd: [86, -4], tb: [-0.2, 0.05, -1] };
-      P.sajda = _sPose(P.stand, { torso: 52, head: 38,
-        R: Object.assign({}, sj, kneeLeg, { th: [1, -1] }),
-        L: Object.assign({}, sj, kneeLeg, { th: [1, -1] }) });
+      const kneeLeg = { th: [24, -2], sh: [-106, -1], ft: [8, 0], to: [92, 0] };
+      P.kneel = _sPose(P.stand, { torso: 166, head: 168,
+        R: Object.assign({ w: { at: 'thigh', o: [6, 4, 4] }, pole: [-0.3, 0, 1], hd: [70, 0], tb: [0, 0.3, -1] }, kneeLeg),
+        L: Object.assign({ w: { at: 'thigh', o: [6, 4, 4] }, pole: [-0.3, 0, 1], hd: [70, 0], tb: [0, 0.3, -1] }, kneeLeg) });
+      P.hands = _sPose(P.stand, { torso: 124, head: 128,
+        R: Object.assign({ w: { at: 'knee', o: [30, -3, 4] }, pole: [0, 0.3, 1], hd: [90, 0], tb: [-0.2, 0, -1] }, kneeLeg, { th: [16, -2] }),
+        L: Object.assign({ w: { at: 'knee', o: [30, -3, 4] }, pole: [0, 0.3, 1], hd: [90, 0], tb: [-0.2, 0, -1] }, kneeLeg, { th: [16, -2] }) });
+      // суджуд: лицо между ладонями, пальцы к кибле, локти не касаются
+      // пола и боков, живот отдалён от бёдер, пальцы ног — к кибле
+      const sj = { w: { at: 'ear', o: [0, -7, 4] }, pole: [-0.1, 1, 0.9], hd: [90, -4], tb: [-0.3, 0, -1] };
+      P.sajda = _sPose(P.stand, { torso: 56, head: 39,
+        R: Object.assign({}, sj, kneeLeg, { th: [0, -2] }),
+        L: Object.assign({}, sj, kneeLeg, { th: [0, -2] }) });
       // сидение (ифтираш): на левой стопе, правая стоит на пальцах к кибле,
       // ладони на бёдрах, пальцы вытянуты
-      const sitArm = { w: { at: 'thigh', o: [-4, 9, 2] }, pole: [-0.4, 0.1, 1.15], hd: [96, -4], tb: [0.05, 0.2, -1] };
-      P.sit = _sPose(P.stand, { torso: 158, head: 156, tipT: 1.15,
-        R: Object.assign({}, sitArm, { th: [72, 2], sh: [-94, 3], ft: [42, 2], to: [88, 2], pitch: 55 }),
-        L: Object.assign({}, sitArm, { th: [78, -2], sh: [-102, 6], ft: [-92, -5], to: [-98, -8] }) });
+      const sitArm = { w: { at: 'thigh', o: [-10, 12.5, 2] }, pole: [-0.4, 0, 1], hd: [100, -3], tb: [0.1, 0.3, -1] }; // build 6.29: ладони ложатся на ткань бедра, пальцы не висят
+      P.sit = _sPose(P.stand, { torso: 172, head: 168, tipT: 1.14, /* build 6.30: спина почти прямая (было 162°/160° — сильный наклон вперёд) */ // build 6.29: корпус чуть вперёд — локти согнуты, кончики пальцев у колен
+        R: Object.assign({}, sitArm, { th: [76, 2], sh: [-98, 3], ft: [40, 0], to: [92, 0], pitch: 60 }),
+        L: Object.assign({}, sitArm, { th: [76, 2], sh: [-92, 10], ft: [-100, -5], to: [-106, -8] } /* build 6.33: левая стопа продолжает линию голени назад (щиколотка ~17°, без излома), подошва вверх; колени ближе (как на видео) */) }); /* build 6.31: левая стопа плавно повернута пальцами вправо */ // build 6.30: левая стопа подстелена тыльной стороной вниз, пальцы назад и чуть внутрь — без вывиха в щиколотке
       // ташаххуд: указательный поднимается на «ля иляха» и опускается на
       // «илля-Ллах»; остальные пальцы лежат вытянутыми на бедре
       P.sitFinger = _sPose(P.sit, { finger: 1 });
@@ -14483,40 +14522,12 @@ function renderDictation(area) {
       const e = _sEase(Math.max(0, Math.min(1, k)));
       const L = function(a, b) { return a + (b - a) * e; };
       const o = { torso: L(A.torso, B.torso), head: L(A.head, B.head), yaw: L(A.yaw || 0, B.yaw || 0), finger: L(A.finger || 0, B.finger || 0), _mix: null };
-      const toFold = (B === SALAH_POSES_ANIM.fold);
-      const fromFold = (A === SALAH_POSES_ANIM.fold);
-      const toRuku = (B === SALAH_POSES_ANIM.ruku);
-      const fromRuku = (A === SALAH_POSES_ANIM.ruku);
-      const toSajda = (B === SALAH_POSES_ANIM.sajda || B === SALAH_POSES_ANIM.hands);
-      const fromSajda = (A === SALAH_POSES_ANIM.sajda);
       ['R', 'L'].forEach(function(s) {
         o[s] = {};
-        // в руку‘ бёдра и голени идут раньше рук
-        const legE = (toRuku || fromRuku) ? Math.min(1, e * 1.35) : e;
-        const armE = (toRuku || fromRuku) ? Math.max(0, (e - 0.25) / 0.75) : e;
-        ['th', 'sh', 'ft', 'to'].forEach(function(seg) { o[s][seg] = [A[s][seg][0] + (B[s][seg][0] - A[s][seg][0]) * legE, A[s][seg][1] + (B[s][seg][1] - A[s][seg][1]) * legE]; });
-        o[s].hd = [A[s].hd[0] + (B[s].hd[0] - A[s].hd[0]) * armE, A[s].hd[1] + (B[s].hd[1] - A[s].hd[1]) * armE];
-        o[s].wA = A[s].w; o[s].wB = B[s].w;
-        let pole = _sLerp3(A[s].pole, B[s].pole, armE);
-        if ((toFold || fromFold) && e > 0.15 && e < 0.85) {
-          const out = s === 'R' ? 1.6 : -1.5;
-          const bias = Math.sin((e - 0.15) / 0.7 * Math.PI);
-          pole = _sNorm(_sAdd(pole, [0, -0.2 * bias, out * bias * 0.8]));
-        }
-        if ((toRuku || fromRuku) && e > 0.2 && e < 0.8) {
-          const out = s === 'R' ? 1.3 : -1.2;
-          const bias = Math.sin((e - 0.2) / 0.6 * Math.PI);
-          pole = _sNorm(_sAdd(pole, [0.1 * bias, 0.3 * bias, out * bias]));
-        }
-        if ((toSajda || fromSajda) && e > 0.15 && e < 0.85) {
-          const out = s === 'R' ? 1.4 : -1.3;
-          const bias = Math.sin((e - 0.15) / 0.7 * Math.PI);
-          pole = _sNorm(_sAdd(pole, [0, 0.6 * bias, out * bias * 0.7]));
-        }
-        o[s].pole = pole;
-        o[s].wk = armE; o[s].tb = _sLerp3(A[s].tb || [1, 0, 0], B[s].tb || [1, 0, 0], armE);
+        ['th', 'sh', 'ft', 'to', 'hd'].forEach(function(seg) { o[s][seg] = [L(A[s][seg][0], B[s][seg][0]), L(A[s][seg][1], B[s][seg][1])]; });
+        o[s].wA = A[s].w; o[s].wB = B[s].w; o[s].pole = _sLerp3(A[s].pole, B[s].pole, e); o[s].wk = e; o[s].tb = _sLerp3(A[s].tb || [1, 0, 0], B[s].tb || [1, 0, 0], e);
         const fa = A[s].fg || SALAH_FG.rest, fb = B[s].fg || SALAH_FG.rest;
-        o[s].fg = { c: fa.c.map(function(v, i) { return v + (fb.c[i] - v) * armE; }), sp: fa.sp + (fb.sp - fa.sp) * armE };
+        o[s].fg = { c: fa.c.map(function(v, i) { return L(v, fb.c[i]); }), sp: L(fa.sp, fb.sp) };
       });
       return o;
     }
@@ -15050,17 +15061,30 @@ function renderDictation(area) {
     }
     function salah3dCreate(host, THREE, kk, female) {
       const W0 = host.clientWidth || 360;
-      const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'low-power' });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(W0, Math.round(W0 * 0.97));
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.BasicShadowMap;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.domElement.style.cssText = 'width:100%;height:auto;display:block;touch-action:none;cursor:grab';
+      // build 6.30: если телефон отобрал графический контекст — не оставлять чёрный/замёрзший кадр: разрешаем браузеру восстановить его
+      renderer.domElement.addEventListener('webglcontextlost', function(e) { e.preventDefault(); });
+      renderer.domElement.addEventListener('webglcontextrestored', function() { try { lastW = 0; fitSize(); if (typeof host._onRestore === 'function') host._onRestore(); } catch (x) {} });
       host.appendChild(renderer.domElement);
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(34, 1 / 0.97, 1, 3000);
+      let lastW = 0, lastH = 0;
+      // build 6.30: расстояние камеры — если кадр уже исходного (узкий экран в полный рост), отодвигаем, чтобы фигура не обрезалась по бокам; в полном экране на телефоне стоящую фигуру чуть приближаем
+      const camDist = function(zoom, headY) {
+        const asp = camera.aspect || 1.03; let k = asp < 1.03 ? 1.03 / asp : 1;
+        if (host.getAttribute('data-full') === '1' && asp < 0.9) k /= 1 + 0.35 * Math.max(0, Math.min(1, ((headY || 0) - 110) / 40));
+        return 375 / (zoom || 1) * k;
+      };
       const fitSize = function() { /* build 6.28: высоту сцены можно ограничить (фигура сверху, текст снизу) — кадр шире, фигура не искажается */
-        const w = host.clientWidth || W0, mh = +host.getAttribute('data-maxh') || 0, h = Math.round(mh ? Math.min(w * 0.97, Math.max(200, mh)) : w * 0.97);
+        const w = host.clientWidth || W0, mh = +host.getAttribute('data-maxh') || 0, fullH = host.getAttribute('data-full') === '1';
+        const h = Math.round(mh ? (fullH ? Math.max(200, mh) : Math.min(w * 0.97, Math.max(200, mh))) : w * 0.97);
+        if (w === lastW && h === lastH) return; /* build 6.30: не пересоздавать буфер кадра, если размер тот же (resize при скролле на телефоне) */
+        lastW = w; lastH = h;
         renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); };
       fitSize();
       scene.add(new THREE.HemisphereLight(0xe6eeff, 0x4a3426, 1.25));
@@ -15068,7 +15092,7 @@ function renderDictation(area) {
       sun.position.set(110, 260, 170);
       sun.target.position.set(45, 0, 0);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(512, 512);
+      sun.shadow.mapSize.set(1024, 1024);
       const sc = sun.shadow.camera; sc.left = -150; sc.right = 150; sc.top = 150; sc.bottom = -150; sc.near = 10; sc.far = 700;
       sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.5; sun.shadow.radius = 4; // build 6.29: без «ряби» тени на груди
       scene.add(sun); scene.add(sun.target);
@@ -15164,6 +15188,8 @@ function renderDictation(area) {
       // взгляд: пунктир + конус + кружок
       const gazeMat = new THREE.LineDashedMaterial({ color: 0xfbbf24, dashSize: 3, gapSize: 2.2, depthTest: false, transparent: true });
       const gazeGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(1, 0, 0)]);
+      const gazeSet = function(a, b) { /* build 6.30: обновляем те же буферы, а не создаём новые каждый кадр */
+        const pa = gazeGeo.attributes.position; pa.setXYZ(0, a[0], a[1], a[2]); pa.setXYZ(1, b[0], b[1], b[2]); pa.needsUpdate = true; gazeGeo.computeBoundingSphere(); };
       const gazeLine = new THREE.Line(gazeGeo, gazeMat); gazeLine.renderOrder = 10; scene.add(gazeLine);
       const gazeCone = new THREE.Mesh(new THREE.ConeGeometry(1.6, 4.4, 12), new THREE.MeshBasicMaterial({ color: 0xfbbf24, depthTest: false, transparent: true }));
       gazeCone.renderOrder = 11; scene.add(gazeCone);
@@ -15263,7 +15289,7 @@ function renderDictation(area) {
           const a0 = v3(I.eye);
           const dvec = nrm(add3(tgt, a0, -1));
           const end = add3(tgt, dvec, -2.4);
-          gazeGeo.setFromPoints([new THREE.Vector3(a0[0], a0[1], a0[2]), new THREE.Vector3(end[0], end[1], end[2])]);
+          gazeSet(a0, end);
           gazeLine.computeLineDistances();
           gazeMat.opacity = Math.min(1, gazeK);
           gazeCone.position.set(end[0], end[1], end[2]);
@@ -15279,7 +15305,7 @@ function renderDictation(area) {
         else if (view.focus === 'feet') want = v3(I.feet);
         target = target ? _sLerp3(target, want, 0.25) : want;
         const yw = view.yaw * Math.PI / 180, el = view.el * Math.PI / 180;
-        const dist = 375 / (view.zoom || 1);
+        const dist = camDist(view.zoom, hc[1]);
         camera.position.set(target[0] + Math.sin(yw) * Math.cos(el) * dist, target[1] + Math.sin(el) * dist, target[2] + Math.cos(yw) * Math.cos(el) * dist);
         camera.lookAt(target[0], target[1], target[2]);
         if (typeof floor !== 'undefined' && floor.material) floor.material.opacity = 0.28 * Math.max(0, Math.min(1, (view.el - 8) / 22)); // build 6.31: при взгляде сбоку тень на «полу» за ковриком не висит в воздухе
@@ -15340,7 +15366,7 @@ function renderDictation(area) {
           const a0 = add3(body.headC, body.hFwd, R.headR * 0.95);
           const dvec = nrm(add3(tgt, a0, -1));
           const end = add3(tgt, dvec, -2.4);
-          gazeGeo.setFromPoints([new THREE.Vector3(a0[0], a0[1], a0[2]), new THREE.Vector3(end[0], end[1], end[2])]);
+          gazeSet(a0, end);
           gazeLine.computeLineDistances();
           gazeMat.opacity = Math.min(1, gazeK);
           gazeCone.position.set(end[0], end[1], end[2]);
@@ -15358,7 +15384,7 @@ function renderDictation(area) {
         else if (view.focus === 'feet') want = _sLerp3(P.R.bl, P.L.bl, 0.5);
         target = target ? _sLerp3(target, want, 0.25) : want;
         const yw = view.yaw * Math.PI / 180, el = view.el * Math.PI / 180;
-        const dist = 375 / (view.zoom || 1);
+        const dist = camDist(view.zoom, body.headC[1]);
         camera.position.set(target[0] + Math.sin(yw) * Math.cos(el) * dist, target[1] + Math.sin(el) * dist, target[2] + Math.cos(yw) * Math.cos(el) * dist);
         camera.lookAt(target[0], target[1], target[2]);
         if (typeof floor !== 'undefined' && floor.material) floor.material.opacity = 0.28 * Math.max(0, Math.min(1, (view.el - 8) / 22)); // build 6.31: при взгляде сбоку тень на «полу» за ковриком не висит в воздухе
@@ -15373,7 +15399,7 @@ function renderDictation(area) {
         try { renderer.forceContextLoss(); } catch (e) {}
       }
       if (female) meshes.forEach(function(m) { m.visible = false; });
-      return { upp: function(zoom) { return 2 * (375 / (zoom || 1)) * Math.tan(camera.fov * Math.PI / 360) / Math.max(120, renderer.domElement.clientHeight || 300); }, render: render, resize: resize, dispose: dispose, canvas: renderer.domElement, onModel: function(fn) { onModel = fn; if (model) fn(); }, hasModel: function() { return !!model; } };
+      return { upp: function(zoom) { return 2 * camDist(zoom, 0) * Math.tan(camera.fov * Math.PI / 360) / Math.max(120, renderer.domElement.clientHeight || 300); }, render: render, resize: resize, dispose: dispose, canvas: renderer.domElement, onModel: function(fn) { onModel = fn; if (model) fn(); }, hasModel: function() { return !!model; } };
     }
 
     // ===== 3D-модель человека для «Как читать намаз» — build 6.05, 6.06 =====
@@ -15481,8 +15507,8 @@ function renderDictation(area) {
       const scarfMat = new THREE.MeshStandardMaterial({ color: col('#c9d3e6'), roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
       // лицо-маска и тюбетейка — на кости головы
       { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr('facePos')), 3)); g.setIndex(new THREE.BufferAttribute(new Uint16Array(arr('faceIdx')), 1)); g.computeVertexNormals();
-        const f = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col(H.colors.skin), roughness: 0.85, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -120 }));
-        new THREE.Matrix4().fromArray(H.faceM).decompose(f.position, f.quaternion, f.scale); f.position.add(V(0, 0.004, 0.005)); B.Head.add(f); } // build 6.30: маска лица чуть вперёд, без выступов над шапкой
+        const f = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col(H.colors.skin), roughness: 0.8, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -70 }));
+        new THREE.Matrix4().fromArray(H.faceM).decompose(f.position, f.quaternion, f.scale); f.position.add(V(0, 0.006, 0.006)); B.Head.add(f); } // build 6.30: маска лица чуть вперёд — черты лица не проступают
       let kufi; const KUFI_T = 0.56, KUFI_C = 0.93, KUFI_G = 0.012, KUFI_S = 60;
       if (!FEM) {
         kufi = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI * KUFI_T), new THREE.MeshStandardMaterial({ color: col(H.colors.cap), roughness: 0.9 }));
@@ -16186,9 +16212,9 @@ function renderDictation(area) {
         const lgK = sitK + (1 - sitK) * hw; /* build 6.32: в поклоне колени и голени уже бёдер */
         const twR = FEM ? 0 : Math.max(0, Math.min(1, (0.95 - f1.u.y) / 0.6)) * hw;
         const prims = [
-          prim(hipMid.clone().addScaledVector(fP.u, -0.05), s1, fP.l, fP.f, 0.175, FEM ? 0.095 : 0.095, FEM ? 0.1 : 0.095),
-          prim(s1, s2, f1.l, f1.f, 0.16 * (1 + bkB * 0.06), (FEM ? 0.092 : 0.08) * bkD, (FEM ? 0.098 : 0.095) * bkD),
-          prim(s2, s3.clone().addScaledVector(f3.u, 0.08), f3.l, f3.f, 0.175 * bkW, (FEM ? 0.095 : 0.088) * bkD, (FEM ? 0.1 : 0.1) * bkD),
+          prim(hipMid.clone().addScaledVector(fP.u, -0.05), s1, fP.l, fP.f, 0.165, FEM ? 0.095 : 0.085, FEM ? 0.1 : 0.085),
+          prim(s1, s2, f1.l, f1.f, 0.15 * (1 + bkB * 0.06), (FEM ? 0.092 : 0.07) * bkD, (FEM ? 0.098 : 0.085) * bkD),
+          prim(s2, s3.clone().addScaledVector(f3.u, 0.08), f3.l, f3.f, 0.165 * bkW, (FEM ? 0.095 : 0.078) * bkD, (FEM ? 0.1 : 0.09) * bkD),
           prim(shL.clone().lerp(shR, 0.16).addScaledVector(f3.u, -0.02), shR.clone().lerp(shL, 0.16).addScaledVector(f3.u, -0.02), f3.u, f3.f, 1, 1, 1, 0.052),
           prim(nk, shR, one, f3.f, 1, 1, 1, 0.045), prim(nk, shL, one, f3.f, 1, 1, 1, 0.045),
           prim(nk, hd, one, f3.f, 1, 1, 1, FEM ? 0.052 : 0.058),
@@ -16205,7 +16231,7 @@ function renderDictation(area) {
         // давят ткань: предплечья (в рукавах) и ладони
         const press = [], pressHand = [];
         ['_r', '_l'].forEach(function(sx) { const e = L('lowerarm' + sx), h = L('hand' + sx);
-          press.push(prim(e, h, one, fP.f, 1, 1, 1, 0.074, 0.06));
+          press.push(prim(e, h, one, fP.f, 1, 1, 1, 0.062, 0.05));
           const pc = h.clone().lerp(L('middle_01' + sx), 0.6); if (robeNoHand) return; press.push(prim(pc, pc, one, fP.f, 1, 1, 1, 0.05));
           ['index', 'middle', 'ring', 'pinky', 'thumb'].forEach(function(fn) { press.push(prim(L(fn + '_01' + sx), L(fn + '_04_leaf' + sx), one, fP.f, 1, 1, 1, 0.018, 0.013)); }); // толщина пальца — без глубоких борозд // build 6.29: пальцы тоже вдавливают ткань — не проходят сквозь одежду
           // женская одежда: кисти всегда поверх ткани (ткань уходит под ладонь), чтобы было видно, где лежат руки
@@ -17356,8 +17382,10 @@ function renderDictation(area) {
         '<svg id="salah-anim-svg" viewBox="-72 -196 232 226" style="width:100%;height:auto;display:block;cursor:grab;touch-action:none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + (kk ? 'Намаз анимациясы' : 'Анимация намаза') + '"></svg>' +
         '<div id="salah-anim-step" style="position:absolute;top:0.4rem;left:0.55rem;right:2.6rem;font-size:0.75rem;color:#cbd5e1;pointer-events:none"></div>' +
         '<button type="button" id="hs-full-btn" title="' + (kk ? 'Толық экран' : 'Во весь экран') + '" style="position:absolute;top:0.3rem;right:0.35rem;width:2rem;height:2rem;border-radius:0.45rem;border:1px solid rgba(148,163,184,0.4);background:rgba(15,23,42,0.55);color:#e2e8f0;font-size:1rem;line-height:1;padding:0;cursor:pointer">⛶</button>' +
-        '<div style="position:absolute;bottom:0.35rem;right:0.55rem;font-size:0.66rem;color:#94a3b8;pointer-events:none">' + (kk ? '✥ айналдыру · екі саусақ — жылжыту · ＋/－' : '✥ вращайте · два пальца — сдвиг и масштаб · ＋/－') + '</div>' +
-        '<div style="position:absolute;bottom:0.35rem;left:0.55rem;font-size:0.66rem;color:#fbbf24;pointer-events:none">┄▸ ' + (kk ? 'көз қарау бағыты' : 'куда смотреть') + '</div>' +
+        '<div id="hs-hints" style="display:flex;justify-content:space-between;align-items:baseline;gap:0.2rem 0.8rem;flex-wrap:wrap;padding:0.15rem 0.55rem 0.35rem;font-size:0.66rem;pointer-events:none">' +
+        '<span style="color:#fbbf24;white-space:nowrap">┄▸ ' + (kk ? 'көз қарау бағыты' : 'куда смотреть') + '</span>' +
+        '<span style="color:#94a3b8">' + (kk ? '✥ айналдыру · екі саусақ — масштаб' : '✥ вращайте · два пальца — масштаб') + '</span>' +
+        '</div>' +
         '</div>' +
         '<input type="range" id="salah-anim-seek" min="0" max="1" value="0" step="1" style="width:100%;margin-top:0.45rem">' +
         '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem;align-items:center">' +
@@ -17557,9 +17585,9 @@ function renderDictation(area) {
       };
       const frame = function(ts) {
         if (!box.isConnected) { if (r3d) { try { r3d.dispose(); } catch (e) {} r3d = null; } return; }
-        // раздел скрыт — останавливаем цикл полностью, не крутим RAF вхолостую
-        if (box.offsetParent === null) { st.last = 0; st._raf = 0; return; }
-        const dt = st.last ? Math.min(80, ts - st.last) : 0;
+        // build 6.02: раздел скрыт (ушли в другой) — не рисуем каждый кадр, бережём батарею
+        if (!box.getClientRects().length) { st.last = 0; requestAnimationFrame(frame); return; } /* build 6.30: offsetParent у position:fixed (полный экран) всегда null — анимация вставала */
+        const dt = st.last ? Math.min(100, ts - st.last) : 0;
         st.last = ts;
         let need = false;
         if (Math.abs(st.yaw - st.yawTarget) > 0.3 || Math.abs(st.el - st.elTarget) > 0.3) { st.yaw += (st.yawTarget - st.yaw) * Math.min(1, dt / 160); st.el += (st.elTarget - st.el) * Math.min(1, dt / 160); need = true; }
@@ -17571,15 +17599,13 @@ function renderDictation(area) {
             else { go(st.i + 1); need = false; }
           } else if (st.t <= s.tr + 450) need = true;
         }
-        // не пересчитывать чаще ~25 раз/сек; r3dBusy сбрасываем через 2 сек на всякий случай
-        if (r3dBusy && st._busySince && ts - st._busySince > 2000) r3dBusy = false;
-        if ((need || r3dBusy) && (!st._lastDraw || ts - st._lastDraw > 40)) {
-          st._lastDraw = ts;
-          if (r3dBusy && !st._busySince) st._busySince = ts;
-          try { draw(); } catch (e) { r3dBusy = false; }
-          if (!r3dBusy) st._busySince = 0;
+        if (need || r3dBusy) {
+          /* build 6.30: на слабом телефоне пересчёт ткани в переходах занимает десятки мс — тогда реже обновляем кадр (анимация идёт по времени, не замедляется), чтобы кнопки и жесты не зависали */
+          if (!st.lastDraw || ts - st.lastDraw >= Math.min(90, (st.cost || 0) * 1.5)) {
+            const t0 = performance.now(); draw(); const c = performance.now() - t0; st.cost = st.cost ? st.cost * 0.7 + c * 0.3 : c; st.lastDraw = ts;
+          } else if (need) { /* кадр пропущен — вернёмся к нему в следующий */ }
         }
-        st._raf = requestAnimationFrame(frame);
+        requestAnimationFrame(frame);
       };
       box.querySelectorAll('[data-sa]').forEach(function(b) {
         b.addEventListener('click', function() {
@@ -17659,6 +17685,7 @@ function renderDictation(area) {
           if (!box.isConnected) return;
           try {
             r3d = salah3dCreate(host3d, T, kk, FEMALE);
+            host3d._onRestore = function() { if (box.isConnected) { r3dBusy = true; draw(); } };
             if (r3d.onModel) r3d.onModel(function() { dropVeil(); if (box.isConnected) { r3dBusy = true; draw(); } });
             svg.style.display = 'none';
             const fr = box.querySelector('#salah-focus-row'); if (fr) fr.style.display = 'flex';
@@ -17672,22 +17699,27 @@ function renderDictation(area) {
         const layout = function() {
           if (!box.isConnected) { window.removeEventListener('resize', layout); return; }
           if (window._hsNoLayout) { if (fullBtn) fullBtn.style.display = 'none'; return; } /* служебный флаг для снимков картинок «крупно» — прежний квадратный кадр */
-          const full = box.classList.contains('hs-full'), vw = window.innerWidth, vh = window.innerHeight;
+          const full = box.classList.contains('hs-full'), vw = window.innerWidth;
+          /* build 6.30: адресная строка телефона прячется/появляется и меняет innerHeight — берём наибольшую высоту при той же ширине, чтобы фигура не дёргалась при скролле */
+          if (box._hsVw !== vw) { box._hsVw = vw; box._hsVh = 0; }
+          box._hsVh = Math.max(box._hsVh || 0, window.innerHeight);
+          const vh = full ? window.innerHeight : box._hsVh;
           const wide = !full && (box.parentElement ? box.parentElement.clientWidth : vw) >= 700;
           box.classList.toggle('hs-wide', wide);
           box.classList.toggle('hs-compact', !full && !wide && vh > vw);
           let hv = 0; try { hv = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-vis')) || 0; } catch (e) {}
-          const mh = full ? vh - 120 : wide ? vh - hv - 105 : (vh > vw ? Math.round(vh * 0.36) : 0);
+          const mh = full ? vh - 140 : wide ? vh - hv - 105 : (vh > vw ? Math.round(vh * 0.36) : 0);
           host3d.setAttribute('data-maxh', String(Math.max(0, mh)));
+          host3d.setAttribute('data-full', full ? '1' : '0');
           if (fullBtn) { fullBtn.textContent = full ? '✕' : '⛶'; fullBtn.title = full ? (kk ? 'Жабу' : 'Закрыть') : (kk ? 'Толық экран' : 'Во весь экран'); }
           if (r3d) { try { r3d.resize(); draw(); } catch (e) {} }
         };
         if (fullBtn) fullBtn.addEventListener('click', function() { const on = !box.classList.contains('hs-full'); box.classList.toggle('hs-full', on); layout(); });
-        if (box._hsLayout) window.removeEventListener('resize', box._hsLayout);
         window.addEventListener('resize', layout);
         layout();
         box._hsLayout = layout;
       }
+      box._hsDbg = { st: st, draw: draw, steps: steps }; /* служебная ручка для проверки поз */
       caption(); draw();
       requestAnimationFrame(frame);
     }
@@ -18359,7 +18391,13 @@ function renderDictation(area) {
         if (matchText(blob)) add('Словарь', d.word || d.ar || '', d.meaning || d.mean || '', () => showView('dict'));
       });
       // Bookmarks
-      (state.bookmarks || []).forEach(b => {
+      var _fsReady = false;
+      try { _fsReady = !!(FS && FS.ready && FS.meta.migrated); if (!FS.ready && !(isAppLockEnabled() && !cryptoKey)) fsInit(); } catch (e) {}
+      if (_fsReady) {
+        try {
+          fsSearch(q, null, 40).forEach(it => add(isKk() ? 'Қалталар' : 'Папки', fsName(it), (fsPath(it.p).join(' › ') + (fsPreview(it) ? ' · ' + fsPreview(it) : '')).slice(0, 110), () => fsGoto(it.id)));
+        } catch (e) {}
+      } else (state.bookmarks || []).forEach(b => {
         const blob = ((b.text||'') + ' ' + (b.translation||'') + ' ' + (b.note||'')).toLowerCase();
         if (matchText(blob)) add('Закладки', (b.surah ? b.surah+':'+b.ayah : 'Заметка'), (b.text||'').slice(0,80), () => showView('bookmarks'));
       });
@@ -18623,7 +18661,7 @@ function renderDictation(area) {
 
     // Быстрые кнопки шапки, доступные по желанию: закладки, кэш, аккаунт, размер шрифта
     document.getElementById('btn-header-bookmarks')?.addEventListener('click', () => {
-      try { showView('bookmarks'); } catch(e) {}
+      try { if (isAppLockEnabled() && !cryptoKey) { showView('bookmarks'); return; } fsOpenQuick(); } catch(e) { try { showView('bookmarks'); } catch(e2) {} }
     });
     document.getElementById('btn-header-cache')?.addEventListener('click', () => {
       try { showView('cache'); } catch(e) {}
@@ -21365,19 +21403,103 @@ bKk:
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    // Часовые пояса по стране (WebView часто даёт UTC — не опираемся только на getTimezoneOffset)
-
-
-    function getPrayerTz(lon, country) {
-      if (country && PRAYER_TZ[country] != null) return PRAYER_TZ[country];
+    // build 6.32: часовой пояс места молитвы — с учётом летнего/зимнего времени.
+    // Пояс: фиксированное число (часы) или имя IANA; для имени смещение считается на нужную дату через Intl.
+    function ptIanaOffset(tzName, date, lon) {
       try {
-        const dev = -new Date().getTimezoneOffset() / 60;
-        // если устройство явно не UTC — можно использовать
-        if (Math.abs(dev) > 0.1) return dev;
-      } catch(e) {}
-      // оценка по долготе (15° ≈ 1 час)
-      if (lon != null && !isNaN(lon)) return Math.round(lon / 15);
-      return 5;
+        const noon = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12) - (isFinite(lon) ? lon / 15 * 3600000 : 0);
+        const f = new Intl.DateTimeFormat('en-US', { timeZone: tzName, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
+        const p = {};
+        f.formatToParts(new Date(noon)).forEach(function(x) { p[x.type] = +x.value; });
+        const asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second);
+        const off = (asUtc - Math.floor(noon / 1000) * 1000) / 3600000;
+        return isFinite(off) ? Math.round(off * 4) / 4 : null;
+      } catch (e) { return null; }
+    }
+    function ptZoneOffset(zone, date, lon) {
+      if (zone == null) return null;
+      if (typeof zone === 'number') return zone;
+      return ptIanaOffset(zone, date, lon);
+    }
+    // Ближайший опорный город (для пояса и для подсказки «вы в …»). Возвращает {a, km} или null.
+    function ptNearestAnchor(lat, lon, maxKm) {
+      if (lat == null || lon == null || isNaN(lat) || isNaN(lon) || typeof TZ_ANCHORS === 'undefined') return null;
+      let best = null, bd = Infinity;
+      for (let i = 0; i < TZ_ANCHORS.length; i++) {
+        const a = TZ_ANCHORS[i];
+        const d = haversineDistance(+lat, +lon, a[1], a[2]) / 1000;
+        if (d < bd) { bd = d; best = a; }
+      }
+      if (!best || (maxKm != null && bd > maxKm)) return null;
+      return { a: best, km: bd };
+    }
+    // Пояс места: 1) город из списка сайта, 2) ближайший опорный город (≤700 км), 3) пояс устройства, 4) страна, 5) долгота.
+    function ptZoneFor(lat, lon, country) {
+      lat = +lat; lon = +lon;
+      try {
+        for (const k in PRAYER_COUNTRIES) {
+          const cs = PRAYER_COUNTRIES[k].cities || [];
+          for (let i = 0; i < cs.length; i++) {
+            if (Math.abs(cs[i].lat - lat) < 0.05 && Math.abs(cs[i].lon - lon) < 0.05) {
+              if (cs[i].tz) return cs[i].tz;
+              if (PRAYER_TZ[k] != null) return PRAYER_TZ[k];
+            }
+          }
+        }
+      } catch (e) {}
+      const n = ptNearestAnchor(lat, lon, 700);
+      if (n) return n.a[3];
+      try {
+        const dev = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (dev && dev !== 'UTC' && dev !== 'Etc/UTC' && dev !== 'GMT') return dev;
+      } catch (e) {}
+      if (country && PRAYER_TZ[country] != null) return PRAYER_TZ[country];
+      return null;
+    }
+    const _ptTzMemo = {};
+    function getPrayerTz(lon, country, lat, date) {
+      date = date || new Date();
+      const key = lat + '|' + lon + '|' + country + '|' + date.getFullYear() + '-' + date.getMonth() + '-' + date.getDate();
+      if (_ptTzMemo[key] != null) return _ptTzMemo[key];
+      let off = null;
+      try { off = ptZoneOffset(ptZoneFor(lat, lon, country), date, lon); } catch (e) {}
+      if (off == null && country && typeof PRAYER_TZ[country] === 'number') off = PRAYER_TZ[country];
+      if (off == null) {
+        try {
+          const dev = -date.getTimezoneOffset() / 60;
+          if (Math.abs(dev) > 0.1) off = dev;
+        } catch (e) {}
+      }
+      if (off == null) off = (lon != null && !isNaN(lon)) ? Math.round(lon / 15) : 5;
+      if (Object.keys(_ptTzMemo).length > 400) { for (const k in _ptTzMemo) delete _ptTzMemo[k]; }
+      _ptTzMemo[key] = off;
+      return off;
+    }
+    // Пояс текущего места (state.prayerLoc или редактируемого в окне) на момент date
+    function ptCurLoc() { return window._ptWorking || state.prayerLoc || null; }
+    function getPlaceTz(lat, lon, date) {
+      const loc = ptCurLoc() || {};
+      return getPrayerTz(+lon, loc.country, +lat, date);
+    }
+    function ptCurTz(date) {
+      const loc = ptCurLoc();
+      if (!loc || loc.lat == null || loc.lon == null) return -(date || new Date()).getTimezoneOffset() / 60;
+      return getPlaceTz(+loc.lat, +loc.lon, date || new Date());
+    }
+    // «Настенные» часы места: Date, у которого локальные поля = время на часах в месте молитвы. Если пояс совпадает с поясом телефона — тот же момент.
+    function ptWall(d, tz) {
+      if (Math.abs(-d.getTimezoneOffset() / 60 - tz) < 1e-6) return d;
+      const u = new Date(d.getTime() + tz * 3600000);
+      return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate(), u.getUTCHours(), u.getUTCMinutes(), u.getUTCSeconds(), u.getUTCMilliseconds());
+    }
+    function ptReal(w, tz) {
+      if (Math.abs(-w.getTimezoneOffset() / 60 - tz) < 1e-6) return w;
+      return new Date(Date.UTC(w.getFullYear(), w.getMonth(), w.getDate(), w.getHours(), w.getMinutes(), w.getSeconds(), w.getMilliseconds()) - tz * 3600000);
+    }
+    // «HH:MM» на часах места из момента d
+    function ptHM(d, tz) {
+      const w = ptWall(d, tz == null ? ptCurTz(d) : tz);
+      return String(w.getHours()).padStart(2, '0') + ':' + String(w.getMinutes()).padStart(2, '0');
     }
 
     function calcPrayerTimes(lat, lon, date, methodKey) {
@@ -21386,7 +21508,7 @@ bKk:
       methodKey = methodKey || (state.settings && state.settings.prayerMethod) || 'DUMK';
       const method = PRAYER_METHODS[methodKey] || PRAYER_METHODS.DUMK || PRAYER_METHODS.MWL;
       const country = (state.prayerLoc && state.prayerLoc.country) || 'KZ';
-      const tz = getPrayerTz(lon, country);
+      const tz = getPrayerTz(lon, country, lat, date);
 
       const d2r = d => d * Math.PI / 180;
       const r2d = r => r * 180 / Math.PI;
@@ -21690,11 +21812,30 @@ bKk:
         .catch(function(){ clearTimeout(t); return null; });
     }
 
+    // build 6.32: Духа и Тахаджуд нигде официально не публикуются (ни ДУМК, ни другие) — считаем сами как ОРИЕНТИР:
+    // Духа — начало ≈ через 20 мин после восхода; Тахаджуд — начало последней трети ночи (от магриба до фаджра).
+    function ptExtraTimes(t) {
+      if (!t) return t;
+      const m = function(x) { if (!x || x === '--:--') return null; const q = String(x).split(':'); return (+q[0]) * 60 + (+q[1]); };
+      const f = function(min) { min = Math.round(((min % 1440) + 1440) % 1440); return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); };
+      if (!t.duha || t.duha === '--:--') { const sr = m(t.sunrise); if (sr != null) t.duha = f(sr + 20); }
+      if (!t.tahajjud || t.tahajjud === '--:--') {
+        const mg = m(t.maghrib), fj = m(t.fajr);
+        if (mg != null && fj != null) { let night = fj - mg; if (night < 0) night += 1440; t.tahajjud = f(mg + night * 2 / 3); }
+      }
+      return t;
+    }
+    function ptTzLabel(tz) {
+      const a = Math.abs(tz), h = Math.floor(a), mi = Math.round((a - h) * 60);
+      return 'UTC' + (tz < 0 ? '−' : '+') + h + (mi ? ':' + String(mi).padStart(2, '0') : '');
+    }
     function resolveDayTimes(lat, lon, date, methodKey) {
       methodKey = methodKey || (state.settings && state.settings.prayerMethod) || 'DUMK';
+      // build 6.32: календарный день — по часам места молитвы, а не телефона
+      try { date = ptWall(date, getPlaceTz(+lat, +lon, date)); } catch (e) {}
       const cached = getCachedDayTimes(lat, lon, date);
       if (cached) {
-        return {
+        return ptExtraTimes({
           fajr: String(cached.fajr != null ? cached.fajr : '--:--'),
           sunrise: String(cached.sunrise != null ? cached.sunrise : '--:--'),
           dhuhr: String(cached.dhuhr != null ? cached.dhuhr : '--:--'),
@@ -21704,7 +21845,7 @@ bKk:
           duha: cached.duha != null ? String(cached.duha) : undefined,
           tahajjud: cached.tahajjud != null ? String(cached.tahajjud) : undefined,
           _src: 'muftyat'
-        };
+        });
       }
       // DUMK — только официальный API, без локального «примерно»
       if (methodKey === 'DUMK') return null;
@@ -21715,27 +21856,143 @@ bKk:
       return null;
     }
 
+
+    // ===== build 6.32: переезд — предложить сменить город для времён намаза =====
+    // Работает только пока сайт открыт (в фоне браузер не даёт следить за местом) и только если доступ к месту уже разрешён
+    // (никаких запросов разрешения само по себе). Само ничего не меняет — только предлагает; «Не сейчас» молчит 6 часов.
+    var TRAVEL_MIN_KM = 50;
+    var TRAVEL_METHOD_BY_COUNTRY = { RU: 'Russia', UZ: 'Uzbekistan', TR: 'Turkey', SA: 'UmmAlQura', EG: 'Egypt' };
+    function travelNearest(lat, lon) {
+      let best = null, bd = 1e9;
+      try {
+        for (const k in PRAYER_COUNTRIES) (PRAYER_COUNTRIES[k].cities || []).forEach(function(c) {
+          const d = haversineDistance(lat, lon, c.lat, c.lon) / 1000;
+          if (d < bd) { bd = d; best = { country: k, city: c.n, lat: c.lat, lon: c.lon, km: d }; }
+        });
+      } catch (e) {}
+      if (best && bd <= 40) return best;
+      const a = ptNearestAnchor(lat, lon, 400);
+      const ll = { lat: +(+lat).toFixed(4), lon: +(+lon).toFixed(4) };
+      if (a) return { country: a.a[4] || 'OTHER', city: a.km <= 40 ? a.a[0] : 'GPS', near: a.a[0], lat: ll.lat, lon: ll.lon, km: a.km, approx: true };
+      return { country: 'OTHER', city: 'GPS', lat: ll.lat, lon: ll.lon, km: null, approx: true };
+    }
+    function travelCheck(force) {
+      try {
+        if (state.settings && state.settings.travelCheckOff) return;
+        if (!navigator.geolocation || !navigator.permissions || !navigator.permissions.query) return;
+        const loc = state.prayerLoc;
+        if (!loc || loc.lat == null || loc.lon == null) return;
+        if (window._travelBusy || document.getElementById('travel-ov')) return;
+        const now = Date.now();
+        if (!force && window._travelLast && now - window._travelLast < 20 * 60000) return;
+        window._travelLast = now;
+        navigator.permissions.query({ name: 'geolocation' }).then(function(r) {
+          if (!r || r.state !== 'granted') return;
+          window._travelBusy = true;
+          navigator.geolocation.getCurrentPosition(function(pos) {
+            window._travelBusy = false;
+            travelEvaluate(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+          }, function() { window._travelBusy = false; }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 15 * 60000 });
+        }).catch(function() {});
+      } catch (e) {}
+    }
+    function travelEvaluate(lat, lon, acc) {
+      const loc = state.prayerLoc;
+      if (!loc || loc.lat == null) return;
+      if (acc != null && acc > 20000) return; // слишком грубое место (по IP) — не тревожим
+      const km = haversineDistance(+loc.lat, +loc.lon, lat, lon) / 1000;
+      if (km < TRAVEL_MIN_KM) return;
+      const dm = state.settings && state.settings.travelDismiss;
+      if (dm && Date.now() - dm.ts < 6 * 3600000 && haversineDistance(dm.lat, dm.lon, lat, lon) / 1000 < 30) return;
+      travelAsk(lat, lon, km);
+    }
+    function travelAsk(lat, lon, km) {
+      const kk = (typeof isKk === 'function') && isKk();
+      const T = function(ru, kz) { return kk ? kz : ru; };
+      const cur = state.prayerLoc, near = travelNearest(lat, lon);
+      const mk = (state.settings && state.settings.prayerMethod) || 'DUMK';
+      // на сколько минут сдвинется Зухр (по часам своих мест): расчётом для обоих мест
+      let delta = null;
+      try {
+        const d = new Date();
+        const hm = function(t) { const q = String(t.dhuhr).split(':'); return (+q[0]) * 60 + (+q[1]); };
+        const t1 = calcPrayerTimes(+cur.lat, +cur.lon, d, 'MWL'), t2 = calcPrayerTimes(near.lat, near.lon, d, 'MWL');
+        if (t1 && t2) { delta = hm(t2) - hm(t1); if (delta > 720) delta -= 1440; if (delta < -720) delta += 1440; }
+      } catch (e) {}
+      let newMethod = null;
+      if (mk === 'DUMK' && near.country !== 'KZ') newMethod = TRAVEL_METHOD_BY_COUNTRY[near.country] || 'MWL';
+      const place = (near.city && near.city !== 'GPS') ? near.city : (near.near ? T('рядом с ', 'жанында ') + near.near : T('новом месте', 'жаңа орында'));
+      const kmTxt = Math.round(km) + ' ' + T('км', 'км');
+      const dTxt = (delta == null) ? '' : (Math.abs(delta) < 2 ? T('Время почти не изменится.', 'Уақыт дерлік өзгермейді.') : T('Время намаза изменится примерно на ', 'Намаз уақыты шамамен ') + (delta > 0 ? '+' : '−') + Math.abs(delta) + ' ' + T('мин (по Зухру).', 'мин өзгереді (бесін бойынша).'));
+      const esc2 = function(x) { return String(x).replace(/[&<>"]/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+      const mName = newMethod && PRAYER_METHODS[newMethod] ? PRAYER_METHODS[newMethod].name : '';
+      const ov = document.createElement('div');
+      ov.id = 'travel-ov'; ov.className = 'fs-ov';
+      ov.innerHTML = '<div class="fs-sheet">' +
+        '<div class="fs-sheet-title">📍 ' + T('Похоже, вы в другом месте', 'Сіз басқа жерде сияқтысыз') + '</div>' +
+        '<div>' + T('Сейчас вы ≈ в районе: ', 'Қазір сіз шамамен: ') + '<b>' + esc2(place) + '</b> · ' + kmTxt + ' ' + T('от «', 'қашықтықта: «') + esc2(cur.city || '—') + '».</div>' +
+        (dTxt ? '<div class="fs-lbl">' + dTxt + '</div>' : '') +
+        (newMethod ? '<div class="fs-warn">' + T('Метод ДУМК даёт официальные времена только для Казахстана — для этого места предлагается: ', 'ҚМДБ әдісі ресми уақытты тек Қазақстан үшін береді — бұл жерге ұсынылады: ') + esc2(mName) + '</div>' : '') +
+        '<div class="fs-lbl">' + T('Обновить место для времён намаза? Сайт сам ничего не меняет.', 'Намаз уақыты үшін орынды жаңарту керек пе? Сайт өздігінен ештеңе өзгертпейді.') + '</div>' +
+        '<button type="button" class="fs-act" id="travel-yes">✅ ' + T('Обновить', 'Жаңарту') + '</button>' +
+        '<button type="button" class="fs-act" id="travel-later">⏳ ' + T('Не сейчас', 'Қазір емес') + '</button>' +
+        '<button type="button" class="fs-act fs-cancel" id="travel-off">' + T('Больше не спрашивать', 'Енді сұрамау') + '</button></div>';
+      document.body.appendChild(ov);
+      const close = function() { try { ov.parentNode.removeChild(ov); } catch (e) {} };
+      ov.querySelector('#travel-yes').addEventListener('click', function() {
+        close();
+        try {
+          state.prayerLoc = { lat: near.lat, lon: near.lon, city: near.city || 'GPS', country: near.country };
+          window._ptWorking = null;
+          if (newMethod) state.settings.prayerMethod = newMethod;
+          saveState();
+          try { if (typeof ensureMuftyatCache === 'function' && (state.settings.prayerMethod || 'DUMK') === 'DUMK') ensureMuftyatCache(near.lat, near.lon, new Date().getFullYear()); } catch (e) {}
+          try { schedulePrayerNotifications(); } catch (e) {}
+          try { const v = window._qaView; if (v === 'prayertimes') renderPrayerTimes(); else if (v === 'dailyhub') renderDailyHub(); } catch (e) {}
+          toast(T('Место обновлено: ', 'Орын жаңартылды: ') + (near.city && near.city !== 'GPS' ? near.city : place));
+        } catch (e) { toast(T('Не удалось обновить', 'Жаңарту мүмкін болмады')); }
+      });
+      ov.querySelector('#travel-later').addEventListener('click', function() {
+        close();
+        try { state.settings.travelDismiss = { lat: lat, lon: lon, ts: Date.now() }; saveState(); } catch (e) {}
+      });
+      ov.querySelector('#travel-off').addEventListener('click', function() {
+        close();
+        try { state.settings.travelCheckOff = true; saveState(); toast(T('Хорошо. Включить снова можно в «Время намаза» → Уведомления.', 'Жақсы. Қайта қосу: «Намаз уақыты» → Хабарламалар.')); } catch (e) {}
+      });
+    }
+    (function travelBoot() {
+      try {
+        setTimeout(function() { travelCheck(true); }, 7000);
+        document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'visible') travelCheck(false); });
+      } catch (e) {}
+    })();
+
     // Ближайший намаз и обратный отсчёт до него — общий хелпер для виджета «Ежедневного» и самого раздела «Время намаза».
 
-    function parseHM(str, baseDate) {
+    // build 6.32: baseDate — момент; берётся день по часам места молитвы, результат — настоящий момент времени (не «настенное» время телефона).
+    function parseHM(str, baseDate, tz) {
       if (!str || str === '--:--') return null;
       const p = String(str).split(':');
       if (p.length < 2) return null;
-      const d = new Date(baseDate);
+      const base = new Date(baseDate);
+      if (tz == null) tz = ptCurTz(base);
+      const d = new Date(ptWall(base, tz));
       d.setHours(+p[0], +p[1], 0, 0);
-      return d;
+      return ptReal(d, tz);
     }
     function getNextPrayerInfo(lat, lon, methodKey) {
       const mk = methodKey || (state.settings && state.settings.prayerMethod) || 'DUMK';
       const now = new Date();
       const todayT = resolveDayTimes(lat, lon, now, mk);
       if (!todayT) return null;
+      const tz = getPlaceTz(lat, lon, now);
       for (let i = 0; i < PRAYER_ORDER_NAMES.length; i++) {
         const key = PRAYER_ORDER_NAMES[i][0];
-        const when = parseHM(todayT[key], now);
+        const when = parseHM(todayT[key], now, tz);
         if (when && when.getTime() > now.getTime()) {
           const prevKey = i > 0 ? PRAYER_ORDER_NAMES[i - 1][0] : null;
-          const prevWhen = prevKey ? parseHM(todayT[prevKey], now) : null;
+          const prevWhen = prevKey ? parseHM(todayT[prevKey], now, tz) : null;
           return {
             key: key, ruLabel: PRAYER_ORDER_NAMES[i][1], kkLabel: PRAYER_ORDER_NAMES[i][2],
             time: todayT[key], whenDate: when, diffMs: when.getTime() - now.getTime(),
@@ -21744,12 +22001,11 @@ bKk:
         }
       }
       // Все сегодняшние намазы прошли — ищем завтрашний фаджр
-      const tmr = new Date(now);
-      tmr.setDate(tmr.getDate() + 1);
+      const tmr = new Date(now.getTime() + 86400000);
       const tmrT = resolveDayTimes(lat, lon, tmr, mk);
-      const when = tmrT ? parseHM(tmrT.fajr, tmr) : null;
+      const when = tmrT ? parseHM(tmrT.fajr, tmr, tz) : null;
       if (!when) return null;
-      const ishaWhen = parseHM(todayT.isha, now);
+      const ishaWhen = parseHM(todayT.isha, now, tz);
       return {
         key: 'fajr', ruLabel: 'Фаджр', kkLabel: 'Таң намазы',
         time: tmrT.fajr, whenDate: when, diffMs: when.getTime() - now.getTime(),
@@ -21770,18 +22026,18 @@ bKk:
       const kkLabel = found ? found[2] : ruLabel;
       const idx = PRAYER_ORDER_NAMES.findIndex(function(p) { return p[0] === forceKey; });
       const prevKey = idx > 0 ? PRAYER_ORDER_NAMES[idx - 1][0] : null;
-      let when = parseHM(todayT[forceKey], now);
+      const tz = getPlaceTz(lat, lon, now);
+      let when = parseHM(todayT[forceKey], now, tz);
       if (when && when.getTime() > now.getTime()) {
-        const prevWhen = prevKey ? parseHM(todayT[prevKey], now) : null;
+        const prevWhen = prevKey ? parseHM(todayT[prevKey], now, tz) : null;
         return { key: forceKey, ruLabel: ruLabel, kkLabel: kkLabel, time: todayT[forceKey], whenDate: when, diffMs: when.getTime() - now.getTime(), prevWhen: prevWhen, isTomorrow: false };
       }
       // Время сегодня уже прошло — считаем до этого же намаза завтра
-      const tmr = new Date(now);
-      tmr.setDate(tmr.getDate() + 1);
+      const tmr = new Date(now.getTime() + 86400000);
       const tmrT = resolveDayTimes(lat, lon, tmr, mk);
-      when = tmrT ? parseHM(tmrT[forceKey], tmr) : null;
+      when = tmrT ? parseHM(tmrT[forceKey], tmr, tz) : null;
       if (!when) return null;
-      const todayPrevWhen = parseHM(todayT[forceKey], now); // «начало отсчёта» — то же время вчера/сегодня
+      const todayPrevWhen = parseHM(todayT[forceKey], now, tz); // «начало отсчёта» — то же время вчера/сегодня
       return { key: forceKey, ruLabel: ruLabel, kkLabel: kkLabel, time: tmrT[forceKey], whenDate: when, diffMs: when.getTime() - now.getTime(), prevWhen: todayPrevWhen, isTomorrow: true };
     }
     function formatCountdownHMS(ms) {
@@ -21889,7 +22145,8 @@ bKk:
       const kk = (typeof isKk === 'function') && isKk();
       const T = function(ru, kz) { return kk ? kz : ru; };
       const now = new Date();
-      const tmr = new Date(now); tmr.setDate(tmr.getDate() + 1);
+      const tmr = new Date(now.getTime() + 86400000);
+      const ptZ = (loc && loc.lat != null && loc.lon != null) ? getPlaceTz(+loc.lat, +loc.lon, now) : -now.getTimezoneOffset() / 60;
       const t1 = resolveDayTimes(+loc.lat, +loc.lon, now, methodKey);
       const t2 = resolveDayTimes(+loc.lat, +loc.lon, tmr, methodKey);
       const noCity = '<div class="card"><div class="ayah-translation">' + T('Времена пока не загружены. Откройте вкладку «Времена» (для ДУМК данные подгружаются из сети) или выберите город и метод — тогда здесь появятся ваши времена и расчёт «осталось».', 'Уақыттар әлі жүктелген жоқ. «Уақыттар» қойындысын ашыңыз (ҚМДБ деректері желіден жүктеледі) немесе қала мен әдісті таңдаңыз — сонда мұнда уақыттарыңыз бен «қалды» есебі шығады.') + '</div></div>';
@@ -21899,7 +22156,7 @@ bKk:
         if (!h) return mm + ' ' + T('мин', 'мин');
         return h + ' ' + T('ч', 'сағ') + (mm ? ' ' + mm + ' ' + T('мин', 'мин') : '');
       };
-      const hhmm = function(d) { return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+      const hhmm = function(d) { return ptHM(d, ptZ); };
       const blk = function(title, text) {
         return '<div style="margin-top:0.6rem"><b style="font-size:0.85rem">' + title + '</b>' +
           '<div class="ayah-translation" style="margin-top:0.15rem;font-size:calc(0.88rem * var(--ru-scale, 1));line-height:1.55">' + text + '</div></div>';
@@ -21917,8 +22174,8 @@ bKk:
       if (!loc || loc.lat == null || loc.lon == null || !t1 || !t2) return noCity;
 
       const D = {
-        F: parseHM(t1.fajr, now), S: parseHM(t1.sunrise, now), Z: parseHM(t1.dhuhr, now),
-        A: parseHM(t1.asr, now), M: parseHM(t1.maghrib, now), I: parseHM(t1.isha, now), F2: parseHM(t2.fajr, tmr)
+        F: parseHM(t1.fajr, now, ptZ), S: parseHM(t1.sunrise, now, ptZ), Z: parseHM(t1.dhuhr, now, ptZ),
+        A: parseHM(t1.asr, now, ptZ), M: parseHM(t1.maghrib, now, ptZ), I: parseHM(t1.isha, now, ptZ), F2: parseHM(t2.fajr, tmr, ptZ)
       };
       if (!D.F || !D.S || !D.Z || !D.A || !D.M || !D.I || !D.F2) return noCity;
       const half = new Date(D.M.getTime() + (D.F2.getTime() - D.M.getTime()) / 2); // середина ночи: магриб → фаджр
@@ -22184,7 +22441,11 @@ bKk:
             '<div class="setting-row"><span>'+tLabel('Духа')+'</span>' +
             '<button type="button" class="btn btn-sm '+((state.settings.widgetDuha===true)?'btn-primary':'')+'" id="pt-w-duha">'+tLabel((state.settings.widgetDuha===true)?'Вкл':'Выкл')+'</button></div>' +
             '<div class="setting-row"><span>'+tLabel('Тахаджуд')+'</span>' +
-            '<button type="button" class="btn btn-sm '+((state.settings.widgetTahajjud)?'btn-primary':'')+'" id="pt-w-tah">'+tLabel((state.settings.widgetTahajjud)?'Вкл':'Выкл')+'</button></div></div>';
+            '<button type="button" class="btn btn-sm '+((state.settings.widgetTahajjud)?'btn-primary':'')+'" id="pt-w-tah">'+tLabel((state.settings.widgetTahajjud)?'Вкл':'Выкл')+'</button></div></div>' +
+            '<div class="card"><b>📍 '+((typeof isKk==='function'&&isKk())?'Көшкенде қаланы ұсыну':'Подсказка при переезде')+'</b>' +
+            '<div class="ayah-translation" style="margin-top:0.3rem">'+((typeof isKk==='function'&&isKk())?'Сайт ашық кезде және орынға рұқсат берілген болса, сіз сақталған қаладан ~50 км алыстағанда уақытты жаңартуды ұсынады. Өздігінен ештеңе өзгертпейді.':'Пока сайт открыт и доступ к месту разрешён, при отъезде от сохранённого города (~50 км) предложит обновить время намаза. Сам ничего не меняет.')+'</div>' +
+            '<div class="setting-row"><span>'+tLabel('Предлагать')+'</span>' +
+            '<button type="button" class="btn btn-sm '+((state.settings.travelCheckOff)?'':'btn-primary')+'" id="pt-travel">'+tLabel((state.settings.travelCheckOff)?'Выкл':'Вкл')+'</button></div></div>';
 
           let locCard = placeCard; // legacy name for event binding section — times use placeCard+toolsCard
 
@@ -22223,12 +22484,12 @@ let body = '';
                 const rows = [
                   ['fajr', 'Фаджр', t.fajr],
                   ['sunrise', 'Восход (конец фаджра)', t.sunrise],
-                  ['duha', 'Духа', t.duha || '--:--'],
+                  ['duha', 'Духа (ориентир)', t.duha || '--:--'],
                   ['dhuhr', 'Зухр', t.dhuhr],
                   ['asr', 'Аср', t.asr],
                   ['maghrib', 'Магриб', t.maghrib],
                   ['isha', 'Иша', t.isha],
-                  ['tahajjud', 'Тахаджуд (посл. треть)', t.tahajjud || '--:--']
+                  ['tahajjud', 'Тахаджуд (ориентир)', t.tahajjud || '--:--']
                 ].map(function(triple){
                   const key = triple[0], label = triple[1], val = triple[2];
                   const icon = (typeof PRAYER_ICONS !== 'undefined' && PRAYER_ICONS[key]) || '';
@@ -22273,7 +22534,12 @@ let body = '';
                   }
                 } catch(e) {}
                 body = countdownCardHtml + '<div class="card"><b>'+tLabel('Сегодня')+'</b> <span style="font-size:0.8rem;color:var(--text-muted)">· '+(PRAYER_METHODS[methodKey]?tLabel(PRAYER_METHODS[methodKey].name):'')+'</span>'+rows +
-                  '<div class="ayah-translation" id="pt-src" style="font-size:calc(0.78rem * var(--ru-scale, 1));margin-top:0.35rem">'+srcLabel+' · '+tLabel('сверяйте с мечетью')+'</div></div>';
+                  '<div class="ayah-translation" id="pt-src" style="font-size:calc(0.78rem * var(--ru-scale, 1));margin-top:0.35rem">'+srcLabel+' · '+tLabel('сверяйте с мечетью')+' · '+ptTzLabel(getPlaceTz(+loc.lat, +loc.lon, new Date()))+'</div>' +
+                  '<div class="ayah-translation" id="pt-extra-note" style="font-size:calc(0.78rem * var(--ru-scale, 1));margin-top:0.35rem;line-height:1.5">' +
+                  ((typeof isKk === 'function' && isKk())
+                    ? '🌞 Духа және 🌌 Тәһәжжүд уақыттары ресми кестелерде (ҚМДБ және т.б.) жарияланбайды — бұл сайттың шамамен есебі: Духа — күн шыққаннан кейін ≈20 минуттан бесін намазына (зухр) дейін (Муслим 720, 748); Тәһәжжүд — түннің (ақшам мен таң арасы) соңғы үштен бірінің басы (Бухари 1145, Муслим 758). Нақты уақытты имамнан сұраңыз.'
+                    : '🌞 Духа и 🌌 Тахаджуд не публикуются в официальных таблицах (ДУМК и др.) — это ориентировочный расчёт сайта: Духа — начало ≈ через 20 мин после восхода, до Зухра (Муслим 720, 748); Тахаджуд — начало последней трети ночи между Магрибом и Фаджром (Бухари 1145, Муслим 758). Точное время уточняйте у имама.') +
+                  '</div></div>';
               }
             }
           } else if (tab === 'week' || tab === 'month') {
@@ -22283,9 +22549,10 @@ let body = '';
               const names = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
               let rows = '';
               for (let i = 0; i < days; i++) {
-                const d = new Date(); d.setDate(d.getDate() + i);
-                const t = resolveDayTimes(+loc.lat, +loc.lon, d, methodKey);
+                const d0 = new Date(Date.now() + i * 86400000);
+                const t = resolveDayTimes(+loc.lat, +loc.lon, d0, methodKey);
                 if (!t) continue;
+                const d = ptWall(d0, getPlaceTz(+loc.lat, +loc.lon, d0));
                 const label = d.getDate()+'.'+String(d.getMonth()+1).padStart(2,'0')+' '+names[d.getDay()];
                 rows += '<tr style="border-top:1px solid var(--border)"><td style="padding:0.35rem 0.25rem;white-space:nowrap">'+label+'</td>' +
                   '<td style="padding:0.35rem 0.2rem">'+t.fajr+'</td><td style="padding:0.35rem 0.15rem;font-size:0.75rem">'+t.sunrise+'</td>' +
@@ -22381,9 +22648,9 @@ let body = '';
           // build 5.69: та же проблема, что и в виджете «Ежедневного» — без
           // смены даты сетка времён в разделе «Время намаза» тоже оставалась
           // бы «замороженной» на дне последней отрисовки после полуночи.
-          window._ptPrayerCountdownDate = new Date().toDateString();
+          window._ptPrayerCountdownDate = ptWall(new Date(), ptCurTz(new Date())).toDateString();
           window._ptPrayerCountdownTimer = setInterval(function() {
-            const todayStr2 = new Date().toDateString();
+            const todayStr2 = ptWall(new Date(), ptCurTz(new Date())).toDateString();
             if (todayStr2 !== window._ptPrayerCountdownDate) {
               window._ptPrayerCountdownDate = todayStr2;
               paint(window._ptTab || 'today');
@@ -22415,7 +22682,7 @@ let body = '';
             if (window._ptCat === 'guide' && document.querySelector('[data-exp="pg-fajr"]')) { paint(window._ptTab || 'today'); return; }
             const cd = document.getElementById('pt-prayer-countdown');
             if (!cd) return;
-            const todayStr2 = new Date().toDateString();
+            const todayStr2 = ptWall(new Date(), ptCurTz(new Date())).toDateString();
             if (todayStr2 !== window._ptPrayerCountdownDate) {
               window._ptPrayerCountdownDate = todayStr2;
               paint(window._ptTab || 'today');
@@ -22651,6 +22918,13 @@ let body = '';
             try { saveState(); } catch(e) {}
             paint(tab);
           });
+          const wTrav = document.getElementById('pt-travel');
+          if (wTrav) wTrav.addEventListener('click', function(){
+            state.settings.travelCheckOff = !state.settings.travelCheckOff;
+            if (!state.settings.travelCheckOff) { state.settings.travelDismiss = null; window._travelLast = 0; }
+            try { saveState(); } catch(e) {}
+            paint(tab);
+          });
           const wTah = document.getElementById('pt-w-tah');
           if (wTah) wTah.addEventListener('click', function(){
             state.settings.widgetTahajjud = !state.settings.widgetTahajjud;
@@ -22727,10 +23001,14 @@ let body = '';
           } catch(e) {}
         }, 400);
       } catch (err) {
+        qaErrLog('renderPrayerTimes', err);
         el.innerHTML = '<div class="card"><b>Ошибка</b><div class="ayah-translation">'+(err && err.message ? err.message : String(err))+'</div>' +
-          '<button type="button" class="btn btn-sm btn-primary" id="pt-retry" style="margin-top:0.5rem">Повторить</button></div>';
+          '<button type="button" class="btn btn-sm btn-primary" id="pt-retry" style="margin-top:0.5rem">Повторить</button> ' +
+          '<button type="button" class="btn btn-sm" id="pt-errcopy" style="margin-top:0.5rem">Скопировать отчёт</button></div>';
         const rb = document.getElementById('pt-retry');
         if (rb) rb.addEventListener('click', function(){ renderPrayerTimes(); });
+        const rc = document.getElementById('pt-errcopy');
+        if (rc) rc.addEventListener('click', function(){ qaCopyReport(rc); });
       }
     }
 
@@ -22969,7 +23247,8 @@ let body = '';
             ? resolveDayTimes(+loc.lat, +loc.lon, day, mk)
             : (typeof calcPrayerTimes === 'function' ? calcPrayerTimes(+loc.lat, +loc.lon, day, mk) : null);
           state._nextPrayers = t;
-          curDayKey = day.getFullYear()+'-'+(day.getMonth()+1)+'-'+day.getDate();
+          const dw = ptWall(day, getPlaceTz(+loc.lat, +loc.lon, day));
+          curDayKey = dw.getFullYear()+'-'+(dw.getMonth()+1)+'-'+dw.getDate();
           return t;
         }
         recomputeToday();
@@ -22978,14 +23257,14 @@ let body = '';
           if (!hhmm || hhmm === '--:--') return null;
           const p = String(hhmm).split(':');
           if (p.length < 2) return null;
-          const now = new Date();
-          return new Date(now.getFullYear(), now.getMonth(), now.getDate(), +p[0], +p[1], 0, 0);
+          return parseHM(hhmm, new Date(), getPlaceTz(+loc.lat, +loc.lon, new Date()));
         }
 
         function tick() {
           try {
             const now = new Date();
-            const todayKey = now.getFullYear()+'-'+(now.getMonth()+1)+'-'+now.getDate();
+            const nw = ptWall(now, getPlaceTz(+loc.lat, +loc.lon, now));
+            const todayKey = nw.getFullYear()+'-'+(nw.getMonth()+1)+'-'+nw.getDate();
             if (todayKey !== curDayKey) recomputeToday();
             const t = state._nextPrayers;
             if (!t) return;
@@ -23152,7 +23431,7 @@ let body = '';
       const kk = state.settings && state.settings.lang === 'kk';
       const packs = kk ? [
         { n: 0, id: 'full', label: 'Барлығы (толық сақтық көшірме)', keys: null },
-        { n: 1, id: 'bookmarks', label: 'Бетбелгілер', keys: ['bookmarks', 'bookmarkFolders'] },
+        { n: 1, id: 'bookmarks', label: 'Бетбелгілер', keys: ['bookmarks', 'bookmarkFolders', 'fsItems'] },
         { n: 2, id: 'dict', label: 'Сөздік', keys: ['dictionary', 'dictFolders', 'dictSrs'] },
         { n: 3, id: 'progress', label: 'Үлгерім (академия, намаз, хатым, рамазан, зікір)', keys: ['academyProgress', 'prayerLog', 'dhikr', 'khatm', 'ramadan'] },
         { n: 4, id: 'settings', label: 'Баптаулар', keys: ['settings'] },
@@ -23162,7 +23441,7 @@ let body = '';
         { n: 8, id: 'notes', label: 'Аяттарға жазбалар (жеке тәфсір)', keys: ['notes'] }
       ] : [
         { n: 0, id: 'full', label: 'Всё (полный бэкап)', keys: null },
-        { n: 1, id: 'bookmarks', label: 'Закладки', keys: ['bookmarks', 'bookmarkFolders'] },
+        { n: 1, id: 'bookmarks', label: 'Закладки', keys: ['bookmarks', 'bookmarkFolders', 'fsItems'] },
         { n: 2, id: 'dict', label: 'Словарь', keys: ['dictionary', 'dictFolders', 'dictSrs'] },
         { n: 3, id: 'progress', label: 'Прогресс (академия, намаз, хатм, рамадан, зикр)', keys: ['academyProgress', 'prayerLog', 'dhikr', 'khatm', 'ramadan'] },
         { n: 4, id: 'settings', label: 'Настройки', keys: ['settings'] },
@@ -23207,6 +23486,7 @@ let body = '';
           settings: Object.assign({}, state.settings || {}, { pin: undefined, password: undefined }),
           dictFolders: state.dictFolders || [],
           bookmarkFolders: state.bookmarkFolders || [],
+          fsItems: (typeof fsBackupItems === 'function') ? fsBackupItems() : [],
           prayerLog: state.prayerLog || {},
           dhikr: state.dhikr || {},
           khatm: state.khatm || {},
@@ -23335,6 +23615,7 @@ let body = '';
           if (data.ramadan) state.ramadan = data.ramadan;
           if (data.dictFolders) state.dictFolders = data.dictFolders;
           if (data.bookmarkFolders) state.bookmarkFolders = data.bookmarkFolders;
+          if (data.fsItems && data.fsItems.length && typeof fsBackupImport === 'function') { try { fsBackupImport(data.fsItems); } catch (e) { console.warn(e); } }
           if (data.duaOrder) state.duaOrder = data.duaOrder;
           if (data.moreLayout) try { localStorage.setItem('quran_more_layout', data.moreLayout); } catch(e){}
           if (data.moreOrder) try { localStorage.setItem('quran_more_order', data.moreOrder); } catch(e){}
@@ -24242,6 +24523,12 @@ function renderDict() {
         lines.push((kk ? '3D-модель файлы: ' : 'Файл 3D-модели: ') + (magic ? OK + Math.round(b.byteLength / 1024) + ' КБ' : BAD + (kk ? 'бұзылған (қате белгі)' : 'повреждён (неверная метка)')));
       } catch (e) { lines.push((kk ? '3D-модель файлы: ' : 'Файл 3D-модели: ') + BAD + (e.message || e)); }
       lines.push((kk ? '3D-фигура: ' : '3D-фигура: ') + (window._salahModelState === 'ok' ? OK + (kk ? 'жұмыс істеп тұр' : 'работает') : (window._salahModelState ? BAD + window._salahModelState : WARN + (kk ? 'әлі ашылмаған («Намазды қалай оқу» бөлімін ашыңыз)' : 'ещё не открывалась (откройте «Как читать намаз»)'))));
+      const errs = qaErrRead();
+      lines.push((kk ? 'Соңғы қателер: ' : 'Последние ошибки: ') + (errs.length ? WARN + errs.length : OK + (kk ? 'жоқ' : 'нет')));
+      errs.slice(-8).reverse().forEach(function(x) {
+        const d = new Date(x.t);
+        lines.push('  ' + String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ' [' + (x.v || '—') + '/' + x.w + ']' + (x.n > 1 ? ' ×' + x.n : '') + ' ' + x.m + (x.s ? '\n     ' + x.s : ''));
+      });
       out.textContent = lines.join('\n');
     }
     document.getElementById('btn-reset-settings')?.addEventListener('click', function() {
@@ -25643,6 +25930,1737 @@ function renderDict() {
         document.getElementById('topics-suggest-today').addEventListener('click', function(){ openTopic(todayIdx); });
       }
     }
+    // ===================================================================
+    // build 6.32: ПАПКИ И ФАЙЛЫ — единая система сохранённого («Моё чтение → Папки»)
+    // Дерево элементов: папка / ссылка (аят, сура, хадис, дуа, слово, история) /
+    // заметка / список с галочками. Хранится отдельно от общего JSON состояния
+    // (IndexedDB 'quran_fs_v1', одна запись = один элемент), чтобы тысячи записей
+    // не раздували localStorage и будущую синхронизацию. Старые закладки НЕ
+    // удаляются: при первом запуске копируются в дерево, state.bookmarks остаётся
+    // как резервная копия.
+    // ===================================================================
+    var FS_LIMITS = { depth: 5, items: 10000, noteChars: 20000, pins: 10, recents: 8, nameChars: 120 };
+    var FS_COLORS = ['#ef4444', '#f59e0b', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#94a3b8'];
+    var FS_ICONS = ['', '📖', '⭐', '🕌', '🎧', '❤️', '🌙', '✍️', '🎓', '🤲'];
+    var FS_LINK_KINDS = ['ayah', 'surah', 'hadith', 'dua', 'word', 'story'];
+    var FS_KINDS = ['folder', 'note', 'list'].concat(FS_LINK_KINDS);
+    var FS_SYS = {
+      bookmarks: { id: '00000000-0000-4000-8000-000000000001', ru: 'Закладки', kk: 'Бетбелгілер', icon: '🔖' },
+      notes: { id: '00000000-0000-4000-8000-000000000002', ru: 'Заметки', kk: 'Жазбалар', icon: '📝' },
+      conflicts: { id: '00000000-0000-4000-8000-000000000003', ru: 'Конфликты', kk: 'Қайшылықтар', icon: '⚠️' }
+    };
+    var FS = { items: new Map(), ready: false, loading: null, db: null, meta: {}, chain: Promise.resolve(), waiters: [], lockedCount: 0, savedSet: null, rev: 0, audio: null, audioKey: '' };
+
+    function fsT(ru, kk) { try { return isKk() ? kk : ru; } catch (e) { return ru; } }
+    function fsEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function fsClip(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n) : s; }
+    function fsUuid() {
+      try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+      var b = new Uint8Array(16);
+      try { crypto.getRandomValues(b); } catch (e) { for (var i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256); }
+      b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+      var h = Array.prototype.map.call(b, function(x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+      return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+    }
+
+    // ---------- хранилище ----------
+    function fsOpenDb() {
+      return new Promise(function(res) {
+        try {
+          if (!window.indexedDB) { res(null); return; }
+          var rq = indexedDB.open('quran_fs_v1', 1);
+          rq.onupgradeneeded = function() {
+            var db = rq.result;
+            if (!db.objectStoreNames.contains('items')) db.createObjectStore('items', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'k' });
+          };
+          rq.onsuccess = function() { res(rq.result); };
+          rq.onerror = function() { res(null); };
+          rq.onblocked = function() { res(null); };
+        } catch (e) { res(null); }
+      });
+    }
+    function fsIdbAll(store) {
+      return new Promise(function(res) {
+        try {
+          var rq = FS.db.transaction(store, 'readonly').objectStore(store).getAll();
+          rq.onsuccess = function() { res(rq.result || []); };
+          rq.onerror = function() { res([]); };
+        } catch (e) { res([]); }
+      });
+    }
+    function fsIdbPut(store, rec) {
+      return new Promise(function(res) {
+        try {
+          var tx = FS.db.transaction(store, 'readwrite');
+          tx.objectStore(store).put(rec);
+          tx.oncomplete = function() { res(true); };
+          tx.onerror = function() { res(false); };
+          tx.onabort = function() { res(false); };
+        } catch (e) { res(false); }
+      });
+    }
+    function fsIdbDel(store, key) {
+      return new Promise(function(res) {
+        try {
+          var tx = FS.db.transaction(store, 'readwrite');
+          tx.objectStore(store).delete(key);
+          tx.oncomplete = function() { res(true); };
+          tx.onerror = function() { res(false); };
+        } catch (e) { res(false); }
+      });
+    }
+    // запасной вариант, если IndexedDB недоступна: один ключ localStorage
+    function fsLsRead() {
+      try { var o = JSON.parse(localStorage.getItem('quran_fs_ls_v1') || 'null'); if (o && o.items) return o; } catch (e) {}
+      return { items: [], meta: [] };
+    }
+    function fsLsFlush() {
+      try {
+        var items = [];
+        FS.items.forEach(function(it) { items.push(it); });
+        var meta = Object.keys(FS.meta).map(function(k) { return { k: k, v: FS.meta[k] }; });
+        localStorage.setItem('quran_fs_ls_v1', JSON.stringify({ items: items, meta: meta }));
+      } catch (e) { console.warn('fsLsFlush', e); }
+    }
+    function fsEncOn() { try { return isAppLockEnabled() && !!cryptoKey; } catch (e) { return false; } }
+    function fsToRecord(it) {
+      if (fsEncOn()) {
+        return encryptString(cryptoKey, JSON.stringify(it)).then(function(enc) { return { id: it.id, enc: enc }; });
+      }
+      return Promise.resolve(it);
+    }
+    function fsFromRecord(rec) {
+      if (rec && rec.enc) {
+        var ck = null; try { ck = cryptoKey; } catch (e) {}
+        if (!ck) { FS.lockedCount++; return Promise.resolve(null); }
+        return decryptString(ck, rec.enc).then(function(s) { return JSON.parse(s); }).catch(function() { FS.lockedCount++; return null; });
+      }
+      return Promise.resolve(rec);
+    }
+    function fsSave(it) {
+      FS.items.set(it.id, it);
+      FS.chain = FS.chain.then(function() { return fsToRecord(it); }).then(function(rec) {
+        if (FS.db) return fsIdbPut('items', rec);
+        fsLsFlush();
+      }).catch(function(e) { console.warn('fsSave', e); });
+      fsTouch();
+      if (typeof fsCloudSoon === 'function') fsCloudSoon();
+    }
+    function fsDropRaw(id) {
+      FS.items.delete(id);
+      FS.chain = FS.chain.then(function() { if (FS.db) return fsIdbDel('items', id); fsLsFlush(); }).catch(function() {});
+    }
+    function fsMetaSet(k, v) {
+      FS.meta[k] = v;
+      FS.chain = FS.chain.then(function() { if (FS.db) return fsIdbPut('meta', { k: k, v: v }); fsLsFlush(); }).catch(function() {});
+    }
+    function fsTouch() { FS.rev++; if (!FS._noRebuild) fsSavedRebuild(); }
+
+    function fsInit() {
+      if (FS.ready) return Promise.resolve(true);
+      if (FS.loading) return FS.loading;
+      try { if (isAppLockEnabled() && !cryptoKey) return Promise.resolve(false); } catch (e) {}
+      FS.loading = (async function() {
+        FS.db = await fsOpenDb();
+        var recs, metas;
+        if (FS.db) { recs = await fsIdbAll('items'); metas = await fsIdbAll('meta'); }
+        else { var ls = fsLsRead(); recs = ls.items || []; metas = ls.meta || []; }
+        metas.forEach(function(m) { if (m && m.k) FS.meta[m.k] = m.v; });
+        FS.lockedCount = 0;
+        for (var i = 0; i < recs.length; i++) {
+          var it = await fsFromRecord(recs[i]);
+          if (it && it.id) FS.items.set(it.id, it);
+        }
+        fsEnsureSystem();
+        await fsMigrateOld();
+        fsPurgeOld();
+        FS.ready = true;
+        FS.loading = null;
+        fsSavedRebuild();
+        FS.waiters.splice(0).forEach(function(f) { try { f(); } catch (e) {} });
+        return true;
+      })().catch(function(e) { console.warn('fsInit', e); FS.loading = null; return false; });
+      return FS.loading;
+    }
+    function fsWhenReady(fn) { if (FS.ready) fn(); else { FS.waiters.push(fn); fsInit(); } }
+
+    function fsEnsureSystem() {
+      ['bookmarks', 'notes'].forEach(function(key) {
+        var sys = FS_SYS[key];
+        var it = FS.items.get(sys.id);
+        if (it && !it.del) return;
+        var now = Date.now();
+        fsSave({ id: sys.id, p: null, k: 'folder', n: '', d: { sys: key }, c: it ? it.c : now, u: now, o: -(key === 'bookmarks' ? 2 : 1), del: 0 });
+      });
+    }
+    function fsSysFolder(key) {
+      var sys = FS_SYS[key], it = FS.items.get(sys.id);
+      if (it && !it.del) return it;
+      var now = Date.now();
+      it = { id: sys.id, p: null, k: 'folder', n: '', d: { sys: key }, c: now, u: now, o: 0, del: 0 };
+      fsSave(it);
+      return it;
+    }
+    function fsPurgeOld() {
+      var cutoff = Date.now() - 30 * 86400000, drop = [];
+      FS.items.forEach(function(it) { if (it.del && (it.u || 0) < cutoff) drop.push(it.id); });
+      drop.forEach(fsDropRaw);
+    }
+
+    // ---------- зеркало «сохранённых аятов» для читалки (до загрузки IndexedDB) ----------
+    try {
+      var _fsMir = localStorage.getItem('quran_fs_saved_v1');
+      if (_fsMir) FS.savedSet = new Set(JSON.parse(_fsMir));
+    } catch (e) {}
+    function fsSavedRebuild() {
+      if (!FS.ready && !FS._rebuildAny) { if (!FS.meta.migrated) return; }
+      var set = new Set();
+      FS.items.forEach(function(it) { if (!it.del && it.k === 'ayah' && it.d && it.d.s) set.add(it.d.s + ':' + it.d.a); });
+      FS.savedSet = set;
+      try { localStorage.setItem('quran_fs_saved_v1', JSON.stringify(Array.from(set))); } catch (e) {}
+    }
+    try { FS.migratedFlag = localStorage.getItem('quran_fs_migrated_v1') === '1'; } catch (e) {}
+    function fsAyahSaved(s, a) { return FS.savedSet ? FS.savedSet.has(s + ':' + a) : null; }
+    function fsFolderCount() {
+      if (!FS.ready || !FS.meta.migrated) return null;
+      var n = 0; FS.items.forEach(function(it) { if (!it.del && it.k === 'folder' && !(it.d && it.d.sys)) n++; });
+      return n;
+    }
+    function fsBookmarkCount() {
+      if (!FS.ready || !FS.meta.migrated) return null;
+      var n = 0; FS.items.forEach(function(it) { if (!it.del && it.k === 'ayah') n++; });
+      return n;
+    }
+
+    // ---------- имена, дерево ----------
+    function fsSysName(it) { var s = it && it.d && it.d.sys && FS_SYS[it.d.sys]; return s ? fsT(s.ru, s.kk) : ''; }
+    function fsRefTitle(it) {
+      var d = it.d || {};
+      if (it.k === 'ayah') return (typeof surahShortName === 'function' ? surahShortName(d.s) : ('' + d.s)) + ' ' + d.s + ':' + d.a;
+      if (it.k === 'surah') return (typeof surahShortName === 'function' ? surahShortName(d.s) : ('' + d.s)) + ' (' + d.s + ')';
+      return d.title || '';
+    }
+    function fsName(it) {
+      if (!it) return '';
+      if (it.k === 'folder' && !it.n && it.d && it.d.sys) return fsSysName(it);
+      if (FS_LINK_KINDS.indexOf(it.k) >= 0) return it.n || fsRefTitle(it) || fsT('Без названия', 'Атаусыз');
+      return it.n || fsT('Без названия', 'Атаусыз');
+    }
+    function fsDefaultName(k) {
+      return k === 'folder' ? fsT('Новая папка', 'Жаңа қалта') : k === 'list' ? fsT('Список', 'Тізім') : fsT('Заметка', 'Жазба');
+    }
+    function fsAllChildren(pid) {
+      var out = [];
+      FS.items.forEach(function(it) { if (!it.del && (it.p || null) === (pid || null)) out.push(it); });
+      return out;
+    }
+    function fsUiGet(k, def) { try { var o = JSON.parse(localStorage.getItem('quran_fs_ui_v1') || '{}'); return (k in o) ? o[k] : def; } catch (e) { return def; } }
+    function fsUiSet(k, v) { try { var o = JSON.parse(localStorage.getItem('quran_fs_ui_v1') || '{}'); o[k] = v; localStorage.setItem('quran_fs_ui_v1', JSON.stringify(o)); } catch (e) {} }
+    function fsChildren(pid) {
+      var mode = fsUiGet('sort', 'manual');
+      var arr = fsAllChildren(pid);
+      arr.sort(function(a, b) {
+        var fa = a.k === 'folder' ? 0 : 1, fb = b.k === 'folder' ? 0 : 1;
+        if (fa !== fb) return fa - fb;
+        if (mode === 'name') return fsName(a).localeCompare(fsName(b), 'ru');
+        if (mode === 'date') return (b.c || 0) - (a.c || 0);
+        return ((a.o || 0) - (b.o || 0)) || ((b.c || 0) - (a.c || 0));
+      });
+      return arr;
+    }
+    function fsMinOrder(pid) {
+      var m = 0; fsAllChildren(pid).forEach(function(x) { if ((x.o || 0) < m) m = x.o || 0; });
+      return m;
+    }
+    function fsDepthOf(pid) {
+      var d = 0, id = pid, guard = 0;
+      while (id && guard++ < 30) { var it = FS.items.get(id); if (!it) break; d++; id = it.p; }
+      return d;
+    }
+    function fsHeight(id) {
+      var h = 0;
+      fsAllChildren(id).forEach(function(c) { if (c.k === 'folder') h = Math.max(h, 1 + fsHeight(c.id)); });
+      return h;
+    }
+    function fsIsDescendant(id, ancestorId) {
+      var cur = FS.items.get(id), guard = 0;
+      while (cur && guard++ < 30) { if (cur.id === ancestorId) return true; cur = cur.p ? FS.items.get(cur.p) : null; }
+      return false;
+    }
+    function fsPath(id) {
+      var parts = [], cur = FS.items.get(id), guard = 0;
+      while (cur && guard++ < 30) { parts.unshift(fsName(cur)); cur = cur.p ? FS.items.get(cur.p) : null; }
+      return parts;
+    }
+    function fsLiveCount() { var n = 0; FS.items.forEach(function(x) { if (!x.del) n++; }); return n; }
+    function fsUniqueName(pid, name, selfId) {
+      var taken = {};
+      fsAllChildren(pid).forEach(function(x) {
+        if (x.id !== selfId && (x.k === 'folder' || x.k === 'note' || x.k === 'list')) taken[fsName(x).toLowerCase()] = 1;
+      });
+      var base = fsClip(name, FS_LIMITS.nameChars).trim() || '…', cand = base, i = 2;
+      while (taken[cand.toLowerCase()]) cand = base + ' (' + (i++) + ')';
+      return cand;
+    }
+
+    // ---------- создание / изменение / перенос / удаление ----------
+    function fsCreate(o) {
+      if (fsLiveCount() >= FS_LIMITS.items) { toast(fsT('Достигнут лимит: ' + FS_LIMITS.items + ' записей', 'Шектеу: ' + FS_LIMITS.items + ' жазба')); return null; }
+      var p = o.p || null;
+      if (p) { var par = FS.items.get(p); if (!par || par.del || par.k !== 'folder') return null; }
+      if (o.k === 'folder' && fsDepthOf(p) + 1 > FS_LIMITS.depth) {
+        toast(fsT('Глубина папок — не больше ' + FS_LIMITS.depth + ' уровней', 'Қалта тереңдігі — ' + FS_LIMITS.depth + ' деңгейден аспайды')); return null;
+      }
+      var now = Date.now();
+      var it = { id: o.id || fsUuid(), p: p, k: o.k, n: fsClip(o.n || '', FS_LIMITS.nameChars), d: o.d || {}, c: o.c || now, u: now, o: (typeof o.o === 'number') ? o.o : (fsMinOrder(p) - 1), del: 0 };
+      if (o.k === 'folder' || o.k === 'note' || o.k === 'list') it.n = fsUniqueName(p, it.n || fsDefaultName(o.k), null);
+      fsSave(it);
+      return it;
+    }
+    function fsUpdate(id, patch) {
+      var it = FS.items.get(id); if (!it) return null;
+      if (patch.n != null) {
+        var nm = fsClip(patch.n, FS_LIMITS.nameChars).trim();
+        it.n = (it.k === 'folder' || it.k === 'note' || it.k === 'list') ? ((it.d && it.d.sys && !nm) ? '' : fsUniqueName(it.p, nm || fsDefaultName(it.k), it.id)) : nm;
+        if (it.k === 'folder' && it.d && it.d.sys && nm === fsSysName(it)) it.n = '';
+      }
+      if (patch.d) it.d = Object.assign({}, it.d, patch.d);
+      it.u = Date.now();
+      fsSave(it);
+      return it;
+    }
+    function fsCanMoveTo(id, np) {
+      var it = FS.items.get(id); if (!it) return false;
+      if (np) { var t = FS.items.get(np); if (!t || t.del || t.k !== 'folder') return false; }
+      if (it.k === 'folder') {
+        if (np && (np === id || fsIsDescendant(np, id))) return false;
+        if (fsDepthOf(np) + 1 + fsHeight(id) > FS_LIMITS.depth) return false;
+      }
+      return true;
+    }
+    function fsMove(ids, np) {
+      var moved = [], failed = 0;
+      np = np || null;
+      ids.forEach(function(id) {
+        var it = FS.items.get(id);
+        if (!it || !fsCanMoveTo(id, np)) { failed++; return; }
+        moved.push({ id: id, p: it.p || null, o: it.o });
+        it.p = np; it.o = fsMinOrder(np) - 1; it.u = Date.now();
+        if (it.k === 'folder' || it.k === 'note' || it.k === 'list') it.n = fsUniqueName(np, fsName(it), it.id);
+        fsSave(it);
+      });
+      return { moved: moved, failed: failed };
+    }
+    function fsMoveUndo(res) {
+      res.moved.forEach(function(m) { var it = FS.items.get(m.id); if (it) { it.p = m.p; it.o = m.o; it.u = Date.now(); fsSave(it); } });
+    }
+    function fsCollectTree(ids) {
+      var out = [], seen = {};
+      (function walk(list) {
+        list.forEach(function(id) {
+          if (seen[id]) return; seen[id] = 1;
+          var it = FS.items.get(id); if (!it || it.del) return;
+          out.push(id);
+          if (it.k === 'folder') walk(fsAllChildren(id).map(function(c) { return c.id; }));
+        });
+      })(ids);
+      return out;
+    }
+    function fsRemove(ids) {
+      var all = fsCollectTree(ids.filter(function(id) { var it = FS.items.get(id); return it && !(it.d && it.d.sys); }));
+      var now = Date.now();
+      all.forEach(function(id) { var it = FS.items.get(id); it.del = 1; it.u = now; fsSave(it); });
+      return { ids: all };
+    }
+    function fsRestore(tok) {
+      var now = Date.now();
+      (tok.ids || []).forEach(function(id) { var it = FS.items.get(id); if (it) { it.del = 0; it.u = now; fsSave(it); } });
+    }
+    function fsPurgeNow(id) { fsDropRaw(id); fsTouch(); }
+
+    // ---------- аяты ----------
+    function fsFindAyah(s, a) {
+      var out = [];
+      FS.items.forEach(function(it) { if (!it.del && it.k === 'ayah' && it.d && it.d.s === s && it.d.a === a) out.push(it); });
+      return out;
+    }
+    function fsAddAyah(s, a, ar, tr, pid) {
+      pid = pid || FS.meta.lastFolder || FS_SYS.bookmarks.id;
+      var par = FS.items.get(pid);
+      if (!par || par.del) pid = fsSysFolder('bookmarks').id;
+      var dup = fsAllChildren(pid).filter(function(x) { return x.k === 'ayah' && x.d.s === s && x.d.a === a; })[0];
+      if (dup) return dup;
+      return fsCreate({ k: 'ayah', p: pid, n: '', d: { s: s, a: a, ar: fsClip(ar, 3000), tr: fsClip(tr, 3000), ed: fsGlobalTr() } });
+    }
+    function fsToggleAyah(s, a, ar, tr) {
+      s = +s; a = +a;
+      var existing = fsFindAyah(s, a);
+      if (existing.length) {
+        var tok = fsRemove(existing.map(function(x) { return x.id; }));
+        fsSnack(fsT('Закладка удалена', 'Бетбелгі жойылды'), [{ label: fsT('Отмена', 'Болдырмау'), fn: function() { fsRestore(tok); fsRefreshUi(); } }]);
+        return;
+      }
+      var it = fsAddAyah(s, a, ar, tr);
+      if (!it) return;
+      var parentName = fsName(FS.items.get(it.p));
+      fsSnack(fsT('Сохранено в «' + parentName + '»', '«' + parentName + '» қалтасына сақталды'), [
+        { label: fsT('Отмена', 'Болдырмау'), fn: function() { fsRemove([it.id]); fsRefreshUi(); } },
+        { label: fsT('В другую', 'Басқасына'), fn: function() {
+          fsPickFolder({ title: fsT('Куда сохранить', 'Қайда сақтау'), onPick: function(pid) {
+            fsMove([it.id], pid); fsMetaSet('lastFolder', pid || FS_SYS.bookmarks.id); fsRefreshUi();
+            toast(fsT('Перенесено', 'Жылжытылды'));
+          } });
+        } }
+      ]);
+    }
+    function fsAddNoteTo(pid, title, text) {
+      var lf = FS.meta.lastFolder && FS.items.get(FS.meta.lastFolder);
+      var it = fsCreate({ k: 'note', p: pid || ((lf && !lf.del && lf.k === 'folder') ? lf.id : fsSysFolder('bookmarks').id), n: title || '', d: { text: fsClip(text || '', FS_LIMITS.noteChars) } });
+      return it;
+    }
+
+    // ---------- миграция старых закладок (копирование, ничего не удаляется) ----------
+    async function fsMigrateOld() {
+      // Идемпотентно: каждая старая закладка копируется один раз (ключ в meta.migKeys),
+      // поэтому новые записи из state.bookmarks (например, пришедшие с другого устройства) тоже подхватятся.
+      var prev = FS.meta.migrated && FS.meta.migrated.stats ? FS.meta.migrated.stats : { folders: 0, ayahs: 0, notes: 0 };
+      var stats = { folders: prev.folders || 0, ayahs: prev.ayahs || 0, notes: prev.notes || 0 };
+      var seen = {}, keys = Array.isArray(FS.meta.migKeys) ? FS.meta.migKeys.slice() : [];
+      keys.forEach(function(k) { seen[k] = 1; });
+      var changed = false;
+      try {
+        var list = (typeof state !== 'undefined' && state.bookmarks) ? state.bookmarks : [];
+        var folderMap = {};
+        fsAllChildren(null).forEach(function(f) { if (f.k === 'folder' && !(f.d && f.d.sys)) folderMap[fsName(f).toLowerCase()] = f.id; });
+        var getFolder = function(name) {
+          name = String(name || '').trim();
+          if (!name || name === 'Без папки') return FS_SYS.bookmarks.id;
+          var low = name.toLowerCase();
+          if (folderMap[low]) return folderMap[low];
+          var fid = fsHashId('f:' + low);
+          var f = FS.items.has(fid) ? FS.items.get(fid) : fsCreate({ id: fid, k: 'folder', p: null, n: name, d: {} });
+          if (!f) return FS_SYS.bookmarks.id;
+          folderMap[low] = f.id; stats.folders++; changed = true;
+          return f.id;
+        };
+        if (!FS.meta.migrated) {
+          var oldF = (typeof state !== 'undefined' && state.bookmarkFolders) ? state.bookmarkFolders : [];
+          oldF.forEach(function(name) { if (String(name || '').trim() !== 'Общие') getFolder(name); });
+        }
+        for (var i = list.length - 1; i >= 0; i--) {
+          var b = list[i]; if (!b) continue;
+          var isNote = (b.type === 'note' || !b.surah);
+          var key = isNote ? ('n:' + (b.createdAt || b.date || '') + ':' + String(b.text || '').slice(0, 30)) : ('a:' + b.surah + ':' + b.ayah + ':' + String(b.folder || ''));
+          if (seen[key]) continue;
+          seen[key] = 1; keys.push(key); changed = true;
+          var pid = getFolder(b.folder);
+          var when = b.date || b.createdAt || Date.now();
+          if (isNote) {
+            var text = String(b.text || '') + (b.note && b.note !== b.text ? '\n\n' + b.note : '');
+            var title = String(b.text || b.note || '').replace(/\s+/g, ' ').slice(0, 40);
+            if (!FS.items.has(fsHashId(key)) && fsCreate({ id: fsHashId(key), k: 'note', p: pid, n: title, d: { text: fsClip(text, FS_LIMITS.noteChars), tags: fsClip(b.tags || '', 200) }, c: when })) stats.notes++;
+          } else {
+            var dup = fsAllChildren(pid).filter(function(x) { return x.k === 'ayah' && x.d.s === +b.surah && x.d.a === +b.ayah; })[0];
+            if (dup) continue;
+            if (!FS.items.has(fsHashId(key)) && fsCreate({ id: fsHashId(key), k: 'ayah', p: pid, n: '', d: { s: +b.surah, a: +b.ayah, ar: fsClip(b.text || '', 3000), tr: fsClip(b.translation || '', 3000), note: fsClip(b.note || '', 2000), tags: fsClip(b.tags || '', 200) }, c: when })) stats.ayahs++;
+          }
+        }
+      } catch (e) { console.warn('fsMigrateOld', e); }
+      if (changed || !FS.meta.migrated) {
+        fsMetaSet('migKeys', keys);
+        fsMetaSet('migrated', { at: (FS.meta.migrated && FS.meta.migrated.at) || Date.now(), stats: stats });
+      }
+      FS._rebuildAny = true;
+      try { localStorage.setItem('quran_fs_migrated_v1', '1'); } catch (e) {}
+    }
+
+
+    // ---------- поиск ----------
+    function fsNorm(s) {
+      return String(s == null ? '' : s).toLowerCase().replace(/[ً-ٰٟۖ-ۭـ]/g, '')
+        .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ё/g, 'е');
+    }
+    function fsNormName(s) {
+      return fsNorm(s).replace(/[^a-zа-яәғқңөұүһі0-9]/g, '').replace(/^(аль|ал|ан|ар|ас|ат|аш|ад|аз)(?=.{3})/, '');
+    }
+    function fsSurahIdx() {
+      if (FS._sidx) return FS._sidx;
+      var out = [];
+      for (var n = 1; n <= 114; n++) {
+        var keys = [];
+        try { if (typeof SURAH_RU !== 'undefined' && SURAH_RU[n]) keys.push(fsNormName(SURAH_RU[n])); } catch (e) {}
+        try { if (typeof SURAH_KK !== 'undefined' && SURAH_KK[n]) keys.push(fsNormName(SURAH_KK[n])); } catch (e) {}
+        out.push({ n: n, keys: keys });
+      }
+      FS._sidx = out;
+      return out;
+    }
+    // «2:255», «2 255», «2.255», «бакара 255», «аль-бакара 255 аят», «бакара»
+    function fsParseRef(q) {
+      var s = String(q || '').trim(); if (!s) return null;
+      var parts = s.replace(/[:.\/]/g, ' ').split(/\s+/).filter(Boolean);
+      var nums = [], words = [];
+      parts.forEach(function(p) {
+        if (/^\d{1,3}$/.test(p)) nums.push(+p);
+        else if (!/^(сура|суре|сүре|аят|аяты|айат|аят\.)$/i.test(p)) words.push(p);
+      });
+      if (!words.length) {
+        if (nums.length === 2 && nums[0] >= 1 && nums[0] <= 114 && nums[1] >= 1) return { s: nums[0], a: nums[1] };
+        if (nums.length === 1 && nums[0] >= 1 && nums[0] <= 114) return { s: nums[0] };
+        return null;
+      }
+      if (nums.length > 1) return null;
+      var key = fsNormName(words.join(''));
+      if (key.length < 3) return null;
+      var idx = fsSurahIdx(), hit = null;
+      for (var i = 0; i < idx.length && !hit; i++) { if (idx[i].keys.indexOf(key) >= 0) hit = idx[i].n; }
+      for (var j = 0; j < idx.length && !hit; j++) { if (idx[j].keys.some(function(k) { return k.indexOf(key) === 0; })) hit = idx[j].n; }
+      if (!hit) return null;
+      return nums.length ? { s: hit, a: nums[0] } : { s: hit };
+    }
+    function fsBlob(it) {
+      var cached = FS._blobs && FS._blobs[it.id];
+      if (cached && cached.u === it.u && cached.l === fsT('r', 'k')) return cached.t;
+      var d = it.d || {}, p = [fsName(it), d.ar, d.tr, d.text, d.note, d.tags, d.title, d.mean, d.transcription, d.s ? (d.s + ':' + d.a) : ''];
+      if (it.k === 'list' && d.items) p.push(d.items.map(function(x) { return x.t; }).join(' '));
+      if (d.s && typeof surahShortName === 'function') p.push(surahShortName(d.s));
+      var t = fsNorm(p.join(' '));
+      if (!FS._blobs) FS._blobs = {};
+      FS._blobs[it.id] = { u: it.u, l: fsT('r', 'k'), t: t };
+      return t;
+    }
+    function fsSearch(q, scopeId, limit) {
+      var ref = fsParseRef(q), out = [], seen = {};
+      var inScope = function(it) { return !scopeId || it.id === scopeId || fsIsDescendant(it.id, scopeId); };
+      if (ref) {
+        FS.items.forEach(function(it) {
+          if (it.del || !it.d || it.d.s !== ref.s || !inScope(it)) return;
+          if ((it.k === 'ayah' && (!ref.a || it.d.a === ref.a)) || (it.k === 'surah' && !ref.a)) { out.push(it); seen[it.id] = 1; }
+        });
+      }
+      var toks = fsNorm(q).split(/\s+/).filter(Boolean);
+      if (toks.length) {
+        FS.items.forEach(function(it) {
+          if (it.del || seen[it.id] || !inScope(it)) return;
+          if (it.d && it.d.sys && !it.n && toks.length === 0) return;
+          var b = fsBlob(it);
+          for (var i = 0; i < toks.length; i++) if (b.indexOf(toks[i]) < 0) return;
+          out.push(it);
+        });
+      }
+      return out.slice(0, limit || 200);
+    }
+
+    // ---------- интерфейс: мелкие элементы ----------
+    function fsModal(html, cls) {
+      var ov = document.createElement('div');
+      ov.className = 'fs-ov';
+      ov.innerHTML = '<div class="fs-sheet ' + (cls || '') + '">' + html + '</div>';
+      document.body.appendChild(ov);
+      try { var sn = document.getElementById('fs-snack'); if (sn) sn.classList.remove('show'); } catch (e) {}
+      ov.addEventListener('click', function(e) { if (e.target === ov) fsCloseModal(ov); });
+      return ov;
+    }
+    function fsCloseModal(ov) {
+      if (!ov || !ov.parentNode) return;
+      if (ov._onClose) { try { ov._onClose(); } catch (e) {} }
+      ov.parentNode.removeChild(ov);
+    }
+    function fsSheet(title, actions) {
+      var ov = fsModal('<div class="fs-sheet-title">' + fsEsc(title) + '</div>' +
+        actions.map(function(a, i) { return '<button type="button" class="fs-act' + (a.danger ? ' fs-danger' : '') + '" data-i="' + i + '"><span>' + (a.ico || '') + '</span> ' + fsEsc(a.label) + '</button>'; }).join('') +
+        '<button type="button" class="fs-act fs-cancel" data-i="-1">' + fsT('Закрыть', 'Жабу') + '</button>');
+      ov.querySelectorAll('.fs-act').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var i = +b.getAttribute('data-i');
+          fsCloseModal(ov);
+          if (i >= 0 && actions[i].fn) actions[i].fn();
+        });
+      });
+      return ov;
+    }
+    function fsPrompt(title, def, cb, opts) {
+      opts = opts || {};
+      var ov = fsModal('<div class="fs-sheet-title">' + fsEsc(title) + '</div>' +
+        (opts.multiline
+          ? '<textarea class="fs-input" id="fs-prompt-in" rows="8" placeholder="' + fsEsc(opts.placeholder || '') + '">' + fsEsc(def || '') + '</textarea>'
+          : '<input type="text" class="fs-input" id="fs-prompt-in" maxlength="' + FS_LIMITS.nameChars + '" value="' + fsEsc(def || '') + '" placeholder="' + fsEsc(opts.placeholder || '') + '">') +
+        (opts.extra || '') +
+        '<div class="fs-row2"><button type="button" class="btn btn-sm" id="fs-prompt-no">' + fsT('Отмена', 'Болдырмау') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-prompt-ok">' + (opts.ok || 'OK') + '</button></div>');
+      var inp = ov.querySelector('#fs-prompt-in');
+      setTimeout(function() { try { inp.focus(); if (!opts.multiline) inp.select(); } catch (e) {} }, 60);
+      var done = function() { var v = inp.value; fsCloseModal(ov); cb(v); };
+      ov.querySelector('#fs-prompt-ok').addEventListener('click', done);
+      ov.querySelector('#fs-prompt-no').addEventListener('click', function() { fsCloseModal(ov); });
+      if (!opts.multiline) inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); done(); } });
+      return ov;
+    }
+    function fsSnack(msg, actions) {
+      var el = document.getElementById('fs-snack');
+      if (!el) { el = document.createElement('div'); el.id = 'fs-snack'; document.body.appendChild(el); }
+      el.innerHTML = '<span>' + fsEsc(msg) + '</span>' + (actions || []).map(function(a, i) { return '<button type="button" data-i="' + i + '">' + fsEsc(a.label) + '</button>'; }).join('');
+      el.classList.add('show');
+      el.querySelectorAll('button').forEach(function(b) {
+        b.addEventListener('click', function() { el.classList.remove('show'); var a = actions[+b.getAttribute('data-i')]; if (a && a.fn) a.fn(); });
+      });
+      clearTimeout(el._t);
+      el._t = setTimeout(function() { el.classList.remove('show'); }, 7000);
+    }
+    function fsRefreshUi() {
+      try {
+        var box = document.getElementById('bookmarks-list');
+        if (box && box.getClientRects().length) fsRenderScreen();
+      } catch (e) {}
+    }
+
+    // выбор папки (перенос / «куда сохранить»)
+    function fsPickFolder(o) {
+      var ids = o.ids || [];
+      var ov = fsModal('<div class="fs-sheet-title">' + fsEsc(o.title || fsT('Выберите папку', 'Қалтаны таңдаңыз')) + '</div><div class="fs-pick" id="fs-pick-list"></div>' +
+        '<button type="button" class="fs-act fs-cancel" id="fs-pick-close">' + fsT('Закрыть', 'Жабу') + '</button>', 'fs-tall');
+      var list = ov.querySelector('#fs-pick-list');
+      var excl = {};
+      ids.forEach(function(id) { var it = FS.items.get(id); if (it && it.k === 'folder') fsCollectTree([id]).forEach(function(x) { excl[x] = 1; }); });
+      var draw = function() {
+        var rows = ['<div class="fs-pick-row"><button type="button" class="fs-pick-name" data-id="">📂 ' + fsT('Корень', 'Түбір') + '</button><button type="button" class="fs-pick-add" data-add="" title="' + fsT('Новая папка', 'Жаңа қалта') + '">＋</button></div>'];
+        (function walk(pid, depth) {
+          fsChildren(pid).filter(function(x) { return x.k === 'folder' && !excl[x.id]; }).forEach(function(f) {
+            var ok = ids.every(function(id) { return fsCanMoveTo(id, f.id); });
+            rows.push('<div class="fs-pick-row' + (ok ? '' : ' fs-dis') + '" style="padding-left:' + (depth * 14) + 'px"><button type="button" class="fs-pick-name" data-id="' + f.id + '"' + (ok ? '' : ' disabled') + '>' + fsEsc((f.d && f.d.icon) || '📁') + ' ' + fsEsc(fsName(f)) + '</button>' +
+              (fsDepthOf(f.id) < FS_LIMITS.depth ? '<button type="button" class="fs-pick-add" data-add="' + f.id + '" title="' + fsT('Новая папка внутри', 'Ішіне жаңа қалта') + '">＋</button>' : '') + '</div>');
+            walk(f.id, depth + 1);
+          });
+        })(null, 0);
+        list.innerHTML = rows.join('');
+      };
+      draw();
+      list.addEventListener('click', function(e) {
+        var add = e.target.closest('[data-add]');
+        if (add) {
+          var parentId = add.getAttribute('data-add') || null;
+          fsPrompt(fsT('Название новой папки', 'Жаңа қалта атауы'), '', function(v) {
+            if (!v.trim()) return;
+            if (fsCreate({ k: 'folder', p: parentId, n: v.trim() })) draw();
+          });
+          return;
+        }
+        var b = e.target.closest('.fs-pick-name');
+        if (!b || b.disabled) return;
+        var id = b.getAttribute('data-id') || null;
+        fsCloseModal(ov);
+        o.onPick(id);
+      });
+      ov.querySelector('#fs-pick-close').addEventListener('click', function() { fsCloseModal(ov); });
+    }
+
+    // ---------- экран «Папки» ----------
+    var FSUI = { cur: null, sel: new Set(), selMode: false, q: '', here: false, open: null, temp: null };
+
+    function fsRecent() { try { var a = JSON.parse(localStorage.getItem('quran_fs_recent_v1') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+    function fsRecentPush(id) {
+      try {
+        var a = fsRecent().filter(function(x) { return x !== id; }); a.unshift(id);
+        localStorage.setItem('quran_fs_recent_v1', JSON.stringify(a.slice(0, FS_LIMITS.recents + 4)));
+      } catch (e) {}
+    }
+    function fsPinned() {
+      var out = [];
+      FS.items.forEach(function(it) { if (!it.del && it.d && it.d.pin) out.push(it); });
+      out.sort(function(a, b) { return (b.d.pinAt || 0) - (a.d.pinAt || 0); });
+      return out.slice(0, FS_LIMITS.pins);
+    }
+    function fsKindIcon(it) {
+      if (it.k === 'folder') return (it.d && it.d.icon) || ((it.d && it.d.sys && FS_SYS[it.d.sys]) ? FS_SYS[it.d.sys].icon : '');
+      return { ayah: '📖', surah: '📚', hadith: '📜', dua: '🤲', word: '🔤', story: '📕', note: '📝', list: '☑️' }[it.k] || '•';
+    }
+    function fsFolderSvg(color, icon, pinned) {
+      return '<span class="fs-fold" style="--fc:' + (color || 'var(--accent)') + '">' +
+        '<svg viewBox="0 0 48 40" aria-hidden="true"><path d="M2 8a4 4 0 0 1 4-4h12l5 5h19a4 4 0 0 1 4 4v21a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z"/></svg>' +
+        (icon ? '<i>' + icon + '</i>' : '') + (pinned ? '<b>⭐</b>' : '') + '</span>';
+    }
+    function fsPreview(it) {
+      var d = it.d || {};
+      if (it.k === 'ayah') return (d.tr || d.ar || '').replace(/\s+/g, ' ').slice(0, 90);
+      if (it.k === 'note') return (d.text || '').replace(/\s+/g, ' ').slice(0, 90);
+      if (it.k === 'list') { var n = (d.items || []).length, x = (d.items || []).filter(function(i) { return i.x; }).length; return n ? (x + ' / ' + n) : fsT('пусто', 'бос'); }
+      if (it.k === 'word') return (d.mean || d.tr || '').replace(/\s+/g, ' ').slice(0, 90);
+      if (it.k === 'folder') {
+        var c = fsAllChildren(it.id).length, pr = fsFolderProgress(it.id);
+        return c ? (c + ' ' + fsT('эл.', 'бел.') + (pr ? ' · ✓ ' + pr.done + '/' + pr.n : '')) : fsT('пусто', 'бос');
+      }
+      return d.title || '';
+    }
+    function fsRowHtml(it, withPath) {
+      var sel = FSUI.sel.has(it.id), d = it.d || {};
+      var pinned = !!d.pin;
+      var ico = it.k === 'folder' ? fsFolderSvg(d.color, fsKindIcon(it), pinned) : '<span class="fs-ico">' + fsKindIcon(it) + (pinned ? '<b>⭐</b>' : '') + '</span>';
+      var sub = withPath ? fsPath(it.p).join(' › ') : fsPreview(it);
+      var arab = (it.k === 'ayah' && d.ar && !withPath) ? '<span class="fs-ar" dir="rtl">' + fsEsc(d.ar.slice(0, 120)) + '</span>' : '';
+      return '<div class="fs-row' + (sel ? ' fs-sel' : '') + '" data-id="' + it.id + '">' +
+        (FSUI.selMode ? '<span class="fs-chk">' + (sel ? '✔' : '') + '</span>' : '') + ico +
+        '<span class="fs-main"><b class="fs-name">' + fsEsc(fsName(it)) + (it.k === 'ayah' && fsAyahLearned(it) ? ' ✓' : '') + '</b>' + arab + (sub ? '<span class="fs-sub">' + fsEsc(sub) + '</span>' : '') + '</span>' +
+        (FSUI.selMode ? '' : '<button type="button" class="fs-more" data-act="menu" data-id="' + it.id + '" aria-label="' + fsT('Меню', 'Мәзір') + '">⋮</button>') + '</div>';
+    }
+    function fsCrumbsHtml() {
+      var parts = [];
+      var chain = [], cur = FSUI.cur ? FS.items.get(FSUI.cur) : null, g = 0;
+      while (cur && g++ < 30) { chain.unshift(cur); cur = cur.p ? FS.items.get(cur.p) : null; }
+      parts.push(chain.length ? '<button type="button" data-act="go" data-id="">' + fsT('Папки', 'Қалталар') + '</button>' : '<b>' + fsT('Папки', 'Қалталар') + '</b>');
+      chain.forEach(function(f, i) {
+        parts.push('<span>›</span>');
+        parts.push(i === chain.length - 1 ? '<b>' + fsEsc(fsName(f)) + '</b>' : '<button type="button" data-act="go" data-id="' + f.id + '">' + fsEsc(fsName(f)) + '</button>');
+      });
+      return '<div class="fs-crumbs">' + parts.join('') + '</div>';
+    }
+    function fsPinsHtml() {
+      var pins = fsPinned();
+      if (!pins.length) return '';
+      return '<div class="fs-pins">' + pins.map(function(it) {
+        return '<button type="button" class="fs-chip" data-act="goto" data-id="' + it.id + '">' + (it.k === 'folder' ? '⭐ ' : fsKindIcon(it) + ' ') + fsEsc(fsName(it)) + '</button>';
+      }).join('') + '</div>';
+    }
+    function fsListHtml() {
+      var kids = fsChildren(FSUI.cur);
+      if (!kids.length) {
+        return '<div class="empty-state"><p>' + (FSUI.cur ? fsT('Эта папка пуста.', 'Бұл қалта бос.') : fsT('Пока пусто.', 'Әзірге бос.')) + '<br>' +
+          fsT('Нажмите ＋ — папка, заметка, список или несколько сразу. Аяты сохраняются кнопкой ☆ в чтении.', '＋ басыңыз — қалта, жазба, тізім немесе бірден бірнешеу. Аяттар оқу кезінде ☆ арқылы сақталады.') + '</p></div>';
+      }
+      return '<div class="fs-list' + (fsUiGet('view', 'list') === 'grid' ? ' fs-grid' : '') + '">' + kids.map(function(it) { return fsRowHtml(it, false); }).join('') + '</div>';
+    }
+    function fsSearchBodyHtml(q) {
+      var res = fsSearch(q, FSUI.here ? FSUI.cur : null, 200);
+      var head = '<div class="fs-found">' + fsT('Найдено: ', 'Табылды: ') + res.length +
+        (FSUI.cur ? ' <button type="button" class="fs-chip' + (FSUI.here ? ' on' : '') + '" data-act="scope">' + (FSUI.here ? fsT('в этой папке', 'осы қалтада') : fsT('везде', 'барлық жерде')) + '</button>' : '') + '</div>';
+      if (!res.length) return head + '<div class="empty-state"><p>' + fsT('Ничего не найдено.', 'Ештеңе табылмады.') + '</p></div>';
+      return head + '<div class="fs-list">' + res.map(function(it) { return fsRowHtml(it, true); }).join('') + '</div>';
+    }
+    function fsSelBarHtml() {
+      if (!FSUI.selMode) return '';
+      var n = FSUI.sel.size;
+      return '<div class="fs-selbar"><b>' + fsT('Выбрано: ', 'Таңдалды: ') + n + '</b>' +
+        '<button type="button" class="btn btn-sm" data-act="sel-all">' + fsT('Все', 'Барлығы') + '</button>' +
+        '<button type="button" class="btn btn-sm" data-act="sel-move"' + (n ? '' : ' disabled') + '>' + fsT('Переместить', 'Жылжыту') + '</button>' +
+        '<button type="button" class="btn btn-sm" data-act="sel-pin"' + (n ? '' : ' disabled') + '>⭐</button>' +
+        '<button type="button" class="btn btn-sm fs-danger" data-act="sel-del"' + (n ? '' : ' disabled') + '>' + fsT('Удалить', 'Жою') + '</button>' +
+        '<button type="button" class="btn btn-sm btn-primary" data-act="sel-done">' + fsT('Готово', 'Дайын') + '</button></div>';
+    }
+    function fsRenderBody() {
+      var body = document.getElementById('fs-body'), sb = document.getElementById('fs-selbar');
+      if (!body) return;
+      var q = FSUI.q.trim();
+      if (sb) sb.innerHTML = fsSelBarHtml();
+      body.innerHTML = (q ? '' : fsCrumbsHtml() + fsPinsHtml() + fsPrefsBarHtml()) + (q ? fsSearchBodyHtml(q) : fsListHtml()) +
+        (FS.lockedCount ? '<div class="fs-warn">' + fsT('Часть записей зашифрована и недоступна без пароля приложения: ', 'Кейбір жазбалар шифрланған, қолданба құпиясөзінсіз қолжетімсіз: ') + FS.lockedCount + '</div>' : '');
+    }
+    function fsHideOldControls() {
+      var o1 = document.getElementById('bookmark-folders-tabs'); if (o1) o1.style.display = 'none';
+      var inp = document.getElementById('new-folder-input'); if (inp && inp.parentNode) inp.parentNode.style.display = 'none';
+    }
+    function fsRenderScreen() {
+      var box = document.getElementById('bookmarks-list'); if (!box) return;
+      fsHideOldControls();
+      if (!FS.ready) {
+        box.innerHTML = '<div class="empty-state"><p>' + fsT('Загрузка…', 'Жүктелуде…') + '</p></div>';
+        fsInit().then(function(ok) {
+          if (ok) fsRenderScreen();
+          else box.innerHTML = '<div class="empty-state"><p>' + fsT('Папки откроются после ввода пароля приложения.', 'Қалталар қолданба құпиясөзін енгізгеннен кейін ашылады.') + '</p></div>';
+        });
+        return;
+      }
+      if (FSUI.cur) { var c = FS.items.get(FSUI.cur); if (!c || c.del) FSUI.cur = null; }
+      box.innerHTML = '<div class="fs-wrap">' +
+        '<div class="fs-searchrow"><input type="search" id="fs-q" class="fs-input" placeholder="' + fsT('Поиск: текст, «2 255», «бакара 255»…', 'Іздеу: мәтін, «2 255», «бақара 255»…') + '" value="' + fsEsc(FSUI.q) + '" autocomplete="off">' +
+        '<button type="button" class="btn btn-sm btn-primary" data-act="create" aria-label="' + fsT('Создать', 'Жасау') + '">＋</button>' +
+        '<button type="button" class="btn btn-sm" data-act="more" aria-label="' + fsT('Ещё', 'Тағы') + '">⋯</button></div>' +
+        '<div id="fs-selbar"></div><div id="fs-body"></div></div>';
+      fsBind(box);
+      fsRenderBody();
+      if (FSUI.open) { var oid = FSUI.open; FSUI.open = null; setTimeout(function() { fsOpenItem(oid); }, 30); }
+    }
+
+    function fsBind(box) {
+      var q = box.querySelector('#fs-q');
+      if (q) q.addEventListener('input', function() { FSUI.q = q.value; fsRenderBody(); });
+      if (box._fsBound) return;
+      box._fsBound = true;
+      var lp = null, lpFired = false, sx = 0, sy = 0;
+      box.addEventListener('pointerdown', function(e) {
+        var row = e.target.closest('.fs-row');
+        if (!row || e.target.closest('button') || FSUI.selMode) return;
+        lpFired = false; sx = e.clientX; sy = e.clientY;
+        clearTimeout(lp);
+        lp = setTimeout(function() { lpFired = true; try { navigator.vibrate && navigator.vibrate(15); } catch (x) {} fsItemMenu(row.getAttribute('data-id')); }, 480);
+      });
+      var cancelLp = function() { clearTimeout(lp); };
+      box.addEventListener('pointerup', cancelLp);
+      box.addEventListener('pointercancel', cancelLp);
+      box.addEventListener('pointermove', function(e) { if (Math.abs(e.clientX - sx) > 8 || Math.abs(e.clientY - sy) > 8) cancelLp(); });
+      box.addEventListener('contextmenu', function(e) { if (e.target.closest('.fs-row')) e.preventDefault(); });
+      box.addEventListener('click', function(e) {
+        if (lpFired) { lpFired = false; e.preventDefault(); return; }
+        var b = e.target.closest('[data-act]');
+        if (b) { fsAct(b.getAttribute('data-act'), b.getAttribute('data-id'), b); return; }
+        var row = e.target.closest('.fs-row');
+        if (row) fsRowTap(row.getAttribute('data-id'));
+      });
+    }
+    function fsRowTap(id) {
+      var it = FS.items.get(id); if (!it) return;
+      if (FSUI.selMode) {
+        if (FSUI.sel.has(id)) FSUI.sel.delete(id); else FSUI.sel.add(id);
+        fsRenderBody(); return;
+      }
+      if (FSUI.q.trim()) {
+        FSUI.q = ''; var qi = document.getElementById('fs-q'); if (qi) qi.value = '';
+        if (it.k === 'folder') { FSUI.cur = it.id; fsRecentPush(it.id); fsRenderBody(); return; }
+        FSUI.cur = it.p || null; fsRenderBody(); fsOpenItem(id); return;
+      }
+      if (it.k === 'folder') { FSUI.cur = it.id; FSUI.temp = null; fsRecentPush(it.id); fsRenderBody(); try { window.scrollTo(0, 0); } catch (e) {} return; }
+      fsOpenItem(id);
+    }
+    function fsAct(act, id, el) {
+      if (act === 'go') { FSUI.cur = id || null; FSUI.temp = null; fsRenderBody(); return; }
+      if (act === 'prefs') { fsPrefsDialog(id); return; }
+      if (act === 'playall') { fsPlayFolder(id); return; }
+      if (act === 'goto') { fsGoto(id); return; }
+      if (act === 'menu') { fsItemMenu(id); return; }
+      if (act === 'scope') { FSUI.here = !FSUI.here; fsRenderBody(); return; }
+      if (act === 'create') { fsCreateMenu(); return; }
+      if (act === 'more') { fsMoreMenu(); return; }
+      if (act === 'sel-all') { fsChildren(FSUI.cur).forEach(function(x) { FSUI.sel.add(x.id); }); fsRenderBody(); return; }
+      if (act === 'sel-done') { FSUI.selMode = false; FSUI.sel.clear(); fsRenderBody(); return; }
+      var ids = Array.from(FSUI.sel);
+      if (act === 'sel-move') { fsMoveDialog(ids); return; }
+      if (act === 'sel-pin') { ids.forEach(function(x) { fsSetPin(x, true); }); toast(fsT('Закреплено', 'Бекітілді')); FSUI.selMode = false; FSUI.sel.clear(); fsRenderBody(); return; }
+      if (act === 'sel-del') { fsDeleteWithUndo(ids); FSUI.selMode = false; FSUI.sel.clear(); return; }
+    }
+    function fsSetPin(id, on) {
+      var it = FS.items.get(id); if (!it) return;
+      if (on && fsPinned().length >= FS_LIMITS.pins && !(it.d && it.d.pin)) { toast(fsT('Закреплено максимум ' + FS_LIMITS.pins, 'Ең көбі ' + FS_LIMITS.pins + ' бекітуге болады')); return; }
+      fsUpdate(id, { d: { pin: on ? 1 : 0, pinAt: on ? Date.now() : 0 } });
+    }
+    function fsDeleteWithUndo(ids) {
+      var tok = fsRemove(ids);
+      if (!tok.ids.length) { toast(fsT('Системные папки удалить нельзя', 'Жүйелік қалталарды жоюға болмайды')); fsRenderBody(); return; }
+      fsRenderBody();
+      fsSnack(fsT('Удалено: ' + tok.ids.length, 'Жойылды: ' + tok.ids.length), [{ label: fsT('Отмена', 'Болдырмау'), fn: function() { fsRestore(tok); fsRefreshUi(); } }]);
+    }
+    function fsMoveDialog(ids) {
+      fsPickFolder({ title: fsT('Переместить в…', 'Мынаған жылжыту…'), ids: ids, onPick: function(pid) {
+        var res = fsMove(ids, pid);
+        FSUI.selMode = false; FSUI.sel.clear(); fsRenderBody();
+        fsSnack(fsT('Перемещено: ' + res.moved.length + (res.failed ? ', не удалось: ' + res.failed : ''), 'Жылжытылды: ' + res.moved.length + (res.failed ? ', болмады: ' + res.failed : '')),
+          [{ label: fsT('Отмена', 'Болдырмау'), fn: function() { fsMoveUndo(res); fsRefreshUi(); } }]);
+      } });
+    }
+    function fsItemMenu(id) {
+      var it = FS.items.get(id); if (!it) return;
+      var pinned = !!(it.d && it.d.pin), sys = !!(it.d && it.d.sys);
+      var acts = [{ ico: '📂', label: fsT('Открыть', 'Ашу'), fn: function() { fsRowTap(id); } },
+        { ico: '☑️', label: fsT('Выбрать несколько', 'Бірнешеуін таңдау'), fn: function() { FSUI.selMode = true; FSUI.sel.clear(); FSUI.sel.add(id); fsRenderBody(); } },
+        { ico: '✏️', label: fsT('Редактировать', 'Өңдеу'), fn: function() { it.k === 'folder' ? fsEditFolder(id) : fsRenameItem(id); } },
+        { ico: '⭐', label: pinned ? fsT('Убрать из закреплённых', 'Бекітуден алу') : fsT('Закрепить', 'Бекіту'), fn: function() { fsSetPin(id, !pinned); fsRenderBody(); } }];
+      if (!sys) {
+        acts.push({ ico: '📥', label: fsT('Переместить', 'Жылжыту'), fn: function() { fsMoveDialog([id]); } });
+        acts.push({ ico: '🗑', label: fsT('Удалить', 'Жою'), danger: true, fn: function() { fsDeleteWithUndo([id]); } });
+      }
+      fsSheet(fsName(it), acts);
+    }
+    function fsRenameItem(id) {
+      var it = FS.items.get(id); if (!it) return;
+      if (it.k === 'note') return fsOpenNote(id);
+      if (it.k === 'list') return fsOpenList(id);
+      fsPrompt(fsT('Название', 'Атауы'), it.n || fsName(it), function(v) { fsUpdate(id, { n: v }); fsRenderBody(); });
+    }
+    function fsEditFolder(id) {
+      var f = FS.items.get(id); if (!f) return;
+      var d = f.d || {}, color = d.color || '', icon = d.icon || '', pin = !!d.pin;
+      var ov = fsModal('<div class="fs-sheet-title">' + fsT('Папка', 'Қалта') + '</div>' +
+        '<input type="text" class="fs-input" id="fs-fe-name" maxlength="' + FS_LIMITS.nameChars + '" value="' + fsEsc(fsName(f)) + '">' +
+        '<div class="fs-lbl">' + fsT('Цвет', 'Түс') + '</div><div class="fs-dots" id="fs-fe-colors"></div>' +
+        '<div class="fs-lbl">' + fsT('Значок', 'Белгіше') + '</div><div class="fs-dots" id="fs-fe-icons"></div>' +
+        '<label class="fs-check"><input type="checkbox" id="fs-fe-pin"' + (pin ? ' checked' : '') + '> ⭐ ' + fsT('Закрепить (быстрый доступ)', 'Бекіту (жылдам қолжетімділік)') + '</label>' +
+        '<div class="fs-row2"><button type="button" class="btn btn-sm" id="fs-fe-no">' + fsT('Отмена', 'Болдырмау') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-fe-ok">' + fsT('Сохранить', 'Сақтау') + '</button></div>');
+      var cbox = ov.querySelector('#fs-fe-colors'), ibox = ov.querySelector('#fs-fe-icons');
+      var draw = function() {
+        cbox.innerHTML = '<button type="button" class="fs-dot fs-dot-none' + (!color ? ' on' : '') + '" data-c="" title="' + fsT('Без цвета', 'Түссіз') + '">∅</button>' +
+          FS_COLORS.map(function(c) { return '<button type="button" class="fs-dot' + (color === c ? ' on' : '') + '" style="background:' + c + '" data-c="' + c + '" aria-label="' + c + '"></button>'; }).join('');
+        ibox.innerHTML = FS_ICONS.map(function(ic) { return '<button type="button" class="fs-dot fs-dot-ico' + (icon === ic ? ' on' : '') + '" data-i="' + ic + '">' + (ic || '∅') + '</button>'; }).join('');
+      };
+      draw();
+      cbox.addEventListener('click', function(e) { var b = e.target.closest('[data-c]'); if (b) { color = b.getAttribute('data-c'); draw(); } });
+      ibox.addEventListener('click', function(e) { var b = e.target.closest('[data-i]'); if (b) { icon = b.getAttribute('data-i'); draw(); } });
+      ov.querySelector('#fs-fe-no').addEventListener('click', function() { fsCloseModal(ov); });
+      ov.querySelector('#fs-fe-ok').addEventListener('click', function() {
+        var nm = ov.querySelector('#fs-fe-name').value;
+        var wantPin = ov.querySelector('#fs-fe-pin').checked;
+        if (wantPin && !pin && fsPinned().length >= FS_LIMITS.pins) { toast(fsT('Закреплено максимум ' + FS_LIMITS.pins, 'Ең көбі ' + FS_LIMITS.pins + ' бекітуге болады')); wantPin = false; }
+        fsUpdate(id, { n: nm, d: { color: color, icon: icon, pin: wantPin ? 1 : 0, pinAt: wantPin ? (pin ? (d.pinAt || Date.now()) : Date.now()) : 0 } });
+        fsCloseModal(ov); fsRenderBody();
+      });
+    }
+
+    // создание
+    function fsCreateMenu() {
+      fsSheet(fsT('Создать', 'Жасау'), [
+        { ico: '📁', label: fsT('Папку', 'Қалта'), fn: function() {
+          fsPrompt(fsT('Название папки', 'Қалта атауы'), '', function(v) { if (v.trim() && fsCreate({ k: 'folder', p: FSUI.cur, n: v.trim() })) fsRenderBody(); });
+        } },
+        { ico: '📝', label: fsT('Заметку', 'Жазба'), fn: function() { var it = fsCreate({ k: 'note', p: FSUI.cur, n: '', d: { text: '' } }); if (it) { it._new = 1; fsRenderBody(); fsOpenNote(it.id, true); } } },
+        { ico: '☑️', label: fsT('Список с галочками', 'Белгілері бар тізім'), fn: function() { var it = fsCreate({ k: 'list', p: FSUI.cur, n: '', d: { items: [] } }); if (it) { fsRenderBody(); fsOpenList(it.id, true); } } },
+        { ico: '🗂', label: fsT('Несколько папок и файлов сразу', 'Бірнеше қалта мен файл бірден'), fn: fsBulkDialog },
+        { ico: '📖', label: fsT('Аят или суру по номеру', 'Аят немесе сүре нөмірі бойынша'), fn: fsAddByRefDialog }
+      ]);
+    }
+    function fsAddByRefDialog() {
+      fsPrompt(fsT('Аят или сура', 'Аят немесе сүре'), '', function(v) {
+        var ref = fsParseRef(v);
+        if (!ref) { toast(fsT('Не понял. Примеры: 2:255, 2 255, бакара 255', 'Түсінбедім. Мысал: 2:255, 2 255, бақара 255')); return; }
+        if (!ref.a) {
+          var it = fsCreate({ k: 'surah', p: FSUI.cur, n: '', d: { s: ref.s } });
+          if (it) { fsRenderBody(); toast(fsT('Сура добавлена', 'Сүре қосылды')); }
+          return;
+        }
+        toast(fsT('Загружаю аят…', 'Аят жүктелуде…'));
+        fetchSurah(ref.s).then(function(data) {
+          var ay = data && data.ayahs && data.ayahs.filter(function(x) { return x.number === ref.a; })[0];
+          if (!ay) { toast(fsT('Такого аята нет', 'Мұндай аят жоқ')); return; }
+          var dup = fsAllChildren(FSUI.cur).filter(function(x) { return x.k === 'ayah' && x.d.s === ref.s && x.d.a === ref.a; })[0];
+          if (dup) { toast(fsT('Этот аят уже в папке', 'Бұл аят қалтада бар')); return; }
+          if (fsCreate({ k: 'ayah', p: FSUI.cur, n: '', d: { s: ref.s, a: ref.a, ar: fsClip(ay.text, 3000), tr: fsClip(ay.translation, 3000), ed: fsGlobalTr() } })) { fsRenderBody(); toast(fsT('Аят добавлен', 'Аят қосылды')); }
+        }).catch(function() { toast(fsT('Не удалось загрузить аят (нужен интернет)', 'Аятты жүктеу мүмкін болмады (интернет керек)')); });
+      }, { placeholder: '2:255' });
+    }
+    function fsParseBulk(text) {
+      var out = [];
+      String(text || '').split(/\r?\n/).forEach(function(raw) {
+        if (!raw.trim()) return;
+        var m = raw.match(/^([ \t\-•*]*)(.*)$/);
+        var ind = m[1].replace(/[\-•*]/g, ' ');
+        var level = (ind.match(/\t/g) || []).length + Math.floor(ind.replace(/\t/g, '').length / 2);
+        var name = m[2].trim(), kind = 'folder';
+        if (/\.txt$/i.test(name)) { kind = 'note'; name = name.replace(/\.txt$/i, ''); }
+        else if (/\.list$/i.test(name)) { kind = 'list'; name = name.replace(/\.list$/i, ''); }
+        if (!name) return;
+        out.push({ level: level, name: fsClip(name, FS_LIMITS.nameChars), kind: kind });
+      });
+      var prev = -1;
+      out.forEach(function(o) { if (o.level > prev + 1) o.level = prev + 1; if (o.level < 0) o.level = 0; prev = o.level; });
+      return out.slice(0, 1000);
+    }
+    function fsBulkDialog() {
+      var ov = fsPrompt(fsT('Несколько папок и файлов', 'Бірнеше қалта мен файл'), '', function(v) {
+        var r = fsBulkApply(v, FSUI.cur);
+        fsRenderBody();
+        toast(fsT('Создано: ' + r.made + (r.failed ? ', пропущено: ' + r.failed : ''), 'Жасалды: ' + r.made + (r.failed ? ', өткізілді: ' + r.failed : '')));
+      }, { multiline: true, ok: fsT('Создать', 'Жасау'), placeholder: fsT('По строке на имя.\nОтступ (2 пробела или Tab) = вложенность.\nИмя.txt — заметка, Имя.list — список.', 'Әр жолға бір атау.\nШегіну (2 бос орын немесе Tab) = ішіне салу.\nАты.txt — жазба, Аты.list — тізім.'),
+        extra: '<div class="fs-row2" style="justify-content:flex-start"><button type="button" class="btn btn-sm" id="fs-bulk-sur">📚 ' + fsT('Вставить 114 сур', '114 сүрені қою') + '</button></div>' });
+      var btn = ov.querySelector('#fs-bulk-sur');
+      if (btn) btn.addEventListener('click', function() {
+        var lines = [];
+        for (var n = 1; n <= 114; n++) lines.push(n + '. ' + (typeof surahShortName === 'function' ? surahShortName(n) : ('' + n)));
+        ov.querySelector('#fs-prompt-in').value = lines.join('\n');
+      });
+    }
+    function fsMoreMenu() {
+      var view = fsUiGet('view', 'list'), sort = fsUiGet('sort', 'manual');
+      var sortName = { manual: fsT('вручную', 'қолмен'), name: fsT('по имени', 'аты бойынша'), date: fsT('по дате', 'күні бойынша') };
+      var next = { manual: 'name', name: 'date', date: 'manual' };
+      var acts = [
+        { ico: view === 'grid' ? '☰' : '▦', label: view === 'grid' ? fsT('Вид: список', 'Түрі: тізім') : fsT('Вид: сетка', 'Түрі: тор'), fn: function() { fsUiSet('view', view === 'grid' ? 'list' : 'grid'); fsRenderBody(); } },
+        { ico: '↕️', label: fsT('Сортировка: ', 'Сұрыптау: ') + sortName[sort], fn: function() { fsUiSet('sort', next[sort]); fsRenderBody(); } },
+        { ico: '☑️', label: fsT('Выбрать несколько', 'Бірнешеуін таңдау'), fn: function() { FSUI.selMode = true; FSUI.sel.clear(); fsRenderBody(); } },
+        { ico: '⬇️', label: fsT('Экспорт (JSON)', 'Экспорт (JSON)'), fn: fsExportDialog },
+        { ico: '⬆️', label: fsT('Импорт', 'Импорт'), fn: fsImportDialog }
+      ];
+      if (FSUI.cur && fsAllChildren(FSUI.cur).some(function(x) { return x.k === 'ayah'; })) acts.push({ ico: '🗂', label: fsT('Разложить аяты по сурам', 'Аяттарды сүрелер бойынша реттеу'), fn: function() { fsGroupBySurah(FSUI.cur); } });
+      acts.push({ ico: '🧩', label: fsT('Шаблоны папок', 'Қалта үлгілері'), fn: fsTemplatesMenu });
+      acts.push({ ico: '🗑', label: fsT('Корзина (', 'Себет (') + fsTrashRoots().length + ')', fn: fsTrashDialog });
+      acts.push({ ico: '📥', label: fsT('Перенести словарь и библиотеку сюда', 'Сөздік пен кітапхананы осында көшіру'), fn: fsImportOld });
+      acts.push({ ico: '☁️', label: fsT('Синхронизация (', 'Синхрондау (') + fsCloudStatusText() + ')', fn: function() { fsCloudSync(true); } });
+      var conf = FS.items.get(FS_SYS.conflicts.id);
+      if (conf && !conf.del) acts.push({ ico: '⚠️', label: fsT('Конфликты (разобрать)', 'Қайшылықтар (қарау)'), fn: function() { FSUI.cur = conf.id; FSUI.q = ''; fsRenderScreen(); } });
+      fsSheet(fsT('Ещё', 'Тағы'), acts);
+    }
+
+    // ---------- просмотр / редакторы ----------
+    function fsOpenItem(id) {
+      var it = FS.items.get(id); if (!it || it.del) return;
+      fsRecentPush(id);
+      if (it.k === 'note') return fsOpenNote(id);
+      if (it.k === 'list') return fsOpenList(id);
+      if (it.k === 'ayah') return fsOpenAyah(id);
+      if (it.k === 'surah') { try { openSurah(it.d.s); } catch (e) { showView('home'); } return; }
+      if (it.k === 'word') return fsOpenWord(id);
+      fsSheet(fsName(it), [{ ico: '🗑', label: fsT('Удалить', 'Жою'), danger: true, fn: function() { fsDeleteWithUndo([id]); } }]);
+    }
+    function fsPlayAyah(s, a, btn, rec) {
+      try {
+        var key = s + ':' + a + ':' + (rec || '');
+        if (FS.audio && FS.audioKey === key && !FS.audio.paused) { FS.audio.pause(); btn.textContent = '▶'; return; }
+        if (FS.audio) { try { FS.audio.pause(); } catch (e) {} }
+        FS.audio = new Audio(ayahAudioUrl(s, a, rec || undefined)); FS.audioKey = key;
+        FS.audio.addEventListener('ended', function() { btn.textContent = '▶'; });
+        FS.audio.addEventListener('error', function() { btn.textContent = '▶'; toast(fsT('Не удалось воспроизвести (нужен интернет)', 'Ойнату мүмкін болмады (интернет керек)')); });
+        btn.textContent = '⏸';
+        FS.audio.play().catch(function() { btn.textContent = '▶'; });
+      } catch (e) {}
+    }
+    function fsOpenAyah(id) {
+      var it = FS.items.get(id); if (!it) return;
+      var d = it.d || {};
+      var ov = fsModal('<div class="fs-sheet-title">' + fsEsc(fsRefTitle(it)) + '</div>' +
+        '<div class="fs-path">' + fsEsc(fsPath(it.p).join(' › ')) + '</div>' +
+        (d.ar ? '<div class="arabic fs-view-ar" dir="rtl">' + fsEsc(d.ar) + '</div>' : '') +
+        '<div class="ayah-translation" id="fs-ay-tr"></div>' +
+        '<div class="fs-prefs"><span id="fs-ay-pf"></span><button type="button" class="fs-chip" id="fs-ay-pfb">⚙</button></div>' +
+        '<div class="fs-lbl">' + fsT('Моя заметка', 'Менің жазбам') + '</div><textarea class="fs-input" id="fs-ay-note" rows="3" maxlength="2000">' + fsEsc(d.note || '') + '</textarea>' +
+        '<div class="fs-row2" style="flex-wrap:wrap"><button type="button" class="btn btn-sm" id="fs-ay-play">▶</button>' +
+        '<button type="button" class="btn btn-sm" id="fs-ay-learn"></button>' +
+        '<button type="button" class="btn btn-sm" id="fs-ay-open">' + fsT('Открыть в чтении', 'Оқуда ашу') + '</button>' +
+        '<button type="button" class="btn btn-sm" id="fs-ay-move">' + fsT('Переместить', 'Жылжыту') + '</button>' +
+        '<button type="button" class="btn btn-sm fs-danger" id="fs-ay-del">' + fsT('Удалить', 'Жою') + '</button>' +
+        '<button type="button" class="btn btn-sm btn-primary" id="fs-ay-ok">' + fsT('Готово', 'Дайын') + '</button></div>');
+      var trBox = ov.querySelector('#fs-ay-tr'), pfBox = ov.querySelector('#fs-ay-pf');
+      var paint = function() {
+        var pf = fsPrefs(it.p), want = pf.tr || '', have = d.ed || fsGlobalTr();
+        pfBox.textContent = '🌐 ' + fsTrLabel(want || fsGlobalTr()) + ' · 🎧 ' + fsRecLabel(pf.rec || fsGlobalRec()) + (pf.temp ? ' (' + fsT('временно', 'уақытша') + ')' : '');
+        if (!want || want === have) { trBox.textContent = d.tr || ''; return; }
+        trBox.textContent = '…';
+        fsFetchTr(d.s, d.a, want).then(function(t) { if (ov.parentNode) trBox.textContent = t; }).catch(function() { if (ov.parentNode) trBox.textContent = (d.tr || '') + '  (' + fsT('выбранный перевод недоступен без интернета', 'таңдалған аударма интернетсіз қолжетімсіз') + ')'; });
+      };
+      paint();
+      ov.querySelector('#fs-ay-pfb').addEventListener('click', function() { fsPrefsDialog(it.p, paint); });
+      var lb = ov.querySelector('#fs-ay-learn');
+      var paintL = function() { lb.textContent = (fsAyahLearned(it) ? '✓ ' : '') + fsT('Выучил', 'Жаттадым'); lb.classList.toggle('btn-primary', fsAyahLearned(it)); };
+      paintL();
+      lb.addEventListener('click', function() { fsToggleLearned(it); paintL(); });
+      var t = ov.querySelector('#fs-ay-note'), tm = null;
+      var saveNote = function() { var cur = FS.items.get(id); if (cur && (cur.d.note || '') !== t.value) fsUpdate(id, { d: { note: t.value } }); };
+      t.addEventListener('input', function() { clearTimeout(tm); tm = setTimeout(saveNote, 500); });
+      ov._onClose = function() { clearTimeout(tm); saveNote(); try { if (FS.audio) FS.audio.pause(); } catch (e) {} fsRefreshUi(); };
+      ov.querySelector('#fs-ay-play').addEventListener('click', function() { fsPlayAyah(d.s, d.a, this, fsPrefs(it.p).rec); });
+      ov.querySelector('#fs-ay-open').addEventListener('click', function() { fsCloseModal(ov); try { openSurah(d.s, d.a); } catch (e) { showView('home'); } });
+      ov.querySelector('#fs-ay-move').addEventListener('click', function() { fsCloseModal(ov); fsMoveDialog([id]); });
+      ov.querySelector('#fs-ay-del').addEventListener('click', function() { fsCloseModal(ov); fsDeleteWithUndo([id]); });
+      ov.querySelector('#fs-ay-ok').addEventListener('click', function() { fsCloseModal(ov); });
+    }
+    function fsOpenNote(id, isNew) {
+      var it = FS.items.get(id); if (!it) return;
+      var ov = fsModal('<div class="fs-sheet-title">' + fsT('Заметка', 'Жазба') + '</div>' +
+        '<input type="text" class="fs-input" id="fs-nt-title" maxlength="' + FS_LIMITS.nameChars + '" placeholder="' + fsT('Название', 'Атауы') + '" value="' + fsEsc(isNew ? '' : fsName(it)) + '">' +
+        '<textarea class="fs-input fs-note-ta" id="fs-nt-text" rows="12" maxlength="' + FS_LIMITS.noteChars + '" placeholder="' + fsT('Текст…', 'Мәтін…') + '">' + fsEsc((it.d && it.d.text) || '') + '</textarea>' +
+        '<div class="fs-count" id="fs-nt-count"></div>' +
+        '<div class="fs-row2"><button type="button" class="btn btn-sm fs-danger" id="fs-nt-del">' + fsT('Удалить', 'Жою') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-nt-ok">' + fsT('Готово', 'Дайын') + '</button></div>', 'fs-tall');
+      var ti = ov.querySelector('#fs-nt-title'), ta = ov.querySelector('#fs-nt-text'), cn = ov.querySelector('#fs-nt-count'), tm = null, removed = false;
+      var upd = function() { cn.textContent = ta.value.length + ' / ' + FS_LIMITS.noteChars; };
+      upd();
+      var save = function() {
+        if (removed) return;
+        var cur = FS.items.get(id); if (!cur) return;
+        var title = ti.value.trim();
+        if (!title && ta.value.trim()) title = ta.value.replace(/\s+/g, ' ').trim().slice(0, 40);
+        if ((cur.n !== title && title) || (cur.d.text || '') !== ta.value) fsUpdate(id, { n: title || undefined, d: { text: ta.value } });
+      };
+      var sched = function() { clearTimeout(tm); tm = setTimeout(save, 500); upd(); };
+      ti.addEventListener('input', sched); ta.addEventListener('input', sched);
+      ov._onClose = function() {
+        clearTimeout(tm); save();
+        var cur = FS.items.get(id);
+        if (cur && !removed && !ta.value.trim() && !ti.value.trim() && isNew) fsPurgeNow(id);
+        fsRefreshUi();
+      };
+      ov.querySelector('#fs-nt-ok').addEventListener('click', function() { fsCloseModal(ov); });
+      ov.querySelector('#fs-nt-del').addEventListener('click', function() { removed = true; clearTimeout(tm); fsCloseModal(ov); fsDeleteWithUndo([id]); });
+      setTimeout(function() { try { (isNew ? ti : ta).focus(); } catch (e) {} }, 80);
+    }
+    function fsOpenList(id, isNew) {
+      var it = FS.items.get(id); if (!it) return;
+      var ov = fsModal('<div class="fs-sheet-title">' + fsT('Список', 'Тізім') + '</div>' +
+        '<input type="text" class="fs-input" id="fs-ls-title" maxlength="' + FS_LIMITS.nameChars + '" placeholder="' + fsT('Название', 'Атауы') + '" value="' + fsEsc(isNew ? '' : fsName(it)) + '">' +
+        '<div class="fs-count" id="fs-ls-prog"></div><div id="fs-ls-items"></div>' +
+        '<div class="fs-searchrow"><input type="text" class="fs-input" id="fs-ls-add" maxlength="300" placeholder="' + fsT('Новый пункт…', 'Жаңа тармақ…') + '"><button type="button" class="btn btn-sm btn-primary" id="fs-ls-addbtn">＋</button></div>' +
+        '<div class="fs-row2"><button type="button" class="btn btn-sm fs-danger" id="fs-ls-del">' + fsT('Удалить список', 'Тізімді жою') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-ls-ok">' + fsT('Готово', 'Дайын') + '</button></div>', 'fs-tall');
+      var itemsBox = ov.querySelector('#fs-ls-items'), prog = ov.querySelector('#fs-ls-prog'), removed = false;
+      var arr = function() { var cur = FS.items.get(id); return (cur && cur.d && cur.d.items) ? cur.d.items.slice() : []; };
+      var put = function(a) { fsUpdate(id, { d: { items: a } }); draw(); };
+      var draw = function() {
+        var a = arr(), done = a.filter(function(x) { return x.x; }).length;
+        prog.textContent = a.length ? (fsT('Выполнено: ', 'Орындалды: ') + done + ' / ' + a.length) : '';
+        itemsBox.innerHTML = a.map(function(x, i) {
+          return '<div class="fs-li"><input type="checkbox" data-i="' + i + '" class="fs-li-x"' + (x.x ? ' checked' : '') + '>' +
+            '<input type="text" class="fs-input fs-li-t' + (x.x ? ' done' : '') + '" data-i="' + i + '" maxlength="300" value="' + fsEsc(x.t) + '">' +
+            '<button type="button" class="fs-li-b" data-up="' + i + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+            '<button type="button" class="fs-li-b" data-dn="' + i + '"' + (i === a.length - 1 ? ' disabled' : '') + '>↓</button>' +
+            '<button type="button" class="fs-li-b" data-rm="' + i + '">✕</button></div>';
+        }).join('');
+      };
+      draw();
+      itemsBox.addEventListener('change', function(e) { var c = e.target.closest('.fs-li-x'); if (c) { var a = arr(); a[+c.getAttribute('data-i')].x = c.checked ? 1 : 0; put(a); } });
+      itemsBox.addEventListener('input', function(e) {
+        var t = e.target.closest('.fs-li-t'); if (!t) return;
+        var a = arr(); a[+t.getAttribute('data-i')].t = t.value;
+        var cur = FS.items.get(id); cur.d = Object.assign({}, cur.d, { items: a }); cur.u = Date.now(); fsSave(cur);
+      });
+      itemsBox.addEventListener('click', function(e) {
+        var b = e.target.closest('button'); if (!b) return;
+        var a = arr(), i;
+        if (b.hasAttribute('data-up')) { i = +b.getAttribute('data-up'); var t1 = a[i - 1]; a[i - 1] = a[i]; a[i] = t1; put(a); }
+        else if (b.hasAttribute('data-dn')) { i = +b.getAttribute('data-dn'); var t2 = a[i + 1]; a[i + 1] = a[i]; a[i] = t2; put(a); }
+        else if (b.hasAttribute('data-rm')) {
+          i = +b.getAttribute('data-rm'); var gone = a.splice(i, 1)[0]; put(a);
+          fsSnack(fsT('Пункт удалён', 'Тармақ жойылды'), [{ label: fsT('Отмена', 'Болдырмау'), fn: function() { var b2 = arr(); b2.splice(Math.min(i, b2.length), 0, gone); put(b2); } }]);
+        }
+      });
+      var addInp = ov.querySelector('#fs-ls-add');
+      var addItem = function() {
+        var v = addInp.value.trim(); if (!v) return;
+        var a = arr(); if (a.length >= 500) { toast(fsT('Не больше 500 пунктов', '500 тармақтан аспайды')); return; }
+        a.push({ t: fsClip(v, 300), x: 0 }); addInp.value = ''; put(a); addInp.focus();
+      };
+      ov.querySelector('#fs-ls-addbtn').addEventListener('click', addItem);
+      addInp.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addItem(); } });
+      var ti = ov.querySelector('#fs-ls-title');
+      ti.addEventListener('change', function() { if (ti.value.trim()) fsUpdate(id, { n: ti.value.trim() }); });
+      ov._onClose = function() {
+        if (!removed) {
+          var cur = FS.items.get(id);
+          if (cur) {
+            if (ti.value.trim() && ti.value.trim() !== fsName(cur)) fsUpdate(id, { n: ti.value.trim() });
+            if (isNew && !ti.value.trim() && !(cur.d.items || []).length) fsPurgeNow(id);
+          }
+        }
+        fsRefreshUi();
+      };
+      ov.querySelector('#fs-ls-ok').addEventListener('click', function() { fsCloseModal(ov); });
+      ov.querySelector('#fs-ls-del').addEventListener('click', function() { removed = true; fsCloseModal(ov); fsDeleteWithUndo([id]); });
+      setTimeout(function() { try { (isNew ? ti : addInp).focus(); } catch (e) {} }, 80);
+    }
+
+    // ---------- быстрая панель (кнопка 📁 в шапке) ----------
+    function fsGoto(id) {
+      fsWhenReady(function() {
+        var it = FS.items.get(id); if (!it || it.del) return;
+        FSUI.q = ''; FSUI.selMode = false; FSUI.sel.clear();
+        FSUI.cur = it.k === 'folder' ? it.id : (it.p || null);
+        FSUI.open = it.k === 'folder' ? null : it.id;
+        if (it.k === 'folder') fsRecentPush(it.id);
+        try { showView('bookmarks'); } catch (e) {}
+        fsRefreshUi();
+      });
+    }
+    function fsOpenQuick() {
+      fsWhenReady(function() {
+        var ov = fsModal('<div class="fs-sheet-title">📁 ' + fsT('Папки', 'Қалталар') + '</div>' +
+          '<input type="search" class="fs-input" id="fs-qk-q" placeholder="' + fsT('Поиск…', 'Іздеу…') + '" autocomplete="off"><div id="fs-qk-body"></div>' +
+          '<div class="fs-row2"><button type="button" class="btn btn-sm" id="fs-qk-all">' + fsT('Открыть раздел «Папки»', '«Қалталар» бөлімін ашу') + '</button><button type="button" class="btn btn-sm" id="fs-qk-no">' + fsT('Закрыть', 'Жабу') + '</button></div>', 'fs-tall');
+        var body = ov.querySelector('#fs-qk-body'), qi = ov.querySelector('#fs-qk-q');
+        var row = function(it) { return '<button type="button" class="fs-qk-row" data-id="' + it.id + '"><span>' + (it.k === 'folder' ? (fsKindIcon(it) || '📁') : fsKindIcon(it)) + '</span> <b>' + fsEsc(fsName(it)) + '</b><i>' + fsEsc(fsPath(it.p).join(' › ')) + '</i></button>'; };
+        var draw = function() {
+          var q = qi.value.trim(), h = '';
+          if (q) {
+            var res = fsSearch(q, null, 30);
+            h = res.length ? res.map(row).join('') : '<div class="fs-sub">' + fsT('Ничего не найдено', 'Ештеңе табылмады') + '</div>';
+          } else {
+            var pins = fsPinned();
+            if (pins.length) h += '<div class="fs-lbl">⭐ ' + fsT('Закреплённые', 'Бекітілгендер') + '</div>' + pins.map(row).join('');
+            var rec = fsRecent().map(function(id) { return FS.items.get(id); }).filter(function(x) { return x && !x.del; }).slice(0, FS_LIMITS.recents);
+            if (rec.length) h += '<div class="fs-lbl">🕘 ' + fsT('Недавние', 'Соңғылар') + '</div>' + rec.map(row).join('');
+            h += '<div class="fs-lbl">' + fsT('Все папки', 'Барлық қалталар') + '</div>' + fsChildren(null).filter(function(x) { return x.k === 'folder'; }).map(row).join('');
+          }
+          body.innerHTML = h;
+        };
+        draw();
+        qi.addEventListener('input', draw);
+        body.addEventListener('click', function(e) { var b = e.target.closest('.fs-qk-row'); if (!b) return; fsCloseModal(ov); fsGoto(b.getAttribute('data-id')); });
+        ov.querySelector('#fs-qk-all').addEventListener('click', function() { fsCloseModal(ov); FSUI.cur = null; FSUI.q = ''; try { showView('bookmarks'); } catch (e) {} });
+        ov.querySelector('#fs-qk-no').addEventListener('click', function() { fsCloseModal(ov); });
+      });
+    }
+
+
+    // ---------- экспорт / импорт (JSON) + выбор при совпадениях ----------
+    function fsSnapshot(rootId) {
+      var ids = rootId ? fsCollectTree([rootId]) : null, out = [];
+      FS.items.forEach(function(it) {
+        if (it.del) return;
+        if (ids && ids.indexOf(it.id) < 0) return;
+        out.push(it);
+      });
+      return out;
+    }
+    function fsExportObject(rootId) {
+      var items = fsSnapshot(rootId);
+      if (rootId && items.length) { items = items.map(function(x) { return x.id === rootId ? Object.assign({}, x, { p: null }) : x; }); }
+      return { format: 'quran-fs', v: 1, at: Date.now(), items: items };
+    }
+    function fsDownloadText(name, text, mime) {
+      try {
+        var blob = new Blob([text], { type: mime || 'application/json' });
+        var url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url; a.download = name; document.body.appendChild(a); a.click();
+        setTimeout(function() { URL.revokeObjectURL(url); if (a.parentNode) a.parentNode.removeChild(a); }, 1500);
+        return true;
+      } catch (e) { return false; }
+    }
+    function fsExportDialog() {
+      var cur = FSUI.cur ? FS.items.get(FSUI.cur) : null;
+      var acts = [{ ico: '⬇️', label: fsT('Скачать всё', 'Барлығын жүктеу'), fn: function() { fsDoExport(null); } }];
+      if (cur) acts.push({ ico: '📁', label: fsT('Скачать только «' + fsName(cur) + '»', 'Тек «' + fsName(cur) + '» жүктеу'), fn: function() { fsDoExport(cur.id); } });
+      acts.push({ ico: '📋', label: fsT('Скопировать всё в буфер', 'Барлығын буферге көшіру'), fn: function() {
+        var txt = JSON.stringify(fsExportObject(null));
+        try { navigator.clipboard.writeText(txt).then(function() { toast(fsT('Скопировано', 'Көшірілді')); }, function() { toast(fsT('Не удалось скопировать', 'Көшіру мүмкін болмады')); }); }
+        catch (e) { toast(fsT('Не удалось скопировать', 'Көшіру мүмкін болмады')); }
+      } });
+      fsSheet(fsT('Экспорт папок', 'Қалталарды экспорттау'), acts);
+    }
+    function fsDoExport(rootId) {
+      var obj = fsExportObject(rootId);
+      var d = new Date(), stamp = d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2);
+      if (fsDownloadText('quran-folders-' + stamp + '.json', JSON.stringify(obj, null, 1))) toast(fsT('Файл сохранён: ', 'Файл сақталды: ') + obj.items.length);
+      else toast(fsT('Не удалось сохранить файл', 'Файлды сақтау мүмкін болмады'));
+    }
+    function fsImportDialog() {
+      var ov = fsModal('<div class="fs-sheet-title">' + fsT('Импорт папок', 'Қалталарды импорттау') + '</div>' +
+        '<input type="file" id="fs-imp-file" accept="application/json,.json" class="fs-input">' +
+        '<textarea class="fs-input" id="fs-imp-text" rows="6" placeholder="' + fsT('…или вставьте JSON сюда', '…немесе JSON-ды осы жерге қойыңыз') + '"></textarea>' +
+        '<div class="fs-row2"><button type="button" class="btn btn-sm" id="fs-imp-no">' + fsT('Отмена', 'Болдырмау') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-imp-ok">' + fsT('Далее', 'Әрі қарай') + '</button></div>');
+      var ta = ov.querySelector('#fs-imp-text');
+      ov.querySelector('#fs-imp-file').addEventListener('change', function(e) {
+        var f = e.target.files && e.target.files[0]; if (!f) return;
+        var r = new FileReader(); r.onload = function() { ta.value = String(r.result || ''); }; r.readAsText(f);
+      });
+      ov.querySelector('#fs-imp-no').addEventListener('click', function() { fsCloseModal(ov); });
+      ov.querySelector('#fs-imp-ok').addEventListener('click', function() {
+        var data = null;
+        try { data = JSON.parse(ta.value); } catch (e) { toast(fsT('Ошибка JSON', 'JSON қатесі')); return; }
+        fsCloseModal(ov);
+        fsImportAsk(data);
+      });
+    }
+    function fsCleanImport(data) {
+      var arr = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : (data && Array.isArray(data.fsItems) ? data.fsItems : null));
+      if (!arr) return null;
+      var out = [];
+      arr.forEach(function(x) {
+        if (!x || typeof x.id !== 'string' || x.id.length > 64 || FS_KINDS.indexOf(x.k) < 0) return;
+        var d = (x.d && typeof x.d === 'object') ? x.d : {};
+        out.push({ id: x.id, p: (typeof x.p === 'string' && x.p) ? x.p : null, k: x.k, n: fsClip(x.n || '', FS_LIMITS.nameChars), d: JSON.parse(JSON.stringify(d)),
+          c: +x.c || Date.now(), u: +x.u || Date.now(), o: +x.o || 0 });
+      });
+      return out;
+    }
+    function fsSameContent(a, b) {
+      return (a.n || '') === (b.n || '') && (a.k === b.k) && JSON.stringify(a.d || {}) === JSON.stringify(b.d || {});
+    }
+    // dry: только посчитать; policy: 'replace' | 'both' | 'skip' | 'conflicts'
+    function fsImportItems(list, policy, dry) {
+      var res = { added: 0, merged: 0, replaced: 0, skipped: 0, same: 0, conflicts: 0, toConflicts: 0, failed: 0 };
+      var byId = {}; list.forEach(function(x) { byId[x.id] = x; });
+      var depthIn = function(x) { var d = 0, g = 0, c = x; while (c && c.p && byId[c.p] && g++ < 30) { d++; c = byId[c.p]; } return d; };
+      var sorted = list.slice().sort(function(a, b) { return depthIn(a) - depthIn(b); });
+      var idMap = {}, virtual = {};
+      var confFolder = null;
+      var getConf = function() {
+        if (dry) return null;
+        if (!confFolder) {
+          confFolder = FS.items.get(FS_SYS.conflicts.id);
+          if (!confFolder || confFolder.del) {
+            var now = Date.now();
+            confFolder = { id: FS_SYS.conflicts.id, p: null, k: 'folder', n: '', d: { sys: 'conflicts' }, c: now, u: now, o: 0, del: 0 };
+            fsSave(confFolder);
+          }
+        }
+        return confFolder;
+      };
+      FS._noRebuild = true;
+      sorted.forEach(function(x) {
+        if (x.d && x.d.sys && FS_SYS[x.d.sys]) { idMap[x.id] = FS_SYS[x.d.sys].id; res.same++; return; }
+        if (!dry && fsLiveCount() >= FS_LIMITS.items) { res.failed++; return; }
+        var pid = null;
+        if (x.p) {
+          if (idMap[x.p] !== undefined) pid = idMap[x.p];
+          else { var lp = FS.items.get(x.p); pid = (lp && !lp.del && lp.k === 'folder') ? x.p : null; }
+        }
+        var local = FS.items.get(x.id);
+        if (local && local.del) local = null;
+        var kind = x.k, named = (kind === 'folder' || kind === 'note' || kind === 'list');
+        var sibling = null;
+        if (!local && named && !String(pid || '').startsWith('virtual:')) {
+          sibling = fsAllChildren(pid).filter(function(s) { return s.k === kind && fsName(s).toLowerCase() === (x.n || fsDefaultName(kind)).toLowerCase(); })[0] || null;
+        }
+        // 1. папки с одинаковым именем сливаем без вопросов
+        if (kind === 'folder' && (local || sibling)) {
+          var tgt = local || sibling; idMap[x.id] = tgt.id; res.merged++; return;
+        }
+        // 2. ссылки: тот же аят/сура в той же папке — дубль
+        if (FS_LINK_KINDS.indexOf(kind) >= 0 && !local) {
+          var dup = fsAllChildren(pid).filter(function(s) { return s.k === kind && JSON.stringify([s.d.s, s.d.a, s.d.title, s.d.ref]) === JSON.stringify([x.d.s, x.d.a, x.d.title, x.d.ref]); })[0];
+          if (dup) { res.same++; return; }
+        }
+        var other = local || sibling;
+        if (other) {
+          if (fsSameContent(other, x)) { res.same++; idMap[x.id] = other.id; return; }
+          res.conflicts++;
+          if (dry) return;
+          if (policy === 'skip') { res.skipped++; idMap[x.id] = other.id; return; }
+          if (policy === 'replace') {
+            other.n = x.n; other.d = x.d; other.u = Date.now(); fsSave(other); res.replaced++; idMap[x.id] = other.id; return;
+          }
+          var np = pid, nm = x.n;
+          if (policy === 'conflicts') { np = getConf().id; res.toConflicts++; nm = (x.n || fsDefaultName(kind)); }
+          var it2 = { id: fsUuid(), p: np, k: kind, n: fsUniqueName(np, nm || fsDefaultName(kind), null), d: x.d, c: x.c, u: Date.now(), o: fsMinOrder(np) - 1, del: 0 };
+          fsSave(it2); res.added++; idMap[x.id] = it2.id; return;
+        }
+        if (dry) { res.added++; idMap[x.id] = 'virtual:' + x.id; return; }
+        // 3. новая запись
+        var np2 = pid;
+        if (kind === 'folder' && fsDepthOf(np2) + 1 > FS_LIMITS.depth) { np2 = getConf().id; res.toConflicts++; }
+        var id = (FS.items.has(x.id)) ? fsUuid() : x.id;
+        var it3 = { id: id, p: np2, k: kind, n: named ? fsUniqueName(np2, x.n || fsDefaultName(kind), null) : x.n, d: x.d, c: x.c, u: Date.now(), o: (x.o || 0), del: 0 };
+        fsSave(it3); res.added++; idMap[x.id] = id;
+      });
+      FS._noRebuild = false;
+      if (!dry) { fsSavedRebuild(); FS.rev++; }
+      return res;
+    }
+    function fsImportAsk(data) {
+      var list = fsCleanImport(data);
+      if (!list) { toast(fsT('Это не файл «Папок»', 'Бұл «Қалталар» файлы емес')); return; }
+      if (!list.length) { toast(fsT('В файле нет записей', 'Файлда жазба жоқ')); return; }
+      fsWhenReady(function() {
+        var dry = fsImportItems(list, null, true);
+        var done = function(policy) {
+          var r = fsImportItems(list, policy, false);
+          fsRenderBody();
+          var msg = fsT('Импорт: добавлено ' + r.added + ', объединено папок ' + r.merged + (r.replaced ? ', заменено ' + r.replaced : '') + (r.skipped ? ', пропущено ' + r.skipped : '') + (r.toConflicts ? ', в «Конфликты» ' + r.toConflicts : '') + (r.failed ? ', не поместилось ' + r.failed : ''),
+            'Импорт: қосылды ' + r.added + ', қалта біріктірілді ' + r.merged + (r.replaced ? ', ауыстырылды ' + r.replaced : '') + (r.skipped ? ', өткізілді ' + r.skipped : '') + (r.toConflicts ? ', «Қайшылықтарға» ' + r.toConflicts : '') + (r.failed ? ', сыймады ' + r.failed : ''));
+          toast(msg);
+          fsRefreshUi();
+        };
+        if (!dry.conflicts) { done('both'); return; }
+        fsSheet(fsT('Совпадений: ' + dry.conflicts + ' (одинаковое имя, но разное содержимое)', 'Сәйкестіктер: ' + dry.conflicts + ' (аты бірдей, мазмұны басқа)'), [
+          { ico: '🔁', label: fsT('Заменить текущими из файла', 'Файлдағымен ауыстыру'), fn: function() { done('replace'); } },
+          { ico: '➕', label: fsT('Оставить оба (добавить «(2)»)', 'Екеуін де қалдыру («(2)» қосу)'), fn: function() { done('both'); } },
+          { ico: '⚠️', label: fsT('Спорные — в папку «Конфликты»', 'Даулыларды «Қайшылықтар» қалтасына'), fn: function() { done('conflicts'); } },
+          { ico: '⏭', label: fsT('Пропустить спорные', 'Даулыларды өткізіп жіберу'), fn: function() { done('skip'); } }
+        ]);
+      });
+    }
+    // для общего бэкапа приложения (раздел «Экспорт / импорт»)
+    function fsBackupItems() { return FS.ready ? fsSnapshot(null) : []; }
+    function fsBackupImport(arr) {
+      if (!arr || !arr.length) return;
+      fsImportAsk({ items: arr });
+    }
+
+    // ---------- перевод и чтец для папки ----------
+    var FS_TR_LIST = [['ru.kuliev', 'Кулиев', 'Кулиев'], ['ru.osmanov', 'Османов', 'Османов'], ['ru.porokhova', 'Порохова', 'Порохова'], ['ru.abuadel', 'Абу Адель', 'Абу Адель'], ['ru.krachkovsky', 'Крачковский', 'Крачковский'], ['kk.altai', 'Халифа Алтай (каз.)', 'Халифа Алтай']];
+    function fsTrLabel(id) { var r = FS_TR_LIST.filter(function(x) { return x[0] === id; })[0]; return r ? (fsT(r[1], r[2])) : (id || ''); }
+    function fsGlobalTr() { try { return (state.settings && state.settings.translation) || 'ru.kuliev'; } catch (e) { return 'ru.kuliev'; } }
+    function fsGlobalRec() { try { return (state.settings && state.settings.reciter) || 'ar.alafasy'; } catch (e) { return 'ar.alafasy'; } }
+    function fsRecLabel(id) {
+      try { var r = RECITER_LIST.filter(function(x) { return x.id === id; })[0]; if (r) return fsT(r.ru, r.kk).replace(/\s*\(.*$/, ''); } catch (e) {}
+      return id || '';
+    }
+    // эффективные настройки папки: временные (до «Сохранить») → папки → родителей → общие
+    function fsPrefs(fid) {
+      var out = { tr: '', rec: '', temp: false, saved: false }, cur = fid ? FS.items.get(fid) : null, g = 0;
+      while (cur && g++ < 30) {
+        if (!out.tr && cur.d && cur.d.tr) { out.tr = cur.d.tr; out.saved = true; }
+        if (!out.rec && cur.d && cur.d.rec) { out.rec = cur.d.rec; out.saved = true; }
+        cur = cur.p ? FS.items.get(cur.p) : null;
+      }
+      var t = FSUI.temp;
+      if (t && t.fid === (fid || null)) {
+        if (t.tr != null) { out.tr = t.tr; out.temp = true; }
+        if (t.rec != null) { out.rec = t.rec; out.temp = true; }
+      }
+      return out;
+    }
+    function fsFetchTr(s, a, ed) {
+      var key = s + ':' + a + ':' + ed;
+      if (!FS._trc) FS._trc = {};
+      if (FS._trc[key]) return Promise.resolve(FS._trc[key]);
+      return fetch('https://api.alquran.cloud/v1/ayah/' + s + ':' + a + '/' + encodeURIComponent(ed)).then(function(r) { return r.json(); }).then(function(j) {
+        var t = j && j.data && j.data.text; if (!t) throw new Error('empty');
+        FS._trc[key] = t; return t;
+      });
+    }
+    function fsPrefsBarHtml() {
+      var pf = fsPrefs(FSUI.cur);
+      if (!FSUI.cur) return '';
+      var txt = '🌐 ' + fsTrLabel(pf.tr || fsGlobalTr()) + ' · 🎧 ' + fsRecLabel(pf.rec || fsGlobalRec());
+      var tag = pf.temp ? ' <i>(' + fsT('временно', 'уақытша') + ')</i>' : (pf.saved ? '' : ' <i>(' + fsT('общие настройки', 'жалпы баптаулар') + ')</i>');
+      return '<div class="fs-prefs"><span>' + fsEsc(txt) + tag + '</span><span>' + (fsFolderAyahs(FSUI.cur).length ? '<button type="button" class="fs-chip" data-act="playall" data-id="' + FSUI.cur + '">▶ ' + fsT('Слушать', 'Тыңдау') + '</button> ' : '') + '<button type="button" class="fs-chip" data-act="prefs" data-id="' + FSUI.cur + '">⚙ ' + fsT('Перевод и чтец', 'Аударма және қари') + '</button></span></div>';
+    }
+    function fsPrefsDialog(fid, onDone) {
+      var f = FS.items.get(fid); if (!f) return;
+      var pf = fsPrefs(fid), tr = pf.tr, rec = pf.rec;
+      var trOpts = '<option value="">' + fsT('Общие настройки', 'Жалпы баптаулар') + ' (' + fsEsc(fsTrLabel(fsGlobalTr())) + ')</option>' + FS_TR_LIST.map(function(x) { return '<option value="' + x[0] + '">' + fsEsc(fsT(x[1], x[2])) + '</option>'; }).join('');
+      var recOpts = '<option value="">' + fsT('Общие настройки', 'Жалпы баптаулар') + ' (' + fsEsc(fsRecLabel(fsGlobalRec())) + ')</option>' + ((typeof RECITER_LIST !== 'undefined') ? RECITER_LIST : []).map(function(r) { return '<option value="' + r.id + '">' + fsEsc(fsT(r.ru, r.kk)) + '</option>'; }).join('');
+      var ov = fsModal('<div class="fs-sheet-title">⚙ ' + fsEsc(fsName(f)) + '</div>' +
+        '<div class="fs-lbl">' + fsT('Перевод', 'Аударма') + '</div><select class="fs-input" id="fs-pf-tr">' + trOpts + '</select>' +
+        '<div class="fs-lbl">' + fsT('Чтец', 'Қари') + '</div><select class="fs-input" id="fs-pf-rec">' + recOpts + '</select>' +
+        '<div class="fs-path">' + fsT('«Применить» меняет только пока вы в этой папке. «Сохранить для папки» запоминает навсегда (и для вложенных папок).', '«Қолдану» тек осы қалтада тұрғанда әрекет етеді. «Қалта үшін сақтау» мәңгілікке есте сақтайды (ішкі қалталарға да).') + '</div>' +
+        '<div class="fs-row2" style="flex-wrap:wrap"><button type="button" class="btn btn-sm" id="fs-pf-reset">' + fsT('Сбросить', 'Тастау') + '</button><button type="button" class="btn btn-sm" id="fs-pf-tmp">' + fsT('Применить', 'Қолдану') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-pf-save">' + fsT('Сохранить для папки', 'Қалта үшін сақтау') + '</button></div>');
+      var sT = ov.querySelector('#fs-pf-tr'), sR = ov.querySelector('#fs-pf-rec');
+      sT.value = tr || ''; sR.value = rec || '';
+      var done = function() { fsCloseModal(ov); fsRenderBody(); if (onDone) onDone(); };
+      ov.querySelector('#fs-pf-tmp').addEventListener('click', function() { FSUI.temp = { fid: fid, tr: sT.value, rec: sR.value }; done(); });
+      ov.querySelector('#fs-pf-save').addEventListener('click', function() {
+        fsUpdate(fid, { d: { tr: sT.value, rec: sR.value } }); FSUI.temp = null; toast(fsT('Сохранено для папки', 'Қалта үшін сақталды')); done();
+      });
+      ov.querySelector('#fs-pf-reset').addEventListener('click', function() {
+        FSUI.temp = null; fsUpdate(fid, { d: { tr: '', rec: '' } }); done();
+      });
+    }
+
+    // ---------- облачная синхронизация по записям (таблица user_items) ----------
+    var FSC = { busy: false, timer: null, applying: false, last: 0 };
+    function fsHashId(str) {
+      var h1 = 0xdeadbeef ^ str.length, h2 = 0x41c6ce57 ^ str.length, h3 = 0x9e3779b9, h4 = 0x85ebca6b;
+      for (var i = 0; i < str.length; i++) {
+        var c = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); h3 = Math.imul(h3 ^ c, 2246822507); h4 = Math.imul(h4 ^ c, 3266489909);
+      }
+      var parts = [h1, h2, h3, h4].map(function(x, i) { x = Math.imul(x ^ (x >>> 16), 2246822507) ^ Math.imul(h1 ^ (h2 >>> 13), 3266489909); return ('00000000' + (x >>> 0).toString(16)).slice(-8); });
+      var hex = parts.join('');
+      return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-4' + hex.slice(13, 16) + '-8' + hex.slice(17, 20) + '-' + hex.slice(20, 32);
+    }
+    function fsCloudCtx() {
+      try {
+        var s = authSession(); if (!s || !s.online || !s.userId) return null;
+        var sb = getSb(); if (!sb) return null;
+        return { sb: sb, uid: s.userId };
+      } catch (e) { return null; }
+    }
+    function fsCloudSoon() {
+      try {
+        if (FSC.applying || FS.meta.syncOff || !fsCloudCtx()) return;
+        clearTimeout(FSC.timer);
+        FSC.timer = setTimeout(function() { fsCloudSync(false); }, 4000);
+      } catch (e) {}
+    }
+    function fsCloudErr(err, manual) {
+      var msg = String((err && (err.message || err.code)) || err || '');
+      var missing = (err && (err.code === '42P01' || err.code === 'PGRST205')) || /does not exist|schema cache|relation/i.test(msg);
+      FS.meta.lastErr = msg.slice(0, 160);
+      if (missing) { fsMetaSet('syncOff', 'table'); }
+      if (manual || missing) toast(missing ? fsT('В облаке нет таблицы user_items — синхронизация папок выключена', 'Бұлтта user_items кестесі жоқ — қалталар синхронизациясы өшірілді') : fsT('Ошибка синхронизации: ', 'Синхронизация қатесі: ') + msg.slice(0, 80));
+    }
+    async function fsCloudSync(manual) {
+      if (FSC.busy) return null;
+      var c = fsCloudCtx();
+      if (!c) { if (manual) toast(fsT('Войдите в аккаунт, чтобы синхронизировать', 'Синхронизация үшін аккаунтқа кіріңіз')); return null; }
+      if (!FS.ready) { await fsInit(); if (!FS.ready) return null; }
+      if (manual && FS.meta.syncOff) fsMetaSet('syncOff', '');
+      if (FS.meta.syncOff) return null;
+      FSC.busy = true;
+      var res = { pushed: 0, pulled: 0, conflicts: 0, locked: 0 };
+      var started = Date.now();
+      try {
+        if (!FS.remoteU) FS.remoteU = new Map();
+        var syncAt = FS.meta.syncAt || 0, cur = FS.meta.pulledU || 0, maxU = cur, guard = 0, LIM = 1000;
+        // 1) забрать чужие изменения
+        while (guard++ < 40) {
+          var q = await c.sb.from('user_items').select('id,data,u,del').eq('user_id', c.uid).gte('u', cur).order('u', { ascending: true }).limit(LIM);
+          if (q.error) { fsCloudErr(q.error, manual); FSC.busy = false; return null; }
+          var rows = q.data || [];
+          FSC.applying = true;
+          for (var i = 0; i < rows.length; i++) {
+            var row = rows[i], item = await fsFromRecord(row.data);
+            if (!item || !item.id) { res.locked++; continue; }
+            item.u = +row.u; item.del = row.del ? 1 : 0;
+            FS.remoteU.set(item.id, item.u);
+            if (row.u > maxU) maxU = +row.u;
+            var local = FS.items.get(item.id);
+            if (local && local.u === item.u) continue;
+            if (local && local.u > item.u) continue;
+            if (local && local.u > syncAt && !local.del && !item.del && !fsSameContent(local, item)) {
+              var cf = FS.items.get(FS_SYS.conflicts.id);
+              if (!cf || cf.del) { var nw = Date.now(); cf = { id: FS_SYS.conflicts.id, p: null, k: 'folder', n: '', d: { sys: 'conflicts' }, c: nw, u: nw, o: 0, del: 0 }; fsSave(cf); }
+              fsSave({ id: fsUuid(), p: cf.id, k: local.k, n: fsUniqueName(cf.id, fsName(local), null), d: JSON.parse(JSON.stringify(local.d || {})), c: local.c, u: Date.now(), o: 0, del: 0 });
+              res.conflicts++;
+            }
+            fsSave(item); res.pulled++;
+          }
+          FSC.applying = false;
+          if (rows.length < LIM) break;
+          var lastU = +rows[rows.length - 1].u;
+          if (lastU <= cur) break;
+          cur = lastU;
+        }
+        FSC.applying = false;
+        // 2) отправить свои
+        var pushedU = FS.meta.pushedU || 0, list = [];
+        FS.items.forEach(function(it) { if ((it.u || 0) > pushedU && FS.remoteU.get(it.id) !== it.u) list.push(it); });
+        list.sort(function(a, b) { return a.u - b.u; });
+        var maxPushed = pushedU;
+        for (var b = 0; b < list.length; b += 200) {
+          var batch = list.slice(b, b + 200);
+          var out = [];
+          for (var k = 0; k < batch.length; k++) { var rec = await fsToRecord(batch[k]); out.push({ user_id: c.uid, id: batch[k].id, data: rec, u: batch[k].u, del: !!batch[k].del }); }
+          var up = await c.sb.from('user_items').upsert(out, { onConflict: 'user_id,id' });
+          if (up && up.error) { fsCloudErr(up.error, manual); FSC.busy = false; return null; }
+          batch.forEach(function(it) { FS.remoteU.set(it.id, it.u); if (it.u > maxPushed) maxPushed = it.u; });
+          res.pushed += batch.length;
+        }
+        if (list.length) fsMetaSet('pushedU', maxPushed);
+        // 3) убрать в облаке старые метки удаления
+        try { await c.sb.from('user_items').delete().eq('user_id', c.uid).eq('del', true).lt('u', Date.now() - 30 * 86400000); } catch (e) {}
+        fsMetaSet('pulledU', maxU); fsMetaSet('syncAt', started); fsMetaSet('syncTs', Date.now());
+        FS.meta.lastErr = '';
+        try { recordCloudSync(); } catch (e) {}
+        if (res.pulled || res.conflicts) { fsSavedRebuild(); fsRefreshUi(); }
+        if (manual) toast(fsT('Синхронизировано: получено ' + res.pulled + ', отправлено ' + res.pushed + (res.conflicts ? ', конфликтов ' + res.conflicts : ''), 'Синхрондалды: алынды ' + res.pulled + ', жіберілді ' + res.pushed + (res.conflicts ? ', қайшылық ' + res.conflicts : '')));
+      } catch (e) { FSC.applying = false; fsCloudErr(e, manual); res = null; }
+      FSC.busy = false;
+      return res;
+    }
+    function fsCloudStatusText() {
+      var c = fsCloudCtx();
+      if (!c) return fsT('нужен вход в аккаунт', 'аккаунтқа кіру керек');
+      if (FS.meta.syncOff === 'table') return fsT('в облаке нет таблицы user_items', 'бұлтта user_items кестесі жоқ');
+      if (FS.meta.lastErr) return fsT('ошибка: ', 'қате: ') + FS.meta.lastErr;
+      return FS.meta.syncTs ? (fsT('последняя: ', 'соңғысы: ') + new Date(FS.meta.syncTs).toLocaleString()) : fsT('ещё не было', 'әлі болған жоқ');
+    }
+    try {
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible' && Date.now() - FSC.last > 60000 && FS.ready) { FSC.last = Date.now(); fsCloudSoon(); }
+      });
+    } catch (e) {}
+
+    // ---------- массовое создание (общий код для окна и шаблонов) ----------
+    function fsBulkApply(text, parentId) {
+      var rows = fsParseBulk(text), parents = [parentId || null], made = 0, failed = 0;
+      FS._noRebuild = true;
+      rows.forEach(function(r) {
+        var par = parents[r.level];
+        if (par === undefined) { failed++; return; }
+        var it = fsCreate({ k: r.kind, p: par, n: r.name, d: r.kind === 'note' ? { text: '' } : (r.kind === 'list' ? { items: [] } : {}), o: made });
+        if (!it) { failed++; parents.length = r.level + 1; return; }
+        made++;
+        parents.length = r.level + 1;
+        if (r.kind === 'folder') parents[r.level + 1] = it.id;
+      });
+      FS._noRebuild = false; fsSavedRebuild();
+      return { made: made, failed: failed };
+    }
+    function fsTemplates() {
+      var ju = [], sur = [], i;
+      for (i = 1; i <= 30; i++) ju.push(fsT('Джуз ', 'Жүз ') + i);
+      for (i = 1; i <= 114; i++) sur.push(i + '. ' + (typeof surahShortName === 'function' ? surahShortName(i) : i));
+      return [
+        { ico: '🎓', name: fsT('Хифз по джузам (30 папок)', 'Жүздер бойынша жаттау (30 қалта)'), text: ju.join('\n') },
+        { ico: '📚', name: fsT('114 сур (папки)', '114 сүре (қалталар)'), text: sur.join('\n') },
+        { ico: '🌿', name: fsT('Темы Корана', 'Құран тақырыптары'), text: [fsT('Вера', 'Иман'), fsT('Намаз', 'Намаз'), fsT('Милосердие', 'Мейірім'), fsT('Терпение', 'Сабыр'), fsT('Семья', 'Отбасы'), fsT('Знание', 'Білім'), fsT('Истории пророков', 'Пайғамбарлар қиссасы'), fsT('Покаяние', 'Тәубе')].join('\n') },
+        { ico: '🤲', name: fsT('Дуа на каждый день', 'Күнделікті дұғалар'), text: [fsT('Утро', 'Таң'), fsT('Вечер', 'Кеш'), fsT('Еда', 'Тамақ'), fsT('Сон', 'Ұйқы'), fsT('Дорога', 'Жол'), fsT('Дом', 'Үй'), fsT('Трудности', 'Қиындық')].join('\n') },
+        { ico: '📅', name: fsT('План недели (список)', 'Апта жоспары (тізім)'), text: [fsT('Понедельник', 'Дүйсенбі'), fsT('Вторник', 'Сейсенбі'), fsT('Среда', 'Сәрсенбі'), fsT('Четверг', 'Бейсенбі'), fsT('Пятница', 'Жұма'), fsT('Суббота', 'Сенбі'), fsT('Воскресенье', 'Жексенбі')].map(function(x) { return x + '.list'; }).join('\n') }
+      ];
+    }
+    function fsTemplatesMenu() {
+      var tps = fsTemplates();
+      fsSheet(fsT('Шаблоны (создаются в текущей папке)', 'Үлгілер (ағымдағы қалтада жасалады)'), tps.map(function(t) {
+        return { ico: t.ico, label: t.name, fn: function() {
+          var r = fsBulkApply(t.text, FSUI.cur); fsRenderBody();
+          toast(fsT('Создано: ' + r.made + (r.failed ? ', пропущено: ' + r.failed : ''), 'Жасалды: ' + r.made + (r.failed ? ', өткізілді: ' + r.failed : '')));
+        } };
+      }));
+    }
+
+    // ---------- корзина ----------
+    function fsCollectAll(id) {
+      var out = [id], i = 0;
+      while (i < out.length) { var cur = out[i++]; FS.items.forEach(function(it) { if (it.p === cur && out.indexOf(it.id) < 0) out.push(it.id); }); }
+      return out;
+    }
+    function fsTrashRoots() {
+      var out = [];
+      FS.items.forEach(function(it) {
+        if (!it.del || it.gone) return;
+        var par = it.p ? FS.items.get(it.p) : null;
+        if (par && par.del) return;
+        out.push(it);
+      });
+      out.sort(function(a, b) { return (b.u || 0) - (a.u || 0); });
+      return out;
+    }
+    function fsTrashDialog() {
+      var ov = fsModal('<div class="fs-sheet-title">🗑 ' + fsT('Корзина', 'Себет') + '</div><div class="fs-path">' + fsT('Удалённое хранится 30 дней.', 'Жойылғандар 30 күн сақталады.') + '</div><div id="fs-tr-list"></div>' +
+        '<div class="fs-row2"><button type="button" class="btn btn-sm fs-danger" id="fs-tr-empty">' + fsT('Очистить корзину', 'Себетті тазалау') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-tr-ok">' + fsT('Закрыть', 'Жабу') + '</button></div>', 'fs-tall');
+      var box = ov.querySelector('#fs-tr-list');
+      var draw = function() {
+        var roots = fsTrashRoots();
+        box.innerHTML = roots.length ? roots.map(function(it) {
+          var n = fsCollectAll(it.id).length;
+          return '<div class="fs-row" style="cursor:default"><span class="fs-ico">' + (fsKindIcon(it) || '📁') + '</span><span class="fs-main"><b class="fs-name">' + fsEsc(fsName(it)) + '</b><span class="fs-sub">' + (n > 1 ? n + ' ' + fsT('эл.', 'бел.') + ' · ' : '') + fsEsc(fsPath(it.p).join(' › ')) + '</span></span>' +
+            '<button type="button" class="btn btn-sm" data-rs="' + it.id + '">↩</button><button type="button" class="btn btn-sm fs-danger" data-rm="' + it.id + '">✕</button></div>';
+        }).join('') : '<div class="empty-state"><p>' + fsT('Корзина пуста.', 'Себет бос.') + '</p></div>';
+      };
+      draw();
+      var wipe = function(id) {
+        var now = Date.now();
+        fsCollectAll(id).forEach(function(x) { var it = FS.items.get(x); if (it) { it.gone = 1; it.d = {}; it.n = ''; it.u = now; fsSave(it); } });
+      };
+      box.addEventListener('click', function(e) {
+        var rs = e.target.closest('[data-rs]'), rm = e.target.closest('[data-rm]');
+        if (rs) {
+          var id = rs.getAttribute('data-rs'), it = FS.items.get(id), now = Date.now();
+          var par = it.p ? FS.items.get(it.p) : null;
+          if (it.p && (!par || par.del)) { it.p = null; }
+          fsCollectAll(id).forEach(function(x) { var y = FS.items.get(x); if (y && !y.gone) { y.del = 0; y.u = now; fsSave(y); } });
+          draw(); fsRefreshUi(); toast(fsT('Восстановлено', 'Қалпына келтірілді'));
+        } else if (rm) { wipe(rm.getAttribute('data-rm')); draw(); }
+      });
+      ov.querySelector('#fs-tr-empty').addEventListener('click', function() { fsTrashRoots().forEach(function(it) { wipe(it.id); }); draw(); });
+      ov.querySelector('#fs-tr-ok').addEventListener('click', function() { fsCloseModal(ov); });
+    }
+
+    // ---------- «выучил» (общая отметка приложения) и прогресс папки ----------
+    function fsAyahLearned(it) { try { return !!(it.d && it.d.s && isAyahLearned(it.d.s, it.d.a)); } catch (e) { return false; } }
+    function fsToggleLearned(it) {
+      try {
+        var key = ayahKey(it.d.s, it.d.a);
+        if (!state.learnedAyahs) state.learnedAyahs = {};
+        if (state.learnedAyahs[key]) delete state.learnedAyahs[key]; else state.learnedAyahs[key] = true;
+        saveState();
+        return !!state.learnedAyahs[key];
+      } catch (e) { return false; }
+    }
+    function fsFolderAyahs(fid) {
+      var out = [];
+      (function walk(id) { fsChildren(id).forEach(function(c) { if (c.k === 'ayah') out.push(c); else if (c.k === 'folder') walk(c.id); }); })(fid);
+      return out;
+    }
+    function fsFolderProgress(fid) {
+      var list = fsFolderAyahs(fid); if (!list.length) return null;
+      var done = list.filter(fsAyahLearned).length;
+      return { n: list.length, done: done };
+    }
+
+    // ---------- слушать папку (плейлист) ----------
+    var FSPL = { list: [], i: 0, audio: null, on: false };
+    function fsPlStop() {
+      FSPL.on = false;
+      try { if (FSPL.audio) { FSPL.audio.pause(); FSPL.audio = null; } } catch (e) {}
+      var bar = document.getElementById('fs-plbar'); if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
+    }
+    function fsPlPaint() {
+      var bar = document.getElementById('fs-plbar');
+      if (!bar) { bar = document.createElement('div'); bar.id = 'fs-plbar'; document.body.appendChild(bar); }
+      var it = FSPL.list[FSPL.i];
+      bar.innerHTML = '<span>▶ ' + fsEsc(it ? fsRefTitle(it) : '') + ' <i>' + (FSPL.i + 1) + '/' + FSPL.list.length + '</i></span>' +
+        '<button type="button" data-pl="prev">⏮</button><button type="button" data-pl="pp">' + (FSPL.audio && !FSPL.audio.paused ? '⏸' : '▶') + '</button><button type="button" data-pl="next">⏭</button><button type="button" data-pl="stop">✕</button>';
+      bar.onclick = function(e) {
+        var b = e.target.closest('[data-pl]'); if (!b) return;
+        var a = b.getAttribute('data-pl');
+        if (a === 'stop') fsPlStop();
+        else if (a === 'next') fsPlGo(FSPL.i + 1);
+        else if (a === 'prev') fsPlGo(Math.max(0, FSPL.i - 1));
+        else if (a === 'pp') { if (FSPL.audio) { if (FSPL.audio.paused) FSPL.audio.play().catch(function() {}); else FSPL.audio.pause(); fsPlPaint(); } }
+      };
+    }
+    function fsPlGo(i) {
+      if (i >= FSPL.list.length) { fsPlStop(); toast(fsT('Папка прослушана', 'Қалта тыңдалып болды')); return; }
+      FSPL.i = i;
+      try { if (FSPL.audio) FSPL.audio.pause(); } catch (e) {}
+      try { if (FS.audio) FS.audio.pause(); } catch (e) {}
+      var it = FSPL.list[i], rec = fsPrefs(it.p).rec || undefined;
+      var au = new Audio(ayahAudioUrl(it.d.s, it.d.a, rec));
+      FSPL.audio = au;
+      au.addEventListener('ended', function() { if (FSPL.on && FSPL.audio === au) fsPlGo(FSPL.i + 1); });
+      au.addEventListener('error', function() { if (FSPL.on && FSPL.audio === au) { toast(fsT('Не удалось воспроизвести (нужен интернет)', 'Ойнату мүмкін болмады (интернет керек)')); fsPlStop(); } });
+      au.play().then(fsPlPaint).catch(function() { fsPlPaint(); });
+      fsPlPaint();
+    }
+    function fsPlayFolder(fid) {
+      var list = fsFolderAyahs(fid);
+      if (!list.length) { toast(fsT('В папке нет аятов', 'Қалтада аят жоқ')); return; }
+      fsPlStop(); FSPL.list = list; FSPL.on = true; fsPlGo(0);
+    }
+
+    // ---------- разложить аяты по сурам ----------
+    function fsGroupBySurah(fid) {
+      var ayahs = fsAllChildren(fid).filter(function(x) { return x.k === 'ayah'; });
+      if (!ayahs.length) { toast(fsT('Здесь нет аятов для раскладки', 'Мұнда реттейтін аят жоқ')); return; }
+      var created = [], moves = [], failed = 0;
+      var byS = {};
+      ayahs.forEach(function(x) { (byS[x.d.s] = byS[x.d.s] || []).push(x); });
+      Object.keys(byS).forEach(function(s) {
+        var nm = (typeof surahShortName === 'function' ? surahShortName(+s) : ('' + s));
+        var folder = fsAllChildren(fid).filter(function(x) { return x.k === 'folder' && fsName(x).toLowerCase() === nm.toLowerCase(); })[0];
+        if (!folder) { folder = fsCreate({ k: 'folder', p: fid, n: nm }); if (folder) created.push(folder.id); }
+        if (!folder) { failed += byS[s].length; return; }
+        var res = fsMove(byS[s].map(function(x) { return x.id; }), folder.id);
+        moves = moves.concat(res.moved); failed += res.failed;
+      });
+      fsRenderBody();
+      fsSnack(fsT('Разложено по сурам: ' + moves.length, 'Сүрелер бойынша реттелді: ' + moves.length), [{ label: fsT('Отмена', 'Болдырмау'), fn: function() { fsMoveUndo({ moved: moves }); created.forEach(function(id) { fsPurgeNow(id); }); fsRefreshUi(); } }]);
+    }
+
+    // ---------- слова ----------
+    function fsOpenWord(id) {
+      var it = FS.items.get(id); if (!it) return;
+      var d = it.d || {};
+      var ov = fsModal('<div class="fs-sheet-title">' + fsEsc(fsName(it)) + '</div>' +
+        '<div class="fs-path">' + fsEsc(fsPath(it.p).join(' › ')) + '</div>' +
+        (d.ar ? '<div class="arabic fs-view-ar" dir="rtl">' + fsEsc(d.ar) + '</div>' : '') +
+        (d.transcription ? '<div class="fs-sub">' + fsEsc(d.transcription) + '</div>' : '') +
+        '<div class="fs-lbl">' + fsT('Значение / заметка', 'Мағынасы / жазба') + '</div><textarea class="fs-input" id="fs-wd-mean" rows="4" maxlength="2000">' + fsEsc(d.mean || '') + '</textarea>' +
+        '<div class="fs-row2"><button type="button" class="btn btn-sm" id="fs-wd-move">' + fsT('Переместить', 'Жылжыту') + '</button><button type="button" class="btn btn-sm fs-danger" id="fs-wd-del">' + fsT('Удалить', 'Жою') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-wd-ok">' + fsT('Готово', 'Дайын') + '</button></div>');
+      var t = ov.querySelector('#fs-wd-mean');
+      ov._onClose = function() { var cur = FS.items.get(id); if (cur && (cur.d.mean || '') !== t.value) fsUpdate(id, { d: { mean: t.value } }); fsRefreshUi(); };
+      ov.querySelector('#fs-wd-move').addEventListener('click', function() { fsCloseModal(ov); fsMoveDialog([id]); });
+      ov.querySelector('#fs-wd-del').addEventListener('click', function() { fsCloseModal(ov); fsDeleteWithUndo([id]); });
+      ov.querySelector('#fs-wd-ok').addEventListener('click', function() { fsCloseModal(ov); });
+    }
+
+    // ---------- перенос из старых разделов (словарь, библиотека) — копирование ----------
+    function fsImportOld() {
+      fsWhenReady(function() {
+        var made = { words: 0, notes: 0 }, now = Date.now();
+        var mkFolder = function(key, name, parent) {
+          var id = fsHashId('old:' + key);
+          if (FS.items.has(id)) return FS.items.get(id);
+          return fsCreate({ id: id, k: 'folder', p: parent, n: name, d: {} });
+        };
+        FS._noRebuild = true;
+        try {
+          var dict = (state.dictionary || []);
+          if (dict.length) {
+            var droot = mkFolder('dict-root', fsT('Словарь', 'Сөздік'), null);
+            var dmap = {};
+            (state.dictFolders || []).forEach(function(f) { if (f && f.id && f.id !== 'all') { var ff = mkFolder('dict-f:' + f.id, f.name || f.id, droot && droot.id); if (ff) dmap[f.id] = ff.id; } });
+            dict.forEach(function(w, idx) {
+              var key = 'dict:' + (w.at || '') + ':' + (w.word || w.ar || '') + ':' + idx;
+              var id = fsHashId('old:' + key); if (FS.items.has(id)) return;
+              var name = String(w.word || w.ar || w.tr || '').slice(0, FS_LIMITS.nameChars); if (!name) return;
+              var it = fsCreate({ id: id, k: 'word', p: dmap[w.folder] || (droot && droot.id) || null, n: name, d: { title: name, ar: fsClip(w.ar || '', 500), mean: fsClip(w.mean || w.meaning || '', 2000), tr: fsClip(w.tr || '', 500), transcription: fsClip(w.transcription || '', 300) }, c: w.at || now });
+              if (it) made.words++;
+            });
+          }
+          var lib = (state.library || []);
+          if (lib.length) {
+            var lroot = mkFolder('lib-root', fsT('Библиотека', 'Кітапхана'), null);
+            var lmap = {};
+            (state.libraryFolders || []).forEach(function(f) { if (f && f.id && f.id !== 'default') { var ff = mkFolder('lib-f:' + f.id, f.name || f.id, lroot && lroot.id); if (ff) lmap[f.id] = ff.id; } });
+            lib.forEach(function(x, idx) {
+              var key = 'lib:' + (x.id || idx) + ':' + String(x.content || x.title || '').slice(0, 20);
+              var id = fsHashId('old:' + key); if (FS.items.has(id)) return;
+              var text = String(x.content || x.text || ''); var title = String(x.title || text.replace(/\s+/g, ' ').slice(0, 40) || fsT('Запись', 'Жазба'));
+              var it = fsCreate({ id: id, k: 'note', p: lmap[x.folder] || (lroot && lroot.id) || null, n: title, d: { text: fsClip(text + (x.url ? '\n' + x.url : ''), FS_LIMITS.noteChars) } });
+              if (it) made.notes++;
+            });
+          }
+        } catch (e) { console.warn('fsImportOld', e); }
+        FS._noRebuild = false; fsSavedRebuild();
+        fsRenderBody();
+        toast(made.words || made.notes ? fsT('Перенесено: слов ' + made.words + ', записей ' + made.notes + ' (старые разделы остались)', 'Көшірілді: сөз ' + made.words + ', жазба ' + made.notes + ' (ескі бөлімдер қалды)') : fsT('Переносить нечего или уже перенесено', 'Көшіретін ештеңе жоқ немесе көшірілген'));
+      });
+    }
+
 // @@MODULE app-08-names-sources — 99 имён Аллаха, единый шаблон источников
 
     // ========== 99 NAMES ==========
@@ -31536,11 +33554,11 @@ async function renderStats() {
       var ovSAll = sumInPeriod(allS, 'all');
 
       var dictN = (state.dictionary || []).length;
-      var bmN = (state.bookmarks || []).length;
+      var bmN = (typeof fsBookmarkCount === 'function' && fsBookmarkCount() != null) ? fsBookmarkCount() : (state.bookmarks || []).length;
       var notesN = Object.keys(state.notes || {}).length;
       var learnedN = Object.keys(state.learnedAyahs || {}).length;
       var listenMin = Math.round((s.listenSeconds || 0) / 60);
-      var foldersN = (state.bookmarkFolders || []).length;
+      var foldersN = (typeof fsFolderCount === 'function' && fsFolderCount() != null) ? fsFolderCount() : (state.bookmarkFolders || []).length;
 
       var html = '';
 
@@ -33089,7 +35107,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       const prayers = (state.prayerLog && state.prayerLog[dayKey]) || {};
       const pDone = ['fajr','dhuhr','asr','maghrib','isha'].filter(k => prayers[k]).length;
       const dictN = (state.dictionary || []).length;
-      const bmN = (state.bookmarks || []).length;
+      const bmN = (typeof fsBookmarkCount === 'function' && fsBookmarkCount() != null) ? fsBookmarkCount() : (state.bookmarks || []).length;
       const widgets = ''; // убраны: намаз 0/5, аят дня, зикр, словарь — есть ниже / в «Ещё»
       const kkLang = state.settings.lang === 'kk';
       const isKk = kkLang; // boolean for local templates
@@ -33170,10 +35188,10 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
               ];
               if (state.settings && state.settings.widgetDuha === true) {
                 // optional: insert after sunrise
-                cells.splice(2, 0, ['duha', tLabel('Духа'), t.duha || '—']);
+                cells.splice(2, 0, ['duha', tLabel('Духа') + ' ≈', t.duha || '—']);
               }
               if (state.settings && state.settings.widgetTahajjud) {
-                cells.push(['tahajjud', tLabel('Тахаджуд'), t.tahajjud || '—']);
+                cells.push(['tahajjud', tLabel('Тахаджуд') + ' ≈', t.tahajjud || '—']);
               }
               // build 5.64: можно кликнуть по любой карточке времени (напр. «Аср»)
               // и виджет покажет обратный отсчёт именно до неё, а не только до
@@ -33307,7 +35325,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         sunnah: '<div class="card" style="cursor:pointer" data-go-sunnah="1" title="'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу':'Нажмите — открыть в разделе «Сунны»')+'"><div style="display:flex;justify-content:space-between"><b>🌱 '+(isKk?'Күн сүннеті':'Сунна дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-sunnah="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><b>'+(isKk&&sun.titleKk?sun.titleKk:sun.title)+'</b><div class="ayah-translation">'+(isKk&&sun.kk?sun.kk:sun.ru)+'</div><div style="font-size:0.85rem;color:var(--text-muted)">'+sun.proof+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу →':'Нажмите — открыть в разделе «Сунны» →')+'</div></div>',
         word: '<div class="card"><div style="display:flex;justify-content:space-between"><b>🔤 '+(isKk?'Күн сөзі':'Слово дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-word="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic">'+word.ar+'</div><div>'+word.tr+' — '+(isKk&&word.kk?word.kk:word.ru)+'</div></div>'
       };
-      const widgetOrder = (typeof getDailyWidgetOrder === 'function') ? getDailyWidgetOrder() : ['events','prayer','teachernext','ayah','command','story','dua','name','hadith','sunnah','word'];
+      const widgetOrder = (typeof getDailyWidgetOrder === 'function') ? getDailyWidgetOrder() : ['prayer','events','teachernext','ayah','command','story','dua','name','hadith','sunnah','word'];
       // build 5.75: приветствие по имени + «аватар» (буква имени или 🌙)
       // сверху «Ежедневного», вместо безликого набора карточек с ходу.
       // Плюс поздравление в особые дни: пятница (Джума) и Айт (по датам
@@ -33427,9 +35445,9 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       // отрисован в последний раз — после полуночи она показывала времена
       // уже прошедшего дня. Теперь каждую секунду сверяем календарную дату,
       // и при её смене перерисовываем виджет целиком со свежим днём.
-      window._dhPrayerCountdownDate = new Date().toDateString();
+      window._dhPrayerCountdownDate = ptWall(new Date(), ptCurTz(new Date())).toDateString();
       window._dhPrayerCountdownTimer = setInterval(function() {
-        const todayStr = new Date().toDateString();
+        const todayStr = ptWall(new Date(), ptCurTz(new Date())).toDateString();
         if (todayStr !== window._dhPrayerCountdownDate) {
           window._dhPrayerCountdownDate = todayStr;
           renderDailyHub();
@@ -33470,7 +35488,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         if (document.visibilityState !== 'visible') return;
         const cd = document.getElementById('dh-prayer-countdown');
         if (!cd) return; // виджет сейчас не на экране — сам интервал уже погашен
-        const todayStr = new Date().toDateString();
+        const todayStr = ptWall(new Date(), ptCurTz(new Date())).toDateString();
         if (todayStr !== window._dhPrayerCountdownDate) {
           window._dhPrayerCountdownDate = todayStr;
           renderDailyHub();
@@ -40836,15 +42854,51 @@ c.addEventListener('click', () => {
         const blob = await new Promise(function(res){ canvas.toBlob(res, 'image/png', 0.95); });
         if (!blob) throw new Error('canvas.toBlob вернул пусто');
         const file = new File([blob], 'quran-academy-card.png', { type: 'image/png' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: opts.kicker || '' });
-        } else {
+        // build 6.31: на ПК (Windows) navigator.share открывал системное окно с
+        // OneNote/Почтой — неудобно. На компьютере вместо него свой маленький выбор:
+        // скачать / скопировать картинку. На телефоне — системное «Поделиться», как было.
+        const isMobileDev = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+          (navigator.maxTouchPoints > 1 && window.matchMedia && matchMedia('(pointer:coarse)').matches);
+        const dlPng = function() {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url; a.download = 'quran-academy-card.png';
           document.body.appendChild(a); a.click(); a.remove();
           setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
           toast(opts.kk ? 'Сурет жүктелді' : 'Картинка сохранена');
+        };
+        if (isMobileDev && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: opts.kicker || '' });
+        } else if (!isMobileDev) {
+          const canCopy = !!(navigator.clipboard && window.ClipboardItem);
+          const old = document.getElementById('share-desktop-modal');
+          if (old) old.remove();
+          const ov = document.createElement('div');
+          ov.id = 'share-desktop-modal';
+          ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:1rem';
+          ov.innerHTML = '<div class="card" style="max-width:22rem;width:100%">' +
+            '<b>' + (opts.kk ? 'Бөлісу' : 'Поделиться') + '</b>' +
+            '<img alt="" style="width:100%;max-height:50vh;object-fit:contain;margin:0.6rem 0;border-radius:0.5rem" src="' + URL.createObjectURL(blob) + '">' +
+            '<div style="display:flex;flex-direction:column;gap:0.4rem">' +
+              '<button type="button" class="btn btn-sm" data-sh="dl">⬇️ ' + (opts.kk ? 'Суретті жүктеу' : 'Скачать картинку') + '</button>' +
+              (canCopy ? '<button type="button" class="btn btn-sm" data-sh="copy">📋 ' + (opts.kk ? 'Суретті көшіру' : 'Копировать картинку') + '</button>' : '') +
+              '<button type="button" class="btn btn-sm" data-sh="close">' + (opts.kk ? 'Жабу' : 'Закрыть') + '</button>' +
+            '</div></div>';
+          document.body.appendChild(ov);
+          const closeOv = function() { const im = ov.querySelector('img'); if (im) URL.revokeObjectURL(im.src); ov.remove(); };
+          ov.addEventListener('click', function(ev) { if (ev.target === ov) closeOv(); });
+          ov.querySelector('[data-sh="close"]').addEventListener('click', closeOv);
+          ov.querySelector('[data-sh="dl"]').addEventListener('click', function() { dlPng(); closeOv(); });
+          const cp = ov.querySelector('[data-sh="copy"]');
+          if (cp) cp.addEventListener('click', async function() {
+            try {
+              await navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]);
+              toast(opts.kk ? 'Сурет көшірілді' : 'Картинка скопирована');
+              closeOv();
+            } catch (e2) { toast(opts.kk ? 'Көшіру мүмкін болмады — жүктеп алыңыз' : 'Не удалось скопировать — скачайте картинку'); }
+          });
+        } else {
+          dlPng();
         }
       } catch(e) {
         // Пользователь просто закрыл системное меню «Поделиться» — не ошибка, промолчать
@@ -49926,6 +51980,7 @@ function getMyVocab() {
         '<div style="display:flex;flex-direction:column;gap:0.4rem">' +
         '<button type="button" class="btn btn-sm btn-primary" id="term-to-dict">📖 '+(kkTerm ? 'Сөздікке' : 'В словарь')+'</button>' +
         '<button type="button" class="btn btn-sm" id="term-to-bm">📑 '+(kkTerm ? 'Бетбелгіге' : 'В закладки')+'</button>' +
+        '<button type="button" class="btn btn-sm" id="term-to-folder">📁 '+(kkTerm ? 'Қалтаға…' : 'В папку…')+'</button>' +
         '<button type="button" class="btn btn-sm" id="term-close">'+(kkTerm ? 'Жабу' : 'Закрыть')+'</button></div>';
       panel.style.display = 'block';
 
@@ -49958,6 +52013,20 @@ function getMyVocab() {
         addTextBookmark(word, (meanEl && meanEl.value || '').trim());
         close();
       });
+      document.getElementById('term-to-folder')?.addEventListener('click', () => {
+        const word = readText();
+        if (!word) { toast('Введите текст'); return; }
+        const mean = (meanEl && meanEl.value || '').trim();
+        try {
+          fsWhenReady(function() {
+            fsPickFolder({ title: kkTerm ? 'Қайда сақтау' : 'Куда сохранить', onPick: function(pid) {
+              var tt = word.slice(0, 500);
+              var it = fsCreate({ k: 'note', p: pid, n: tt.replace(/\s+/g, ' ').slice(0, 40), d: { text: tt + (mean && mean !== tt ? '\n\n' + mean : '') } });
+              if (it) { fsMetaSet('lastFolder', pid || FS_SYS.bookmarks.id); toast(kkTerm ? 'Қалтаға қосылды' : 'Добавлено в папку'); close(); fsRefreshUi(); }
+            } });
+          });
+        } catch (e) { addTextBookmark(word, mean); close(); }
+      });
       document.getElementById('term-close')?.addEventListener('click', close);
 
       // фокус в поле — удобно дописать слова
@@ -49984,6 +52053,17 @@ function getMyVocab() {
       state.bookmarkFolders = state.bookmarkFolders.filter((f, i, a) => a.indexOf(f) === i);
     }
     function addTextBookmark(text, note) {
+      try {
+        if (typeof fsAddNoteTo === 'function' && !(isAppLockEnabled() && !cryptoKey)) {
+          fsWhenReady(function() {
+            var tt = String(text || '').slice(0, 500), nn = String(note || '').slice(0, 500);
+            fsAddNoteTo(null, tt.replace(/\s+/g, ' ').slice(0, 40), tt + (nn && nn !== tt ? '\n\n' + nn : ''));
+            toast(isKk() ? 'Қалтаға қосылды' : 'Добавлено в папку');
+            fsRefreshUi();
+          });
+          return;
+        }
+      } catch (e) {}
       if (!state.bookmarks) state.bookmarks = [];
       normalizeBmFolders();
       const fold = (typeof state.lastBookmarkFolder === 'string' && state.lastBookmarkFolder) || 'Без папки';
@@ -53904,12 +55984,71 @@ function startApp() {
         }
         if (h == null || isNaN(h)) return;
         S.hRaw = h; S.hTarget = norm(h + (S.corr || 0)); S.lastEv = Date.now();
+        pushHist(h);
+      }
+      // build 6.32: стабильность датчика — «дрожание» курса (вторая разность убирает плавный поворот самим человеком)
+      function pushHist(h) {
+        var now = Date.now();
+        if (!S.hist) S.hist = [];
+        var last = S.hist[S.hist.length - 1];
+        if (last && now - last.t < 45) return;
+        S.hist.push({ t: now, h: h }); if (S.hist.length > 26) S.hist.shift();
+      }
+      function jitter() {
+        var a = S.hist || []; if (a.length < 12) return null;
+        var sum = 0, n = 0;
+        for (var i = 2; i < a.length; i++) { sum += Math.abs(wrap180(a[i].h - 2 * a[i - 1].h + a[i - 2].h)); n++; }
+        return sum / n;
+      }
+      function sensorQuality() {
+        var j = jitter(), acc = S.compAcc;
+        if (typeof acc === 'number' && (acc < 0 || acc > 35)) return 'bad';
+        if (j == null) return null;
+        if (typeof acc === 'number' && acc > 15) return j > 3 ? 'bad' : 'mid';
+        return j < 2.5 ? 'good' : (j < 5 ? 'mid' : 'bad');
+      }
+      function paintQuality() {
+        var el = $('qb-qual'); if (!el) return;
+        var q = sensorQuality();
+        if (!q) { el.textContent = ''; return; }
+        S.badN = q === 'bad' ? (S.badN || 0) + 1 : 0;
+        var txt = q === 'good' ? '🟢 ' + T('Датчик стабилен', 'Датчик тұрақты')
+          : q === 'mid' ? '🟡 ' + T('Датчик неточен — держите телефон ровнее', 'Датчик дәл емес — телефонды тегіс ұстаңыз')
+          : '🔴 ' + T('Датчик «прыгает»: отойдите от металла и магнитов, помашите телефоном «восьмёркой» в воздухе и повторите', 'Датчик «секіріп» тұр: металл мен магниттен алыстап, телефонды ауада «сегіздік» жасап айналдырыңыз да, қайталаңыз');
+        el.textContent = txt; el.className = 'qb-qual qb-q-' + q;
+      }
+      // направление «солнце точно в сторону киблы»: азимут Солнца = азимуту киблы (в любой день года)
+      function sunQiblaMoments() {
+        var p = S.pos; if (!p) return { list: [], tz: 0 };
+        var tz = getPlaceTz(p.lat, p.lon, new Date());
+        var w = ptWall(new Date(), tz);
+        var start = ptReal(new Date(w.getFullYear(), w.getMonth(), w.getDate(), 0, 0, 0), tz).getTime();
+        var res = [], prev = null;
+        for (var m = 0; m <= 1440; m += 2) {
+          var t = start + m * 60000, sp = sunPos(new Date(t), p.lat, p.lon), d = wrap180(sp.az - S.q);
+          if (prev != null && prev * d <= 0 && Math.abs(prev - d) < 90 && sp.el > 5) res.push({ t: t, el: sp.el });
+          prev = d;
+        }
+        return { list: res, tz: tz };
+      }
+      function stopWalk() { if (S.walk != null) { try { navigator.geolocation.clearWatch(S.walk); } catch (e) {} S.walk = null; } clearTimeout(S.walkT); }
+      // конус «куда вы смотрите» на карте
+      function drawCone(head) {
+        var m = S.map, ml = S.ml, p = S.pos;
+        if (!m || !ml || !p) return;
+        if (S.mode === 'far') { if (ml.cone) { m.removeLayer(ml.cone); ml.cone = null; } return; }
+        var sz = m.getSize(), z = m.getZoom(), mpp = 156543.03392 * Math.cos(p.lat * RAD) / Math.pow(2, z);
+        var len = Math.max(40, 0.3 * Math.min(sz.x, sz.y) * mpp), pts = [[p.lat, p.lon]];
+        for (var a = -22; a <= 22; a += 11) pts.push(dest(p.lat, p.lon, head + a, len));
+        if (!ml.cone) ml.cone = L.polygon(pts, { color: '#3b82f6', weight: 1, fillColor: '#3b82f6', fillOpacity: 0.3, interactive: false }).addTo(m);
+        else ml.cone.setLatLngs(pts);
       }
       function stopCompass() {
         S.on = false;
         try { window.removeEventListener('deviceorientationabsolute', onOri, true); window.removeEventListener('deviceorientation', onOri, true); } catch (e) {}
         if (S.raf) { cancelAnimationFrame(S.raf); S.raf = null; }
         clearTimeout(S.noSigT);
+        try { if (S.ml && S.ml.cone && S.map) { S.map.removeLayer(S.ml.cone); S.ml.cone = null; } } catch (e) {}
       }
       function setStatus(html, cls) {
         var s = $('qb-status'); if (!s) return;
@@ -53927,7 +56066,7 @@ function startApp() {
           dial.style.transform = 'rotate(' + (-S.rotDisp) + 'deg)';
           var arrow = $('qb-arrow'); if (arrow) arrow.style.transform = 'rotate(' + (S.q - S.rotDisp) + 'deg)';
           var delta = ((S.q - head + 540) % 360) - 180;
-          var ok = Math.abs(delta) <= (S.aligned ? 8 : 5);
+          var ok = Math.abs(delta) <= (S.aligned ? 12 : 8);
           var wrap = $('qb-dialwrap');
           if (ok !== !!S.aligned) {
             S.aligned = ok;
@@ -53942,13 +56081,16 @@ function startApp() {
             else setStatus((delta > 0 ? T('Поверните вправо', 'Оңға бұрылыңыз') + ' ↻ ' : T('Поверните влево', 'Солға бұрылыңыз') + ' ↺ ') + '<b>' + a + '°</b>');
           }
           var hd = $('qb-head'); if (hd) hd.textContent = Math.round(head) + '° ' + dirWord(head);
+          var nowT = Date.now();
+          if (!S.coneT || nowT - S.coneT > 120) { S.coneT = nowT; try { drawCone(head); } catch (e) {} }
+          if (!S.qualT || nowT - S.qualT > 500) { S.qualT = nowT; paintQuality(); }
         }
         S.raf = requestAnimationFrame(tick);
       }
       function startCompass(fromClick) {
         if (S.on) return;
         function go() {
-          S.on = true; S.hTarget = null; S.rotDisp = null; S.sawRelative = false; S.lastEv = 0; S.lastKey = null;
+          S.on = true; S.hTarget = null; S.rotDisp = null; S.sawRelative = false; S.lastEv = 0; S.lastKey = null; S.hist = []; S.badN = 0;
           try { window.addEventListener('deviceorientationabsolute', onOri, true); } catch (e) {}
           try { window.addEventListener('deviceorientation', onOri, true); } catch (e) {}
           var b = $('qb-compass-btn'); if (b) { b.textContent = T('Выключить компас', 'Компасты өшіру'); b.classList.add('btn-primary'); }
@@ -53977,21 +56119,39 @@ function startApp() {
         var box = $('qb-pos-msg');
         if (!navigator.geolocation) { if (box) box.textContent = T('Браузер не поддерживает определение места.', 'Браузер орынды анықтауды қолдамайды.'); return; }
         stopGeo();
-        if (box) box.textContent = T('Определяю место…', 'Орынды анықтап жатыр…');
+        if (box) { box.classList.remove('qb-st-warn'); box.textContent = T('Определяю место…', 'Орынды анықтап жатыр…'); }
         var btn = $('qb-locate'); if (btn) btn.disabled = true;
+        var gotFix = false, lowTried = false;
         var done = function () { stopGeo(); var b = $('qb-locate'); if (b) b.disabled = false; };
-        S.watch = navigator.geolocation.watchPosition(function (p) {
-          var c = p.coords;
-          applyPos({ lat: c.latitude, lon: c.longitude, acc: c.accuracy, src: 'gps', ts: Date.now() }, true);
-          if (c.accuracy <= 30) done();
-        }, function (err) {
+        function fail(err) {
           done();
           var m = err && err.code === 1 ? T('Доступ к месту запрещён. Нажмите на значок замка рядом с адресом сайта → «Местоположение» → «Разрешить».', 'Орынға рұқсат берілмеген. Сайт мекенжайының жанындағы құлып белгісі → «Орын» → «Рұқсат ету».')
             : err && err.code === 3 ? T('Не удалось определить место вовремя. Выйдите на открытое место и повторите.', 'Орынды уақытында анықтау мүмкін болмады. Ашық жерге шығып, қайталаңыз.')
             : T('Место определить не удалось. Включите GPS в телефоне.', 'Орынды анықтау мүмкін болмады. Телефонда GPS қосыңыз.');
           var bx = $('qb-pos-msg'); if (bx) { bx.textContent = m; bx.classList.add('qb-st-warn'); }
-        }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
-        S.geoT = setTimeout(done, 15000);
+        }
+        function onFix(p) {
+          gotFix = true;
+          var c = p.coords;
+          applyPos({ lat: c.latitude, lon: c.longitude, acc: c.accuracy, src: 'gps', ts: Date.now() }, true);
+          if (c.accuracy <= 30) done();
+        }
+        function watch(high) {
+          S.watch = navigator.geolocation.watchPosition(onFix, function (err) {
+            // точный GPS не успел (в помещении) — один раз пробуем «грубое» место по сети/вышкам
+            if (err && err.code !== 1 && high && !gotFix && !lowTried) {
+              lowTried = true;
+              try { navigator.geolocation.clearWatch(S.watch); } catch (e) {}
+              watch(false);
+              return;
+            }
+            if (gotFix) { done(); return; }
+            fail(err);
+          }, high ? { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 } : { enableHighAccuracy: false, timeout: 15000, maximumAge: 120000 });
+        }
+        watch(true);
+        // фиксы приходят и после первого: даём до 20 с уточниться и закрываем
+        S.geoT = setTimeout(function () { if (gotFix) done(); }, 20000);
       }
 
       function posLabel() {
@@ -54007,7 +56167,7 @@ function startApp() {
         var p = S.pos; if (!p) return;
         var el = $('qb-pos-line'); if (el) el.innerHTML = posLabel();
         var c = $('qb-coords'); if (c) c.textContent = p.lat.toFixed(5) + ', ' + p.lon.toFixed(5);
-        var box = $('qb-pos-msg'); if (box) { box.classList.remove('qb-st-warn'); box.textContent = p.src === 'gps' ? '' : T('Нажмите «Определить моё место», иначе кибла считается от города.', '«Орнымды анықтау» түймесін басыңыз, әйтпесе құбыла қала бойынша есептеледі.'); }
+        var box = $('qb-pos-msg'); if (box) { box.classList.toggle('qb-st-warn', p.src !== 'gps'); box.textContent = p.src === 'gps' ? '' : T('⚠ Карта и кибла сейчас от города, а не от вас. Нажмите «Определить моё место».', '⚠ Карта мен құбыла қазір қала бойынша, сіз бойынша емес. «Орнымды анықтау» түймесін басыңыз.'); }
       }
       function applyPos(p, fromGps) {
         S.pos = p;
@@ -54052,6 +56212,10 @@ function startApp() {
         var m = S.map, ml = S.ml, p = S.pos; if (!m || !ml || !p) return;
         var ll = [p.lat, p.lon];
         if (ml.me) ml.me.setLatLng(ll); else ml.me = L.marker(ll, { icon: L.divIcon({ className: 'qb-me', html: '<span></span>', iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 500 }).addTo(m);
+        try {
+          var lbl = p.src === 'gps' ? T('Вы здесь', 'Сіз осындасыз') : T('Город «' + (p.city || '') + '» (не вы)', 'Қала «' + (p.city || '') + '» (сіз емес)');
+          if (ml.me.getTooltip && ml.me.getTooltip()) ml.me.setTooltipContent(lbl); else ml.me.bindTooltip(lbl, { permanent: true, direction: 'top', offset: [0, -12], className: 'qb-melbl' });
+        } catch (e) {}
         if (ml.acc) { m.removeLayer(ml.acc); ml.acc = null; }
         if (p.src === 'gps' && p.acc) ml.acc = L.circle(ll, { radius: p.acc, color: '#3b82f6', weight: 1, fillColor: '#3b82f6', fillOpacity: 0.12, interactive: false }).addTo(m);
         if (ml.line) { m.removeLayer(ml.line); ml.line = null; }
@@ -54078,7 +56242,51 @@ function startApp() {
       }
 
       // ---------- мечети рядом ----------
-      var OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+      // build 6.32: несколько зеркал Overpass; запросы идут «эстафетой»: следующее зеркало запускается через 4 с или сразу при ошибке,
+      // берём первый удачный ответ, запоминаем рабочее зеркало. В ошибке видно, какое зеркало что ответило.
+      var OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://lz4.overpass-api.de/api/interpreter'];
+      var MIRROR_KEY = 'quran_qibla_mirror';
+      function hostOf(u) { return String(u).replace(/^https?:\/\//, '').split('/')[0]; }
+      function mirrorOrder() {
+        var last = null; try { last = localStorage.getItem(MIRROR_KEY); } catch (e) {}
+        var list = OVERPASS.slice();
+        if (last && list.indexOf(last) > 0) { list.splice(list.indexOf(last), 1); list.unshift(last); }
+        return list;
+      }
+      function overpassFetch(q) {
+        return new Promise(function (resolve, reject) {
+          var order = mirrorOrder(), ctrls = [], done = false, fails = 0, launched = 0, errs = [], timer = null;
+          function finish(ok, val) {
+            if (done) return; done = true; clearTimeout(timer);
+            ctrls.forEach(function (c) { try { c.abort(); } catch (e) {} });
+            if (ok) resolve(val); else reject(new Error(errs.join('; ')));
+          }
+          function launch() {
+            if (done || launched >= order.length) return;
+            clearTimeout(timer);
+            var url = order[launched++], host = hostOf(url);
+            var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+            if (ctrl) ctrls.push(ctrl);
+            var to = setTimeout(function () { try { ctrl && ctrl.abort(); } catch (e) {} }, 25000);
+            fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl ? ctrl.signal : undefined })
+              .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.json(); })
+              .then(function (data) {
+                clearTimeout(to);
+                if (!data || !Array.isArray(data.elements)) throw new Error(T('пустой ответ', 'бос жауап'));
+                try { localStorage.setItem(MIRROR_KEY, url); } catch (e) {}
+                finish(true, data);
+              })
+              .catch(function (e) {
+                clearTimeout(to); if (done) return;
+                errs.push(host + ': ' + ((e && e.name === 'AbortError') ? T('нет ответа 25 с', '25 с жауап жоқ') : ((e && e.message) || 'error')));
+                fails++;
+                if (fails >= order.length) finish(false); else launch();
+              });
+            if (launched < order.length) timer = setTimeout(launch, 4000);
+          }
+          launch();
+        });
+      }
       function nearKeyOf() { return S.pos ? S.pos.lat.toFixed(3) + ',' + S.pos.lon.toFixed(3) + ',' + S.radius : ''; }
       function autoNearby() {
         // автопоиск — только по GPS и один раз на точку; по городу ждём нажатия
@@ -54093,22 +56301,16 @@ function startApp() {
         if (cached && Date.now() - cached.t < 30 * 60000) { S.items = cached.items; S.nearErr = null; paintNearby(); drawMosquesOnMap(); return; }
         S.items = null; S.nearErr = null; S.nearBusy = true; paintNearby();
         var R = S.radius;
-        var q = '[out:json][timeout:20];(nwr["amenity"="place_of_worship"]["religion"="muslim"](around:' + R + ',' + p.lat + ',' + p.lon + ');nwr["amenity"="prayer_room"](around:' + R + ',' + p.lat + ',' + p.lon + '););out center tags;';
+        var q = '[out:json][timeout:20];(nwr["amenity"="place_of_worship"]["religion"="muslim"](around:' + R + ',' + p.lat + ',' + p.lon + ');nwr["amenity"="prayer_room"](around:' + R + ',' + p.lat + ',' + p.lon + ');nwr["building"="mosque"](around:' + R + ',' + p.lat + ',' + p.lon + '););out center tags;';
         var data = null, lastErr = null;
-        for (var i = 0; i < OVERPASS.length && !data; i++) {
-          try {
-            var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
-            var to = setTimeout(function () { try { ctrl && ctrl.abort(); } catch (e) {} }, 22000);
-            var resp = await fetch(OVERPASS[i], { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl ? ctrl.signal : undefined });
-            clearTimeout(to);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            data = await resp.json();
-          } catch (e) { lastErr = e; }
-        }
+        try { data = await overpassFetch(q); } catch (e) { lastErr = e; }
         S.nearBusy = false;
         if (S.nearKey !== key) return; // пока искали, место сменилось
         if (!data) { S.nearErr = (lastErr && lastErr.message) || 'network'; paintNearby(); return; }
-        var items = (data.elements || []).map(function (el) {
+        var seenIds = {};
+        var items = (data.elements || []).filter(function (el, idx, arr) {
+          var k = el.type + el.id; if (seenIds[k]) return false; seenIds[k] = 1; return true;
+        }).map(function (el) {
           var lat = el.lat != null ? el.lat : (el.center && el.center.lat), lon = el.lon != null ? el.lon : (el.center && el.center.lon);
           if (lat == null || lon == null) return null;
           var tg = el.tags || {}, room = tg.amenity === 'prayer_room';
@@ -54193,6 +56395,7 @@ function startApp() {
           '<div class="qb-sub">' + T('Направление на Каабу · до неё ', 'Қағбаға бағыт · ара қашықтық ') + '<b id="qb-dist">' + fmtDist(S.km || 0) + '</b></div></div>' +
           '<div id="qb-dialwrap" class="qb-dialwrap">' + dialSvg() + '</div>' +
           '<div class="qb-headrow">' + T('Вы смотрите: ', 'Сіз қарап тұрсыз: ') + '<b id="qb-head">—</b></div>' +
+          '<div id="qb-qual" class="qb-qual"></div>' +
           '<div id="qb-status" class="qb-status">' + T('Включите компас и поворачивайтесь, пока 🕋 не окажется вверху под красной меткой. Зелёная стрелка в центре всегда показывает на киблу.', 'Компасты қосып, 🕋 жоғарыдағы белгі астына келгенше бұрылыңыз. Ортадағы жасыл көрсеткі әрқашан құбылаға қарайды.') + '</div>' +
           '<div class="qb-btns"><button type="button" class="btn btn-sm" id="qb-compass-btn">' + T('Включить компас', 'Компасты қосу') + '</button>' +
           '<button type="button" class="btn btn-sm" id="qb-help-btn">❓ ' + T('Как пользоваться', 'Қалай қолдану керек') + '</button></div>' +
@@ -54201,7 +56404,9 @@ function startApp() {
           '<button type="button" class="btn btn-sm" data-qb-corr="1">+1</button><button type="button" class="btn btn-sm" data-qb-corr="5">+5</button>' +
           '<button type="button" class="btn btn-sm" data-qb-corr="0" title="' + T('Сбросить', 'Тастау') + '">⟲</button></span></div>' +
           '<div class="qb-btns"><button type="button" class="btn btn-sm" id="qb-corr-sun">☀ ' + T('По Солнцу', 'Күн бойынша') + '</button>' +
-          '<button type="button" class="btn btn-sm" id="qb-corr-known">📌 ' + T('Здесь кибла', 'Құбыла осында') + '</button></div>' +
+          '<button type="button" class="btn btn-sm" id="qb-corr-known">📌 ' + T('Здесь кибла', 'Құбыла осында') + '</button>' +
+          '<button type="button" class="btn btn-sm" id="qb-corr-walk">🚶 ' + T('По ходьбе', 'Жүру бойынша') + '</button></div>' +
+          '<div class="ayah-translation qb-acc">' + T('Компас телефона обычно точен до ±5–10°, а может ошибаться на 20–30° рядом с металлом, магнитами и в машине. «По Солнцу» и «По ходьбе» подгоняют его под ваше место. Засчитывается «лицом к кибле» при отклонении до ±8°.', 'Телефон компасы әдетте ±5–10° дәл, ал металл, магнит жанында және көлікте 20–30° қателесуі мүмкін. «Күн бойынша» және «Жүру бойынша» оны орныңызға бейімдейді. «Құбылаға қарап тұрсыз» ±8° ауытқуға дейін есептеледі.') + '</div>' +
           '<div id="qb-corr-help" class="ayah-translation qb-corr-help" style="display:none"></div></div>' +
           '<div id="qb-help" class="qb-help" style="display:none">' +
           '<p><b>' + T('Компас:', 'Компас:') + '</b> ' + T('держите телефон ровно, как поднос, вдали от металла и магнитов (чехлы-магниты, колонки). Если стрелка «плывёт», нарисуйте телефоном в воздухе восьмёрку — это калибровка.', 'телефонды науа сияқты тегіс ұстаңыз, металл мен магниттерден (магнитті қаптар, динамиктер) аулақ. Көрсеткі «қалқыса», телефонмен ауада сегіздік сызыңыз — бұл калибрлеу.') + '</p>' +
@@ -54235,9 +56440,12 @@ function startApp() {
         }
         $('qb-corr-sun').addEventListener('click', function () {
           if (!S.pos) { toast(T('Сначала определите своё место', 'Алдымен орныңызды анықтаңыз')); return; }
+          var sq = sunQiblaMoments(), sqTxt = '';
+          if (sq.list.length) sqTxt = '<br><br>☀ ' + T('Сегодня Солнце стоит точно в сторону киблы около ', 'Бүгін Күн құбыла бағытында шамамен ') + sq.list.map(function (x) { return '<b>' + ptHM(new Date(x.t), sq.tz) + '</b> (' + T('высота ', 'биіктігі ') + Math.round(x.el) + '°)'; }).join(', ') + '. ' + T('В этот момент тень предмета указывает от киблы.', 'Осы сәтте заттың көлеңкесі құбыладан қарама-қарсы жаққа түседі.');
+          else sqTxt = '<br><br>☀ ' + T('Сегодня Солнце не бывает точно в сторону киблы выше 5° над горизонтом.', 'Бүгін Күн құбыла бағытында горизонттан 5°-тан биік болмайды.');
           var sp = sunPos(new Date(), S.pos.lat, S.pos.lon);
-          if (sp.el < 10) { corrHelp(T('Солнце сейчас слишком низко или за горизонтом (высота ' + Math.round(sp.el) + '°) — способ работает днём, когда оно выше 10°.', 'Қазір Күн тым төмен немесе көкжиектен төмен (биіктігі ' + Math.round(sp.el) + '°) — бұл әдіс Күн 10°-тан жоғары болғанда, күндіз жұмыс істейді.')); return; }
-          corrHelp(T('Положите телефон ровно, поставьте вертикально карандаш — тень от него упадёт на экран. Поверните телефон так, чтобы тень лежала вдоль экрана и шла к его <b>верхнему краю</b>, и нажмите «Применить». Прямо на Солнце не смотрите.', 'Телефонды тегіс қойып, қарындашты тігінен ұстаңыз — оның көлеңкесі экранға түседі. Көлеңке экран бойымен <b>жоғарғы жиекке</b> қарай жатсын — телефонды солай бұрып, «Қолдану» басыңыз. Күнге тікелей қарамаңыз.') +
+          if (sp.el < 10) { corrHelp(T('Солнце сейчас слишком низко или за горизонтом (высота ' + Math.round(sp.el) + '°) — способ работает днём, когда оно выше 10°.', 'Қазір Күн тым төмен немесе көкжиектен төмен (биіктігі ' + Math.round(sp.el) + '°) — бұл әдіс Күн 10°-тан жоғары болғанда, күндіз жұмыс істейді.') + sqTxt); return; }
+          corrHelp(T('Положите телефон ровно, поставьте вертикально карандаш — тень от него упадёт на экран. Поверните телефон так, чтобы тень лежала вдоль экрана и шла к его <b>верхнему краю</b>, и нажмите «Применить». Прямо на Солнце не смотрите.', 'Телефонды тегіс қойып, қарындашты тігінен ұстаңыз — оның көлеңкесі экранға түседі. Көлеңке экран бойымен <b>жоғарғы жиекке</b> қарай жатсын — телефонды солай бұрып, «Қолдану» басыңыз. Күнге тікелей қарамаңыз.') + sqTxt +
             '<div class="qb-btns" style="justify-content:flex-start"><button type="button" class="btn btn-sm btn-primary" id="qb-corr-sun-ok">' + T('Применить', 'Қолдану') + '</button></div>');
           var ok = $('qb-corr-sun-ok');
           if (ok) ok.addEventListener('click', function () {
@@ -54247,6 +56455,31 @@ function startApp() {
             setCorr(truth - S.hRaw);
             corrHelp('✓ ' + T('Поправка: ', 'Түзету: ') + fmtCorr());
           });
+        });
+        // build 6.32: поправка «по ходьбе» — сравниваем курс GPS (куда реально идёте) с компасом, телефон держим перед собой верхом по ходу
+        $('qb-corr-walk').addEventListener('click', function () {
+          if (needCompass()) return;
+          if (!navigator.geolocation) { corrHelp(T('В этом браузере нет GPS.', 'Бұл браузерде GPS жоқ.')); return; }
+          stopWalk();
+          var samples = [];
+          corrHelp(T('Идите прямо 10–20 секунд, держа телефон перед собой ровно, <b>верхом по ходу движения</b> (не в кармане и не боком). Сайт сравнит курс по GPS с компасом. Набрано: <b id="qb-walk-n">0</b> из 8.', 'Телефонды алдыңызда тегіс, <b>жоғарғы жағын жүріс бағытына</b> қаратып (қалтада немесе қиғаш емес) ұстап, 10–20 секунд түзу жүріңіз. Сайт GPS бағытын компаспен салыстырады. Жиналды: <b id="qb-walk-n">0</b> / 8.'));
+          function finishWalk(a) {
+            var sx = 0, sy = 0;
+            a.forEach(function (d) { sx += Math.cos(d * RAD); sy += Math.sin(d * RAD); });
+            var R = Math.sqrt(sx * sx + sy * sy) / a.length, mean = Math.atan2(sy, sx) / RAD;
+            var spread = Math.sqrt(-2 * Math.log(Math.max(R, 1e-6))) / RAD;
+            if (spread > 12) { corrHelp(T('Показания слишком разные (разброс ±' + Math.round(spread) + '°) — ходьба была не прямой или компас «прыгает». Повторите на ровной дороге.', 'Көрсеткіштер тым алшақ (ауытқу ±' + Math.round(spread) + '°) — жүріс түзу болмады немесе компас «секіріп» тұр. Тегіс жолда қайталаңыз.')); return; }
+            setCorr(mean);
+            corrHelp('✓ ' + T('Поправка: ', 'Түзету: ') + fmtCorr() + ' · ' + T('разброс ±', 'ауытқу ±') + Math.round(spread) + '°');
+          }
+          S.walk = navigator.geolocation.watchPosition(function (p) {
+            var c = p.coords, n = $('qb-walk-n');
+            if (c.speed == null || c.heading == null || isNaN(c.heading) || c.speed < 1 || S.hRaw == null) return;
+            samples.push(wrap180(c.heading - S.hRaw));
+            if (n) n.textContent = samples.length;
+            if (samples.length >= 8) { stopWalk(); finishWalk(samples); }
+          }, function () { stopWalk(); corrHelp(T('Не удалось получить GPS. Разрешите доступ к месту и повторите на улице.', 'GPS алу мүмкін болмады. Орынға рұқсат беріп, көшеде қайталаңыз.')); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+          S.walkT = setTimeout(function () { if (S.walk != null) { stopWalk(); corrHelp(T('Не набралось данных: нужно идти прямо, не слишком медленно (быстрее ~4 км/ч), на открытом месте.', 'Дерек жиналмады: түзу, тым баяу емес (~4 км/сағ-тан жылдам), ашық жерде жүру керек.')); } }, 60000);
         });
         $('qb-corr-known').addEventListener('click', function () {
           corrHelp(T('Если вы точно знаете, где кибла (михраб мечети, стрелка в гостинице), направьте <b>верх телефона</b> в эту сторону, держа его ровно, и нажмите «Применить».', 'Құбыланың қайда екенін анық білсеңіз (мешіт михрабы, қонақүйдегі белгі), <b>телефонның жоғарғы жағын</b> сол жаққа бағыттап, тегіс ұстап, «Қолдану» басыңыз.') +
@@ -54277,7 +56510,7 @@ function startApp() {
         });
       }
 
-      window.qbStop = function () { stopCompass(); stopGeo(); destroyMap(); S.aligned = false; };
+      window.qbStop = function () { stopCompass(); stopGeo(); stopWalk(); destroyMap(); S.aligned = false; };
       window.qiblaTabInit = function (host, loc) {
         if (!host) return;
         window.qbStop();
@@ -54799,13 +57032,15 @@ function pushBuildSchedule() {
   const lead = Math.max(0, Math.min(30, +(state.settings.prayerNotifLead || 10)));
   const out = [], now = Date.now();
   for (let d = 0; d < 7; d++) {
-    const day = new Date(); day.setDate(day.getDate() + d);
-    let t; try { t = resolveDayTimes(+loc.lat, +loc.lon, day, mk); } catch (e) { continue; }
+    const day0 = new Date(Date.now() + d * 86400000);
+    let t; try { t = resolveDayTimes(+loc.lat, +loc.lon, day0, mk); } catch (e) { continue; }
     if (!t) continue;
+    const ptz = getPlaceTz(+loc.lat, +loc.lon, day0);
+    const day = ptWall(day0, ptz);
     PUSH_PRAYERS.forEach(function(p) {
       const k = p[0]; if (!pushPrayerOn(k) || !t[k] || t[k] === '--:--') return;
       const hm = String(t[k]).split(':');
-      const when = new Date(day.getFullYear(), day.getMonth(), day.getDate(), +hm[0], +hm[1], 0, 0);
+      const when = ptReal(new Date(day.getFullYear(), day.getMonth(), day.getDate(), +hm[0], +hm[1], 0, 0), ptz);
       const nm = kk ? p[2] : p[1];
       const offs = (k !== 'duha' && lead > 0) ? [lead, 0] : [0];
       offs.forEach(function(o) {
