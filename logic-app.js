@@ -1088,6 +1088,7 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
         // Russian options labels stay; when kk selected ensure value
         if (isKk) trSel.value = 'kk.altai';
       }
+      try { if (typeof paintPlayerMore === 'function') paintPlayerMore(); } catch(e) {}
     }
 
 function applySettings() {
@@ -1569,7 +1570,7 @@ function toast(msg, ms = 2200) {
       }
       // Offline skeleton so UI is never empty (работает без сети)
       const ru = (typeof SURAH_RU !== 'undefined') ? SURAH_RU : {};
-      const ayahCounts = [0,7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,3,3,5,4,5,6];
+      const ayahCounts = [0,7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6];
       const mecca = {1:1,6:1,7:1,10:1,11:1,12:1,14:1,15:1,16:1,17:1,18:1,19:1,20:1,21:1,23:1,25:1,26:1,27:1,28:1,29:1,30:1,31:1,32:1,34:1,35:1,36:1,37:1,38:1,39:1,40:1,41:1,42:1,43:1,44:1,45:1,46:1,50:1,51:1,52:1,53:1,54:1,56:1,67:1,68:1,69:1,70:1,71:1,72:1,73:1,74:1,75:1,76:1,77:1,78:1,79:1,80:1,81:1,82:1,83:1,84:1,85:1,86:1,87:1,88:1,89:1,90:1,91:1,92:1,93:1,94:1,95:1,96:1,97:1,100:1,101:1,102:1,103:1,104:1,105:1,106:1,107:1,108:1,109:1,111:1,112:1,113:1,114:1};
       state.surahsMeta = [];
       for (let n = 1; n <= 114; n++) {
@@ -3600,6 +3601,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
             jumpToAyahNum(+b.dataset.rail);
           }));
           bindRail(rail); bindRail(railL);
+          try { updateResumeBtn(num); } catch(e) {}
           const showRail = () => {
             const side = (state.settings && state.settings.ayahRailSide) || 'right';
             const hideAll = () => [rail, railL].forEach(r => { if (r) { r.style.opacity = '0'; r.style.pointerEvents = 'none'; r.style.visibility = 'hidden'; } });
@@ -3664,7 +3666,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
             const mode = (audioPlayMode === 'ayah-loop') ? 'ayah-loop' : 'single';
             audioPlayMode = mode;
             try { updateAudioModeButtons(); } catch(e) {}
-            const url = b.dataset.audio || (typeof ayahAudioUrl === 'function' ? ayahAudioUrl(num, ayahNum) : '');
+            const url = (typeof ayahAudioUrl === 'function' ? ayahAudioUrl(num, ayahNum) : (b.dataset.audio || '')); // build 6.34: чтец берётся в момент нажатия, а не при отрисовке
             playAudio(url, title, { repeat: getRepeatCount(), ayah: ayahNum, surah: num, mode: mode });
           });
         });
@@ -3977,11 +3979,26 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       return m + ':' + (s < 10 ? '0' : '') + s;
     }
 
+    // build 6.34: скорость хранится в одном месте. Раньше два выпадающих списка (в читалке и в плеере)
+    // могли разойтись (браузер восстанавливал старое значение формы): плеер показывал 0.5×, а играло 1×.
     function getAudioSpeed() {
-      const a = document.getElementById('audio-speed');
-      const b = document.getElementById('audio-speed-bar');
-      const v = parseFloat((a && a.value) || (b && b.value) || '1') || 1;
+      if (typeof window._audioSpeed === 'number' && window._audioSpeed > 0) return window._audioSpeed;
+      let v = 1;
+      try { v = parseFloat(localStorage.getItem('quran_audio_speed_v1') || '1') || 1; } catch(e) {}
+      if (!(v >= 0.25 && v <= 2)) v = 1;
+      window._audioSpeed = v;
       return v;
+    }
+    function syncSpeedSelects() {
+      const v = getAudioSpeed();
+      ['audio-speed', 'audio-speed-bar'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (![].some.call(el.options, o => parseFloat(o.value) === v)) {
+          const op = document.createElement('option'); op.value = String(v); op.textContent = v + '×'; el.appendChild(op);
+        }
+        el.value = String(v);
+      });
     }
     function applyAudioSpeed() {
       audioEl.playbackRate = getAudioSpeed();
@@ -4098,19 +4115,20 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var v = m[reciter] && m[reciter][surah + ':' + ayah];
       return (typeof v === 'string') ? v : '';
     }
+    // build 6.35: смена чтеца в настройках / на экране «Суры» больше не обрывает играющий аят:
+    // текущий дослушивается, а новый чтец включается со следующего аята. (Раньше файл подменялся на лету
+    // и ставился на ту же секунду — у другого чтеца это случайное место аята.) Через кнопку «Чтец» в
+    // плеере (_applyPlayerReciter) смена по-прежнему мгновенная, с начала аята.
     function resyncAudioQueueReciter() {
       try {
         if (!audioQueue || !audioQueue.length) return;
-        audioQueue.forEach(function(item) {
-          if (item && item.surah && item.ayah) item.url = ayahAudioUrl(item.surah, item.ayah);
+        audioQueue.forEach(function(item, i) {
+          if (!item || !item.surah || !item.ayah || item.whole) return;
+          if (i === audioQueueIdx && audioEl && audioEl.src && !audioEl.ended) return; // текущий не трогаем
+          item.url = ayahAudioUrl(item.surah, item.ayah);
+          item._recOverride = null;
         });
-        // если сейчас что-то играет — переключаем и текущий трек тоже
-        if (audioQueue[audioQueueIdx] && !audioEl.paused) {
-          const wasTime = audioEl.currentTime;
-          audioEl.src = audioQueue[audioQueueIdx].url;
-          audioEl.currentTime = wasTime;
-          audioEl.play().catch(function(){});
-        }
+        try { window._lastPlayedUrl = window._lastPlayedUrl || ''; } catch(e) {}
       } catch(e) {}
     }
 
@@ -4246,6 +4264,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       try { if (typeof updateLockPlayerLabels === 'function') updateLockPlayerLabels(); } catch(e) {}
       try {
         state.lastAudio = { url: item.url, title: item.title, surah: item.surah || null, ayah: item.ayah || null, ts: Date.now() };
+        if (item.surah && item.ayah && !item.whole && audioQueue.length > 1) _savePos(item.surah, item.ayah, 0, false);
         saveState();
         try { localStorage.setItem('quran_last_audio_v1', JSON.stringify(state.lastAudio)); } catch(e) {}
         if (typeof renderLastAudio === 'function') renderLastAudio();
@@ -4427,6 +4446,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         else toast('Нет аудио');
         return;
       }
+      if (item.whole) { playWholeItem(item, idx); return; }
       paintQueueItemUi(item);
       if (/translate_tts/.test(item.url)) {
         playTtsQueueItem(item, idx);
@@ -4456,6 +4476,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         // другой аят/суру — не перебиваем то, что сейчас играет.
         if (audioQueueIdx !== _pqiIdx || audioQueue[_pqiIdx] !== _pqiItem) return;
         audioEl.src = srcUrl;
+        try { _resetSeekUi(); } catch(e) {}
         window._lastPlayedUrl = _pqiUrl;
         applyAudioSpeed();
         try { if (item.surah && item.ayah && !item._recOverride) wtSetupForAyah(item.surah, item.ayah); else wtRestore(); } catch(e) {}
@@ -4529,9 +4550,19 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
 
     async function ensureSurahQueueAround(surah, ayahNum) {
       if (!surah) return false;
+      if (wholeModeOn()) { audioQueue = [buildWholeItem(surah, ayahNum, wholeReciter(), null)]; audioQueueIdx = 0; return true; }
       try {
-        const data = await fetchSurah(surah);
-        attachFallbackAudio(data, surah);
+        // build 6.34: число аятов известно заранее (SURAH_AYAH_COUNTS) — очередь строится сразу, без
+        // ожидания сети. Раньше при переходе на другую суру плеер подолгу «зависал» на загрузке данных суры.
+        let data = null;
+        const _cnt = (typeof surahAyahCount === 'function') ? surahAyahCount(surah) : 0;
+        if (_cnt > 0) {
+          data = { meta: null, ayahs: [] };
+          for (let i = 1; i <= _cnt; i++) data.ayahs.push({ number: i });
+        } else {
+          data = await fetchSurah(surah);
+          attachFallbackAudio(data, surah);
+        }
         // build 6.08: если для этого аята уже известно, что у текущего
         // чтеца записи нет (отмечено раньше — вручную или по ошибке) — сразу
         // берём запасного чтеца, не дожидаясь новой ошибки проигрывания.
@@ -4565,7 +4596,9 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       const modeLabel = { single: '1 аят', 'ayah-loop': '🔁 1', surah: 'сура', 'surah-loop': '🔁 сура', random: '🔀' }[audioPlayMode] || '';
       if (modeLabel) sub += ' · ' + modeLabel;
       if (audioRepeatTotal > 1) sub += ' · повтор ' + (audioRepeatTotal - audioRepeatLeft + 1) + '/' + audioRepeatTotal;
-      if (audioQueue.length) sub += ' · ' + (audioQueueIdx + 1) + '/' + audioQueue.length;
+      const _cwS = audioQueue[audioQueueIdx];
+      if (_cwS && _cwS.whole) { sub += ' · ' + (isKk() ? 'толық сүре' : 'вся сура') + (_cwS.ayah ? ' · ' + (isKk() ? 'аят ' : 'аят ') + _cwS.ayah : ''); }
+      else if (audioQueue.length) sub += ' · ' + (audioQueueIdx + 1) + '/' + audioQueue.length;
       try { sub += _sleepLabel(); } catch(e) {}
       const el = document.getElementById('audio-sub');
       if (el) el.textContent = sub;
@@ -4601,6 +4634,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         b.textContent = (dua ? labelsD : labelsQ)[k] || b.textContent;
         b.title = (dua ? titlesD : titlesQ)[k] || '';
       });
+      try { paintPlayerMore(); } catch(e) {}
     }
     function shuffleAudioQueueInPlace() {
       for (let i = audioQueue.length - 1; i > 0; i--) {
@@ -4611,6 +4645,8 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     async function loadSurahQueue(surah, mode, startAyah, opts) {
       opts = opts || {};
       mode = mode || 'surah';
+      // build 6.35: режим «Целиком» — вся сура одним файлом (mp3quran)
+      if (wholeModeOn() && (mode === 'surah' || mode === 'surah-loop')) { audioPlayMode = mode; return startWholeSurah(surah, startAyah, { noPlay: !!opts.noPlay }); }
       audioPlayMode = mode;
       try { updateAudioModeButtons(); } catch(e) {}
       // Сразу стартуем первый аят с everyayah — без ожидания API (убирает задержку в несколько секунд)
@@ -4631,8 +4667,10 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           }
         }
       } catch(e) {}
-      const data = await fetchSurah(surah);
-      attachFallbackAudio(data, surah);
+      let data;
+      const _cnt0 = (typeof surahAyahCount === 'function') ? surahAyahCount(surah) : 0;
+      if (_cnt0 > 0) { data = { meta: null, ayahs: [] }; for (let i = 1; i <= _cnt0; i++) data.ayahs.push({ number: i }); } // build 6.34: без ожидания сети
+      else { data = await fetchSurah(surah); attachFallbackAudio(data, surah); }
       let queue = data.ayahs.map(a => ({
         url: ayahAudioUrl(surah, a.number),
         title: (typeof surahTitle === 'function' ? surahTitle(surah, data.meta && data.meta.englishName) : ('Сура ' + surah)) + ' · аят ' + a.number,
@@ -4702,6 +4740,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       return Promise.resolve(false);
     }
     function playNextAyah(manual) {
+      try { var _cwN = audioQueue[audioQueueIdx]; if (_cwN && _cwN.whole) return _wholeStep(1, manual === true); } catch(e) {}
       // ручное «⏭» на последнем аяте суры — переходим к следующей суре (авто-конец по-прежнему останавливается)
       try {
         if (manual === true && audioQueue.length > 1 && audioQueueIdx >= audioQueue.length - 1 && audioPlayMode !== 'surah-loop' && audioPlayMode !== 'random' && _playerSurahContext() && currentPlayPos().s < 114) { playNextSurah(); return true; }
@@ -4748,6 +4787,12 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           return true;
         }
       }
+      // build 6.35: «После суры → дальше сама»
+      try {
+        const _cp = currentPlayPos();
+        if (audioPlayMode === 'surah' && afterSurahNext() && _playerSurahContext() && audioQueue.length > 1 && _cp.s < 114) { _clearPos(_cp.s); playNextSurah(); return true; }
+        if (audioQueue.length > 1) _clearPos(_cp.s);
+      } catch(e) {}
       // surah (без цикла) — стоп
       (function(){
         let msg = 'Конец';
@@ -4765,6 +4810,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     }
 
     function playPrevAyah() {
+      try { var _cwP = audioQueue[audioQueueIdx]; if (_cwP && _cwP.whole) return _wholeStep(-1, true); } catch(e) {}
       if (audioEl && audioEl.currentTime > 2) {
         audioEl.currentTime = 0;
         return true;
@@ -4828,6 +4874,280 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       jumpToSurah(function(b) { if (b <= 1) { toast(isKk() ? 'Бұл бірінші сүре' : 'Это первая сура'); return null; } return b - 1; }, !!toEnd);
     }
 
+    // ===== build 6.35: целые суры (mp3quran), «после суры», «продолжить с места» =====
+    const WHOLE_RECITERS = [
+      { id: 'abkar', ru: 'Идрис Абкар', kk: 'Идрис Абкар', read: 12, timings: true, base: 'https://cdn.mp3quran.net/audio/idrees-abkar/r1/' },
+      { id: 'luhaidan', ru: 'Мухаммад аль-Лухайдан', kk: 'Мұхаммад әл-Лухайдан', read: 107, timings: false, base: 'https://cdn.mp3quran.net/audio/muhammad-luhaidan/r1/' }
+    ];
+    function _lsGet(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch(e) { return d; } }
+    function _lsSet(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
+    function wholeModeOn() { return _lsGet('quran_whole_mode_v1', '0') === '1'; }
+    function wholeById(id) { return WHOLE_RECITERS.filter(function(r) { return r.id === id; })[0] || WHOLE_RECITERS[0]; }
+    function wholeReciter() { return wholeById(_lsGet('quran_whole_reciter_v1', 'abkar')); }
+    function afterSurahNext() { return _lsGet('quran_after_surah_v1', 'stop') === 'next'; }
+    var _wholeTm = {};
+    function fetchWholeTimings(r, surah) {
+      var key = r.read + ':' + surah;
+      if (_wholeTm[key] !== undefined) return Promise.resolve(_wholeTm[key]);
+      if (!r.timings) { _wholeTm[key] = null; return Promise.resolve(null); }
+      try {
+        var c = JSON.parse(_lsGet('qwt6:' + key, 'null'));
+        if (c && c.length) { _wholeTm[key] = c; return Promise.resolve(c); }
+      } catch(e) {}
+      return fetch('https://mp3quran.net/api/v3/ayat_timing?surah=' + surah + '&read=' + r.read).then(function(x) { return x.json(); }).then(function(j) {
+        var arr = (Array.isArray(j) ? j : []).map(function(e) { return { a: +e.ayah, s: +e.start_time, e: +e.end_time }; })
+          .filter(function(e) { return e.a >= 1 && isFinite(e.s); }).sort(function(x, y) { return x.s - y.s; });
+        _wholeTm[key] = arr.length ? arr : null;
+        if (arr.length) _lsSet('qwt6:' + key, JSON.stringify(arr));
+        return _wholeTm[key];
+      }).catch(function() { _wholeTm[key] = null; return null; });
+    }
+    function buildWholeItem(surah, startAyah, r, resumeT) {
+      var kk = isKk();
+      surah = +surah;
+      return {
+        url: r.base + String(surah).padStart(3, '0') + '.mp3', whole: true, wholeId: r.id, surah: surah,
+        ayah: +startAyah || 1, startAyah: +startAyah || 1, resumeT: (resumeT != null ? +resumeT : null),
+        title: (typeof surahTitle === 'function' ? surahTitle(surah) : ((kk ? 'Сүре ' : 'Сура ') + surah)) + ' · ' + (kk ? 'толық' : 'целиком')
+      };
+    }
+    function startWholeSurah(surah, startAyah, opts) {
+      opts = opts || {};
+      var r = wholeReciter();
+      audioPlayMode = (audioPlayMode === 'surah-loop') ? 'surah-loop' : 'surah';
+      audioQueue = [buildWholeItem(surah, startAyah, r, opts.resumeT)];
+      audioQueueIdx = 0; audioRepeatTotal = 1; audioRepeatLeft = 1;
+      try { updateAudioModeButtons(); } catch(e) {}
+      if (!opts.noPlay) playQueueItem(0);
+      return true;
+    }
+    function playWholeItem(item, idx) {
+      var kk = isKk();
+      window._audioCtx = 'surah';
+      try { _curTrim = null; _curTrimUrl = ''; } catch(e) {}
+      paintQueueItemUi(item);
+      var r = wholeById(item.wholeId);
+      var begin = function(tm) {
+        if (audioQueue[audioQueueIdx] !== item) return;
+        item._tm = tm;
+        var t = null;
+        if (item.resumeT != null) t = item.resumeT;
+        else if (item.startAyah > 1) {
+          var en = tm && tm.filter(function(x) { return x.a === item.startAyah; })[0];
+          if (en) t = en.s / 1000;
+          else toast(kk ? 'Бұл қарида аяттар белгісі жоқ — басынан бастаймын' : 'У этого чтеца нет разметки аятов — начинаю с начала суры');
+        }
+        audioEl.src = item.url;
+        try { _resetSeekUi(); } catch(e) {}
+        window._lastPlayedUrl = item.url;
+        applyAudioSpeed();
+        try { wtRestore(); } catch(e) {}
+        audioEl.onerror = function() { toast(kk ? 'Сүре толық жүктелмеді — интернетті тексеріңіз' : 'Не удалось загрузить суру целиком — проверьте интернет'); };
+        if (t != null && t > 0) {
+          var onMeta = function() { audioEl.removeEventListener('loadedmetadata', onMeta); try { audioEl.currentTime = t; } catch(e) {} };
+          audioEl.addEventListener('loadedmetadata', onMeta);
+        }
+        var pp = audioEl.play();
+        if (pp && pp.catch) pp.catch(function() { toast(kk ? 'Ойнату мүмкін болмады' : 'Не удалось воспроизвести'); });
+      };
+      if (r.timings) {
+        var done = false, fin = function(tm) { if (done) return; done = true; begin(tm); };
+        fetchWholeTimings(r, item.surah).then(function(tm) { item._tm = tm; fin(tm); });
+        setTimeout(function() { fin(_wholeTm[r.read + ':' + item.surah] || null); }, item.startAyah > 1 ? 3000 : 400);
+      } else begin(null);
+    }
+    var _wholeLastSave = 0;
+    function _wholeTick() {
+      var item = audioQueue[audioQueueIdx];
+      if (!item || !item.whole || !audioEl) return;
+      var tm = item._tm;
+      if (tm && tm.length) {
+        var ms = audioEl.currentTime * 1000, a = tm[0].a;
+        for (var i = 0; i < tm.length; i++) { if (tm[i].s <= ms + 50) a = tm[i].a; else break; }
+        if (a !== item.ayah) {
+          item.ayah = a;
+          try { highlightPlayingAyah(); } catch(e) {}
+          try { updateAudioSub(); } catch(e) {}
+          try { if (state.lastAudio) { state.lastAudio.ayah = a; localStorage.setItem('quran_last_audio_v1', JSON.stringify(state.lastAudio)); } } catch(e) {}
+        }
+      }
+      var now = Date.now();
+      if (now - _wholeLastSave > 3000) { _wholeLastSave = now; _savePos(item.surah, item.ayah, audioEl.currentTime, true); }
+    }
+    function _wholeStep(dir, manual) {
+      var item = audioQueue[audioQueueIdx], tm = item && item._tm, ms = audioEl.currentTime * 1000;
+      if (!manual) { // автоконец файла
+        if (audioPlayMode === 'surah-loop') { playQueueItem(0); return true; }
+        _clearPos(item.surah);
+        if (afterSurahNext() && item.surah < 114) { playNextSurah(); return true; }
+        return false;
+      }
+      if (tm && tm.length) {
+        var curI = 0;
+        for (var i = 0; i < tm.length; i++) { if (tm[i].s <= ms + 50) curI = i; else break; }
+        if (dir > 0) {
+          if (curI + 1 < tm.length) { audioEl.currentTime = tm[curI + 1].s / 1000; return true; }
+          if (item.surah < 114) { playNextSurah(); return true; }
+          return false;
+        }
+        if (ms - tm[curI].s > 2000 || curI === 0 && ms > 2000) { audioEl.currentTime = tm[curI].s / 1000; return true; }
+        if (curI > 0) { audioEl.currentTime = tm[curI - 1].s / 1000; return true; }
+        if (item.surah > 1) { playPrevSurah(); return true; }
+        audioEl.currentTime = 0; return true;
+      }
+      var cur = audioEl.currentTime, dur = audioEl.duration || 0;
+      if (dir > 0) {
+        if (dur && cur + 15 >= dur - 1) { if (item.surah < 114) { playNextSurah(); return true; } return false; }
+        audioEl.currentTime = cur + 15; return true;
+      }
+      if (cur < 3 && item.surah > 1) { playPrevSurah(); return true; }
+      audioEl.currentTime = Math.max(0, cur - 15); return true;
+    }
+    // место остановки в суре: { surah: {a, t, w, ts} }
+    function _posMap() { try { return JSON.parse(_lsGet('quran_surah_pos_v1', '{}')) || {}; } catch(e) { return {}; } }
+    function _savePos(surah, ayah, t, whole) {
+      try {
+        if (!surah || !ayah) return;
+        var m = _posMap();
+        m[surah] = { a: +ayah, t: Math.floor(t || 0), w: !!whole, ts: Date.now() };
+        var keys = Object.keys(m);
+        if (keys.length > 120) { keys.sort(function(x, y) { return m[x].ts - m[y].ts; }); delete m[keys[0]]; }
+        _lsSet('quran_surah_pos_v1', JSON.stringify(m));
+      } catch(e) {}
+    }
+    function _clearPos(surah) { try { var m = _posMap(); if (m[surah]) { delete m[surah]; _lsSet('quran_surah_pos_v1', JSON.stringify(m)); } updateResumeBtn(); } catch(e) {} }
+    function updateResumeBtn(num) {
+      var b = document.getElementById('btn-resume-surah');
+      if (!b) return;
+      num = +num || +(state && state.currentSurah) || 0;
+      var p = num ? _posMap()[num] : null;
+      var total = 0; try { total = surahAyahCount(num); } catch(e) {}
+      if (!p || !(p.a > 1 || p.t > 10) || (total && p.a >= total && !p.w)) { b.style.display = 'none'; return; }
+      var kk = isKk();
+      b.dataset.s = num; b.dataset.a = p.a;
+      b.textContent = '↩ ' + (kk ? p.a + '-аяттан жалғастыру' : 'Продолжить с аята ' + p.a);
+      b.style.display = '';
+    }
+    document.getElementById('btn-resume-surah')?.addEventListener('click', function() {
+      var s = +this.dataset.s, a = +this.dataset.a, p = _posMap()[s];
+      if (!s) return;
+      if (wholeModeOn()) startWholeSurah(s, a, { resumeT: (p && p.w) ? p.t : null });
+      else loadSurahQueue(s, 'surah', a);
+    });
+    // переключатель «По аятам / Целиком» (из панели «Ещё»)
+    function setWholeMode(on) {
+      _lsSet('quran_whole_mode_v1', on ? '1' : '0');
+      paintPlayerMore();
+      var item = audioQueue[audioQueueIdx];
+      if (!item || !item.surah || item.dua || item.adhkar) return;
+      var playing = audioEl && !audioEl.paused && audioEl.src;
+      if (!playing) return;
+      if (on && !item.whole) startWholeSurah(item.surah, item.ayah || 1);
+      else if (!on && item.whole) loadSurahQueue(item.surah, audioPlayMode === 'surah-loop' ? 'surah-loop' : 'surah', item.ayah || 1);
+    }
+    var PLAYER_PK = {
+      ru: { prevs: 'Пред. сура', nexts: 'След. сура', mode: 'Режим', speed: 'Скорость', play: 'Воспроизведение', byayah: 'По аятам', whole: 'Целиком', after: 'После суры', stop: 'Остановиться', next: 'Дальше сама', rec: 'Чтец', timer: 'Таймер', miss: 'Не играет' },
+      kk: { prevs: 'Алдыңғы сүре', nexts: 'Келесі сүре', mode: 'Режим', speed: 'Жылдамдық', play: 'Ойнату', byayah: 'Аятпен', whole: 'Толық', after: 'Сүреден кейін', stop: 'Тоқтау', next: 'Келесіні қосу', rec: 'Қари', timer: 'Таймер', miss: 'Ойнамайды' }
+    };
+    function _paintPK() { var T = PLAYER_PK[isKk() ? 'kk' : 'ru']; document.querySelectorAll('[data-pk]').forEach(function(el) { var v = T[el.getAttribute('data-pk')]; if (v) el.textContent = v; }); }
+    // ===== build 6.35: панель «⋯ Ещё», кнопка режима и окно «Что значат кнопки» =====
+    function paintPlayerMore() {
+      var kk = isKk();
+      try { _paintPK(); } catch(e) {}
+      var more = document.getElementById('audio-more'), tg = document.getElementById('audio-more-toggle');
+      var open = _lsGet('quran_player_more_v1', '0') === '1';
+      if (more) more.style.display = open ? '' : 'none';
+      if (tg) tg.textContent = open ? ('▴ ' + (kk ? 'Азырақ' : 'Меньше')) : ('⋯ ' + (kk ? 'Тағы' : 'Ещё'));
+      var wm = wholeModeOn();
+      var b1 = document.getElementById('audio-pm-ayah'), b2 = document.getElementById('audio-pm-whole');
+      if (b1) b1.classList.toggle('active', !wm);
+      if (b2) b2.classList.toggle('active', wm);
+      var sel = document.getElementById('audio-whole-reciter');
+      if (sel) {
+        if (!sel.options.length) WHOLE_RECITERS.forEach(function(r) { var o = document.createElement('option'); o.value = r.id; o.textContent = kk ? r.kk : r.ru; sel.appendChild(o); });
+        else [].forEach.call(sel.options, function(o) { var r = wholeById(o.value); o.textContent = kk ? r.kk : r.ru; });
+        sel.value = wholeReciter().id;
+        sel.style.display = wm ? '' : 'none';
+      }
+      var as = afterSurahNext();
+      var a1 = document.getElementById('audio-after-stop'), a2 = document.getElementById('audio-after-next');
+      if (a1) a1.classList.toggle('active', !as);
+      if (a2) a2.classList.toggle('active', as);
+      try {
+        var cwI = audioQueue[audioQueueIdx], isW = !!(cwI && cwI.whole);
+        ['audio-mode-single', 'audio-mode-ayah-loop', 'audio-mode-random'].forEach(function(id) { var bb = document.getElementById(id); if (bb) bb.style.opacity = isW ? '0.4' : ''; });
+      } catch(e) {}
+      var cyc = document.getElementById('audio-mode-cycle');
+      if (cyc) {
+        var L = { single: kk ? '1 аят' : '1 аят', 'ayah-loop': kk ? '🔁 аят' : '🔁 аят', surah: kk ? 'Сүре' : 'Сура', 'surah-loop': kk ? '🔁 сүре' : '🔁 сура', random: '🔀' };
+        cyc.textContent = (kk ? 'Режим: ' : 'Режим: ') + (L[audioPlayMode] || '—');
+      }
+    }
+    function _cycleMode() {
+      var cw = audioQueue[audioQueueIdx];
+      var order = (cw && cw.whole) ? ['surah', 'surah-loop'] : ['surah', 'surah-loop', 'single', 'ayah-loop', 'random'];
+      var i = order.indexOf(audioPlayMode);
+      applyPlayerMode(order[(i + 1) % order.length]);
+    }
+    function openPlayerHelp() {
+      var kk = isKk();
+      var old = document.getElementById('player-help'); if (old) old.remove();
+      var rows = kk ? [
+        ['⏮ ⏭', 'Алдыңғы / келесі аят. Сүренің шетінде көрші сүреге өтеді.'],
+        ['▶ / ⏸', 'Ойнату және кідірту.'],
+        ['⏮ Алдыңғы сүре · Келесі сүре ⏭', 'Көрші сүренің басына секіру.'],
+        ['Режим: …', 'Басқан сайын ауысады: Сүре — аяттар бірінен соң бірі; 🔁 сүре — шеңбермен; 1 аят — тек бір аят; 🔁 аят — бір аятты қайталау; 🔀 — аралас реттілік.'],
+        ['⋯ Тағы / ▴ Азырақ', 'Қалған түймелерді көрсетеді немесе жасырады.'],
+        ['Жылдамдық', 'Ойнату жылдамдығы 0.25×–2×.'],
+        ['По аятам / Целиком', 'Аятпен-аят (кез келген қари) немесе бүкіл сүре бір файлмен (Абкар, Лухайдан). Абкарда аят белгісі бар, Лухайданда жоқ — ⏮⏭ 15 секундқа айналдырады.'],
+        ['После суры', 'Сүре біткен соң тоқтау немесе келесі сүрені өзі қосу.'],
+        ['🎙 Қари', 'Қариді ауыстыру — бірден, аяттың басынан.'],
+        ['⏱ Таймер', 'Ұйқы таймері және аяттар арасындағы үзілістерді қысқарту.'],
+        ['🚩 Ойнамайды', 'Бұл қаридің бұл аяты ойнамаса — белгілеңіз, келесі жолы басқа қари ұсынылады.'],
+        ['▾ / ▴', 'Плеерді бір жолға жинау / ашу.'],
+        ['✕', 'Плеерді жабу.']
+      ] : [
+        ['⏮ ⏭', 'Предыдущий / следующий аят. На краю суры переходит в соседнюю.'],
+        ['▶ / ⏸', 'Играть и пауза.'],
+        ['⏮ Пред. сура · След. сура ⏭', 'Прыжок в начало соседней суры.'],
+        ['Режим: …', 'Нажимайте — режим меняется по кругу: Сура — аяты подряд; 🔁 сура — по кругу; 1 аят — только один аят; 🔁 аят — повтор аята; 🔀 — случайный порядок.'],
+        ['⋯ Ещё / ▴ Меньше', 'Показать или скрыть остальные кнопки.'],
+        ['Скорость', 'Скорость воспроизведения 0.25×–2×.'],
+        ['По аятам / Целиком', 'По аятам (любой чтец) или вся сура одним файлом (Абкар, Лухайдан). У Абкара есть разметка аятов, у Лухайдана нет — там ⏮⏭ перематывают на 15 с.'],
+        ['После суры', 'Что делать, когда сура закончилась: остановиться или сама включить следующую.'],
+        ['🎙 Чтец', 'Сменить чтеца — сразу, с начала аята.'],
+        ['⏱ Таймер', 'Таймер сна и сокращение пауз между аятами.'],
+        ['🚩 Не играет', 'Если у этого чтеца аят не играет — отметьте, в следующий раз предложим другого чтеца.'],
+        ['▾ / ▴', 'Свернуть плеер в одну строку / развернуть.'],
+        ['✕', 'Закрыть плеер.']
+      ];
+      var ov = document.createElement('div');
+      ov.id = 'player-help';
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+      ov.innerHTML = '<div class="card" style="max-width:420px;width:100%;max-height:88vh;overflow:auto"><b>❓ ' + (kk ? 'Плеер түймелері не істейді' : 'Что делают кнопки плеера') + '</b>' +
+        '<div style="margin-top:0.6rem">' + rows.map(function(r) { return '<div style="display:flex;gap:0.6rem;padding:0.4rem 0;border-top:1px solid var(--border)"><div style="flex:0 0 7.5rem;font-weight:600;font-size:0.88rem">' + r[0] + '</div><div style="font-size:0.85rem;color:var(--text-muted)">' + r[1] + '</div></div>'; }).join('') + '</div>' +
+        '<button type="button" class="btn btn-primary" id="ph-close" style="width:100%;margin-top:0.7rem">' + (kk ? 'Түсінікті' : 'Понятно') + '</button></div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+      document.getElementById('ph-close').addEventListener('click', function() { ov.remove(); });
+    }
+    document.getElementById('audio-help')?.addEventListener('click', openPlayerHelp);
+    document.getElementById('audio-more-toggle')?.addEventListener('click', function() {
+      _lsSet('quran_player_more_v1', _lsGet('quran_player_more_v1', '0') === '1' ? '0' : '1');
+      paintPlayerMore();
+    });
+    document.getElementById('audio-mode-cycle')?.addEventListener('click', _cycleMode);
+    document.getElementById('audio-pm-ayah')?.addEventListener('click', function() { setWholeMode(false); });
+    document.getElementById('audio-pm-whole')?.addEventListener('click', function() { setWholeMode(true); });
+    document.getElementById('audio-whole-reciter')?.addEventListener('change', function() {
+      _lsSet('quran_whole_reciter_v1', this.value);
+      var item = audioQueue[audioQueueIdx];
+      if (item && item.whole && audioEl && !audioEl.paused) startWholeSurah(item.surah, item.ayah || 1);
+    });
+    document.getElementById('audio-after-stop')?.addEventListener('click', function() { _lsSet('quran_after_surah_v1', 'stop'); paintPlayerMore(); });
+    document.getElementById('audio-after-next')?.addEventListener('click', function() { _lsSet('quran_after_surah_v1', 'next'); paintPlayerMore(); });
+    try { paintPlayerMore(); } catch(e) {}
+
     function playNextInQueue() {
       return playNextAyah();
     }
@@ -4888,6 +5208,12 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     document.getElementById('audio-next')?.addEventListener('click', () => playNextAyah(true));
 
     async function applyPlayerMode(mode) {
+      const _cw0 = audioQueue[audioQueueIdx];
+      if (_cw0 && _cw0.whole) {
+        if (mode !== 'surah' && mode !== 'surah-loop') { toast(isKk() ? '«Толық» режимінде тек «Сүре» және «🔁 Сүре» бар' : 'В режиме «Целиком» доступны только «Сура» и «🔁 Сура»'); return; }
+        audioPlayMode = mode; try { updateAudioSub(); updateAudioModeButtons(); } catch(e) {}
+        return;
+      }
       const prev = audioPlayMode;
       audioPlayMode = mode;
       try {
@@ -5213,7 +5539,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         syncMini();
       }
       function syncMini() {
-        try { document.body.classList.toggle('player-mini', bar.classList.contains('collapsed') && bar.classList.contains('visible')); } catch(e) {}
+        try { var vis = bar.classList.contains('visible'); document.body.classList.toggle('player-mini', bar.classList.contains('collapsed') && vis); document.body.classList.toggle('player-on', vis); } catch(e) {}
       }
       try { new MutationObserver(syncMini).observe(bar, { attributes: true, attributeFilter: ['class'] }); } catch(e) {}
       var mp = document.getElementById('audio-mini-prev'), mn = document.getElementById('audio-mini-next');
@@ -5232,7 +5558,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     })();
 
     // ----- группы чтецов (учебные сверху, затем для слушания) -----
-    function _isStudyReciter(id) { return ['ar.husarymuallim', 'ar.husary', 'ar.minshawi', 'ar.abdulsamad'].indexOf(id) >= 0; } /* учебные: муаллим и мураттал (ровное чтение по правилам); муджаввад и остальные — для слушания */
+    function _isStudyReciter(id) { return ['ar.husarymuallim', 'ar.husary', 'ar.minshawi', 'ar.minshawimujawwad', 'ar.abdulsamad', 'ar.abdulbasitmujawwad'].indexOf(id) >= 0; } /* учебные: муаллим и мураттал (ровное чтение по правилам); муджаввад и остальные — для слушания */
     function reciterGroups() {
       var list = (typeof RECITER_LIST !== 'undefined') ? RECITER_LIST : [];
       return [
@@ -5399,6 +5725,20 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     });
     seekEl?.addEventListener('change', () => { seekDragging = false; });
 
+    // build 6.35: при смене трека ползунок и время сразу обнуляются (раньше ползунок оставался там, где
+    // был у предыдущего аята, пока новый файл не загрузится, а потом «доползал»)
+    function _resetSeekUi() {
+      try {
+        if (seekEl && !seekDragging) seekEl.value = 0;
+        const c = document.getElementById('audio-time-cur'); if (c) c.textContent = '0:00';
+        const d = document.getElementById('audio-time-dur'); if (d) d.textContent = '0:00';
+      } catch(e) {}
+    }
+    audioEl.addEventListener('loadstart', _resetSeekUi);
+    audioEl.addEventListener('emptied', _resetSeekUi);
+    audioEl.addEventListener('durationchange', () => {
+      try { const d = document.getElementById('audio-time-dur'); if (d) d.textContent = fmtTime(audioEl.duration || 0); } catch(e) {}
+    });
     let _lastListenT = 0;
     audioEl.addEventListener('timeupdate', () => {
       if (!audioEl.paused) {
@@ -5408,6 +5748,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
           _lastListenT = t;
         }
       }
+      try { _wholeTick(); } catch(e) {}
       try {
         if (_curTrim && _curTrim.end && !_curTrim.fired && !audioEl.paused && audioEl.currentTime >= _curTrim.end && _trimEnabled()) {
           _curTrim.fired = true;
@@ -5466,13 +5807,18 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('change', () => {
-        const v = el.value;
-        const other = document.getElementById(id === 'audio-speed' ? 'audio-speed-bar' : 'audio-speed');
-        if (other) other.value = v;
+        const v = parseFloat(el.value) || 1;
+        window._audioSpeed = v;
+        try { localStorage.setItem('quran_audio_speed_v1', String(v)); } catch(e) {}
+        syncSpeedSelects();
         applyAudioSpeed();
         updateAudioSub();
       });
     });
+    syncSpeedSelects();
+    // браузер может восстановить значения форм уже после загрузки — выравниваем ещё раз
+    window.addEventListener('pageshow', () => { try { syncSpeedSelects(); } catch(e) {} });
+    setTimeout(() => { try { syncSpeedSelects(); } catch(e) {} }, 800);
 
     // Full surah sequential
     document.getElementById('btn-play-surah').addEventListener('click', async () => {
@@ -12113,7 +12459,7 @@ function renderMistakes() {
         '</div>';
 
       document.getElementById('btn-hear').addEventListener('click', () => {
-        if (ayah.audio) playAudio(ayah.audio, (kkQ ? 'Сүре ' : 'Сура ')+ayah.surah+':'+ayah.number, { repeat: 1 });
+        if (ayah.audio) playAudio((typeof ayahAudioUrl === 'function' && ayah.surah ? ayahAudioUrl(ayah.surah, ayah.number) : ayah.audio), (kkQ ? 'Сүре ' : 'Сура ')+ayah.surah+':'+ayah.number, { repeat: 1 });
         else toast(kkQ ? 'Аят аудиосы қолжетімсіз' : 'Аудио аята недоступно');
       });
       document.getElementById('btn-play-me').addEventListener('click', playMyRecording);
@@ -14201,6 +14547,41 @@ function _stripLeadingBismillah(text, surah) {
   if (words.length <= 4) return { text: text, stripped: false };
   return { text: words.slice(4).join(' '), stripped: true };
 }
+// build 6.34: транскрипция для печати — по выбранному в приложении виду; если он выключен, то по языку интерфейса
+function _printTranslit(n, a) {
+  var md = (typeof translitModeNow === 'function') ? translitModeNow() : 'latin';
+  if (md === 'off') md = isKk() ? 'kk' : 'ru';
+  if (md === 'latin') {
+    var c = _qtlLoad(n);
+    if (c && c[a.number]) return c[a.number];
+    return (window.arabicToLatin && a.text) ? window.arabicToLatin(a.text) : '';
+  }
+  return (window.arTrans && a.text) ? window.arTrans(a.text, md === 'kk') : '';
+}
+var PRINT_BGS = {
+  white: { bg: '#ffffff', fg: '#000000', sub: '#444444', line: '#c8c8c8', dark: 0 },
+  cream: { bg: '#fbf3df', fg: '#2b2113', sub: '#6b5a3c', line: '#d9c9a3', dark: 0 },
+  sepia: { bg: '#f1e4c8', fg: '#3b2a14', sub: '#6e5a3a', line: '#cdb98d', dark: 0 },
+  mint:  { bg: '#e8f5ee', fg: '#12301f', sub: '#3d6650', line: '#b6d6c3', dark: 0 },
+  gray:  { bg: '#eceff1', fg: '#1c1f22', sub: '#52595e', line: '#c4cacd', dark: 0 },
+  night: { bg: '#0f172a', fg: '#e5e7eb', sub: '#9ca3af', line: '#334155', dark: 1 }
+};
+function _printBgFor(key) {
+  if (key === 'app') {
+    try {
+      var cs = getComputedStyle(document.body);
+      var bg = (cs.getPropertyValue('--bg') || '').trim() || cs.backgroundColor || '#ffffff';
+      var fg = (cs.getPropertyValue('--text') || '').trim() || cs.color || '#000000';
+      var mu = (cs.getPropertyValue('--text-muted') || '').trim() || fg;
+      var bd = (cs.getPropertyValue('--border') || '').trim() || mu;
+      var m = String(bg).match(/^#([0-9a-f]{6})$/i), lum = 1;
+      if (m) { var v = parseInt(m[1], 16); lum = (0.299 * (v >> 16) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255)) / 255; }
+      else { var mm = String(bg).match(/\d+/g); if (mm && mm.length >= 3) lum = (0.299 * mm[0] + 0.587 * mm[1] + 0.114 * mm[2]) / 255; }
+      return { bg: bg, fg: fg, sub: mu, line: bd, dark: lum < 0.5 ? 1 : 0 };
+    } catch (e) {}
+  }
+  return PRINT_BGS[key] || PRINT_BGS.white;
+}
 async function buildPrintableSurah(n, opts) {
   var kk = isKk();
   var data = await fetchSurah(n);
@@ -14210,10 +14591,14 @@ async function buildPrintableSurah(n, opts) {
   if (colorOn) { try { await loadTajweedData(); } catch (e) { colorOn = false; } if (!_twCache) colorOn = false; }
   var title = (typeof surahTitle === 'function') ? surahTitle(n, data.meta && data.meta.englishName) : ((kk ? 'Сүре ' : 'Сура ') + n);
   var bism = (typeof FATIHA_LESSON !== 'undefined' && FATIHA_LESSON[0] && FATIHA_LESSON[0].full) ? FATIHA_LESSON[0].full : '\u0628\u0650\u0633\u0652\u0645\u0650 \u0671\u0644\u0644\u0651\u064e\u0647\u0650 \u0671\u0644\u0631\u0651\u064e\u062d\u0652\u0645\u064e\u0640\u0670\u0646\u0650 \u0671\u0644\u0631\u0651\u064e\u062d\u0650\u064a\u0645\u0650';
+  var cm = String(opts.content || 'both');
+  var wantAr = cm !== 'tl' && cm !== 'tr';
+  var wantTl = cm === 'ar+tl' || cm === 'tl' || cm === 'all';
+  var wantTr = cm === 'both' || cm === 'ar+tr' || cm === 'tr' || cm === 'all';
   var html = '<div class="pr-title">' + title + '</div>' +
     '<div class="pr-sub">' + (kk ? 'Сүре ' : 'Сура ') + n + ' · ' + (data.ayahs.length) + ' ' + (kk ? 'аят' : 'аятов') +
     (opts.from > 1 || opts.to < data.ayahs.length ? ' · ' + (kk ? 'аяттар ' : 'аяты ') + opts.from + '–' + opts.to : '') + '</div>';
-  if (n !== 1 && n !== 9 && opts.from === 1) html += '<div class="pr-bism arabic" dir="rtl">' + bism + '</div>';
+  if (wantAr && n !== 1 && n !== 9 && opts.from === 1) html += '<div class="pr-bism arabic" dir="rtl">' + bism + '</div>';
   var skippedColor = 0;
   ayahs.forEach(function(a) {
     var st = _stripLeadingBismillah(a.text, n);
@@ -14224,8 +14609,13 @@ async function buildPrintableSurah(n, opts) {
       var valid = anns && anns.every(function(x) { return x[2] <= len && x[1] >= 0; });
       if (valid) inner = renderTajweedText(txt, anns); else skippedColor++;
     }
-    html += '<div class="pr-ayah"><div class="pr-ar arabic" dir="rtl">' + inner + ' <span class="pr-num">\ufd3f' + a.number + '\ufd3e</span></div>' +
-      (opts.content === 'both' && a.translation ? '<div class="pr-tr"><b>' + a.number + '.</b> ' + a.translation + '</div>' : '') + '</div>';
+    var tlTxt = '';
+    if (wantTl) { try { tlTxt = _printTranslit(n, { number: a.number, text: txt }); } catch (e) { tlTxt = ''; } }
+    var numPfx = wantAr ? '' : '<b>' + a.number + '.</b> ';
+    html += '<div class="pr-ayah">' +
+      (wantAr ? '<div class="pr-ar arabic" dir="rtl">' + inner + ' <span class="pr-num">\ufd3f' + a.number + '\ufd3e</span></div>' : '') +
+      (wantTl && tlTxt ? '<div class="pr-tl" dir="ltr">' + numPfx + String(tlTxt).replace(/</g, '&lt;') + '</div>' : '') +
+      (wantTr && a.translation ? '<div class="pr-tr">' + (wantAr || (wantTl && tlTxt) ? '<b>' + a.number + '.</b> ' : numPfx) + a.translation + '</div>' : '') + '</div>';
   });
   if (colorOn) {
     html += '<div class="pr-legend">' + (kk ? 'Түстер: ' : 'Цвета: ') +
@@ -14250,7 +14640,22 @@ function openPrintDialog(surahNum) {
     '<b>🖨 ' + (kk ? 'Сүрені басып шығару' : 'Печать суры') + '</b>' +
     '<div class="ayah-translation" style="margin:0.3rem 0 0.6rem;font-size:0.85rem">' + (kk ? 'Қағазда жаттығуға арналған таза нұсқа — түймелерсіз, үлкен қаріппен.' : 'Чистая версия для занятий на бумаге — без кнопок, крупным шрифтом. Откроется обычное окно печати (там же «Сохранить как PDF»).') + '</div>' +
     '<label style="font-size:0.85rem;color:var(--text-muted)">' + (kk ? 'Не басылады' : 'Что печатать') + '</label>' +
-    '<select id="pd-content" style="width:100%;margin:0.2rem 0 0.5rem;padding:0.5rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"><option value="ar">' + (kk ? 'Тек арабша' : 'Только арабский') + '</option><option value="both" selected>' + (kk ? 'Арабша + аударма' : 'Арабский + перевод') + '</option></select>' +
+    '<select id="pd-content" style="width:100%;margin:0.2rem 0 0.5rem;padding:0.5rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
+      '<option value="ar">' + (kk ? 'Тек арабша' : 'Только арабский') + '</option>' +
+      '<option value="ar+tr" selected>' + (kk ? 'Арабша + аударма' : 'Арабский + перевод') + '</option>' +
+      '<option value="ar+tl">' + (kk ? 'Арабша + транскрипция' : 'Арабский + транскрипция') + '</option>' +
+      '<option value="tl">' + (kk ? 'Тек транскрипция' : 'Только транскрипция') + '</option>' +
+      '<option value="tr">' + (kk ? 'Тек аударма' : 'Только перевод') + '</option>' +
+      '<option value="all">' + (kk ? 'Бәрі бірге (арабша + транскрипция + аударма)' : 'Всё вместе (арабский + транскрипция + перевод)') + '</option></select>' +
+    '<label style="font-size:0.85rem;color:var(--text-muted)">' + (kk ? 'Қағаз түсі (фон)' : 'Фон страницы') + '</label>' +
+    '<select id="pd-bg" style="width:100%;margin:0.2rem 0 0.5rem;padding:0.5rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
+      '<option value="white" selected>' + (kk ? 'Ақ (үнемді)' : 'Белый (экономный)') + '</option>' +
+      '<option value="cream">' + (kk ? 'Кілегей' : 'Кремовый') + '</option>' +
+      '<option value="sepia">' + (kk ? 'Сепия' : 'Сепия') + '</option>' +
+      '<option value="mint">' + (kk ? 'Жұмсақ жасыл' : 'Мятный') + '</option>' +
+      '<option value="gray">' + (kk ? 'Ашық сұр' : 'Светло-серый') + '</option>' +
+      '<option value="night">' + (kk ? 'Түнгі (қара)' : 'Ночной (тёмный)') + '</option>' +
+      '<option value="app">' + (kk ? 'Қолданбадағы тақырып сияқты' : 'Как в приложении (текущая тема)') + '</option></select>' +
     '<label style="font-size:0.85rem;color:var(--text-muted)">' + (kk ? 'Арабша қаріп өлшемі' : 'Размер арабского') + '</label>' +
     '<select id="pd-size" style="width:100%;margin:0.2rem 0 0.5rem;padding:0.5rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"><option value="24">' + (kk ? 'Әдеттегі' : 'Обычный') + '</option><option value="32" selected>' + (kk ? 'Үлкен' : 'Крупный') + '</option><option value="42">' + (kk ? 'Өте үлкен' : 'Очень крупный') + '</option></select>' +
     '<label style="font-size:0.85rem;color:var(--text-muted)">' + (kk ? 'Аяттар' : 'Аяты') + '</label>' +
@@ -14276,10 +14681,16 @@ function openPrintDialog(surahNum) {
       var root = document.getElementById('print-root');
       if (!root) { root = document.createElement('div'); root.id = 'print-root'; document.body.appendChild(root); }
       root.style.setProperty('--pr-ar-size', document.getElementById('pd-size').value + 'pt');
+      var th = _printBgFor(document.getElementById('pd-bg').value);
+      root.style.setProperty('--pr-bg', th.bg); root.style.setProperty('--pr-fg', th.fg);
+      root.style.setProperty('--pr-sub', th.sub); root.style.setProperty('--pr-line', th.line);
+      root.setAttribute('data-pr-dark', th.dark ? '1' : '0');
+      var _htmlBg = document.documentElement.style.background;
+      document.documentElement.style.setProperty('--pr-bg', th.bg);
       root.innerHTML = html;
       ov.remove();
       document.body.classList.add('printing-quran');
-      var done = function() { document.body.classList.remove('printing-quran'); window.removeEventListener('afterprint', done); };
+      var done = function() { document.body.classList.remove('printing-quran'); document.documentElement.style.removeProperty('--pr-bg'); window.removeEventListener('afterprint', done); };
       window.addEventListener('afterprint', done);
       setTimeout(function() { try { window.print(); } catch (e) { done(); toast(kk ? 'Басу қолжетімсіз' : 'Печать недоступна в этом браузере'); } }, 200);
     } catch (e) {
@@ -25592,7 +26003,7 @@ function renderDict() {
         el.querySelector('#aotd-open')?.addEventListener('click', (ev) => { ev.stopPropagation(); openSurah(s, a.number); showView('reader'); });
         el.querySelector('#aotd-play')?.addEventListener('click', (ev) => {
           ev.stopPropagation();
-          playAudio(a.audio, sName + ' · аят ' + a.number, { ayah: a.number, surah: s });
+          playAudio((typeof ayahAudioUrl === 'function' ? ayahAudioUrl(s, a.number) : a.audio), sName + ' · аят ' + a.number, { ayah: a.number, surah: s });
         });
         el.querySelector('#aotd-share')?.addEventListener('click', (ev) => {
           ev.stopPropagation();
@@ -25661,6 +26072,8 @@ function renderDict() {
     async function renderContinueLearning() {
       const el = document.getElementById('home-continue');
       if (!el) return;
+      // build 6.34: карточка «Продолжить обучение» убрана по просьбе пользователя
+      el.innerHTML = ''; return;
       if (!state.currentSurah) { el.innerHTML = ''; return; }
       try {
         const s = state.currentSurah;
@@ -34905,7 +35318,7 @@ async function renderRegistrationSection() {
       const loops = 20;
       let queue = [];
       for (let i = 0; i < loops; i++) {
-        slice.forEach(a => queue.push({ url: a.audio, title: 'Сура '+state.currentSurah+', аят '+a.number }));
+        slice.forEach(a => queue.push({ url: ayahAudioUrl(state.currentSurah, a.number), title: 'Сура '+state.currentSurah+', аят '+a.number }));
       }
       playAudio(queue[0].url, queue[0].title, { queue: queue, queueIdx: 0, repeat: 1 });
       toast('Цикл '+from+'–'+to+' (остановка — кнопка ■)');

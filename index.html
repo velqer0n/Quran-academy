@@ -309,6 +309,7 @@
         </div>
         <div class="reader-actions">
           <button class="btn btn-sm btn-primary" id="btn-play-surah" title="Вся сура">▶ Вся сура</button>
+          <button class="btn btn-sm" id="btn-resume-surah" style="display:none" title="Продолжить с места остановки">↩ Продолжить</button>
           <button class="btn btn-sm" id="btn-offline-surah" title="Скачать аудио суры для офлайн-прослушивания">⬇️ Офлайн</button>
           <button class="btn btn-sm" id="btn-mark-surah" title="Отметить суру выученной">✓ Сура</button>
           <button class="btn btn-sm" id="btn-hide-tr" title="Скрыть переводы">👁 Перевод</button>
@@ -320,11 +321,15 @@
       </div>
       <div class="audio-controls-bar" id="reader-audio-controls" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:1rem;padding:0.6rem 0.75rem;background:var(--bg-card);border:1px solid var(--border);border-radius:0.75rem">
         <label style="font-size:0.8rem;color:var(--text-muted)">Скорость</label>
-        <select id="audio-speed" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.5rem;border-radius:0.4rem;font-size:0.85rem">
+        <select id="audio-speed" autocomplete="off" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.5rem;border-radius:0.4rem;font-size:0.85rem">
+          <option value="0.25">0.25×</option>
           <option value="0.5">0.5×</option>
           <option value="0.75">0.75×</option>
           <option value="1" selected>1×</option>
           <option value="1.25">1.25×</option>
+          <option value="1.5">1.5×</option>
+          <option value="1.75">1.75×</option>
+          <option value="2">2×</option>
         </select>
         <label style="font-size:0.8rem;color:var(--text-muted)">Повтор аята</label>
         <input type="number" id="audio-repeat" min="1" max="99" value="1" style="width:3rem;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.3rem;border-radius:0.4rem;font-size:0.85rem"/>
@@ -1515,12 +1520,7 @@
       <button type="button" class="btn-player mini-nav" id="audio-mini-prev" style="display:none" title="Предыдущий аят">⏮</button>
       <button type="button" class="btn-player primary" id="audio-mini-play" style="display:none" title="Пуск/пауза">▶</button>
       <button type="button" class="btn-player mini-nav" id="audio-mini-next" style="display:none" title="Следующий аят">⏭</button>
-      <select id="audio-speed-bar" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.25rem;border-radius:0.35rem;font-size:0.75rem;max-width:4.5rem">
-        <option value="0.5">0.5×</option>
-        <option value="0.75">0.75×</option>
-        <option value="1" selected>1×</option>
-        <option value="1.25">1.25×</option>
-      </select>
+      <button type="button" class="btn-player" id="audio-help" title="Что делают кнопки">❓</button>
       <button type="button" class="btn-player" id="audio-collapse" title="Свернуть плеер">▾</button>
       <button type="button" class="btn-player" id="audio-stop" title="Закрыть">✕</button>
     </div>
@@ -1530,25 +1530,50 @@
       <span id="audio-time-dur">0:00</span>
     </div>
     <div class="player-controls">
-      <button type="button" class="btn-player" id="audio-prev-surah" title="Предыдущая сура">⏮⏮</button>
       <button type="button" class="btn-player" id="audio-prev" title="Предыдущий аят">⏮</button>
       <button type="button" class="btn-player primary" id="audio-play-pause" title="Пауза">▶</button>
       <button type="button" class="btn-player" id="audio-next" title="Следующий аят">⏭</button>
-      <button type="button" class="btn-player" id="audio-next-surah" title="Следующая сура">⏭⏭</button>
     </div>
-    <div class="player-modes" id="audio-modes" style="display:flex;gap:0.3rem;flex-wrap:wrap;justify-content:center;margin-top:0.25rem">
-      <button type="button" class="btn-player" id="audio-mode-single" title="Только этот аят (один раз)" style="font-size:0.7rem;padding:0.25rem 0.45rem">1 аят</button>
-      <button type="button" class="btn-player" id="audio-mode-ayah-loop" title="Повтор одного аята" style="font-size:0.7rem;padding:0.25rem 0.45rem">🔁 1</button>
-      <button type="button" class="btn-player" id="audio-mode-surah" title="Вся сура по порядку" style="font-size:0.7rem;padding:0.25rem 0.45rem">Сура</button>
-      <button type="button" class="btn-player" id="audio-mode-loop" title="Повтор всей суры" style="font-size:0.7rem;padding:0.25rem 0.45rem">🔁 Сура</button>
-      <button type="button" class="btn-player" id="audio-mode-random" title="Случайный порядок в суре" style="font-size:0.7rem;padding:0.25rem 0.45rem">🔀</button>
-      <!-- build 6.08: у некоторых чтецов реально нет записи для отдельных
-           аятов — вместо того чтобы ждать, пока это выяснится само (через
-           ошибку проигрывания), можно отметить это самому, один раз, и
-           дальше приложение запомнит и сразу предложит запасного чтеца. -->
-      <button type="button" class="btn-player" id="audio-pick-reciter" title="Выбрать чтеца" style="font-size:0.7rem;padding:0.25rem 0.45rem">🎙 Чтец</button>
-      <button type="button" class="btn-player" id="audio-sleep-btn" title="Таймер сна и обрезка пауз" style="font-size:0.7rem;padding:0.25rem 0.45rem">⏱</button>
-      <button type="button" class="btn-player" id="audio-report-missing" title="Этот аят не играет у этого чтеца" style="font-size:0.7rem;padding:0.25rem 0.45rem">🚩 Не играет</button>
+    <div class="player-surahnav">
+      <button type="button" class="pl-chip" id="audio-prev-surah" title="Предыдущая сура">⏮ <span data-pk="prevs">Пред. сура</span></button>
+      <button type="button" class="pl-chip" id="audio-mode-cycle" title="Режим воспроизведения (нажмите — сменится)">Режим</button>
+      <button type="button" class="pl-chip" id="audio-next-surah" title="Следующая сура"><span data-pk="nexts">След. сура</span> ⏭</button>
+    </div>
+    <button type="button" class="pl-more-toggle" id="audio-more-toggle">⋯ Ещё</button>
+    <div id="audio-more" style="display:none">
+      <div class="pl-row"><span class="pl-lbl" data-pk="mode">Режим</span>
+        <div class="player-modes" id="audio-modes">
+          <button type="button" class="btn-player" id="audio-mode-single" title="Только этот аят (один раз)">1 аят</button>
+          <button type="button" class="btn-player" id="audio-mode-ayah-loop" title="Повтор одного аята">🔁 1</button>
+          <button type="button" class="btn-player" id="audio-mode-surah" title="Вся сура по порядку">Сура</button>
+          <button type="button" class="btn-player" id="audio-mode-loop" title="Повтор всей суры">🔁 Сура</button>
+          <button type="button" class="btn-player" id="audio-mode-random" title="Случайный порядок в суре">🔀</button>
+        </div>
+      </div>
+      <div class="pl-row"><span class="pl-lbl" data-pk="speed">Скорость</span>
+        <select id="audio-speed-bar" autocomplete="off" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.25rem;border-radius:0.35rem;font-size:0.75rem;max-width:4.5rem">
+        <option value="0.25">0.25×</option>
+        <option value="0.5">0.5×</option>
+        <option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option>
+        <option value="1.75">1.75×</option>
+        <option value="2">2×</option>
+      </select>
+      </div>
+      <div class="pl-row"><span class="pl-lbl" data-pk="play">Воспроизведение</span>
+        <div class="pl-seg"><button type="button" class="pl-chip" id="audio-pm-ayah"><span data-pk="byayah">По аятам</span></button><button type="button" class="pl-chip" id="audio-pm-whole"><span data-pk="whole">Целиком</span></button></div>
+        <select id="audio-whole-reciter" autocomplete="off" class="pl-sel" style="display:none"></select>
+      </div>
+      <div class="pl-row"><span class="pl-lbl" data-pk="after">После суры</span>
+        <div class="pl-seg"><button type="button" class="pl-chip" id="audio-after-stop"><span data-pk="stop">Остановиться</span></button><button type="button" class="pl-chip" id="audio-after-next"><span data-pk="next">Дальше сама</span></button></div>
+      </div>
+      <div class="pl-row pl-tools">
+        <button type="button" class="pl-chip" id="audio-pick-reciter" title="Выбрать чтеца">🎙 <span data-pk="rec">Чтец</span></button>
+        <button type="button" class="pl-chip" id="audio-sleep-btn" title="Таймер сна и обрезка пауз">⏱ <span data-pk="timer">Таймер</span></button>
+        <button type="button" class="pl-chip" id="audio-report-missing" title="Этот аят не играет у этого чтеца">🚩 <span data-pk="miss">Не играет</span></button>
+      </div>
     </div>
     <div id="audio-sleep-panel" style="display:none"></div>
     <div id="audio-mode-tip" style="text-align:center;font-size:0.72rem;color:var(--text-muted);opacity:0;transition:opacity 0.3s;min-height:1em;pointer-events:none"></div>

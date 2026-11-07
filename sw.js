@@ -18,6 +18,8 @@ self.addEventListener('fetch', e => {
   if (!/^https?:/.test(url)) return;
   // аккаунты/чат — только сеть, не кэшируем чужие данные
   if (url.includes('supabase.co')) return;
+  // build 6.35: суры целиком (десятки МБ) не кэшируем воркером
+  if (url.includes('cdn.mp3quran.net')) return;
   // Аудио плеер просит файл кусками (Range). Записи «Дуа и зикры» храним
   // целиком: при первом прослушивании докачиваем файл в фоне, потом
   // отдаём нужный кусок из кэша — так они играют и без интернета.
@@ -34,8 +36,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   e.respondWith(
-    // build 6.27: no-cache — браузер всегда сверяется с сервером (GitHub Pages даёт кэш ~10 минут: раньше первым мог показаться старый файл)
-    fetch(req.mode === 'navigate' ? req.url : req, { cache: 'no-cache' }).then(resp => {
+    fetch(req).then(resp => {
       if (resp && resp.ok) { // непрозрачные (opaque) ответы не храним — они раздувают квоту
         const clone = resp.clone();
         caches.open(CACHE).then(c => c.put(req, clone)).catch(() => {});
@@ -58,21 +59,3 @@ async function rangeFrom(resp, range) {
     'Content-Range': 'bytes ' + start + '-' + end + '/' + size,
     'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes' } });
 }
-
-// Web Push: уведомление о намазе приходит с сервера, даже когда сайт закрыт
-self.addEventListener('push', e => {
-  let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: 'Quran Academy', body: e.data ? e.data.text() : '' }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'Quran Academy', {
-    body: d.body || '', tag: d.tag || 'prayer', renotify: true, silent: !!d.silent,
-    icon: 'icon-192.png', badge: 'icon-192.png', data: { url: './' }
-  }));
-});
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  e.waitUntil((async () => {
-    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    if (all.length) { try { await all[0].focus(); return; } catch (x) {} }
-    await self.clients.openWindow('./');
-  })());
-});
