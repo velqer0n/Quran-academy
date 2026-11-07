@@ -1067,6 +1067,7 @@
       { id:'data', icon:'🗄️', label:'Данные', group:'system' },
       { id:'help', icon:'❓', label:'Справка', group:'system' },
       { id:'settings', icon:'⚙️', label:'Настройки', group:'system' },
+      { id:'changelog', icon:'🆕', label:'Обновления', group:'system' },
       { id:'appupdate', icon:'🔄', label:'Обновить сайт', group:'system' }
     ];
 

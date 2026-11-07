@@ -1671,7 +1671,17 @@ const SURAH_CACHE_KEY = 'quran-surah-cache-v2'; // v2: старый кэш не 
       const kkText = /[әіңғүұқөһӘІҢҒҮҰҚӨҺ]/.test(s);
       return String(edition || '').indexOf('kk') === 0 ? kkText : !kkText;
     }
+    // build 6.33: ссылка на аудио аята ВСЕГДА собирается под текущего чтеца. Раньше в кэше суры
+    // оставалась ссылка первого чтеца (или Хусари с alquran.cloud) — из-за этого новые чтецы
+    // (Шурайм, Али Джабер, Фарес Аббад…) звучали одинаково.
     async function fetchSurah(num) {
+      const d = await fetchSurahRaw(num);
+      try {
+        if (d && d.ayahs && typeof ayahAudioUrl === 'function') d.ayahs.forEach(function(a) { a.audio = ayahAudioUrl(num, a.number); });
+      } catch(e) {}
+      return d;
+    }
+    async function fetchSurahRaw(num) {
       num = +num;
       const wantEd = (state.settings && state.settings.translation) || 'ru.kuliev';
       let stale = null; // запись с переводом на другом языке — запасной вариант без сети
@@ -3590,7 +3600,6 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
             jumpToAyahNum(+b.dataset.rail);
           }));
           bindRail(rail); bindRail(railL);
-          let scrollT = null;
           const showRail = () => {
             const side = (state.settings && state.settings.ayahRailSide) || 'right';
             const hideAll = () => [rail, railL].forEach(r => { if (r) { r.style.opacity = '0'; r.style.pointerEvents = 'none'; r.style.visibility = 'hidden'; } });
@@ -3611,9 +3620,30 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
               railL.style.pointerEvents = showL ? 'auto' : 'none';
               railL.style.visibility = showL ? 'visible' : 'hidden';
             }
-            clearTimeout(scrollT);
-            scrollT = setTimeout(hideAll, 600);
+            clearTimeout(window._railT);
+            // build 6.33: плашка держится заметно дольше (6 с) и не гаснет, пока на неё наведён курсор или палец
+            if (!window._railHold) window._railT = setTimeout(hideAll, 6000);
           };
+          window._railShow = showRail;
+          const _railFade = (r, ms) => { clearTimeout(window._railT); window._railT = setTimeout(() => { [rail, railL].forEach(x => { if (x) { x.style.opacity = '0'; x.style.pointerEvents = 'none'; x.style.visibility = 'hidden'; } }); }, ms); };
+          [rail, railL].forEach(r => {
+            if (!r || r._holdBound) return;
+            r._holdBound = true;
+            r.addEventListener('mouseenter', () => { window._railHold = true; clearTimeout(window._railT); r.style.opacity = '0.95'; });
+            r.addEventListener('mouseleave', () => { window._railHold = false; r.style.opacity = '0.5'; _railFade(r, 2500); });
+            r.addEventListener('touchstart', () => { window._railHold = true; clearTimeout(window._railT); r.style.opacity = '0.95'; }, { passive: true });
+            r.addEventListener('touchend', () => { window._railHold = false; _railFade(r, 5000); }, { passive: true });
+          });
+          // на компьютере: подвёл курсор к краю экрана — плашка появляется сама
+          if (!window._railMouseBound) {
+            window._railMouseBound = true;
+            document.addEventListener('mousemove', (e) => {
+              const side = (state.settings && state.settings.ayahRailSide) || 'right';
+              if (side === 'none') return;
+              const w = window.innerWidth || 0;
+              if ((side === 'right' && e.clientX >= w - 90) || (side === 'left' && e.clientX <= 90)) { try { window._railShow && window._railShow(); } catch(err) {} }
+            }, { passive: true });
+          }
           // Скролл страницы, списка и touchmove
           window.addEventListener('scroll', showRail, { passive: true, capture: true });
           document.addEventListener('scroll', showRail, { passive: true, capture: true });
@@ -4223,7 +4253,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       } catch(e) {}
       try {
         navigator.mediaSession.setActionHandler('previoustrack', () => playPrevAyah());
-        navigator.mediaSession.setActionHandler('nexttrack', () => playNextAyah());
+        navigator.mediaSession.setActionHandler('nexttrack', () => playNextAyah(true));
       } catch(e) {}
     }
 
@@ -4426,6 +4456,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         // другой аят/суру — не перебиваем то, что сейчас играет.
         if (audioQueueIdx !== _pqiIdx || audioQueue[_pqiIdx] !== _pqiItem) return;
         audioEl.src = srcUrl;
+        window._lastPlayedUrl = _pqiUrl;
         applyAudioSpeed();
         try { if (item.surah && item.ayah && !item._recOverride) wtSetupForAyah(item.surah, item.ayah); else wtRestore(); } catch(e) {}
         // сброс старых обработчиков
@@ -4508,7 +4539,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         let queue = data.ayahs.map(a => {
           var known = (typeof getReciterAyahChoice === 'function') ? getReciterAyahChoice(_curRec, surah, a.number) : '';
           return {
-            url: known ? ayahAudioUrl(surah, a.number, known) : (a.audio || ayahAudioUrl(surah, a.number)),
+            url: known ? ayahAudioUrl(surah, a.number, known) : ayahAudioUrl(surah, a.number),
             _recOverride: known || null,
             title: (typeof surahTitle === 'function' ? surahTitle(surah, data.meta && data.meta.englishName) : ('Сура ' + surah)) + ' · аят ' + a.number,
             ayah: a.number,
@@ -4603,7 +4634,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       const data = await fetchSurah(surah);
       attachFallbackAudio(data, surah);
       let queue = data.ayahs.map(a => ({
-        url: a.audio || ayahAudioUrl(surah, a.number),
+        url: ayahAudioUrl(surah, a.number),
         title: (typeof surahTitle === 'function' ? surahTitle(surah, data.meta && data.meta.englishName) : ('Сура ' + surah)) + ' · аят ' + a.number,
         ayah: a.number,
         surah: surah
@@ -4633,7 +4664,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         // Если уже играет тот же аят (быстрый старт) — только обновим очередь, не перезапускаем
         try {
           var cur = audioQueue[idx];
-          var same = window._audioCtx && audioEl && !audioEl.paused && audioEl.src && cur && audioEl.src.indexOf(String(cur.ayah).padStart(3,'0')) >= 0;
+          var same = window._audioCtx && audioEl && !audioEl.paused && audioEl.src && cur && window._lastPlayedUrl === cur.url;
           if (!same) playQueueItem(audioQueueIdx);
           else {
             // очередь уже полная — onended подхватит следующие
@@ -4670,7 +4701,11 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       }
       return Promise.resolve(false);
     }
-    function playNextAyah() {
+    function playNextAyah(manual) {
+      // ручное «⏭» на последнем аяте суры — переходим к следующей суре (авто-конец по-прежнему останавливается)
+      try {
+        if (manual === true && audioQueue.length > 1 && audioQueueIdx >= audioQueue.length - 1 && audioPlayMode !== 'surah-loop' && audioPlayMode !== 'random' && _playerSurahContext() && currentPlayPos().s < 114) { playNextSurah(); return true; }
+      } catch(e) {}
       // build 6.27: таймер «по аятам» сам зацикливает суру (режимы повтора суры не нужны)
       if (_sleepCountActive() && audioPlayMode !== 'ayah-loop' && audioQueue.length) {
         if (audioQueueIdx < audioQueue.length - 1) { playQueueItem(audioQueueIdx + 1); return true; }
@@ -4734,6 +4769,10 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         audioEl.currentTime = 0;
         return true;
       }
+      // ручное «⏮» на первом аяте суры — к последнему аяту предыдущей суры
+      try {
+        if (audioQueue.length > 1 && audioQueueIdx === 0 && audioPlayMode !== 'surah-loop' && _playerSurahContext() && currentPlayPos().s > 1) { playPrevSurah(true); return true; }
+      } catch(e) {}
       if (audioQueue.length && audioQueueIdx > 0) {
         playQueueItem(audioQueueIdx - 1);
         return true;
@@ -4747,17 +4786,46 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       return false;
     }
 
-    function playNextSurah() {
-      const pos = currentPlayPos();
-      if (pos.s >= 114) { toast('Это последняя сура'); return; }
-      setLastFromPos(pos.s + 1, 1, true);
-      try { openSurah(pos.s + 1, 1); } catch(e) {}
+    // build 6.33: переход между сурами из плеера. Раньше два быстрых нажатия «⏭⏭» приводили в ту же
+    // следующую суру (очередь обновляется только после загрузки), экран читалки открывался всегда,
+    // а при ошибке загрузки ничего не сообщалось. Теперь считаем от «целевой» суры, не уводим
+    // пользователя с другого экрана и честно говорим, если суру не удалось загрузить.
+    function _playerSurahContext() {
+      var it = audioQueue && audioQueue[audioQueueIdx];
+      if (it && (it.dua || it.adhkar)) return false;
+      if (window._audioCtx === 'dua' || window._audioCtx === 'adhkar') return false;
+      return true;
     }
-    function playPrevSurah() {
-      const pos = currentPlayPos();
-      if (pos.s <= 1) { toast('Это первая сура'); return; }
-      setLastFromPos(pos.s - 1, 1, true);
-      try { openSurah(pos.s - 1, 1); } catch(e) {}
+    function jumpToSurah(target, toEnd) {
+      var pos = currentPlayPos();
+      var base = (window._surahJumpPending && Date.now() - window._surahJumpPending.ts < 4000) ? window._surahJumpPending.s : pos.s;
+      var s = target(base);
+      if (s == null) return Promise.resolve(false);
+      window._surahJumpPending = { s: s, ts: Date.now() };
+      var myTs = window._surahJumpPending.ts;
+      return ensureSurahQueueAround(s, 1).then(function(ok) {
+        if (window._surahJumpPending && window._surahJumpPending.ts !== myTs) return false; // нажали ещё раз — работает последнее нажатие
+        window._surahJumpPending = null;
+        if (!ok || !audioQueue.length) { toast(isKk() ? 'Сүре жүктелмеді — интернетті тексеріңіз' : 'Не удалось загрузить суру — проверьте интернет'); return false; }
+        audioQueueIdx = toEnd ? audioQueue.length - 1 : 0;
+        var it = audioQueue[audioQueueIdx];
+        try { setLastFromPos(s, it.ayah, false); } catch(e) {}
+        audioRepeatTotal = getRepeatCount();
+        playQueueItem(audioQueueIdx);
+        try {
+          var rv = document.getElementById('view-reader');
+          if (rv && rv.classList.contains('active')) openSurah(s, it.ayah);
+        } catch(e) {}
+        return true;
+      });
+    }
+    function playNextSurah() {
+      if (!_playerSurahContext()) { toast(isKk() ? 'Бұл жерде сүре ауыстыру жоқ' : 'Здесь нет перехода между сурами'); return; }
+      jumpToSurah(function(b) { if (b >= 114) { toast(isKk() ? 'Бұл соңғы сүре' : 'Это последняя сура'); return null; } return b + 1; }, false);
+    }
+    function playPrevSurah(toEnd) {
+      if (!_playerSurahContext()) { toast(isKk() ? 'Бұл жерде сүре ауыстыру жоқ' : 'Здесь нет перехода между сурами'); return; }
+      jumpToSurah(function(b) { if (b <= 1) { toast(isKk() ? 'Бұл бірінші сүре' : 'Это первая сура'); return null; } return b - 1; }, !!toEnd);
     }
 
     function playNextInQueue() {
@@ -4817,7 +4885,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     });
 
     document.getElementById('audio-prev')?.addEventListener('click', () => playPrevAyah());
-    document.getElementById('audio-next')?.addEventListener('click', () => playNextAyah());
+    document.getElementById('audio-next')?.addEventListener('click', () => playNextAyah(true));
 
     async function applyPlayerMode(mode) {
       const prev = audioPlayMode;
@@ -5142,7 +5210,15 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         btn.textContent = c ? '▴' : '▾';
         btn.title = c ? (isKk() ? 'Ашу' : 'Развернуть плеер') : (isKk() ? 'Жинау' : 'Свернуть плеер');
         try { localStorage.setItem('quran_audio_collapsed_v1', c ? '1' : '0'); } catch(e) {}
+        syncMini();
       }
+      function syncMini() {
+        try { document.body.classList.toggle('player-mini', bar.classList.contains('collapsed') && bar.classList.contains('visible')); } catch(e) {}
+      }
+      try { new MutationObserver(syncMini).observe(bar, { attributes: true, attributeFilter: ['class'] }); } catch(e) {}
+      var mp = document.getElementById('audio-mini-prev'), mn = document.getElementById('audio-mini-next');
+      if (mp) mp.addEventListener('click', function() { document.getElementById('audio-prev').click(); });
+      if (mn) mn.addEventListener('click', function() { document.getElementById('audio-next').click(); });
       var c0 = false;
       try { c0 = localStorage.getItem('quran_audio_collapsed_v1') === '1'; } catch(e) {}
       apply(c0);
@@ -37636,13 +37712,20 @@ c.addEventListener('click', () => {
         }
       } catch(e) {}
       if (!ordered) ordered = MORE_MENU_DEFAULT.slice();
+      // «Обновления» не должны пропадать из «Ещё» ни при каких правках списка/порядка (build 6.33)
+      try {
+        if (!ordered.some(function(x){ return x.id === 'changelog'; })) {
+          var _clIt = MORE_MENU_DEFAULT.filter(function(x){ return x.id === 'changelog'; })[0] || { id:'changelog', icon:'🆕', label:'Обновления', group:'system' };
+          ordered.push(_clIt);
+        }
+      } catch(e) {}
       try {
         const map = JSON.parse(localStorage.getItem('quran_more_group_map') || '{}');
         ordered.forEach(function(it){ if (map[it.id]) it.group = map[it.id]; });
       } catch(e) {}
       // Скрытые разделы
       try {
-        ordered = ordered.filter(function(it){ return it && !isSectionHidden(it.id) ; });
+        ordered = ordered.filter(function(it){ return it && (it.id === 'changelog' || !isSectionHidden(it.id)); });
       } catch(e) {}
       // Разделы «Регистрация» и «Жалобы» — только для администраторов
       try {
@@ -39309,7 +39392,7 @@ c.addEventListener('click', () => {
       var saved = 0, failed = 0, quotaHit = false;
       for (var i = 0; i < total; i++) {
         var a = ayahs[i];
-        var url = a.audio || (typeof ayahAudioUrl === 'function' ? ayahAudioUrl(surah, a.number) : null);
+        var url = (typeof ayahAudioUrl === 'function' ? ayahAudioUrl(surah, a.number) : a.audio);
         if (url) {
           try {
             var already = await _audioCacheGet(url);
@@ -39360,7 +39443,7 @@ c.addEventListener('click', () => {
       var toDownloadUrls = [];
       for (var i = 0; i < ayahs.length; i++) {
         var a = ayahs[i];
-        var url = a.audio || (typeof ayahAudioUrl === 'function' ? ayahAudioUrl(surah, a.number) : null);
+        var url = (typeof ayahAudioUrl === 'function' ? ayahAudioUrl(surah, a.number) : a.audio);
         if (!url) continue;
         var already = await _audioCacheGet(url);
         if (!already) toDownloadUrls.push(url);
@@ -39400,7 +39483,7 @@ c.addEventListener('click', () => {
       let cachedN = 0;
       for (let i = 0; i < ayahs.length; i++) {
         const a = ayahs[i];
-        const url = a.audio || (typeof ayahAudioUrl === 'function' ? ayahAudioUrl(surah, a.number) : null);
+        const url = (typeof ayahAudioUrl === 'function' ? ayahAudioUrl(surah, a.number) : a.audio);
         if (!url) continue;
         const already = await _audioCacheGet(url);
         if (already) cachedN++;

@@ -3633,7 +3633,12 @@ body.reduce-motion .fb-ok, body.reduce-motion .fb-bad { animation: none; }
 
 
     /* build 6.27: свёрнутый плеер — одна строка */
-    .audio-bar.collapsed { padding: 0.35rem 4.4rem 0.35rem 3.7rem; gap: 0; } /* справа/слева — плавающие «Тел» и «?» */
+    .audio-bar.collapsed { padding: 0.35rem 0.85rem; gap: 0; }
+    /* build 6.33: пока плеер свёрнут — прячем плавающие «Тел» и «?» (не наезжают на плеер) */
+    body.player-mini #device-mode-btn,
+    body.player-mini #btn-site-help { display: none !important; }
+    .audio-bar.collapsed #audio-mini-prev,
+    .audio-bar.collapsed #audio-mini-next { display: inline-flex !important; }
     .audio-bar.collapsed .progress-row,
     .audio-bar.collapsed .player-controls,
     .audio-bar.collapsed .player-modes,
@@ -3680,9 +3685,12 @@ body.reduce-motion .fb-ok, body.reduce-motion .fb-bad { animation: none; }
 .fs-input { width: 100%; box-sizing: border-box; background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-sm, 0.5rem); padding: 0.55rem 0.7rem; font: inherit; font-size: 0.95rem; }
 .fs-input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
 textarea.fs-input { resize: vertical; line-height: 1.45; }
-.fs-crumbs { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; font-size: 0.85rem; color: var(--text-muted); }
-.fs-crumbs button { background: none; border: 0; color: var(--accent); font: inherit; padding: 0.15rem 0.1rem; cursor: pointer; }
-.fs-crumbs b { color: var(--text); }
+/* build 6.33: «корни» папок крупнее и удобнее для нажатия (были мелкие ссылки) */
+.fs-crumbs { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; font-size: 1.05rem; color: var(--text-muted); padding: 0.2rem 0; }
+.fs-crumbs button { background: color-mix(in srgb, var(--accent) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 0.7rem; color: var(--accent); font: inherit; font-weight: 600; min-height: 2.75rem; padding: 0.35rem 0.9rem; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.fs-crumbs button:active { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+.fs-crumbs b { color: var(--text); display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0.35rem 0.9rem; border-radius: 0.7rem; background: var(--bg-card); border: 1px solid var(--border); font-weight: 700; }
+.fs-crumbs > span { font-size: 1.3rem; opacity: 0.6; }
 .fs-pins { display: flex; gap: 0.35rem; overflow-x: auto; padding-bottom: 0.2rem; }
 .fs-chip { flex: 0 0 auto; background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 0.3rem 0.7rem; font: inherit; font-size: 0.82rem; cursor: pointer; white-space: nowrap; }
 .fs-chip.on { background: var(--accent); color: var(--on-accent, #0b1220); border-color: var(--accent); }
