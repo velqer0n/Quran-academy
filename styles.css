@@ -2246,11 +2246,18 @@
       line-height: 1.2;
       word-break: break-word;
     }
+    /* build 6.38: шесть вкладок внизу — все одной ширины (раньше ширина зависела от подписи) */
     .bottom-nav button {
       overflow: visible;
       white-space: normal;
       line-height: 1.15;
-      max-width: 22%;
+      flex: 1 1 0;
+      min-width: 0;
+      max-width: none;
+      padding-left: 0.1rem;
+      padding-right: 0.1rem;
+      font-size: 0.68rem;
+      text-align: center;
     }
     /* Настройки: отступ снизу чтобы нижнее меню не перекрывало */
     #view-settings.view.active {
@@ -3419,6 +3426,8 @@
     @media print {
       body.printing-quran > *:not(#print-root) { display: none !important; }
       html { background: var(--pr-bg, #fff) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      /* build 6.36: у body в печати оставался min-height на весь экран телефона → лишняя пустая 2-я страница */
+      html, body.printing-quran { height: auto !important; min-height: 0 !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; }
       body.printing-quran { background: var(--pr-bg, #fff) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       body.printing-quran #print-root { display: block !important; background: var(--pr-bg, #fff); color: var(--pr-fg, #000); padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       #print-root .pr-title { text-align: center; font-size: 22pt; font-weight: 700; margin: 0 0 2pt; font-family: Georgia, 'Times New Roman', serif; }
@@ -3776,8 +3785,8 @@ textarea.fs-input { resize: vertical; line-height: 1.45; }
 .fs-pick-add { background: var(--bg-card); color: var(--accent); border: 1px solid var(--border); border-radius: var(--r-sm, 0.5rem); width: 2.3rem; height: 2.3rem; cursor: pointer; font-size: 1.1rem; }
 .fs-qk-row { display: flex; flex-wrap: wrap; gap: 0.2rem 0.5rem; align-items: baseline; width: 100%; text-align: left; background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-sm, 0.5rem); padding: 0.5rem 0.65rem; margin-bottom: 0.3rem; font: inherit; cursor: pointer; }
 .fs-qk-row i { flex-basis: 100%; font-size: 0.75rem; font-style: normal; color: var(--text-muted); }
-#fs-snack { position: fixed; left: 50%; bottom: 4.5rem; transform: translate(-50%, 140%); z-index: 100001; width: max-content; max-width: calc(100vw - 2rem); display: flex; gap: 0.6rem; align-items: center; background: var(--bg-card); color: var(--text); border: 1px solid var(--accent); border-radius: 999px; padding: 0.5rem 0.9rem; box-shadow: var(--shadow-lg); font-size: 0.88rem; transition: transform 0.25s var(--ease, ease); }
-#fs-snack.show { transform: translate(-50%, 0); }
+#fs-snack { position: fixed; left: 50%; bottom: 4.5rem; transform: translate(-50%, 220%); opacity: 0; visibility: hidden; pointer-events: none; z-index: 100001; width: max-content; max-width: calc(100vw - 2rem); display: flex; gap: 0.6rem; align-items: center; background: var(--bg-card); color: var(--text); border: 1px solid var(--accent); border-radius: 999px; padding: 0.5rem 0.9rem; box-shadow: var(--shadow-lg); font-size: 0.88rem; transition: transform 0.25s var(--ease, ease), opacity 0.25s ease, visibility 0s linear 0.25s; }
+#fs-snack.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; pointer-events: auto; transition: transform 0.25s var(--ease, ease), opacity 0.25s ease, visibility 0s; }
 #fs-snack button { background: none; border: 0; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; padding: 0.2rem 0.3rem; white-space: nowrap; }
 .fs-prefs { display: flex; gap: 0.5rem; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-muted); }
 .fs-prefs i { font-style: normal; color: var(--warning); }
@@ -3792,3 +3801,8 @@ select.fs-input { padding-right: 0.4rem; }
 .qb-q-good { color: var(--success, #16a34a); } .qb-q-mid { color: #d97706; } .qb-q-bad { color: var(--danger, #dc2626); }
 .qb-acc { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.45; }
 .qb-melbl { background: var(--bg-card, #fff); color: var(--text, #111); border: 1px solid var(--accent, #3b82f6); font-weight: 700; font-size: 0.75rem; padding: 0.1rem 0.4rem; }
+
+/* build 6.36: компактная карточка «последнее слушали» на вкладке «Суры» */
+.home-player-mini { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; margin-bottom: 0.6rem; }
+.home-player-mini .home-pm-label { flex: 1; min-width: 0; font-size: 0.88rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-player-mini .home-pm-label::before { content: '🎧 '; }
