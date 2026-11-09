@@ -3514,7 +3514,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
               ${asbab ? '<div class="compare-block"><div class="cmp-label">Асбаб ан-нузуль</div>'+asbab+'</div>' : ''}
               <div class="ayah-actions">
                 <button class="btn btn-sm btn-play-ayah" data-audio="${a.audio || ''}">▶</button>
-                <button type="button" class="btn btn-sm btn-dl-ayah" data-s="${num}" data-a="${a.number}" title="Скачать звук на телефон">⬇</button>
+                <button type="button" class="btn btn-sm btn-dl-ayah" data-s="${num}" data-a="${a.number}" title="Скачать">📥</button>
                 <button class="btn btn-sm btn-tafsir" data-s="${num}" data-a="${a.number}">Тафсир</button>
                 <button class="btn btn-sm btn-learn" data-s="${num}" data-a="${a.number}">
                   ${learned ? '✓ Выучен' : 'Отметить'}
@@ -5166,7 +5166,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         ['После суры', 'Сүре біткен соң тоқтау немесе келесі сүрені өзі қосу.'],
         ['🎙 Қари', 'Қариді ауыстыру — бірден, аяттың басынан.'],
         ['⏱ Таймер', 'Ұйқы таймері және аяттар арасындағы үзілістерді қысқарту.'],
-        ['⬇ Жүктеу', 'Қазіргі аятты, сүрені (аятпен .zip немесе толық бір файл) немесе дұғаны телефонға сақтайды.'],
+        ['📥 Жүктеу', 'Қазіргі аятты, сүрені (аятпен .zip немесе толық бір файл) немесе дұғаны телефонға сақтайды.'],
         ['🚩 Ойнамайды', 'Бұл қаридің бұл аяты ойнамаса — белгілеңіз, келесі жолы басқа қари ұсынылады.'],
         ['▾ / ▴', 'Плеерді бір жолға жинау / ашу.'],
         ['✕', 'Плеерді жабу.']
@@ -5181,7 +5181,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         ['После суры', 'Что делать, когда сура закончилась: остановиться или сама включить следующую.'],
         ['🎙 Чтец', 'Сменить чтеца — сразу, с начала аята.'],
         ['⏱ Таймер', 'Таймер сна и сокращение пауз между аятами.'],
-        ['⬇ Скачать', 'Сохранить на телефон текущий аят, суру (по аятам в .zip или целым файлом) или дуа.'],
+        ['📥 Скачать', 'Сохранить на телефон текущий аят, суру (по аятам в .zip или целым файлом) или дуа.'],
         ['🚩 Не играет', 'Если у этого чтеца аят не играет — отметьте, в следующий раз предложим другого чтеца.'],
         ['▾ / ▴', 'Свернуть плеер в одну строку / развернуть.'],
         ['✕', 'Закрыть плеер.']
@@ -5625,7 +5625,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     })();
 
     // ----- группы чтецов (учебные сверху, затем для слушания) -----
-    function _isStudyReciter(id) { return ['ar.husarymuallim', 'ar.husary', 'ar.minshawi', 'ar.abdulsamad'].indexOf(id) >= 0; } /* учебные: муаллим и мураттал (ровное чтение по правилам); муджаввад и остальные — для слушания */
+    function _isStudyReciter(id) { return ['ar.husarymuallim', 'ar.husary', 'ar.minshawi', 'ar.minshawimujawwad', 'ar.abdulsamad', 'ar.abdulbasitmujawwad'].indexOf(id) >= 0; } /* учебные: муаллим и мураттал (ровное чтение по правилам); муджаввад и остальные — для слушания */
     function reciterGroups() {
       var list = (typeof RECITER_LIST !== 'undefined') ? RECITER_LIST : [];
       return [
@@ -6621,9 +6621,10 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       [['study', 'study-reciter-select'], ['tajweed', 'tajweed-reciter-select']].forEach(function(p) {
         var sel = document.getElementById(p[1]); if (!sel) return;
         var host = sel.closest('.card'); if (!host) return;
-        mk(host).textContent = p[0] === 'study'
-          ? (kk ? 'Сөзді басқанда — Quran.com дауысы (біреу, ауыспайды). Таңдау — аятты толық тыңдау үшін: ' : 'При нажатии на слово звучит голос Quran.com (один, не меняется). Выбор — для аята целиком: ') + nm(by[p[0]]) + '.'
-          : (kk ? 'Қари: ' : 'Чтец: ') + nm(by[p[0]]) + '. ' + (kk ? 'Абкар мен Лухайдан мұнда жоқ — оларда тек толық сүрелер бар («Сүрелер» қойындысында).' : 'Абкар и Лухайдан здесь недоступны — у них только целые суры (во вкладке «Суры»).');
+        var nt = mk(host);
+        // build 6.40: в «Таджвиде» подпись про Абкара и Лухайдана убрана (недоступных чтецов там много, а не двое)
+        if (p[0] === 'study') { nt.style.display = ''; nt.textContent = (kk ? 'Сөзді басқанда — Quran.com дауысы (біреу, ауыспайды). Таңдау — аятты толық тыңдау үшін: ' : 'При нажатии на слово звучит голос Quran.com (один, не меняется). Выбор — для аята целиком: ') + nm(by[p[0]]) + '.'; }
+        else { nt.textContent = ''; nt.style.display = 'none'; }
       });
       var hs = document.getElementById('home-reciter-select');
       var host2 = hs && hs.closest('.card');
@@ -26789,6 +26790,7 @@ function renderDict() {
       return Promise.resolve(rec);
     }
     function fsSave(it) {
+      fsHRec(it);
       FS.items.set(it.id, it);
       FS.chain = FS.chain.then(function() { return fsToRecord(it); }).then(function(rec) {
         if (FS.db) return fsIdbPut('items', rec);
@@ -26798,7 +26800,7 @@ function renderDict() {
       if (typeof fsCloudSoon === 'function') fsCloudSoon();
     }
     function fsDropRaw(id) {
-      FS.items.delete(id);
+      FS.items.delete(id); try { FSH.snap.delete(id); } catch (e) {}
       FS.chain = FS.chain.then(function() { if (FS.db) return fsIdbDel('items', id); fsLsFlush(); }).catch(function() {});
     }
     function fsMetaSet(k, v) {
@@ -26826,6 +26828,7 @@ function renderDict() {
         await fsMigrateOld();
         fsPurgeOld();
         FS.ready = true;
+        fsHInit();
         FS.loading = null;
         fsSavedRebuild();
         FS.waiters.splice(0).forEach(function(f) { try { f(); } catch (e) {} });
@@ -26913,8 +26916,11 @@ function renderDict() {
       arr.sort(function(a, b) {
         var fa = a.k === 'folder' ? 0 : 1, fb = b.k === 'folder' ? 0 : 1;
         if (fa !== fb) return fa - fb;
-        if (mode === 'name') return fsName(a).localeCompare(fsName(b), 'ru');
+        if (mode === 'name') return fsName(a).localeCompare(fsName(b), 'ru', { numeric: true });
+        if (mode === 'name_desc') return fsName(b).localeCompare(fsName(a), 'ru', { numeric: true });
         if (mode === 'date') return (b.c || 0) - (a.c || 0);
+        if (mode === 'date_old') return (a.c || 0) - (b.c || 0);
+        if (mode === 'type') return (a.k < b.k ? -1 : a.k > b.k ? 1 : 0) || fsName(a).localeCompare(fsName(b), 'ru', { numeric: true });
         return ((a.o || 0) - (b.o || 0)) || ((b.c || 0) - (a.c || 0));
       });
       return arr;
@@ -26952,6 +26958,438 @@ function renderDict() {
       var base = fsClip(name, FS_LIMITS.nameChars).trim() || '…', cand = base, i = 2;
       while (taken[cand.toLowerCase()]) cand = base + ' (' + (i++) + ')';
       return cand;
+    }
+
+    // ---------- build 6.40: история действий в «Папках» (журнал, ↶ ↷, версии файлов) ----------
+    // Хранится на устройстве (localStorage), не уходит в облако. Для текстов сохраняется только изменённый фрагмент, а не вся версия.
+    // Если включён пароль приложения — история живёт только в памяти (чтобы не оставлять тексты открытыми).
+    var FSH = { on: false, snap: new Map(), log: [], ptr: 0, pend: null, mute: 0, nomerge: 0, KEY: 'quran_fs_hist_v1', CAP: 2000000, MAXN: 300, MAXV: 50, MERGE_MS: 15 * 60 * 1000, tmr: null };
+    function fsHN(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+    function fsHCode(s) { return '<code>' + fsEsc(s) + '</code>'; }
+    function fsHSame(a, b) {
+      var x = Object.assign({}, a), y = Object.assign({}, b);
+      delete x.u; delete y.u; delete x.o; delete y.o;
+      return JSON.stringify(x) === JSON.stringify(y);
+    }
+    function fsHStr(v) { return v === undefined ? '' : (typeof v === 'string' ? v : JSON.stringify(v)); }
+    function fsHBig(v) { return fsHStr(v).length > 160; }
+    function fsHCore(it, bigKeys) {
+      var c = JSON.parse(JSON.stringify(it));
+      if (c.d) bigKeys.forEach(function (k) { delete c.d[k]; });
+      return c;
+    }
+    function fsHPatch(a, b) {
+      var n = Math.min(a.length, b.length), pre = 0;
+      while (pre < n && a.charCodeAt(pre) === b.charCodeAt(pre)) pre++;
+      var suf = 0, m = n - pre;
+      while (suf < m && a.charCodeAt(a.length - 1 - suf) === b.charCodeAt(b.length - 1 - suf)) suf++;
+      return { pre: pre, suf: suf, rem: a.slice(pre, a.length - suf), add: b.slice(pre, b.length - suf) };
+    }
+    function fsHUndoStr(cur, p) {
+      if (p.pre + p.suf > cur.length || cur.slice(p.pre, cur.length - p.suf) !== p.add) return null;
+      return cur.slice(0, p.pre) + p.rem + cur.slice(cur.length - p.suf);
+    }
+    function fsHRedoStr(cur, p) {
+      if (p.pre + p.suf > cur.length || cur.slice(p.pre, cur.length - p.suf) !== p.rem) return null;
+      return cur.slice(0, p.pre) + p.add + cur.slice(cur.length - p.suf);
+    }
+    function fsHRoot() { return fsT('Главная', 'Басты бет'); }
+    function fsHPath(core) {
+      var parts = [fsName(core)], pid = core.p, g = 0;
+      while (pid && g++ < 30) { var par = FS.items.get(pid); if (!par) break; parts.unshift(fsName(par)); pid = par.p; }
+      return parts.join('/');
+    }
+    function fsHParentPath(core) {
+      if (!core.p) return fsHRoot();
+      var par = FS.items.get(core.p); if (!par) return fsHRoot();
+      return fsHPath(par);
+    }
+    function fsHNoun(k, kk) {
+      var m = kk ? { folder: 'қалта', note: 'файл', list: 'тізім', ayah: 'аят', surah: 'сүре' } : { folder: 'папку', note: 'файл', list: 'список', ayah: 'аят', surah: 'суру' };
+      return m[k] || (kk ? 'жазба' : 'запись');
+    }
+    // фиксируем сохранение записи; вызывается из fsSave
+    function fsHRec(it) {
+      var as = JSON.stringify(it), bs = FSH.snap.get(it.id);
+      FSH.snap.set(it.id, as);
+      if (!FSH.on || FSH.mute > 0 || bs === as) return;
+      try { if (typeof FSC !== 'undefined' && FSC.applying) return; } catch (e) {}
+      var a = JSON.parse(as), b = bs ? JSON.parse(bs) : null;
+      if (a.gone) return;
+      if (b && fsHSame(b, a)) return;
+      if (!FSH.pend) { FSH.pend = new Map(); Promise.resolve().then(fsHFlush); }
+      var ex = FSH.pend.get(it.id);
+      if (ex) ex.a = a; else FSH.pend.set(it.id, { id: it.id, b: b, a: a });
+    }
+    function fsHBuild(chs) {
+      var out = [], lines = [];
+      chs.forEach(function (c) {
+        var keys = {};
+        [c.b, c.a].forEach(function (x) { if (x && x.d) Object.keys(x.d).forEach(function (k) { if (fsHBig(x.d[k])) keys[k] = 1; }); });
+        var bk = Object.keys(keys), sc = { id: c.id, b: c.b ? fsHCore(c.b, bk) : null, a: fsHCore(c.a, bk) };
+        if (bk.length) sc.bk = bk;
+        c._len0 = 0; c._len1 = 0;
+        if (bk.length) {
+          sc.tp = {};
+          bk.forEach(function (k) {
+            var bx = !!(c.b && c.b.d && c.b.d[k] !== undefined), ax = c.a.d && c.a.d[k] !== undefined;
+            var bs = bx ? fsHStr(c.b.d[k]) : '', as = ax ? fsHStr(c.a.d[k]) : '';
+            if (bs === as && bx === ax) { delete sc.tp[k]; return; }
+            var p = fsHPatch(bs, as);
+            p.j = (typeof (ax ? c.a.d[k] : c.b.d[k]) !== 'string') ? 1 : 0; p.bx = bx ? 1 : 0; p.ax = ax ? 1 : 0;
+            sc.tp[k] = p; c._len0 += bs.length; c._len1 += as.length;
+          });
+          if (!Object.keys(sc.tp).length) delete sc.tp;
+        }
+        c._sc = sc; out.push(sc);
+      });
+      // сводка для журнала
+      var ty = {};
+      chs.forEach(function (c) {
+        var b = c.b, a = c.a, t;
+        if (!b) t = 'cr'; else if (a.del && !b.del) t = 'rm'; else if (!a.del && b.del) t = 'rs';
+        else if ((a.p || null) !== (b.p || null)) t = 'mv'; else if (fsName(a) !== fsName(b)) t = 'rn';
+        else if (c._sc.tp || JSON.stringify(a.d) !== JSON.stringify(b.d)) t = (c._sc.tp ? 'ed' : 'pr'); else t = 'pr';
+        ty[c.id] = t; c._t = t;
+      });
+      var inSet = {}; chs.forEach(function (c) { inSet[c.id] = c; });
+      var roots = {}, count = {};
+      chs.forEach(function (c) {
+        count[c._t] = (count[c._t] || 0) + 1;
+        var par = c.a.p && inSet[c.a.p];
+        if (['cr', 'rm', 'rs', 'mv'].indexOf(c._t) >= 0 && par && par._t === c._t) return;
+        (roots[c._t] = roots[c._t] || []).push(c);
+      });
+      ['cr', 'rm', 'rs', 'mv', 'rn', 'ed', 'pr'].forEach(function (t) {
+        var list = roots[t]; if (!list || !list.length) return;
+        if (list.length > 3) {
+          lines.push({ ty: t, many: 1, c: count[t], k: list[0].a.k, to: (t === 'mv' || t === 'cr') ? fsHParentPath(list[0].a) : '', f: t === 'mv' ? fsHParentPath(list[0].b) : '' });
+          return;
+        }
+        list.forEach(function (c) {
+          var a = c.a, b = c.b, l = { ty: t, k: a.k, n: fsName(a), p: fsHPath(a) };
+          if (t === 'mv') { l.f = fsHParentPath(b); l.to = fsHParentPath(a); }
+          if (t === 'rn') { l.p0 = fsHPath(b); }
+          if (t === 'ed') { l.x0 = c._len0; l.x1 = c._len1; if (b && fsName(a) !== fsName(b)) l.rn0 = fsHPath(b); }
+          if ((t === 'cr' || t === 'rm' || t === 'rs') && list.length === 1) l.in = Math.max(0, count[t] - 1);
+          lines.push(l);
+        });
+      });
+      return { t: Date.now(), ln: lines, ch: out };
+    }
+    function fsHFlush() {
+      var pend = FSH.pend; FSH.pend = null;
+      if (!pend || !FSH.on) return;
+      var chs = [];
+      pend.forEach(function (v) { if (!(v.b && fsHSame(v.b, v.a))) chs.push(v); });
+      if (!chs.length) return;
+      var entry = fsHBuild(chs);
+      // подряд идущие правки текста одного файла сливаем в одну запись (иначе автосохранение даёт десятки версий)
+      var last = FSH.log[FSH.ptr - 1];
+      if (!FSH.nomerge && last && FSH.ptr === FSH.log.length && chs.length === 1 && entry.ch[0].tp && entry.ln.length === 1 && entry.ln[0].ty === 'ed' &&
+          last.ch.length === 1 && last.ch[0].id === entry.ch[0].id && last.ch[0].tp && last.ln.length === 1 && last.ln[0].ty === 'ed' && entry.t - last.t < FSH.MERGE_MS) {
+        var nc = entry.ch[0], lc = last.ch[0], c0 = chs[0], okm = true, tp = {};
+        Object.keys(nc.tp).forEach(function (k) {
+          var np = nc.tp[k], lp = lc.tp[k];
+          if (!lp) { tp[k] = np; return; }
+          var afterNew = np.ax ? fsHStr(c0.a.d[k]) : '';
+          var beforeNew = np.bx ? fsHStr(c0.b.d[k]) : '';
+          var orig = fsHUndoStr(beforeNew, lp);
+          if (orig === null) { okm = false; return; }
+          var p = fsHPatch(orig, afterNew); p.j = np.j; p.bx = lp.bx; p.ax = np.ax; tp[k] = p;
+        });
+        Object.keys(lc.tp).forEach(function (k) { if (!nc.tp[k]) tp[k] = lc.tp[k]; });
+        if (okm) {
+          var net = Object.keys(tp).every(function (k) { var q = tp[k]; return q.rem === '' && q.add === '' && q.bx === q.ax; });
+          lc.a = nc.a; lc.tp = tp; last.t = entry.t; last.ln[0].x1 = entry.ln[0].x1;
+          if (entry.ln[0].rn0 && !last.ln[0].rn0) last.ln[0].rn0 = entry.ln[0].rn0;
+          if (net && !entry.ln[0].rn0 && !last.ln[0].rn0 && JSON.stringify(lc.a) === JSON.stringify(lc.b)) { FSH.log.pop(); FSH.ptr--; }
+          fsHAfter(); return;
+        }
+      }
+      FSH.nomerge = 0;
+      FSH.log.length = FSH.ptr;
+      FSH.log.push(entry); FSH.ptr = FSH.log.length;
+      // не больше MAXV версий текста одного файла
+      if (entry.ch.length === 1 && entry.ch[0].tp) {
+        var id = entry.ch[0].id, idxs = [];
+        FSH.log.forEach(function (e, i) { if (e.ch.length === 1 && e.ch[0].id === id && e.ch[0].tp) idxs.push(i); });
+        if (idxs.length > FSH.MAXV) { var cut = idxs[0]; FSH.log.splice(cut, 1); FSH.ptr = FSH.log.length; }
+      }
+      fsHAfter();
+    }
+    function fsHAfter() {
+      var tot = 0;
+      FSH.log.forEach(function (e) { if (!e.sz) e.sz = JSON.stringify(e).length; tot += e.sz; });
+      while ((FSH.log.length > FSH.MAXN || tot > FSH.CAP) && FSH.log.length > 1) {
+        var d = FSH.log.shift(); tot -= (d.sz || 0); if (FSH.ptr > 0) FSH.ptr--;
+      }
+      clearTimeout(FSH.tmr); FSH.tmr = setTimeout(fsHSave, 800);
+      fsHPaintBar();
+    }
+    function fsHSave() {
+      try {
+        if (fsEncOn()) { localStorage.removeItem(FSH.KEY); return; }
+        var s = JSON.stringify({ v: 1, ptr: FSH.ptr, log: FSH.log });
+        try { localStorage.setItem(FSH.KEY, s); }
+        catch (e) { FSH.log.splice(0, Math.ceil(FSH.log.length / 2)); FSH.ptr = Math.min(FSH.ptr, FSH.log.length); localStorage.setItem(FSH.KEY, JSON.stringify({ v: 1, ptr: FSH.ptr, log: FSH.log })); }
+      } catch (e) {}
+    }
+    function fsHInit() {
+      FSH.snap.clear();
+      FS.items.forEach(function (it) { FSH.snap.set(it.id, JSON.stringify(it)); });
+      try {
+        if (!fsEncOn()) {
+          var o = JSON.parse(localStorage.getItem(FSH.KEY) || 'null');
+          if (o && o.v === 1 && Array.isArray(o.log)) { FSH.log = o.log; FSH.ptr = Math.max(0, Math.min(o.ptr | 0, o.log.length)); }
+        }
+      } catch (e) { FSH.log = []; FSH.ptr = 0; }
+      FSH.on = true;
+    }
+    // ---- откат / возврат ----
+    function fsHApply(entry, dir) {
+      var skipped = 0, done = 0;
+      entry.ch.forEach(function (c) {
+        var cur = FS.items.get(c.id);
+        if (!cur || cur.gone) { skipped++; return; }
+        var want = dir < 0 ? c.b : c.a, from = dir < 0 ? c.a : c.b;
+        var n = JSON.parse(JSON.stringify(cur));
+        if (!want) { n.del = 1; }
+        else {
+          if (from && ((cur.p || null) !== (from.p || null) || (cur.n || '') !== (from.n || '') || (cur.del ? 1 : 0) !== (from.del ? 1 : 0))) { skipped++; return; }
+          ['p', 'n', 'o', 'del', 'k', 'c'].forEach(function (f) { n[f] = want[f]; });
+          n.d = JSON.parse(JSON.stringify(want.d || {}));
+          var bad = false;
+          // «тяжёлые» поля: изменённые правим по сохранённому фрагменту, неизменённые (и поля вернувшейся из «создания» записи) берём как есть
+          (c.bk || []).forEach(function (k) {
+            if (bad) return;
+            var p = c.tp && c.tp[k];
+            if (!p || !from) { if (cur.d && cur.d[k] !== undefined) n.d[k] = cur.d[k]; return; }
+            var curS = fsHStr(cur.d ? cur.d[k] : undefined);
+            var ns = dir < 0 ? fsHUndoStr(curS, p) : fsHRedoStr(curS, p);
+            if (ns === null) { bad = true; return; }
+            var ex = dir < 0 ? p.bx : p.ax;
+            if (!ex) { delete n.d[k]; return; }
+            try { n.d[k] = p.j ? JSON.parse(ns) : ns; } catch (e) { bad = true; }
+          });
+          if (bad) { skipped++; return; }
+          if (n.p) { var par = FS.items.get(n.p); if (!par || par.del) n.p = null; }
+        }
+        n.u = Date.now();
+        FSH.mute++; try { fsSave(n); } finally { FSH.mute--; }
+        done++;
+      });
+      return { done: done, skipped: skipped };
+    }
+    function fsHUndoOne() {
+      if (FSH.ptr <= 0) return null;
+      var e = FSH.log[FSH.ptr - 1], r = fsHApply(e, -1);
+      FSH.ptr--; fsHAfter(); return r;
+    }
+    function fsHRedoOne() {
+      if (FSH.ptr >= FSH.log.length) return null;
+      var e = FSH.log[FSH.ptr], r = fsHApply(e, 1);
+      FSH.ptr++; fsHAfter(); return r;
+    }
+    function fsHMoveTo(target) { // target — число выполненных записей, которое должно остаться
+      var sk = 0;
+      while (FSH.ptr > target) { var r = fsHUndoOne(); if (r) sk += r.skipped; }
+      while (FSH.ptr < target) { var r2 = fsHRedoOne(); if (r2) sk += r2.skipped; }
+      return sk;
+    }
+    // быстрый откат «плашкой»: если с момента действия ничего не менялось — снимаем запись из журнала без следа
+    function fsHQuiet(n0, fallback) {
+      if (FSH.on && FSH.ptr === FSH.log.length && FSH.log.length === n0 + 1) { fsHUndoOne(); FSH.log.pop(); if (FSH.ptr > FSH.log.length) FSH.ptr = FSH.log.length; fsHAfter(); return; }
+      fallback();
+    }
+    // ---- текст записи журнала ----
+    function fsHLineHtml(l) {
+      var kk = false; try { kk = isKk(); } catch (e) {}
+      var nn = fsHNoun(l.k, kk), P = fsHCode, many = l.many;
+      if (kk) {
+        if (l.ty === 'cr') return many ? 'Жасалды: ' + l.c + ' ' + nn + ' → ' + P(l.to) : 'Жасалды — ' + nn + ' ' + P(l.p);
+        if (l.ty === 'rm') return many ? 'Жойылды: ' + l.c + ' жазба' : 'Жойылды — ' + nn + ' ' + P(l.p) + (l.in ? ' (ішінде: ' + l.in + ')' : '');
+        if (l.ty === 'rs') return many ? 'Қалпына келтірілді: ' + l.c + ' жазба' : 'Қалпына келтірілді — ' + nn + ' ' + P(l.p) + (l.in ? ' (ішінде: ' + l.in + ')' : '');
+        if (l.ty === 'mv') return many ? 'Жылжытылды: ' + l.c + ' жазба ' + P(l.f) + ' → ' + P(l.to) : 'Жылжытылды — ' + nn + ' ' + P(l.n) + ': ' + P(l.f) + ' → ' + P(l.to);
+        if (l.ty === 'rn') return many ? 'Аты өзгертілді: ' + l.c : 'Аты өзгертілді — ' + nn + ': ' + P(l.p0) + ' → ' + P(l.p);
+        if (l.ty === 'ed') return many ? 'Өзгертілді: ' + l.c + ' жазба' : 'Өзгертілді — ' + nn + ' ' + P(l.p) + ': ' + fsHN(l.x0) + ' → ' + fsHN(l.x1) + ' таңба' + (l.rn0 ? ' (аты: ' + P(l.rn0) + ' → ' + P(l.p) + ')' : '');
+        return many ? 'Мазмұны өзгертілді: ' + l.c : 'Мазмұны өзгертілді — ' + nn + ' ' + P(l.p);
+      }
+      if (l.ty === 'cr') return many ? 'Создал: ' + l.c + ' (' + nn + ') в ' + P(l.to) : (l.k === 'ayah' || l.k === 'surah' ? 'Добавил ' : 'Создал ') + nn + ' ' + P(l.p);
+      if (l.ty === 'rm') return many ? 'Удалил: ' + l.c + ' записей' : 'Удалил ' + nn + ' ' + P(l.p) + (l.in ? ' (внутри: ' + l.in + ')' : '');
+      if (l.ty === 'rs') return many ? 'Восстановил: ' + l.c + ' записей' : 'Восстановил ' + nn + ' ' + P(l.p) + (l.in ? ' (внутри: ' + l.in + ')' : '');
+      if (l.ty === 'mv') return many ? 'Переместил ' + l.c + ' записей из ' + P(l.f) + ' в ' + P(l.to) : 'Переместил ' + nn + ' ' + P(l.n) + ' из ' + P(l.f) + ' в ' + P(l.to);
+      if (l.ty === 'rn') return many ? 'Переименовал: ' + l.c : 'Переименовал ' + nn + ' ' + P(l.p0) + ' на ' + P(l.p);
+      if (l.ty === 'ed') return many ? 'Изменил записей: ' + l.c : 'Изменил ' + nn + ' ' + P(l.p) + ': ' + fsHN(l.x0) + ' → ' + fsHN(l.x1) + ' символов' + (l.rn0 ? ' (имя: ' + P(l.rn0) + ' → ' + P(l.p) + ')' : '');
+      return many ? 'Изменил содержимое: ' + l.c : 'Изменил содержимое — ' + nn + ' ' + P(l.p);
+    }
+    function fsHLinePlain(l) { return fsHLineHtml(l).replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'); }
+    function fsHEntryHtml(e) {
+      var a = e.ln.slice(0, 3).map(fsHLineHtml);
+      if (e.ln.length > 3) a.push(fsT('…и ещё ' + (e.ln.length - 3), '…және тағы ' + (e.ln.length - 3)));
+      return a.join('<br>');
+    }
+    function fsHTime(t) {
+      var d = new Date(t), p = function (n) { return (n < 10 ? '0' : '') + n; };
+      return p(d.getDate()) + '.' + p(d.getMonth() + 1) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+    // подтверждение (для откатов, окончательного удаления и т.п.)
+    function fsConfirm(title, msg, okLabel, cb, danger) {
+      var ov = fsModal('<div class="fs-sheet-title">' + fsEsc(title) + '</div><div class="fs-path" style="font-size:0.9rem;line-height:1.4">' + msg + '</div>' +
+        '<div class="fs-row2"><button type="button" class="btn btn-sm" id="fs-cf-no">' + fsT('Отмена', 'Болдырмау') + '</button><button type="button" class="btn btn-sm ' + (danger ? 'fs-danger' : 'btn-primary') + '" id="fs-cf-ok">' + fsEsc(okLabel || 'OK') + '</button></div>');
+      ov.querySelector('#fs-cf-no').addEventListener('click', function () { fsCloseModal(ov); });
+      ov.querySelector('#fs-cf-ok').addEventListener('click', function () { fsCloseModal(ov); cb(); });
+      return ov;
+    }
+    function fsHDone(sk, msg) {
+      fsRefreshUi();
+      toast(msg + (sk ? fsT(' · пропущено (изменено позже): ' + sk, ' · өткізілді (кейін өзгерген): ' + sk) : ''));
+    }
+    function fsHUndoBtn() {
+      if (FSH.ptr <= 0) { toast(fsT('Отменять пока нечего', 'Әзірге болдырмайтын ештеңе жоқ')); return; }
+      var e = FSH.log[FSH.ptr - 1];
+      var go = function () { var r = fsHUndoOne(); fsHDone(r ? r.skipped : 0, fsT('Отменено', 'Болдырылмады')); };
+      if (fsUiGet('noAskUndo', 0)) { go(); return; }
+      fsConfirm(fsT('Отменить действие?', 'Әрекетті болдырмау керек пе?'), fsHEntryHtml(e), fsT('Отменить', 'Болдырмау'), go);
+    }
+    function fsHRedoBtn() {
+      if (FSH.ptr >= FSH.log.length) { toast(fsT('Возвращать пока нечего', 'Қайтаратын ештеңе жоқ')); return; }
+      var e = FSH.log[FSH.ptr];
+      var go = function () { var r = fsHRedoOne(); fsHDone(r ? r.skipped : 0, fsT('Возвращено', 'Қайтарылды')); };
+      if (fsUiGet('noAskUndo', 0)) { go(); return; }
+      fsConfirm(fsT('Вернуть действие?', 'Әрекетті қайтару керек пе?'), fsHEntryHtml(e), fsT('Вернуть', 'Қайтару'), go);
+    }
+    function fsHBarHtml() {
+      return '<div class="fs-histbar"><button type="button" class="btn btn-sm" data-act="undo" id="fs-h-undo" aria-label="' + fsT('Отменить', 'Болдырмау') + '">↶</button>' +
+        '<button type="button" class="btn btn-sm" data-act="redo" id="fs-h-redo" aria-label="' + fsT('Вернуть', 'Қайтару') + '">↷</button>' +
+        '<span style="flex:1"></span><button type="button" class="btn btn-sm" data-act="hist">🕘 ' + fsT('История', 'Тарих') + '</button></div>';
+    }
+    function fsHPaintBar() {
+      try {
+        var u = document.getElementById('fs-h-undo'), r = document.getElementById('fs-h-redo');
+        if (u) u.classList.toggle('fs-dis', FSH.ptr <= 0);
+        if (r) r.classList.toggle('fs-dis', FSH.ptr >= FSH.log.length);
+      } catch (e) {}
+    }
+    // ---- окно «История» ----
+    function fsHGroups() {
+      var gs = [];
+      for (var i = FSH.log.length - 1; i >= 0; i--) {
+        var e = FSH.log[i], isEd = e.ch.length === 1 && !!e.ch[0].tp && e.ln.length === 1 && e.ln[0].ty === 'ed', pg = gs[gs.length - 1];
+        if (isEd && pg && pg.ed && pg.id === e.ch[0].id) { pg.idx.push(i); pg.n++; }
+        else gs.push({ idx: [i], id: isEd ? e.ch[0].id : null, ed: isEd, n: 1 });
+      }
+      return gs;
+    }
+    function fsHistoryDialog() {
+      var filt = 'all', q = '';
+      var ov = fsModal('<div class="fs-sheet-title">🕘 ' + fsT('История', 'Тарих') + '</div>' +
+        '<div class="fs-path">' + fsT('Последние действия в «Папках». Нажмите на запись — откатить всё до этого момента.', '«Қалталардағы» соңғы әрекеттер. Жазбаны басыңыз — сол сәтке дейін қайтару.') + '</div>' +
+        '<input type="search" class="fs-input" id="fs-hq" placeholder="' + fsT('Поиск по названию', 'Атауы бойынша іздеу') + '">' +
+        '<div class="fs-hchips" id="fs-hchips"></div><div id="fs-hlist" style="display:flex;flex-direction:column;gap:0.4rem"></div>' +
+        '<label class="fs-path" style="display:flex;gap:0.5rem;align-items:center"><input type="checkbox" id="fs-h-noask"> ' + fsT('Не спрашивать подтверждение для ↶ и ↷', '↶ және ↷ үшін растауды сұрамау') + '</label>' +
+        '<div class="fs-row2"><button type="button" class="btn btn-sm btn-primary" id="fs-h-ok">' + fsT('Закрыть', 'Жабу') + '</button></div>', 'fs-tall');
+      var chips = [['all', fsT('Все', 'Барлығы')], ['mv', fsT('Перемещения', 'Жылжыту')], ['rn', fsT('Переименования', 'Атын өзгерту')], ['ed', fsT('Правки', 'Өзгертулер')], ['rm', fsT('Удаления', 'Жою')], ['cr', fsT('Создание', 'Жасау')]];
+      var draw = function () {
+        ov.querySelector('#fs-hchips').innerHTML = chips.map(function (c) { return '<button type="button" class="btn btn-sm' + (filt === c[0] ? ' btn-primary' : '') + '" data-f="' + c[0] + '">' + c[1] + '</button>'; }).join('');
+        var gs = fsHGroups().filter(function (g) {
+          var e = FSH.log[g.idx[0]];
+          if (filt !== 'all' && !e.ln.some(function (l) { return l.ty === filt; })) return false;
+          if (q && !e.ln.some(function (l) { return fsHLinePlain(l).toLowerCase().indexOf(q) >= 0; })) return false;
+          return true;
+        });
+        ov.querySelector('#fs-hlist').innerHTML = gs.length ? gs.map(function (g) {
+          var i = g.idx[0], e = FSH.log[i], undone = i >= FSH.ptr;
+          return '<button type="button" class="fs-hrow' + (undone ? ' fs-hundone' : '') + '" data-gi="' + i + '"><span class="fs-htime">' + fsHTime(e.t) + (undone ? ' · ' + fsT('отменено', 'болдырылды') : '') + '</span><span>' + fsHEntryHtml(e) + (g.n > 1 ? ' <i>· ' + fsT('правок: ', 'өзгерту: ') + g.n + '</i>' : '') + '</span></button>';
+        }).join('') : '<div class="empty-state"><p>' + fsT('Пока пусто.', 'Әзірге бос.') + '</p></div>';
+      };
+      draw();
+      ov.querySelector('#fs-hq').addEventListener('input', function (e) { q = e.target.value.trim().toLowerCase(); draw(); });
+      var na = ov.querySelector('#fs-h-noask'); na.checked = !!fsUiGet('noAskUndo', 0);
+      na.addEventListener('change', function () { fsUiSet('noAskUndo', na.checked ? 1 : 0); });
+      ov.querySelector('#fs-h-ok').addEventListener('click', function () { fsCloseModal(ov); });
+      ov.addEventListener('click', function (e) {
+        var f = e.target.closest('[data-f]'); if (f) { filt = f.getAttribute('data-f'); draw(); return; }
+        var r = e.target.closest('[data-gi]'); if (!r) return;
+        var i = +r.getAttribute('data-gi'), g = fsHGroups().filter(function (x) { return x.idx[0] === i; })[0], en = FSH.log[i];
+        var acts = [];
+        if (g && g.ed) acts.push({ ico: '📄', label: fsT('Версии файла', 'Файл нұсқалары'), fn: function () { fsFileHistoryDialog(g.id); } });
+        if (i < FSH.ptr) {
+          acts.push({ ico: '↶', label: fsT('Откатить всё до этого момента', 'Осы сәтке дейін қайтару'), fn: function () {
+            var n = FSH.ptr - i;
+            fsConfirm(fsT('Откатить?', 'Қайтару керек пе?'), fsT('Будет отменено действий: ' + n + '. Последнее из них:<br>', 'Болдырылатын әрекет: ' + n + '. Соңғысы:<br>') + fsHEntryHtml(en), fsT('Откатить', 'Қайтару'), function () {
+              var sk = fsHMoveTo(i); fsCloseModal(ov); fsHDone(sk, fsT('Откатено действий: ' + n, 'Қайтарылды: ' + n));
+            });
+          } });
+        } else {
+          acts.push({ ico: '↷', label: fsT('Вернуть вперёд до этого момента', 'Осы сәтке дейін алға қайтару'), fn: function () {
+            var n = i + 1 - FSH.ptr;
+            fsConfirm(fsT('Вернуть действия?', 'Әрекеттерді қайтару керек пе?'), fsT('Будет возвращено действий: ' + n + '.<br>', 'Қайтарылатын әрекет: ' + n + '.<br>') + fsHEntryHtml(en), fsT('Вернуть', 'Қайтару'), function () {
+              var sk = fsHMoveTo(i + 1); fsCloseModal(ov); fsHDone(sk, fsT('Возвращено действий: ' + n, 'Қайтарылды: ' + n));
+            });
+          } });
+        }
+        fsSheet(fsHTime(en.t), acts);
+      });
+    }
+    // ---- история одного файла ----
+    function fsHVersions(id) {
+      var it = FS.items.get(id), cur = {}, rows = [];
+      if (!it) return rows;
+      for (var i = FSH.ptr - 1; i >= 0; i--) {
+        var e = FSH.log[i], c = null;
+        e.ch.forEach(function (x) { if (x.id === id) c = x; });
+        if (!c) continue;
+        var row = { i: i, e: e, c: c, ver: null };
+        if (c.tp) {
+          var vs = {}, ok = true;
+          Object.keys(c.tp).forEach(function (k) {
+            if (!ok) return;
+            var after = (k in cur) ? cur[k] : fsHStr(it.d ? it.d[k] : undefined);
+            var before = fsHUndoStr(after, c.tp[k]);
+            if (before === null) { ok = false; return; }
+            vs[k] = { after: after, before: before, p: c.tp[k] }; cur[k] = before;
+          });
+          row.ver = ok ? vs : null;
+          rows.push(row);
+          if (!ok) break;
+        } else rows.push(row);
+      }
+      return rows;
+    }
+    function fsFileHistoryDialog(id) {
+      var it = FS.items.get(id); if (!it) return;
+      var rows = fsHVersions(id);
+      var ov = fsModal('<div class="fs-sheet-title">🕘 ' + fsT('История: ', 'Тарих: ') + fsEsc(fsName(it)) + '</div><div class="fs-path">' + fsHCode(fsHPath(it)) + '</div>' +
+        '<div id="fs-hl" style="display:flex;flex-direction:column;gap:0.4rem"></div><div class="fs-row2"><button type="button" class="btn btn-sm btn-primary" id="fs-hf-ok">' + fsT('Закрыть', 'Жабу') + '</button></div>', 'fs-tall');
+      ov.querySelector('#fs-hl').innerHTML = rows.length ? rows.map(function (r, n) {
+        return '<button type="button" class="fs-hrow" data-ri="' + n + '"><span class="fs-htime">' + fsHTime(r.e.t) + '</span><span>' + fsHEntryHtml(r.e) + '</span></button>';
+      }).join('') : '<div class="empty-state"><p>' + fsT('Для этого файла пока нет записей.', 'Бұл файл үшін әзірге жазба жоқ.') + '</p></div>';
+      ov.querySelector('#fs-hf-ok').addEventListener('click', function () { fsCloseModal(ov); });
+      ov.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-ri]'); if (!b) return;
+        var r = rows[+b.getAttribute('data-ri')];
+        if (r.ver) fsHDiffDialog(id, r); else toast(fsT('Подробности для этой записи недоступны', 'Бұл жазба үшін толығырақ мәлімет жоқ'));
+      });
+    }
+    function fsHDiffDialog(id, r) {
+      var keys = Object.keys(r.ver), k = keys[0], v = r.ver[k], p = v.p;
+      var tail = v.after.slice(Math.max(0, p.pre - 80), p.pre), head = v.after.slice(v.after.length - p.suf, v.after.length - p.suf + 80);
+      var lim = function (s) { return s.length > 1500 ? s.slice(0, 1500) + '…' : s; };
+      var html = '<div class="fs-sheet-title">' + fsHTime(r.e.t) + '</div><div class="fs-path">' + fsHEntryHtml(r.e) + '</div>' +
+        '<div class="fs-hdiff"><div class="fs-htime">' + fsT('Было', 'Болған') + ' (' + fsHN(v.before.length) + ')</div><div class="fs-hbox">' + (p.pre > 80 ? '…' : '') + fsEsc(tail) + '<del>' + fsEsc(lim(p.rem)) + '</del>' + fsEsc(head) + (p.suf > 80 ? '…' : '') + '</div>' +
+        '<div class="fs-htime">' + fsT('Стало', 'Болды') + ' (' + fsHN(v.after.length) + ')</div><div class="fs-hbox">' + (p.pre > 80 ? '…' : '') + fsEsc(tail) + '<ins>' + fsEsc(lim(p.add)) + '</ins>' + fsEsc(head) + (p.suf > 80 ? '…' : '') + '</div></div>' +
+        '<div class="fs-row2"><button type="button" class="btn btn-sm" id="fs-hd-no">' + fsT('Закрыть', 'Жабу') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-hd-restore">' + fsT('Вернуть версию «было»', '«Болған» нұсқасын қайтару') + '</button></div>';
+      var ov = fsModal(html, 'fs-tall');
+      ov.querySelector('#fs-hd-no').addEventListener('click', function () { fsCloseModal(ov); });
+      ov.querySelector('#fs-hd-restore').addEventListener('click', function () {
+        fsConfirm(fsT('Вернуть версию?', 'Нұсқаны қайтару керек пе?'), fsT('Текущий текст файла заменится версией «было» (длина ' + fsHN(v.before.length) + '). Это тоже запишется в историю, и его можно будет отменить.', 'Файлдың қазіргі мәтіні «болған» нұсқасымен ауысады (ұзындығы ' + fsHN(v.before.length) + '). Бұл да тарихқа жазылады, оны болдырмауға болады.'), fsT('Вернуть', 'Қайтару'), function () {
+          var patch = {};
+          keys.forEach(function (kk2) { var vv = r.ver[kk2]; try { patch[kk2] = vv.p.j ? JSON.parse(vv.before) : vv.before; } catch (e) { patch[kk2] = vv.before; } });
+          FSH.nomerge = 1; fsUpdate(id, { d: patch });
+          fsCloseModal(ov); fsRefreshUi(); toast(fsT('Версия возвращена', 'Нұсқа қайтарылды'));
+        });
+      });
     }
 
     // ---------- создание / изменение / перенос / удаление ----------
@@ -27438,8 +27876,8 @@ function renderDict() {
         '<div class="fs-searchrow"><input type="search" id="fs-q" class="fs-input" placeholder="' + fsT('Поиск: текст, «2 255», «бакара 255»…', 'Іздеу: мәтін, «2 255», «бақара 255»…') + '" value="' + fsEsc(FSUI.q) + '" autocomplete="off">' +
         '<button type="button" class="btn btn-sm btn-primary" data-act="create" aria-label="' + fsT('Создать', 'Жасау') + '">＋</button>' +
         '<button type="button" class="btn btn-sm" data-act="more" aria-label="' + fsT('Ещё', 'Тағы') + '">⋯</button></div>' +
-        '<div id="fs-selbar"></div><div id="fs-body"></div></div>';
-      fsBind(box);
+        fsHBarHtml() + '<div id="fs-selbar"></div><div id="fs-body"></div></div>';
+      fsBind(box); fsHPaintBar();
       fsRenderBody();
       if (FSUI.open) { var oid = FSUI.open; FSUI.open = null; setTimeout(function() { fsOpenItem(oid); }, 30); }
     }
@@ -27493,6 +27931,9 @@ function renderDict() {
       if (act === 'scope') { FSUI.here = !FSUI.here; fsRenderBody(); return; }
       if (act === 'create') { fsCreateMenu(); return; }
       if (act === 'more') { fsMoreMenu(); return; }
+      if (act === 'undo') { fsHUndoBtn(); return; }
+      if (act === 'redo') { fsHRedoBtn(); return; }
+      if (act === 'hist') { fsHistoryDialog(); return; }
       if (act === 'sel-all') { fsChildren(FSUI.cur).forEach(function(x) { FSUI.sel.add(x.id); }); fsRenderBody(); return; }
       if (act === 'sel-done') { FSUI.selMode = false; FSUI.sel.clear(); fsRenderBody(); return; }
       var ids = Array.from(FSUI.sel);
@@ -27506,17 +27947,19 @@ function renderDict() {
       fsUpdate(id, { d: { pin: on ? 1 : 0, pinAt: on ? Date.now() : 0 } });
     }
     function fsDeleteWithUndo(ids) {
+      var n0 = FSH.log.length;
       var tok = fsRemove(ids);
       if (!tok.ids.length) { toast(fsT('Системные папки удалить нельзя', 'Жүйелік қалталарды жоюға болмайды')); fsRenderBody(); return; }
       fsRenderBody();
-      fsSnack(fsT('Удалено: ' + tok.ids.length, 'Жойылды: ' + tok.ids.length), [{ label: fsT('Отмена', 'Болдырмау'), fn: function() { fsRestore(tok); fsRefreshUi(); } }]);
+      fsSnack(fsT('Удалено: ' + tok.ids.length, 'Жойылды: ' + tok.ids.length), [{ label: fsT('Отмена', 'Болдырмау'), fn: function() { fsHQuiet(n0, function() { fsRestore(tok); }); fsRefreshUi(); } }]);
     }
     function fsMoveDialog(ids) {
       fsPickFolder({ title: fsT('Переместить в…', 'Мынаған жылжыту…'), ids: ids, onPick: function(pid) {
+        var n0 = FSH.log.length;
         var res = fsMove(ids, pid);
         FSUI.selMode = false; FSUI.sel.clear(); fsRenderBody();
         fsSnack(fsT('Перемещено: ' + res.moved.length + (res.failed ? ', не удалось: ' + res.failed : ''), 'Жылжытылды: ' + res.moved.length + (res.failed ? ', болмады: ' + res.failed : '')),
-          [{ label: fsT('Отмена', 'Болдырмау'), fn: function() { fsMoveUndo(res); fsRefreshUi(); } }]);
+          [{ label: fsT('Отмена', 'Болдырмау'), fn: function() { fsHQuiet(n0, function() { fsMoveUndo(res); }); fsRefreshUi(); } }]);
       } });
     }
     function fsItemMenu(id) {
@@ -27526,6 +27969,7 @@ function renderDict() {
         { ico: '☑️', label: fsT('Выбрать несколько', 'Бірнешеуін таңдау'), fn: function() { FSUI.selMode = true; FSUI.sel.clear(); FSUI.sel.add(id); fsRenderBody(); } },
         { ico: '✏️', label: fsT('Редактировать', 'Өңдеу'), fn: function() { it.k === 'folder' ? fsEditFolder(id) : fsRenameItem(id); } },
         { ico: '⭐', label: pinned ? fsT('Убрать из закреплённых', 'Бекітуден алу') : fsT('Закрепить', 'Бекіту'), fn: function() { fsSetPin(id, !pinned); fsRenderBody(); } }];
+      if (it.k !== 'folder') acts.push({ ico: '🕘', label: fsT('История файла', 'Файл тарихы'), fn: function() { fsFileHistoryDialog(id); } });
       if (!sys) {
         acts.push({ ico: '📥', label: fsT('Переместить', 'Жылжыту'), fn: function() { fsMoveDialog([id]); } });
         acts.push({ ico: '🗑', label: fsT('Удалить', 'Жою'), danger: true, fn: function() { fsDeleteWithUndo([id]); } });
@@ -27623,18 +28067,34 @@ function renderDict() {
         extra: '<div class="fs-row2" style="justify-content:flex-start"><button type="button" class="btn btn-sm" id="fs-bulk-sur">📚 ' + fsT('Вставить 114 сур', '114 сүрені қою') + '</button></div>' });
       var btn = ov.querySelector('#fs-bulk-sur');
       if (btn) btn.addEventListener('click', function() {
-        var lines = [];
-        for (var n = 1; n <= 114; n++) lines.push(n + '. ' + (typeof surahShortName === 'function' ? surahShortName(n) : ('' + n)));
-        ov.querySelector('#fs-prompt-in').value = lines.join('\n');
+        var fill = function(meta) {
+          var lines = [];
+          for (var n = 1; n <= 114; n++) {
+            var en = ''; try { en = (meta && meta[n - 1] && meta[n - 1].englishName) || ''; } catch (e) {}
+            lines.push(n + '. ' + (typeof surahShortName === 'function' ? surahShortName(n, en) : ('' + n)));
+          }
+          ov.querySelector('#fs-prompt-in').value = lines.join('\n');
+        };
+        fill(null);
+        try { if (typeof fetchSurahsMeta === 'function') fetchSurahsMeta().then(fill).catch(function() {}); } catch (e) {}
       });
     }
     function fsMoreMenu() {
       var view = fsUiGet('view', 'list'), sort = fsUiGet('sort', 'manual');
-      var sortName = { manual: fsT('вручную', 'қолмен'), name: fsT('по имени', 'аты бойынша'), date: fsT('по дате', 'күні бойынша') };
-      var next = { manual: 'name', name: 'date', date: 'manual' };
+      var sortName = { manual: fsT('вручную', 'қолмен'), name: fsT('по имени А→Я', 'аты бойынша А→Я'), name_desc: fsT('по имени Я→А', 'аты бойынша Я→А'), date: fsT('по дате: новые сверху', 'күні бойынша: жаңалары жоғарыда'), date_old: fsT('по дате: старые сверху', 'күні бойынша: ескілері жоғарыда'), type: fsT('по типу', 'түрі бойынша') };
+      var mark = function(on) { return on ? '✓ ' : ''; };
       var acts = [
-        { ico: view === 'grid' ? '☰' : '▦', label: view === 'grid' ? fsT('Вид: список', 'Түрі: тізім') : fsT('Вид: сетка', 'Түрі: тор'), fn: function() { fsUiSet('view', view === 'grid' ? 'list' : 'grid'); fsRenderBody(); } },
-        { ico: '↕️', label: fsT('Сортировка: ', 'Сұрыптау: ') + sortName[sort], fn: function() { fsUiSet('sort', next[sort]); fsRenderBody(); } },
+        { ico: view === 'grid' ? '▦' : '☰', label: fsT('Вид: ', 'Түрі: ') + (view === 'grid' ? fsT('сетка', 'тор') : fsT('список', 'тізім')), fn: function() {
+          fsSheet(fsT('Вид', 'Түрі'), [
+            { ico: '☰', label: mark(view !== 'grid') + fsT('Список', 'Тізім'), fn: function() { fsUiSet('view', 'list'); fsRenderBody(); } },
+            { ico: '▦', label: mark(view === 'grid') + fsT('Сетка', 'Тор'), fn: function() { fsUiSet('view', 'grid'); fsRenderBody(); } }]);
+        } },
+        { ico: '↕️', label: fsT('Сортировка: ', 'Сұрыптау: ') + sortName[sort], fn: function() {
+          fsSheet(fsT('Сортировка', 'Сұрыптау'), Object.keys(sortName).map(function(key) {
+            return { ico: '↕️', label: mark(sort === key) + sortName[key], fn: function() { fsUiSet('sort', key); fsRenderBody(); } };
+          }));
+        } },
+        { ico: '🕘', label: fsT('История действий', 'Әрекеттер тарихы'), fn: fsHistoryDialog },
         { ico: '☑️', label: fsT('Выбрать несколько', 'Бірнешеуін таңдау'), fn: function() { FSUI.selMode = true; FSUI.sel.clear(); fsRenderBody(); } },
         { ico: '⬇️', label: fsT('Экспорт (JSON)', 'Экспорт (JSON)'), fn: fsExportDialog },
         { ico: '⬆️', label: fsT('Импорт', 'Импорт'), fn: fsImportDialog }
@@ -27717,7 +28177,7 @@ function renderDict() {
         '<input type="text" class="fs-input" id="fs-nt-title" maxlength="' + FS_LIMITS.nameChars + '" placeholder="' + fsT('Название', 'Атауы') + '" value="' + fsEsc(isNew ? '' : fsName(it)) + '">' +
         '<textarea class="fs-input fs-note-ta" id="fs-nt-text" rows="12" maxlength="' + FS_LIMITS.noteChars + '" placeholder="' + fsT('Текст…', 'Мәтін…') + '">' + fsEsc((it.d && it.d.text) || '') + '</textarea>' +
         '<div class="fs-count" id="fs-nt-count"></div>' +
-        '<div class="fs-row2"><button type="button" class="btn btn-sm fs-danger" id="fs-nt-del">' + fsT('Удалить', 'Жою') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-nt-ok">' + fsT('Готово', 'Дайын') + '</button></div>', 'fs-tall');
+        '<div class="fs-row2"><button type="button" class="btn btn-sm" id="fs-nt-hist" aria-label="' + fsT('История файла', 'Файл тарихы') + '">🕘</button><button type="button" class="btn btn-sm fs-danger" id="fs-nt-del">' + fsT('Удалить', 'Жою') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-nt-ok">' + fsT('Готово', 'Дайын') + '</button></div>', 'fs-tall');
       var ti = ov.querySelector('#fs-nt-title'), ta = ov.querySelector('#fs-nt-text'), cn = ov.querySelector('#fs-nt-count'), tm = null, removed = false;
       var upd = function() { cn.textContent = ta.value.length + ' / ' + FS_LIMITS.noteChars; };
       upd();
@@ -27737,6 +28197,7 @@ function renderDict() {
         fsRefreshUi();
       };
       ov.querySelector('#fs-nt-ok').addEventListener('click', function() { fsCloseModal(ov); });
+      ov.querySelector('#fs-nt-hist').addEventListener('click', function() { clearTimeout(tm); save(); setTimeout(function() { fsFileHistoryDialog(id); }, 30); });
       ov.querySelector('#fs-nt-del').addEventListener('click', function() { removed = true; clearTimeout(tm); fsCloseModal(ov); fsDeleteWithUndo([id]); });
       setTimeout(function() { try { (isNew ? ti : ta).focus(); } catch (e) {} }, 80);
     }
@@ -27746,7 +28207,7 @@ function renderDict() {
         '<input type="text" class="fs-input" id="fs-ls-title" maxlength="' + FS_LIMITS.nameChars + '" placeholder="' + fsT('Название', 'Атауы') + '" value="' + fsEsc(isNew ? '' : fsName(it)) + '">' +
         '<div class="fs-count" id="fs-ls-prog"></div><div id="fs-ls-items"></div>' +
         '<div class="fs-searchrow"><input type="text" class="fs-input" id="fs-ls-add" maxlength="300" placeholder="' + fsT('Новый пункт…', 'Жаңа тармақ…') + '"><button type="button" class="btn btn-sm btn-primary" id="fs-ls-addbtn">＋</button></div>' +
-        '<div class="fs-row2"><button type="button" class="btn btn-sm fs-danger" id="fs-ls-del">' + fsT('Удалить список', 'Тізімді жою') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-ls-ok">' + fsT('Готово', 'Дайын') + '</button></div>', 'fs-tall');
+        '<div class="fs-row2"><button type="button" class="btn btn-sm" id="fs-ls-hist" aria-label="' + fsT('История файла', 'Файл тарихы') + '">🕘</button><button type="button" class="btn btn-sm fs-danger" id="fs-ls-del">' + fsT('Удалить список', 'Тізімді жою') + '</button><button type="button" class="btn btn-sm btn-primary" id="fs-ls-ok">' + fsT('Готово', 'Дайын') + '</button></div>', 'fs-tall');
       var itemsBox = ov.querySelector('#fs-ls-items'), prog = ov.querySelector('#fs-ls-prog'), removed = false;
       var arr = function() { var cur = FS.items.get(id); return (cur && cur.d && cur.d.items) ? cur.d.items.slice() : []; };
       var put = function(a) { fsUpdate(id, { d: { items: a } }); draw(); };
@@ -27799,6 +28260,7 @@ function renderDict() {
         fsRefreshUi();
       };
       ov.querySelector('#fs-ls-ok').addEventListener('click', function() { fsCloseModal(ov); });
+      ov.querySelector('#fs-ls-hist').addEventListener('click', function() { fsFileHistoryDialog(id); });
       ov.querySelector('#fs-ls-del').addEventListener('click', function() { removed = true; fsCloseModal(ov); fsDeleteWithUndo([id]); });
       setTimeout(function() { try { (isNew ? ti : addInp).focus(); } catch (e) {} }, 80);
     }
@@ -28277,9 +28739,16 @@ function renderDict() {
           if (it.p && (!par || par.del)) { it.p = null; }
           fsCollectAll(id).forEach(function(x) { var y = FS.items.get(x); if (y && !y.gone) { y.del = 0; y.u = now; fsSave(y); } });
           draw(); fsRefreshUi(); toast(fsT('Восстановлено', 'Қалпына келтірілді'));
-        } else if (rm) { wipe(rm.getAttribute('data-rm')); draw(); }
+        } else if (rm) {
+          var rid = rm.getAttribute('data-rm'), rit = FS.items.get(rid), rn = fsCollectAll(rid).length;
+          fsConfirm(fsT('Удалить навсегда?', 'Мәңгіге жою керек пе?'), fsT('«' + (rit ? fsName(rit) : '') + '»' + (rn > 1 ? ' и всё внутри (' + rn + ' эл.)' : '') + ' будет удалено без возможности восстановления.', '«' + (rit ? fsName(rit) : '') + '»' + (rn > 1 ? ' және ішіндегінің бәрі (' + rn + ' бел.)' : '') + ' қалпына келтіру мүмкіндігінсіз жойылады.'), fsT('Удалить навсегда', 'Мәңгіге жою'), function() { wipe(rid); draw(); }, true);
+        }
       });
-      ov.querySelector('#fs-tr-empty').addEventListener('click', function() { fsTrashRoots().forEach(function(it) { wipe(it.id); }); draw(); });
+      ov.querySelector('#fs-tr-empty').addEventListener('click', function() {
+        var roots = fsTrashRoots(); if (!roots.length) return;
+        var total = 0; roots.forEach(function(it) { total += fsCollectAll(it.id).length; });
+        fsConfirm(fsT('Очистить корзину?', 'Себетті тазалау керек пе?'), fsT('Будет удалено навсегда: ' + total + ' эл. Восстановить их будет нельзя.', 'Мәңгіге жойылады: ' + total + ' бел. Оларды қалпына келтіру мүмкін болмайды.'), fsT('Очистить', 'Тазалау'), function() { fsTrashRoots().forEach(function(it) { wipe(it.id); }); draw(); }, true);
+      });
       ov.querySelector('#fs-tr-ok').addEventListener('click', function() { fsCloseModal(ov); });
     }
 
@@ -43625,7 +44094,7 @@ c.addEventListener('click', () => {
         if (size === null) { if (!(await dlAsk(dlT('Размер файла заранее узнать не удалось. Целая сура может весить десятки МБ. Скачать точно?', 'Файл өлшемін алдын ала білу мүмкін болмады. Толық сүре ондаған МБ болуы мүмкін. Нақты жүктейміз бе?'), dlT('Скачать', 'Жүктеу')))) return; }
         else if (size > DL_WARN_BYTES) { if (!(await dlAsk(dlT('Файл большой — ', 'Файл үлкен — ') + '<b>' + dlMb(size) + '</b>. ' + dlT('Скачать точно?', 'Нақты жүктейміз бе?'), dlT('Скачать', 'Жүктеу')))) return; }
       }
-      var ctl = new AbortController(), ov = dlModal('<b>⬇ ' + dlT('Скачиваю…', 'Жүктеп жатыр…') + '</b><div class="ayah-translation" style="margin-top:0.3rem;word-break:break-all">' + name.replace(/</g, '&lt;') + '</div><div data-p style="margin-top:0.4rem;font-variant-numeric:tabular-nums">0%</div><button type="button" class="btn btn-sm" data-x style="margin-top:0.6rem">' + dlT('Отмена', 'Бас тарту') + '</button>');
+      var ctl = new AbortController(), ov = dlModal('<b>📥 ' + dlT('Скачиваю…', 'Жүктеп жатыр…') + '</b><div class="ayah-translation" style="margin-top:0.3rem;word-break:break-all">' + name.replace(/</g, '&lt;') + '</div><div data-p style="margin-top:0.4rem;font-variant-numeric:tabular-nums">0%</div><button type="button" class="btn btn-sm" data-x style="margin-top:0.6rem">' + dlT('Отмена', 'Бас тарту') + '</button>');
       var pe = ov.querySelector('[data-p]'), cancelled = false;
       ov.querySelector('[data-x]').addEventListener('click', function() { cancelled = true; try { ctl.abort(); } catch (e) {} ov.close(); });
       try {
@@ -43682,7 +44151,7 @@ c.addEventListener('click', () => {
       if (est === null) { if (!(await dlAsk(dlT('Размер заранее узнать не удалось. Сура по аятам — это ' + cnt + ' файлов, для длинных сур это может быть больше 10 МБ. Скачать точно?', 'Өлшемін алдын ала білу мүмкін болмады. Аятпен сүре — ' + cnt + ' файл, ұзын сүрелер үшін 10 МБ-тан асуы мүмкін. Нақты жүктейміз бе?'), dlT('Скачать', 'Жүктеу')))) return; }
       else if (est > DL_WARN_BYTES) { if (!(await dlAsk(dlT('Сура по аятам (zip, ' + cnt + ' файлов): примерно ', 'Аятпен сүре (zip, ' + cnt + ' файл): шамамен ') + '<b>' + dlMb(est) + '</b>. ' + dlT('Скачать точно?', 'Нақты жүктейміз бе?'), dlT('Скачать', 'Жүктеу')))) return; }
       var ctl = new AbortController(), cancelled = false;
-      var ov = dlModal('<b>⬇ ' + dlT('Собираю архив…', 'Архив жинап жатыр…') + '</b><div data-p style="margin-top:0.4rem;font-variant-numeric:tabular-nums">0 / ' + cnt + '</div><button type="button" class="btn btn-sm" data-x style="margin-top:0.6rem">' + dlT('Отмена', 'Бас тарту') + '</button>');
+      var ov = dlModal('<b>📥 ' + dlT('Собираю архив…', 'Архив жинап жатыр…') + '</b><div data-p style="margin-top:0.4rem;font-variant-numeric:tabular-nums">0 / ' + cnt + '</div><button type="button" class="btn btn-sm" data-x style="margin-top:0.6rem">' + dlT('Отмена', 'Бас тарту') + '</button>');
       ov.querySelector('[data-x]').addEventListener('click', function() { cancelled = true; try { ctl.abort(); } catch (e) {} ov.close(); });
       var pe = ov.querySelector('[data-p]'), files = new Array(cnt), done = 0, failed = [], next = 1, hardFail = 0;
       async function worker() {
@@ -43704,40 +44173,49 @@ c.addEventListener('click', () => {
       dlSaveBlob(dlZip(ok), dlPad(surah) + '_' + dlSurahName(surah) + '_' + dlSafe(dlReciterName(recId)) + '.zip');
       toast(dlT('Архив сохранён: ', 'Архив сақталды: ') + ok.length + ' / ' + cnt + (failed.length ? dlT(' (не скачались аяты: ', ' (жүктелмеген аяттар: ') + failed.sort(function(x, y) { return x - y; }).join(', ') + ')' : ''));
     }
-    // окно «Скачать»: аят / сура
+    // окно «Скачать»: аят / сура (build 6.40: выбор чтеца; целые суры — только если выбран чтец с целыми сурами)
     function openDownloadSheet(o) {
-      var kk = dlKk(), sn = +o.surah, an = +o.ayah || 0, whole = !!o.whole;
-      var recId = o.reciterId || (state.settings && state.settings.reciter) || 'ar.husary';
-      var recName = dlReciterName(recId, whole ? o.wholeId : null) || recId;
+      var kk = dlKk(), sn = +o.surah, an = +o.ayah || 0;
+      var baseRec = o.reciterId || (state.settings && state.settings.reciter) || 'ar.husary';
+      var sel = o.whole ? ('whole:' + o.wholeId) : baseRec;     // по умолчанию — чтец, который стоит у пользователя сейчас
       var cnt = 0; try { cnt = surahAyahCount(sn); } catch (e) {}
-      var h = '<b>⬇ ' + dlT('Скачать на телефон', 'Телефонға жүктеу') + '</b>' +
-        '<div class="ayah-translation" style="margin-top:0.3rem">' + dlSurahName(sn).replace(/_/g, ' ') + ' (' + sn + ')' + (an ? ' · ' + dlT('аят', 'аят') + ' ' + an : '') + '<br>' + dlT('Чтец: ', 'Қари: ') + recName + '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:0.45rem;margin-top:0.7rem">';
-      if (!whole && an) h += '<button type="button" class="btn" data-dl="ayah">⬇ ' + dlT('Этот аят (mp3)', 'Осы аят (mp3)') + '</button>';
-      if (whole) h += '<button type="button" class="btn" data-dl="whole:' + o.wholeId + '">⬇ ' + dlT('Суру целиком — один файл (mp3)', 'Сүрені толық — бір файл (mp3)') + '</button>' +
-        '<div class="ayah-translation" style="font-size:0.78rem">' + dlT('У этого чтеца есть только целые суры — отдельных аятов нет.', 'Бұл қариде тек толық сүрелер бар — жеке аяттар жоқ.') + '</div>';
-      else h += '<button type="button" class="btn" data-dl="zip" style="flex-wrap:wrap;justify-content:center;text-align:center">⬇ ' + dlT('Суру по аятам — архив .zip', 'Сүрені аятпен — .zip архив') + (cnt ? ' (' + cnt + ' ' + dlT('файлов', 'файл') + ')' : '') + '<small data-dl-est style="opacity:0.75;display:block;width:100%">' + dlT('считаю размер…', 'өлшемін санап жатыр…') + '</small></button>';
-      if (!whole) {
-        h += '<div class="ayah-translation" style="font-size:0.78rem;margin-top:0.2rem">' + dlT('Или суру целиком одним файлом (только эти чтецы):', 'Немесе сүрені толық бір файлмен (тек мына қарилер):') + '</div>' +
-          WHOLE_RECITERS.map(function(r) { return '<button type="button" class="btn" data-dl="whole:' + r.id + '">⬇ ' + (kk ? r.kk : r.ru) + '</button>'; }).join('');
-      } else {
-        h += '<div class="ayah-translation" style="font-size:0.78rem;margin-top:0.2rem">' + dlT('Другие чтецы — по аятам в .zip:', 'Басқа қарилер — аятпен .zip:') + '</div><button type="button" class="btn" data-dl="zip" style="flex-wrap:wrap;justify-content:center;text-align:center">⬇ ' + dlT('Суру по аятам — .zip', 'Сүрені аятпен — .zip') + ' · ' + dlT('чтец: ', 'қари: ') + dlSafe(dlReciterName(state.settings && state.settings.reciterBy && state.settings.reciterBy.surahs)).replace(/_/g, ' ') + '<small data-dl-est style="opacity:0.75;display:block;width:100%">' + dlT('считаю размер…', 'өлшемін санап жатыр…') + '</small></button>';
-      }
-      h += '</div><div class="ayah-translation" style="font-size:0.75rem;margin-top:0.6rem;line-height:1.45">' + dlT('Файлы сохраняются в «Загрузки» телефона. Если сохранить не получится — сервер звука мог не разрешить скачивание с сайта; тогда файл можно открыть в новой вкладке.', 'Файлдар телефонның «Жүктеулер» қалтасына сақталады. Сақтау мүмкін болмаса — дыбыс сервері сайттан жүктеуге рұқсат бермеген болуы мүмкін; онда файлды жаңа бетте ашуға болады.') + '</div>' +
+      var h = '<b>📥 ' + dlT('Скачать', 'Жүктеу') + '</b>' +
+        '<div class="ayah-translation" style="margin-top:0.3rem">' + dlSurahName(sn).replace(/_/g, ' ') + ' (' + sn + ')' + (an ? ' · ' + dlT('аят', 'аят') + ' ' + an : '') + '</div>' +
+        '<label class="ayah-translation" style="display:block;margin-top:0.55rem;font-size:0.8rem">' + dlT('Чтец', 'Қари') + '</label>' +
+        '<select class="select" data-dl-rec style="width:100%;margin-top:0.2rem"></select>' +
+        '<div data-dl-body style="display:flex;flex-direction:column;gap:0.45rem;margin-top:0.7rem"></div>' +
+        '<div class="ayah-translation" style="font-size:0.75rem;margin-top:0.6rem;line-height:1.45">' + dlT('Файлы сохраняются в папку загрузок: на телефоне — «Загрузки», на компьютере — папка загрузок браузера. Если сохранить не получится — сервер звука мог не разрешить скачивание с сайта; тогда файл можно открыть в новой вкладке.', 'Файлдар жүктеулер қалтасына сақталады: телефонда — «Жүктеулер», компьютерде — браузердің жүктеулер қалтасы. Сақтау мүмкін болмаса — дыбыс сервері сайттан жүктеуге рұқсат бермеген болуы мүмкін; онда файлды жаңа бетте ашуға болады.') + '</div>' +
         '<button type="button" class="btn btn-sm" data-dl="close" style="margin-top:0.6rem">' + dlT('Закрыть', 'Жабу') + '</button>';
       var ov = dlModal(h);
-      var zipRec = whole ? ((state.settings && state.settings.reciterBy && state.settings.reciterBy.surahs) || 'ar.husary') : recId;
-      var est = ov.querySelector('[data-dl-est]');
-      if (est) dlZipEstimate(sn, zipRec).then(function(n) { try { est.textContent = n ? (dlT('примерно ', 'шамамен ') + dlMb(n)) : dlT('размер заранее узнать не удалось', 'өлшемін алдын ала білу мүмкін болмады'); } catch (e) {} });
+      var rs = ov.querySelector('[data-dl-rec]'), body = ov.querySelector('[data-dl-body]'), estToken = 0;
+      try { rs.innerHTML = reciterSelectHtml(true); } catch (e) {}
+      if (!Array.prototype.some.call(rs.options, function(op) { return op.value === sel; })) { try { sel = (state.settings && state.settings.reciter) || 'ar.husary'; } catch (e) {} }
+      rs.value = sel;
+      function paint() {
+        var isWhole = sel.indexOf('whole:') === 0, my = ++estToken;
+        if (isWhole) {
+          var wr = wholeById(sel.slice(6));
+          body.innerHTML = '<button type="button" class="btn" data-dl="whole">📥 ' + dlT('Суру целиком — один файл (mp3)', 'Сүрені толық — бір файл (mp3)') + '</button>' +
+            '<div class="ayah-translation" style="font-size:0.78rem">' + dlT('У этого чтеца только целые суры — отдельных аятов нет.', 'Бұл қариде тек толық сүрелер бар — жеке аяттар жоқ.') + '</div>';
+          return;
+        }
+        body.innerHTML = (an ? '<button type="button" class="btn" data-dl="ayah">📥 ' + dlT('Этот аят (mp3)', 'Осы аят (mp3)') + '</button>' : '') +
+          '<button type="button" class="btn" data-dl="zip" style="flex-wrap:wrap;justify-content:center;text-align:center">📥 ' + dlT('Суру по аятам — архив .zip', 'Сүрені аятпен — .zip архив') + (cnt ? ' (' + cnt + ' ' + dlT('файлов', 'файл') + ')' : '') +
+          '<span data-dl-est style="display:block;width:100%;font-size:0.75rem;opacity:0.8">' + dlT('считаю размер…', 'өлшемін есептеп жатыр…') + '</span></button>';
+        var est = body.querySelector('[data-dl-est]');
+        dlZipEstimate(sn, sel).then(function(n) { if (my !== estToken) return; try { est.textContent = n ? (dlT('примерно ', 'шамамен ') + dlMb(n)) : dlT('размер заранее узнать не удалось', 'өлшемін алдын ала білу мүмкін болмады'); } catch (e) {} }).catch(function() {});
+      }
+      paint();
+      rs.addEventListener('change', function() { sel = rs.value; paint(); });
       ov.addEventListener('click', function(e) {
         if (e.target === ov) { ov.close(); return; }
         var b = e.target.closest && e.target.closest('[data-dl]'); if (!b) return;
         var k = b.getAttribute('data-dl');
         if (k === 'close') { ov.close(); return; }
         ov.close();
-        if (k === 'ayah') dlOneFile(ayahAudioUrl(sn, an, recId), dlAyahFile(sn, an, recId), {});
-        else if (k === 'zip') dlSurahZip(sn, zipRec);
-        else if (k.indexOf('whole:') === 0) { var wr = wholeById(k.slice(6)); dlOneFile(wr.base + dlPad(sn) + '.mp3', dlWholeFile(sn, wr.id), { warn: true }); }
+        if (k === 'ayah') dlOneFile(ayahAudioUrl(sn, an, sel), dlAyahFile(sn, an, sel), {});
+        else if (k === 'zip') dlSurahZip(sn, sel);
+        else if (k === 'whole') { var wr2 = wholeById(sel.slice(6)); dlOneFile(wr2.base + dlPad(sn) + '.mp3', dlWholeFile(sn, wr2.id), { warn: true }); }
       });
     }
     function dlPlayerCurrent() {

@@ -3806,3 +3806,18 @@ select.fs-input { padding-right: 0.4rem; }
 .home-player-mini { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; margin-bottom: 0.6rem; }
 .home-player-mini .home-pm-label { flex: 1; min-width: 0; font-size: 0.88rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-player-mini .home-pm-label::before { content: '🎧 '; }
+
+/* build 6.40: история действий в «Папках» */
+.fs-histbar { display: flex; gap: 0.4rem; align-items: center; margin: 0.35rem 0 0.1rem; }
+.fs-histbar .btn { min-width: 2.6rem; }
+.fs-dis { opacity: 0.4; }
+.fs-hchips { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.fs-hrow { display: flex; flex-direction: column; gap: 0.15rem; text-align: left; width: 100%; background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-md, 0.75rem); padding: 0.55rem 0.7rem; font: inherit; font-size: 0.88rem; line-height: 1.35; cursor: pointer; overflow-wrap: anywhere; }
+.fs-hrow:hover { background: var(--bg-hover); }
+.fs-hundone { opacity: 0.55; }
+.fs-htime { font-size: 0.75rem; color: var(--text-muted); }
+.fs-hrow code, .fs-sheet code, .fs-path code { background: var(--bg-hover, rgba(127,127,127,0.15)); border-radius: 0.3rem; padding: 0.05rem 0.3rem; font-size: 0.85em; overflow-wrap: anywhere; }
+.fs-hbox { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0.6rem; padding: 0.5rem 0.6rem; font-size: 0.88rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 28vh; overflow-y: auto; }
+.fs-hbox del { background: rgba(220, 60, 60, 0.22); text-decoration: line-through; }
+.fs-hbox ins { background: rgba(40, 170, 90, 0.25); text-decoration: none; }
+.fs-hdiff { display: flex; flex-direction: column; gap: 0.3rem; }
