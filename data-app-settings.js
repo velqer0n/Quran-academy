@@ -138,8 +138,7 @@
       listPageSize: 25,
       startupView: 'last',
       reduceMotion: false,
-      hintsCollapsed: true,
-      achievementsMode: 'off' // on | quiet | off
+      hintsCollapsed: true
     };
 
     const I18N = {
@@ -341,7 +340,6 @@
       'Мои вопросы/ответы':'Менің сұрақ-жауаптарым',
       'Мои жалобы':'Менің шағымдарым',
       'Уведомления':'Хабарландырулар',
-      'Достижения':'Жетістіктер',
       'Все слова':'Барлық сөздер',
       'Развернуть все':'Барлығын ашу',
       'Свернуть все':'Барлығын жинау',
@@ -858,68 +856,6 @@
       'Ас-Сабур':'Жазалауға асықпайтын, кемел сабыр иесі.'
     };
 
-    const ACHIEVEMENTS = [
-      { id:'juz_1', cat:'read', icon:'📖', title:'Первый джуз', titleKk:'Алғашқы жүз', how:'Отметьте 1 джуз в «Моё чтение → Хатм»', howKk:'«Менің оқуым → Хатым» ішінде 1 жүзді белгілеңіз', test: function(){ return juzDoneCount() >= 1; } },
-      { id:'juz_5', cat:'read', icon:'📗', title:'5 джузов', titleKk:'5 жүз', how:'Отметьте 5 джузов на карте хатма', howKk:'Хатым картасында 5 жүзді белгілеңіз', test: function(){ return juzDoneCount() >= 5; } },
-      { id:'juz_10', cat:'read', icon:'📘', title:'10 джузов', titleKk:'10 жүз', how:'Отметьте 10 джузов прочитанными', howKk:'10 жүзді белгілеңіз', test: function(){ return juzDoneCount() >= 10; } },
-      { id:'juz_15', cat:'read', icon:'📙', title:'Половина Корана', titleKk:'Құранның жартысы', how:'Отметьте 15 джузов', howKk:'15 жүзді белгілеңіз', test: function(){ return juzDoneCount() >= 15; } },
-      { id:'juz_30', cat:'read', icon:'📕', title:'Хатм завершён', titleKk:'Хатым аяқталды', how:'Отметьте все 30 джузов', howKk:'Барлық 30 жүзді белгілеңіз', test: function(){ return juzDoneCount() >= 30; } },
-      { id:'ayah_1', cat:'hifz', icon:'✨', title:'Первый аят', titleKk:'Алғашқы аят', how:'Отметьте 1 аят как выученный', howKk:'1 аятты жаттадым деп белгілеңіз', test: function(){ return Object.keys(state.learnedAyahs||{}).length >= 1; } },
-      { id:'ayah_10', cat:'hifz', icon:'🌟', title:'10 аятов', titleKk:'10 аят', how:'Выучите 10 аятов', howKk:'10 аятты жаттаңыз', test: function(){ return Object.keys(state.learnedAyahs||{}).length >= 10; } },
-      { id:'ayah_50', cat:'hifz', icon:'💫', title:'50 аятов', titleKk:'50 аят', how:'Выучите 50 аятов', howKk:'50 аятты жаттаңыз', test: function(){ return Object.keys(state.learnedAyahs||{}).length >= 50; } },
-      { id:'ayah_100', cat:'hifz', icon:'🌠', title:'100 аятов', titleKk:'100 аят', how:'Выучите 100 аятов', howKk:'100 аятты жаттаңыз', test: function(){ return Object.keys(state.learnedAyahs||{}).length >= 100; } },
-      { id:'surah_1', cat:'hifz', icon:'✅', title:'Первая сура', titleKk:'Алғашқы сүре', how:'Отметьте суру выученной («✓ Сура»)', howKk:'Сүрені жатталған деп белгілеңіз', test: function(){ return Object.keys(state.learnedSurahs||{}).length >= 1; } },
-      { id:'surah_3', cat:'hifz', icon:'🏆', title:'3 суры', titleKk:'3 сүре', how:'Выучите 3 суры целиком', howKk:'3 сүрені толық жаттаңыз', test: function(){ return Object.keys(state.learnedSurahs||{}).length >= 3; } },
-      { id:'surah_5', cat:'hifz', icon:'👑', title:'5 сур', titleKk:'5 сүре', how:'Выучите 5 сур целиком', howKk:'5 сүрені толық жаттаңыз', test: function(){ return Object.keys(state.learnedSurahs||{}).length >= 5; } },
-      { id:'surah_fatiha', cat:'hifz', icon:'🕋', title:'Аль-Фатиха', titleKk:'Әл-Фатиха', how:'Отметьте суру 1 выученной', howKk:'1-сүрені жатталған деп белгілеңіз', test: function(){ return !!(state.learnedSurahs&&(state.learnedSurahs['1']||state.learnedSurahs[1])); } },
-      { id:'streak_3', cat:'streak', icon:'🔥', title:'3 дня подряд', titleKk:'3 күн қатарынан', how:'Открывайте приложение 3 дня подряд', howKk:'Қосымшаны 3 күн қатарынан ашыңыз', test: function(){ var s=state.streak||{}; return Math.max(s.count||0,s.best||0) >= 3; } },
-      { id:'streak_7', cat:'streak', icon:'🔥', title:'Неделя', titleKk:'Апта', how:'Стрик 7 дней подряд', howKk:'7 күндік стрик', test: function(){ var s=state.streak||{}; return Math.max(s.count||0,s.best||0) >= 7; } },
-      { id:'streak_30', cat:'streak', icon:'🗓️', title:'Месяц привычки', titleKk:'Бір айлық әдет', how:'Стрик 30 дней подряд', howKk:'30 күндік стрик', test: function(){ var s=state.streak||{}; return Math.max(s.count||0,s.best||0) >= 30; } },
-      { id:'streak_100', cat:'streak', icon:'💎', title:'100 дней', titleKk:'100 күн', how:'Стрик 100 дней подряд', howKk:'100 күндік стрик', test: function(){ var s=state.streak||{}; return Math.max(s.count||0,s.best||0) >= 100; } },
-      { id:'acad_1', cat:'academy', icon:'📚', title:'Первый урок', titleKk:'Алғашқы сабақ', how:'Пройдите 1 урок в «Теория → Путь»', howKk:'«Теория → Жол» ішінде 1 сабақ өтіңіз', test: function(){ return academyDoneCount() >= 1; } },
-      { id:'acad_5', cat:'academy', icon:'🎓', title:'5 уроков', titleKk:'5 сабақ', how:'Пройдите 5 уроков академии', howKk:'Академияның 5 сабағын өтіңіз', test: function(){ return academyDoneCount() >= 5; } },
-      { id:'acad_half', cat:'academy', icon:'🧭', title:'Половина пути', titleKk:'Жолдың жартысы', how:'Пройдите половину уроков академии', howKk:'Сабақтардың жартысын өтіңіз', test: function(){ var t=academyTotalCount(); return t>0 && academyDoneCount() >= Math.ceil(t/2); } },
-      { id:'acad_all', cat:'academy', icon:'🎖️', title:'Курс академии', titleKk:'Академия курсы', how:'Пройдите все уроки пути академии', howKk:'Барлық сабақтарды өтіңіз', test: function(){ var t=academyTotalCount(); return t>0 && academyDoneCount() >= t; } },
-      { id:'quiz_1', cat:'practice', icon:'🧠', title:'Первый тест', titleKk:'Алғашқы тест', how:'Пройдите тест во вкладке «Практика»', howKk:'«Практика» тестін өтіңіз', test: function(){ return ((state.stats&&state.stats.quizzes)||0) >= 1; } },
-      { id:'quiz_10', cat:'practice', icon:'🧩', title:'10 тестов', titleKk:'10 тест', how:'Пройдите 10 тестов', howKk:'10 тест өтіңіз', test: function(){ return ((state.stats&&state.stats.quizzes)||0) >= 10; } },
-      { id:'audio_1', cat:'practice', icon:'🎧', title:'Слушатель', titleKk:'Тыңдаушы', how:'Прослушайте аудио аята или суры', howKk:'Аят/сүре аудиосын тыңдаңыз', test: function(){ return ((state.stats&&(state.stats.audioPlays||state.stats.listenSeconds))||0) >= 1; } },
-      { id:'bookmark_1', cat:'practice', icon:'🔖', title:'Закладка', titleKk:'Бетбелгі', how:'Сохраните закладку на аят', howKk:'Аятқа бетбелгі қойыңыз', test: function(){ return (state.bookmarks||[]).length >= 1; } },
-      { id:'names_visit', cat:'practice', icon:'☪️', title:'Имена Аллаха', titleKk:'Аллаһтың есімдері', how:'Откройте раздел «99 имён Аллаха»', howKk:'«99 есім» бөлімін ашыңыз', test: function(){ return !!(state.stats&&state.stats._visited_names) || sectionVisited('names'); } },
-      // Разделы: прочтение карточек
-      { id:'sec_sadaqa_read', cat:'sections', icon:'🤲', title:'Садака: всё прочитано', titleKk:'Садақа: бәрі оқылды', how:'Откройте все карточки в разделе «Садака»', howKk:'«Садақа» бөліміндегі барлық карточкаларды ашыңыз', test: function(){ return sectionAllCards('sadaqa', 10); } },
-      { id:'sec_sadaqa_quiz', cat:'sections', icon:'✅', title:'Садака: тест сдан', titleKk:'Садақа: тест тапсырылды', how:'Пройдите тест в разделе «Садака» (≥2/3 верно)', howKk:'«Садақа» бөліміндегі тестті өтіңіз', test: function(){ return sectionQuizOk('sadaqa'); } },
-      { id:'sec_sadaqa_days3', cat:'sections', icon:'💚', title:'Садака: 3 дня дел', titleKk:'Садақа: 3 күн іс', how:'Отметьте «сделал сегодня» в Садаке 3 разных дня', howKk:'Садақада «бүгін жасадым» деп 3 күн белгілеңіз', test: function(){ return sadaqaDaysCount() >= 3; } },
-      { id:'sec_sadaqa_days7', cat:'sections', icon:'🌱', title:'Садака: неделя дел', titleKk:'Садақа: бір апта іс', how:'7 дней с отметкой дела садаки', howKk:'Садақа ісінің 7 күндік белгісі', test: function(){ return sadaqaDaysCount() >= 7; } },
-      { id:'sec_adab_read', cat:'sections', icon:'🗣️', title:'Адаб: темы изучены', titleKk:'Әдеп: тақырыптар оқылды', how:'Откройте не меньше 5 тем в «Адаб общения»', howKk:'«Әдеп» бөлімінде кемінде 5 тақырып ашыңыз', test: function(){ return sectionCardsCount('adab') >= 5; } },
-      { id:'sec_adab_quiz', cat:'sections', icon:'📋', title:'Адаб: тест сдан', titleKk:'Әдеп: тест тапсырылды', how:'Пройдите тест раздела «Адаб»', howKk:'«Әдеп» тестін өтіңіз', test: function(){ return sectionQuizOk('adab'); } },
-      { id:'sec_aqidah_read', cat:'sections', icon:'☪️', title:'Акыйда: изучено', titleKk:'Ақида: оқылды', how:'Откройте 5+ карточек в «Акыйда»', howKk:'«Ақида»да 5+ карточка ашыңыз', test: function(){ return sectionCardsCount('aqidah') >= 5; } },
-      { id:'sec_aqidah_quiz', cat:'sections', icon:'📖', title:'Акыйда: тест сдан', titleKk:'Ақида: тест тапсырылды', how:'Пройдите тест раздела «Акыйда»', howKk:'«Ақида» тестін өтіңіз', test: function(){ return sectionQuizOk('aqidah'); } },
-      { id:'sec_hajj_read', cat:'sections', icon:'🕋', title:'Хадж: раздел изучен', titleKk:'Қажылық: бөлім оқылды', how:'Откройте 5+ карточек в «Хадж и Умра»', howKk:'«Қажылық»та 5+ карточка ашыңыз', test: function(){ return sectionCardsCount('hajj') >= 5; } },
-      { id:'sec_hajj_quiz', cat:'sections', icon:'✈️', title:'Хадж: тест сдан', titleKk:'Қажылық: тест тапсырылды', how:'Пройдите тест раздела «Хадж»', howKk:'«Қажылық» тестін өтіңіз', test: function(){ return sectionQuizOk('hajj'); } },
-      { id:'sec_ramadan_read', cat:'sections', icon:'🌛', title:'Рамадан: изучен', titleKk:'Рамазан: оқылды', how:'Откройте 5+ материалов в «Рамадан»', howKk:'«Рамазан»да 5+ материал ашыңыз', test: function(){ return sectionCardsCount('ramadan') >= 5; } },
-      { id:'sec_ramadan_quiz', cat:'sections', icon:'🌙', title:'Рамадан: тест сдан', titleKk:'Рамазан: тест тапсырылды', how:'Пройдите тест раздела «Рамадан»', howKk:'«Рамазан» тестін өтіңіз', test: function(){ return sectionQuizOk('ramadan'); } },
-      { id:'sec_sins_read', cat:'sections', icon:'😔', title:'Грехи и тауба', titleKk:'Күнә мен тәубе', how:'Откройте 4+ карточки в «Грехи и тауба»', howKk:'«Күнә мен тәубе»де 4+ карточка', test: function(){ return sectionCardsCount('sins') >= 4; } },
-      { id:'sec_sins_quiz', cat:'sections', icon:'🤲', title:'Тауба: тест сдан', titleKk:'Тәубе: тест тапсырылды', how:'Пройдите тест раздела «Грехи и тауба»', howKk:'«Күнә мен тәубе» тестін өтіңіз', test: function(){ return sectionQuizOk('sins'); } },
-      { id:'sec_family_read', cat:'sections', icon:'👨‍👩‍👧‍👦', title:'Права семьи', titleKk:'Отбасы құқықтары', how:'Откройте 4+ карточки в «Права семьи»', howKk:'«Отбасы»да 4+ карточка', test: function(){ return sectionCardsCount('family') >= 4; } },
-      { id:'sec_family_quiz', cat:'sections', icon:'🏡', title:'Семья: тест сдан', titleKk:'Отбасы: тест тапсырылды', how:'Пройдите тест «Права семьи»', howKk:'«Отбасы» тестін өтіңіз', test: function(){ return sectionQuizOk('family'); } },
-      { id:'sec_stories_read', cat:'sections', icon:'📜', title:'Истории ислама', titleKk:'Ислам тарихы', how:'Откройте 5+ историй', howKk:'5+ тарих ашыңыз', test: function(){ return sectionCardsCount('stories') >= 5; } },
-      { id:'sec_hadiths_visit', cat:'sections', icon:'📗', title:'Хадисы', titleKk:'Хадистер', how:'Откройте раздел «Хадисы»', howKk:'«Хадистер» бөлімін ашыңыз', test: function(){ return sectionVisited('hadiths'); } },
-      { id:'sec_adhkar_visit', cat:'sections', icon:'📿', title:'Азкары', titleKk:'Азкарлар', how:'Откройте «Дуа и зикры»', howKk:'«Дұғалар мен зікірлер» бөлімін ашыңыз', test: function(){ return sectionVisited('adhkar') || sectionVisited('hisn'); } },
-      { id:'sec_explorer_5', cat:'sections', icon:'🧭', title:'Исследователь', titleKk:'Зерттеуші', how:'Загляните в 5 разных разделов «Ещё»', howKk:'«Тағы» ішіндегі 5 түрлі бөлімді ашыңыз', test: function(){ return sectionsVisitedCount() >= 5; } },
-      { id:'sec_explorer_12', cat:'sections', icon:'🗺️', title:'Знаток разделов', titleKk:'Бөлімдер білгірі', how:'Откройте 12 разных разделов приложения', howKk:'Қосымшаның 12 бөлімін ашыңыз', test: function(){ return sectionsVisitedCount() >= 12; } },
-      { id:'sec_quiz_master_3', cat:'sections', icon:'🧠', title:'3 теста разделов', titleKk:'3 бөлім тесті', how:'Сдайте тесты по 3 разным разделам (Садака, Фикх, Адаб…)', howKk:'3 түрлі бөлім тестін тапсырыңыз', test: function(){ return sectionQuizzesPassedCount() >= 3; } },
-      { id:'sec_quiz_master_6', cat:'sections', icon:'🏅', title:'6 тестов разделов', titleKk:'6 бөлім тесті', how:'Сдайте тесты по 6 разделам', howKk:'6 бөлім тестін тапсырыңыз', test: function(){ return sectionQuizzesPassedCount() >= 6; } }
-    ];
-
-    const ACH_CAT_LABELS = {
-      read: { ru:'Чтение и хатм', kk:'Оқу және хатым' },
-      hifz: { ru:'Хифз (заучивание)', kk:'Хифз (жаттау)' },
-      streak: { ru:'Регулярность', kk:'Тұрақтылық' },
-      academy: { ru:'Академия', kk:'Академия' },
-      practice: { ru:'Практика и активность', kk:'Практика және белсенділік' },
-      sections: { ru:'Разделы и тесты', kk:'Бөлімдер мен тесттер' }
-    };
-
     const SECTION_QUIZZES = {
       sadaqa: [
         { q: 'Садака в широком смысле — это…', qKk: 'Кең мағынада садака — бұл…', opts: ['Только денежная милостыня', 'Любое доброе дело ради Аллаха', 'Только закят', 'Только еда нуждающимся'], optsKk: ['Тек ақшалай садақа', 'Аллаһ разылығы үшін кез келген игі іс', 'Тек зекет', 'Тек мұқтажға тамақ'], a: 1 },
@@ -1062,7 +998,6 @@
       { id:'notifications', icon:'🔔', label:'Уведомления', group:'online' },
       { id:'storagelimits', icon:'📊', label:'Хранилище', group:'online' },
       { id:'feedback', icon:'💡', label:'Идеи и баги', group:'online' },
-      { id:'achievements', icon:'🏅', label:'Достижения', group:'online' },
       { id:'stats', icon:'📊', label:'Статистика', group:'online' },
       { id:'registration', icon:'👥', label:'Регистрация', group:'admin' },
       { id:'reports', icon:'🚩', label:'Жалобы', group:'admin' },
@@ -1093,5 +1028,5 @@
       system: 'Система'
     };
 
-    const ONLINE_ORDER_DEFAULT = ['account','groups','dmlist','friends','publicchat','usersearch','chatsearch','myqa','forum','blockedlist','myreports','notifications','stats','achievements','registration','reports'];
+    const ONLINE_ORDER_DEFAULT = ['account','groups','dmlist','friends','publicchat','usersearch','chatsearch','myqa','forum','blockedlist','myreports','notifications','stats','registration','reports'];
 

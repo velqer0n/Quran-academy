@@ -3293,6 +3293,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
               <div class="surah-info">
                 <div class="surah-name">${nameRu} <span style="color:var(--text-muted);font-weight:400;font-size:0.85rem">${s.name}</span>${morphListBadge}</div>
                 <div class="surah-meta">${s.revelationType === 'Meccan' ? 'Мекканская' : 'Мединская'} · ${ayahCount} аятов ${learned ? '· ✓ выучена' : ''}</div>
+                <button type="button" class="btn btn-sm surah-fold-btn" data-surah="${s.number}" title="${isKk() ? 'Қалтаға қосу…' : 'В папку…'}" style="margin-top:0.35rem;margin-right:0.3rem">📁 ${isKk() ? 'Қалтаға' : 'В папку'}</button>
                 <button type="button" class="btn btn-sm surah-offline-btn" data-surah="${s.number}" data-ayahs="${ayahCount}" title="Скачать аудио суры офлайн" style="margin-top:0.35rem;padding:0.15rem 0.5rem;font-size:0.75rem">⬇️ Офлайн</button>
               </div>
               <svg class="progress-ring" viewBox="0 0 44 44">
@@ -3307,6 +3308,9 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
 
         list.querySelectorAll('.surah-item').forEach(el => {
           el.addEventListener('click', () => openSurah(+el.dataset.surah));
+        });
+        list.querySelectorAll('.surah-fold-btn').forEach(b => {
+          b.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); fsPickSurahToFolder(+b.dataset.surah); });
         });
         list.querySelectorAll('.morph-level-badge').forEach(b => {
           b.addEventListener('click', (e) => {
@@ -3479,6 +3483,8 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         try {
           const mb = document.getElementById('btn-mark-surah');
           if (mb) mb.textContent = isSurahLearned(num) ? '✓ Снять' : '✓ Сура';
+          const fb = document.getElementById('btn-fold-surah');
+          if (fb) fb.textContent = '📁 ' + (isKk() ? 'Қалтаға…' : 'В папку…');
         } catch (e) {}
         // build 5.52: значок «сура уже в офлайн-кэше» на кнопке «⬇️ Офлайн» —
         // асинхронно (не блокируя рендер аятов), не мешая переключиться на
@@ -3525,6 +3531,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
                 <button class="btn btn-sm btn-bookmark" data-s="${num}" data-a="${a.number}">
                   ${bookmarked ? '★' : '☆'}
                 </button>
+                <button type="button" class="btn btn-sm btn-fold-ayah" data-s="${num}" data-a="${a.number}" title="${isKk() ? 'Қалтаға қосу…' : 'В папку…'}">📁</button>
                 ${(typeof relatedDuaForAyah === 'function' && (relatedDuaForAyah(num, a.number).length || relatedSinsForAyah(num, a.number).length))
                   ? ('<button type="button" class="btn btn-sm btn-cross-ayah" data-s="'+num+'" data-a="'+a.number+'" title="Связанные разделы">🔗</button>')
                   : ''}
@@ -3755,6 +3762,12 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           b.addEventListener('click', () => {
             const ayah = data.ayahs.find(x => x.number === +b.dataset.a);
             toggleBookmark(+b.dataset.s, +b.dataset.a, ayah.text, ayah.translation, null, () => openSurah(num));
+          });
+        });
+        list.querySelectorAll('.btn-fold-ayah').forEach(b => {
+          b.addEventListener('click', () => {
+            const ayah = data.ayahs.find(x => x.number === +b.dataset.a);
+            if (ayah) fsPickAyahToFolder(+b.dataset.s, +b.dataset.a, ayah.text, ayah.translation);
           });
         });
         list.querySelectorAll('.btn-note').forEach(b => {
@@ -5921,6 +5934,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     // весит докачка недостающих), показываем это пользователю и только
     // после подтверждения запускаем саму загрузку (та же функция, что и
     // в «Данные → Кэш», build 5.50).
+    document.getElementById('btn-fold-surah')?.addEventListener('click', () => { try { fsPickSurahToFolder(state.currentSurah); } catch (e) {} });
     document.getElementById('btn-offline-surah')?.addEventListener('click', async () => {
       if (!state.currentSurah) return;
       const num = state.currentSurah;
@@ -6596,7 +6610,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       try {
         var _learnIds = reciterGroups()[0].items.map(function (r) { return r.id; }), _chg = false;
         ['study', 'tajweed'].forEach(function (t) { if (_learnIds.indexOf(state.settings.reciterBy[t]) < 0) { state.settings.reciterBy[t] = 'ar.husary'; _chg = true; if (_reciterCtx === t) state.settings.reciter = 'ar.husary'; } });
-        if (_chg) saveState();
+        // build 6.40: saveState() отсюда убран — первый вызов идёт ДО загрузки данных и затирал сохранённое значениями по умолчанию
       } catch (e) {}
       RECITER_TABS.forEach(function(t) {
         _RECITER_SELECTS[t].forEach(function(id) {
@@ -19992,7 +20006,6 @@ bKk:
           box.innerHTML = '<div class="ayah-translation" style="white-space:pre-line;line-height:1.55">'+sdFormatted+'</div>' +
             (typeof htmlSourcesFooter==='function'?htmlSourcesFooter(sdBody):'');
           scrollCardIntoView(btn.closest('.card') || box);
-          try { markSectionCard('sadaqa', i); } catch(e) {}
         });
       });
       try { injectSectionQuizButton(el, 'sadaqa'); } catch(e) {}
@@ -22879,19 +22892,22 @@ bKk:
       ru: 'Молитва лучше сна (×2) — только в утреннем (фаджр) азане, после «Спешите к спасению»',
       kk: 'Намаз ұйқыдан жақсы (×2) — тек таң (фаджр) азанында, «Құтқарылуға асығыңдар»-дан кейін'
     };
+    // build 6.41: ханафитский камат — те же слова, что в азане (такбир ×4, шахада ×2, «хайя» ×2, конечный такбир ×2, тахлиль ×1)
+    // плюс «Кад камати-с-саля» ×2 после «Хайя аля-ль-фаля». Отличие от азана — только в скорости: камат читают быстрее, без распева.
+    // (В шафиитском/маликитском камате фразы читают по одному разу — здесь это не используется.)
     var IQAMA_LINES = [
-      { ar: 'اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ', tr: 'Аллаһу акбар, Аллаһу акбар',
-        ru: 'Аллах Величайший (×2)', kk: 'Аллаһ ұлы (×2)' },
+      { ar: 'اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ', tr: 'Аллаһу акбар, Аллаһу акбар, Аллаһу акбар, Аллаһу акбар',
+        ru: 'Аллах Величайший (×4)', kk: 'Аллаһ (бәрінен) ұлы (×4)' },
       { ar: 'أَشْهَدُ أَنْ لَا إِلَٰهَ إِلَّا اللَّهُ', tr: 'Ашһаду алля иляха илля-Ллах',
-        ru: 'Свидетельствую, что нет божества, кроме Аллаха', kk: 'Аллаһтан басқа құдай жоқ екеніне куәлік беремін' },
+        ru: 'Свидетельствую, что нет божества, кроме Аллаха (×2)', kk: 'Аллаһтан басқа құдай жоқ екеніне куәлік беремін (×2)' },
       { ar: 'أَشْهَدُ أَنَّ مُحَمَّدًا رَسُولُ اللَّهِ', tr: 'Ашһаду анна Мухаммадан-р-расулю-Ллах',
-        ru: 'Свидетельствую, что Мухаммад — посланник Аллаха', kk: 'Мұхаммед — Аллаһтың елшісі екеніне куәлік беремін' },
+        ru: 'Свидетельствую, что Мухаммад — посланник Аллаха (×2)', kk: 'Мұхаммед — Аллаһтың елшісі екеніне куәлік беремін (×2)' },
       { ar: 'حَيَّ عَلَى الصَّلَاةِ', tr: 'Хайя аля-с-саляh',
-        ru: 'Спешите на молитву', kk: 'Намазға асығыңдар' },
+        ru: 'Спешите на молитву (×2)', kk: 'Намазға асығыңдар (×2)' },
       { ar: 'حَيَّ عَلَى الْفَلَاحِ', tr: 'Хайя аля-ль-фаляh',
-        ru: 'Спешите к спасению', kk: 'Құтқарылуға асығыңдар' },
-      { ar: 'قَدْ قَامَتِ الصَّلَاةُ، قَدْ قَامَتِ الصَّلَاةُ', tr: 'Кад камати-с-саляh, кад камати-с-саляh (×2)',
-        ru: 'Молитва началась (×2)', kk: 'Намаз басталды (×2)' },
+        ru: 'Спешите к спасению (×2)', kk: 'Құтқарылуға асығыңдар (×2)' },
+      { ar: 'قَدْ قَامَتِ الصَّلَاةُ، قَدْ قَامَتِ الصَّلَاةُ', tr: 'Кад камати-с-саляh, кад камати-с-саляh',
+        ru: 'Молитва началась (×2) — слова, которых нет в азане', kk: 'Намаз басталды (×2) — азанда жоқ сөздер' },
       { ar: 'اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ', tr: 'Аллаһу акбар, Аллаһу акбар',
         ru: 'Аллах Величайший (×2)', kk: 'Аллаһ ұлы (×2)' },
       { ar: 'لَا إِلَٰهَ إِلَّا اللَّهُ', tr: 'Ля иляха илля-Ллах',
@@ -22914,7 +22930,7 @@ bKk:
       return '<div class="card more-expand" data-exp="pt-azan-text" style="cursor:pointer">' +
         '<b>📜 ' + (kk ? 'Азан мәтіні және аудармасы' : 'Текст азана и перевод') + '</b>' +
         '<div class="exp-short ayah-translation" style="margin-top:0.25rem;font-size:calc(0.85rem * var(--ru-scale, 1))">' +
-        (kk ? 'Басыңыз — арабша, транслитерация, аударма және қамат (иқама)' : 'Нажмите — арабский текст, транслитерация, перевод и камат (икама)') +
+        (kk ? 'Басыңыз — арабша, транслитерация, аударма және қамат (иқама) — ханафи нұсқасы' : 'Нажмите — арабский текст, транслитерация, перевод и камат (икама)') +
         '</div>' +
         '<div class="exp-detail" style="display:none;margin-top:0.6rem">' +
         '<button type="button" id="pt-azan-text-collapse" class="btn btn-sm" style="float:right;margin:0 0 0.5rem 0.5rem">✕ ' + (kk ? 'Жию' : 'Свернуть') + '</button>' +
@@ -22927,12 +22943,112 @@ bKk:
         '</div>' +
         '<div style="font-weight:600;color:var(--accent);margin:0.9rem 0 0.15rem">🕋 ' + (kk ? 'Қамат (иқама)' : 'Камат (икама)') + '</div>' +
         '<div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-bottom:0.4rem">' +
-        (kk ? 'Намаз басталар алдында, сап түзелгенде айтылады.' : 'Произносится перед началом намаза, когда ряды уже выстроены.') +
+        (kk ? 'Намаз басталар алдында, сап түзелгенде айтылады. Ханафи мәзһабында қамат сөздері азанмен бірдей, тек «Қад қаматис-сәләһ» (×2) қосылады; қаматты азаннан жылдамырақ, әуездетпей оқиды.' : 'Произносится перед началом намаза, когда ряды уже выстроены. У ханафитов слова камата те же, что в азане, добавляется только «Кад камати-с-саляh» (×2); камат читают быстрее азана, без распева.') +
+        '<div style="margin-top:0.25rem;font-size:0.72rem"><a href="https://islamqa.org/?p=13702" target="_blank" rel="noopener" style="color:var(--accent)">' + (kk ? 'Дереккөз: IslamQA (ханафи жауабы)' : 'Источник: IslamQA (ханафитский ответ)') + '</a></div>' +
         '</div>' +
         renderAzanLineList(IQAMA_LINES, kk) +
         '</div>' +
         '<div class="exp-hint" style="font-size:0.75rem;color:var(--accent);margin-top:0.3rem">▾ ' + (kk ? 'толығырақ' : 'подробнее') + '</div>' +
         '</div>';
+    }
+
+    // build 6.41: «Сутки по намазам» — отдельные цветные отрезки, подписи границ и заметная метка «сейчас» (видна на любой теме)
+    var PT_COL = { fajr: '#5b7fe0', sunrise: '#d98b4a', gap: '#8b94a3', duha: '#e0a93a', dhuhr: '#2aa876', asr: '#e5822f', maghrib: '#d6504f', isha: '#7a5ad4', tahajjud: '#4b3a98' };
+    function ptDayCardHtml(loc, methodKey) {
+      try {
+        if (!loc || loc.lat == null || loc.lon == null) return '';
+        const kk = (typeof isKk === 'function') && isKk();
+        const T = function(ru, kz) { return kk ? kz : ru; };
+        const now = new Date(), tmr = new Date(now.getTime() + 86400000), MIN = 60000;
+        const ptZ = getPlaceTz(+loc.lat, +loc.lon, now);
+        const t1 = resolveDayTimes(+loc.lat, +loc.lon, now, methodKey), t2 = resolveDayTimes(+loc.lat, +loc.lon, tmr, methodKey);
+        if (!t1 || !t2) return '';
+        const D = { F: parseHM(t1.fajr, now, ptZ), S: parseHM(t1.sunrise, now, ptZ), Z: parseHM(t1.dhuhr, now, ptZ), A: parseHM(t1.asr, now, ptZ), M: parseHM(t1.maghrib, now, ptZ), I: parseHM(t1.isha, now, ptZ), F2: parseHM(t2.fajr, tmr, ptZ) };
+        if (!D.F || !D.S || !D.Z || !D.A || !D.M || !D.I || !D.F2) return '';
+        const hh = function(x) { return ptHM(x, ptZ); };
+        const dur = function(ms) { const m = Math.max(0, Math.round(ms / MIN)), h = Math.floor(m / 60), r = m % 60; return h ? (h + ' ' + T('ч', 'сағ') + (r ? ' ' + r + ' ' + T('мин', 'мин') : '')) : (r + ' ' + T('мин', 'мин')); };
+        const gapEnd = new Date(D.S.getTime() + 20 * MIN);
+        const th = new Date(D.M.getTime() + (D.F2.getTime() - D.M.getTime()) * 2 / 3);
+        const half = new Date(D.M.getTime() + (D.F2.getTime() - D.M.getTime()) / 2);
+        const thWall = ptWall(th, ptZ), thDate = String(thWall.getDate()).padStart(2, '0') + '.' + String(thWall.getMonth() + 1).padStart(2, '0');
+        const ic = function(k) { return (typeof PRAYER_ICONS !== 'undefined' && PRAYER_ICONS[k]) || ''; };
+        const nmK = function(k, ru, kz) { return kk ? kz : ru; };
+        const rows = [
+          { k: 'fajr', c: PT_COL.fajr, ic: ic('fajr'), n: T('Фаджр', 'Таң намазы'), a: D.F, b: D.S, note: T('от истинной зари до восхода', 'шын таңнан күн шыққанға дейін') },
+          { k: 'gap', c: PT_COL.gap, ic: '⛔', n: T('После восхода', 'Күн шыққаннан кейін'), a: D.S, b: gapEnd, ap: 1, note: T('молиться нельзя, пока солнце не поднимется (ориентир ≈15–20 мин)', 'күн көтерілгенше намаз оқуға болмайды (бағдар ≈15–20 мин)') },
+          { k: 'duha', c: PT_COL.duha, ic: ic('duha'), n: T('Духа', 'Духа'), a: gapEnd, b: D.Z, ap: 1, note: T('необязательный намаз, до Зухра; перед самым Зухром — зенит, молиться нельзя', 'міндетті емес намаз, Бесінге дейін; Бесін алдында — зенит, намаз оқуға болмайды') },
+          { k: 'dhuhr', c: PT_COL.dhuhr, ic: ic('dhuhr'), n: T('Зухр', 'Бесін намазы'), a: D.Z, b: D.A, note: T('начало — солнце прошло зенит', 'басы — күн зениттен өтті') },
+          { k: 'asr', c: PT_COL.asr, ic: ic('asr'), n: T('Аср', 'Екінті намазы'), a: D.A, b: D.M, note: T('начало — тень вдвое длиннее предмета; когда солнце пожелтело — не откладывайте', 'басы — көлеңке заттан екі есе ұзын; күн сарғайғанда — кейінге қалдырмаңыз') },
+          { k: 'maghrib', c: PT_COL.maghrib, ic: ic('maghrib'), n: T('Магриб', 'Ақшам намазы'), a: D.M, b: D.I, note: T('самое короткое окно — не откладывайте', 'ең қысқа уақыт — кейінге қалдырмаңыз') },
+          { k: 'isha', c: PT_COL.isha, ic: ic('isha'), n: T('Иша', 'Құптан намазы'), a: D.I, b: D.F2, tail: T('до фаджра', 'таңға дейін'), note: T('лучше успеть до середины ночи ≈ ', 'түн ортасына дейін үлгерген жөн ≈ ') + hh(half) },
+          { k: 'tahajjud', c: PT_COL.tahajjud, ic: ic('tahajjud'), n: T('Тахаджуд (ориентир)', 'Тәһәжжүд (бағдар)'), a: th, b: D.F2, ap: 1, tail: T('до фаджра', 'таңға дейін'), note: T('последняя треть ночи — ночью, после полуночи (в ночь на ' + thDate + ')', 'түннің соңғы үштен бірі — түнде, түн ортасынан кейін (' + thDate + ' түні)') }
+        ];
+        const tn = now.getTime(), thPrev = th.getTime() - 86400000;
+        const isNow = function(r) {
+          if (tn < D.F.getTime()) return r.k === 'isha' || (r.k === 'tahajjud' && tn >= thPrev);
+          return tn >= r.a.getTime() && tn < r.b.getTime();
+        };
+        const total = D.F2.getTime() - D.F.getTime();
+        const segs = [['fajr', D.F, D.S], ['gap', D.S, gapEnd], ['duha', gapEnd, D.Z], ['dhuhr', D.Z, D.A], ['asr', D.A, D.M], ['maghrib', D.M, D.I], ['isha', D.I, th], ['tahajjud', th, D.F2]];
+        let pos = (tn - D.F.getTime()) / total * 100; if (pos < 0) pos = 0; if (pos > 100) pos = 100;
+        const strip = segs.map(function(sg) {
+          const w = (sg[2].getTime() - sg[1].getTime()) / total * 100;
+          return '<div class="pt-seg' + (sg[0] === 'gap' ? ' gap' : '') + '" style="flex-basis:' + w.toFixed(3) + '%;background:' + PT_COL[sg[0]] + '">' + (w >= 6 ? ic(sg[0]) : '') + '</div>';
+        }).join('');
+        const list = rows.map(function(r) {
+          const now_ = isNow(r);
+          const endLeft = (tn < D.F.getTime()) ? D.F.getTime() - tn : r.b.getTime() - tn;
+          const tag = now_ ? '<span class="pt-tag">' + T('сейчас', 'қазір') + ' · ' + T('ещё ', 'тағы ') + dur(endLeft) + '</span>' : '';
+          return '<div class="pt-row' + (now_ ? ' now' : '') + (r.k === 'gap' ? ' soft' : '') + '" style="--c:' + r.c + '"><span class="pt-ic">' + r.ic + '</span>' +
+            '<div class="pt-main"><b>' + r.n + '</b>' + tag + '<small>' + r.note + '</small></div>' +
+            '<div class="pt-time">' + (r.ap ? '≈ ' : '') + hh(r.a) + ' — ' + hh(r.b) + '<small>' + (r.tail ? r.tail : dur(r.b.getTime() - r.a.getTime())) + '</small></div></div>';
+        }).join('');
+        return '<div class="card"><b>' + T('Сутки по намазам', 'Тәулік намаздар бойынша') + '</b>' +
+          '<div class="pt-strip-wrap"><div class="pt-strip">' + strip + '</div><div class="pt-now" style="left:' + pos.toFixed(2) + '%"></div></div>' +
+          '<div class="pt-axis"><span>' + hh(D.F) + ' ' + T('Фаджр', 'Таң') + '</span><span>' + T('следующий Фаджр', 'келесі Таң') + ' ' + hh(D.F2) + '</span></div>' +
+          '<div class="ayah-translation" style="margin-top:0.4rem;font-size:calc(0.78rem * var(--ru-scale, 1));line-height:1.45">' +
+          T('Вертикальная линия с точкой — «сейчас». Каждый цвет — свой намаз; штриховка — время, когда молиться нельзя. Ширина — сколько длится время. Границы Духа, запретного времени после восхода и тахаджуда — ориентир сайта (≈), а не официальные данные.', 'Нүктелі тік сызық — «қазір». Әр түс — өз намазы; штрих — намаз оқуға болмайтын уақыт. Ені — уақыттың ұзақтығы. Духа, күн шыққаннан кейінгі тыйым салынған уақыт және тәһәжжүд шекаралары — сайттың бағдары (≈), ресми дерек емес.') + '</div>' +
+          '<div class="pt-list">' + list + '</div></div>';
+      } catch (e) { return ''; }
+    }
+
+    // build 6.41: дуа после азана (Бухари 614) + что делать, пока звучит азан (Муслим 384, Бухари 613); запись — «Хисн аль-Муслим» №25 (чтец Хамад ад-Дурайхим)
+    var AZAN_DUA = {
+      ar: 'اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ وَالصَّلَاةِ الْقَائِمَةِ، آتِ مُحَمَّدًا الْوَسِيلَةَ وَالْفَضِيلَةَ، وَابْعَثْهُ مَقَامًا مَحْمُودًا الَّذِي وَعَدْتَهُ',
+      tr: 'Аллаһумма рабба hазиhи-д-да‘вати-т-таммати ва-с-саляти-ль-каимати, ати Мухаммада-н-аль-василята ва-ль-фадыляh, ва-б‘ас-hу макамам-махмуда-н-аллязи ва‘адтаh',
+      ru: 'О Аллах, Господь этого совершенного призыва и устанавливаемой молитвы! Даруй Мухаммаду ﷺ аль-Василю и превосходство и воздвигни его на достохвальное место, которое Ты ему обещал.',
+      kk: 'Уа, Аллаһ, осы кәміл шақырудың және орындалғалы тұрған намаздың Раббысы! Мұхаммедке ﷺ уәсиланы және артықшылықты бер және оны Өзің уәде еткен мақталған мақамға жеткізіп тірілт.'
+    };
+    var AZAN_HAWQALA = { ar: 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ', tr: 'Ля хауля ва ля куввата илля би-ЛЛаh', ru: 'Нет мощи и силы ни у кого, кроме Аллаха', kk: 'Аллаһтан басқа күш пен қуат жоқ' };
+    function buildAzanDuaCard() {
+      const kk = (typeof isKk === 'function') && isKk();
+      const T = function(ru, kz) { return kk ? kz : ru; };
+      const lk = function(u, t) { return '<a href="' + u + '" target="_blank" rel="noopener" style="color:var(--accent)">' + t + '</a>'; };
+      const box = function(o) {
+        return '<div style="margin:0.45rem 0;padding:0.5rem 0.6rem;border-radius:0.5rem;background:var(--bg);border:1px dashed var(--border)">' +
+          '<div class="arabic" style="font-size:calc(1.2rem * var(--ar-scale, 1));line-height:1.9">' + o.ar + '</div>' +
+          '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.15rem;font-style:italic">' + o.tr + '</div>' +
+          '<div class="ayah-translation" style="margin-top:0.2rem">' + (kk ? o.kk : o.ru) + '</div></div>';
+      };
+      const step = function(n, title, body) {
+        return '<div style="margin-top:0.7rem"><b style="font-size:0.88rem"><span style="display:inline-block;min-width:1.4rem;height:1.4rem;line-height:1.4rem;text-align:center;border-radius:50%;background:var(--accent);color:#fff;font-size:0.78rem;margin-right:0.4rem">' + n + '</span>' + title + '</b>' +
+          '<div class="ayah-translation" style="margin-top:0.2rem;font-size:calc(0.86rem * var(--ru-scale, 1));line-height:1.5">' + body + '</div></div>';
+      };
+      return '<div class="card more-expand" data-exp="pt-azan-dua" style="cursor:pointer">' +
+        '<b>🤲 ' + T('Дуа после азана', 'Азаннан кейінгі дұға') + '</b>' +
+        '<div class="exp-short ayah-translation" style="margin-top:0.25rem;font-size:calc(0.85rem * var(--ru-scale, 1))">' + T('Нажмите — что говорить, пока звучит азан, и дуа после него: арабский, транскрипция, перевод, озвучка', 'Басыңыз — азан естілгенде не айту керек және одан кейінгі дұға: арабша, транскрипция, аударма, дыбыстау') + '</div>' +
+        '<div class="exp-detail" style="display:none;margin-top:0.5rem">' +
+        step(1, T('Пока звучит азан', 'Азан естілгенде'), T('Повторяйте за муэдзином те же слова (Муслим 384). Когда он скажет «Хайя аля-с-саляh», скажите:', 'Муәззин айтқан сөздерді қайталаңыз (Муслим 384). Ол «Хайя ғалас-саләһ» десе, мынаны айтыңыз:') + box(AZAN_HAWQALA) + T('Это ответ на «Хайя аля-с-саляh» (Бухари 613).', 'Бұл «Хайя ғалас-саләһ» сөзіне жауап (Бұхари 613).')) +
+        step(2, T('Когда азан закончился', 'Азан біткен соң'), T('Попросите для Пророка ﷺ благословение (салават), например: «Аллаһумма салли аля Мухаммад» (Муслим 384).', 'Пайғамбарға ﷺ салауат айтыңыз, мысалы: «Аллаһумма салли ғала Мұхаммад» (Муслим 384).')) +
+        step(3, T('Затем — дуа', 'Содан кейін — дұға'), box(AZAN_DUA) +
+          '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin:0.3rem 0"><button type="button" class="btn btn-sm btn-primary" data-azan-dua-play="1" data-hisn-play="25" style="min-width:3rem">▶</button>' +
+          '<span style="font-size:0.78rem;color:var(--text-muted)">' + T('Запись — Хамад ад-Дурайхим («Хисн аль-Муслим»); нужен интернет.', 'Жазба — Хамад әд-Дурайхим («Хисн әл-Мүслим»); интернет керек.') + '</span></div>' +
+          T('Пророк ﷺ сказал: «Кто скажет это, услышав азан, тому будет дозволено моё заступничество в День воскресения» (Бухари 614).', 'Пайғамбар ﷺ айтты: «Азанды естігенде осыны айтқанға Қиямет күні менің шапағатым халал болады» (Бұхари 614).') +
+          '<div style="font-size:0.74rem;color:var(--text-muted);margin-top:0.35rem;line-height:1.45">' + T('Примечание: в «Хисн аль-Муслим» после дуа в скобках добавлено «ведь Ты не нарушаешь обещания» — этих слов нет в версии аль-Бухари, поэтому здесь они не приведены (запись может их содержать).', 'Ескерту: «Хисн әл-Мүслимде» дұғадан кейін жақшада «Сен уәдеңді бұзбайсың» қосылған — бұл сөздер әл-Бұхари нұсқасында жоқ, сондықтан мұнда келтірілмеді (жазбада болуы мүмкін).') + '</div>') +
+        '<div style="font-size:0.78rem;margin-top:0.7rem;line-height:1.6">' + T('Источники: ', 'Дереккөздер: ') + lk('https://sunnah.com/bukhari:614', 'Бухари 614') + ' · ' + lk('https://sunnah.com/bukhari:613', 'Бухари 613') + ' · ' + lk('https://sunnah.com/muslim:384', 'Муслим 384') + '</div>' +
+        '<button type="button" class="btn btn-sm" data-azan-dua-collapse="1" style="margin-top:0.6rem">✕ ' + T('Свернуть', 'Жию') + '</button>' +
+        '</div>' +
+        '<div class="exp-hint" style="font-size:0.75rem;color:var(--accent);margin-top:0.3rem">▾ ' + T('подробнее', 'толығырақ') + '</div></div>';
     }
 
     // build 6.18: «📖 Как понять» — вкладка во «Времени намаза»: как определить
@@ -23011,24 +23127,8 @@ bKk:
           '<div class="ayah-translation" style="margin-top:0.3rem">' + T('Время этого намаза: ', 'Бұл намаз уақыты: ') + winTxt(curKey) +
           (curKey === 'isha' ? '<br>' + T('Желательно успеть до середины ночи ≈ ', 'Түн ортасына дейін үлгерген жөн ≈ ') + hhmm(half) + '.' : '') + '</div></div>';
       }
-      // шкала суток: Фаджр → завтрашний Фаджр
-      const total = D.F2.getTime() - D.F.getTime();
-      const seg = function(a, b, key) {
-        const w = Math.max(0.5, (b.getTime() - a.getTime()) / total * 100);
-        const active = key && key === curKey && !gap;
-        return '<div title="' + (key ? nm(key) : '') + '" style="flex:0 0 ' + w.toFixed(2) + '%;height:1.5rem;display:flex;align-items:center;justify-content:center;font-size:0.8rem;overflow:hidden;' +
-          'background:' + (key ? (active ? 'var(--accent)' : 'color-mix(in srgb, var(--accent) 28%, var(--bg))') : 'var(--border)') + ';' + (active ? 'color:#fff;font-weight:700' : '') + '">' + (key ? ic(key) : '') + '</div>';
-      };
-      let pos = (tn - D.F.getTime()) / total * 100; if (pos < 0.5) pos = 0.5; if (pos > 99.5) pos = 99.5;
-      const bar = '<div class="card"><b>' + T('Сутки по намазам', 'Тәулік намаздар бойынша') + '</b>' +
-        '<div style="position:relative;margin-top:0.55rem"><div style="display:flex;border-radius:0.4rem;overflow:hidden">' +
-        seg(D.F, D.S, 'fajr') + seg(D.S, D.Z, null) + seg(D.Z, D.A, 'dhuhr') + seg(D.A, D.M, 'asr') + seg(D.M, D.I, 'maghrib') + seg(D.I, D.F2, 'isha') +
-        '</div><div style="position:absolute;top:-0.25rem;bottom:-0.25rem;left:' + pos.toFixed(2) + '%;width:2px;background:var(--text)"></div></div>' +
-        '<div class="ayah-translation" style="margin-top:0.4rem;font-size:calc(0.78rem * var(--ru-scale, 1))">' +
-        T('Серый участок — между Фаджром и Зухром (обязательного намаза нет). Чёрная черта — «сейчас». Ширина — сколько длится время.', 'Сұр бөлік — Таң мен Бесін арасы (парыз намаз жоқ). Қара сызық — «қазір». Ені — уақыттың ұзақтығы.') + '</div>' +
-        ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].map(function(k) {
-          return '<div class="setting-row" style="padding:0.3rem 0"><span>' + ic(k) + ' ' + nm(k) + '</span><b style="font-size:0.85rem;font-variant-numeric:tabular-nums">' + winTxt(k).replace(/ \(.*?\)/, '') + '</b></div>';
-        }).join('') + '</div>';
+      // build 6.41: шкала суток вынесена в ptDayCardHtml (то же на вкладке «Времена»)
+      const bar = ptDayCardHtml(loc, methodKey);
 
       // --- Таблица «что вижу → что это» ---
       const signs = [
@@ -23232,7 +23332,7 @@ bKk:
             '<button type="button" class="btn btn-sm" id="pt-adhan-stop" style="flex:1">'+tLabel('⏹ Стоп')+'</button></div>' +
             '<audio id="adhan-player-ui" controls style="width:100%;margin-top:0.5rem;height:2.2rem"></audio>' +
             '<div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-top:0.35rem">'+tLabel('Плеер и «Слушать» — проверка. Азан при намазе только пока сайт открыт и есть сеть.')+'</div></div>' +
-            azanTextCard +
+            azanTextCard + buildAzanDuaCard() +
             '<div class="card"><b>'+tLabel('Виджет в ежедневном')+'</b>' +
             '<div class="ayah-translation" style="margin-top:0.3rem">'+tLabel('Необязательные времена на главном экране.')+'</div>' +
             '<div class="setting-row"><span>'+tLabel('Духа')+'</span>' +
@@ -23293,12 +23393,16 @@ let body = '';
                   // чтобы сразу было видно, что время уже позади.
                   const timeDate = (typeof parseHM === 'function') ? parseHM(val, new Date()) : null;
                   const isPast = !isSel && timeDate && timeDate.getTime() < Date.now();
+                  const _colK = (typeof PT_COL !== 'undefined' && PT_COL[key]) || 'var(--accent)';
                   const rowStyle = isSel
-                    ? 'cursor:pointer;background:var(--accent);border-radius:0.4rem;margin:0.1rem -0.3rem;padding:0.35rem 0.3rem'
-                    : ('cursor:pointer;border-radius:0.4rem;margin:0.1rem -0.3rem;padding:0.35rem 0.3rem' + (isPast ? ';opacity:0.5' : ''));
+                    ? 'cursor:pointer;background:var(--accent);border-radius:0.65rem;margin:0.3rem 0;padding:0.55rem 0.65rem;border-left:5px solid rgba(255,255,255,0.7)'
+                    : ('cursor:pointer;border-radius:0.65rem;margin:0.3rem 0;padding:0.55rem 0.65rem;border:1px solid var(--border);border-left:5px solid ' + _colK + ';background:var(--bg)' + (isPast ? ';opacity:0.5' : ''));
                   const spanStyle = isSel ? 'color:rgba(255,255,255,0.9)' : (isPast ? 'color:var(--text-muted)' : '');
                   const bStyle = isSel ? 'color:#fff' : (isPast ? 'color:var(--text-muted)' : '');
-                  return '<div class="setting-row" data-select-prayer-pt="'+key+'" style="'+rowStyle+'"><span style="'+spanStyle+'">'+icon+' '+tLabel(label)+(isSel?' ✦':'')+'</span><b id="pt-t-'+key+'" style="'+bStyle+'">'+val+'</b></div>';
+                  const _kkp = (typeof isKk === 'function') && isKk();
+                  const _noteTah = (key === 'tahajjud') ? '<small style="display:block;font-size:0.72rem;opacity:0.8;font-weight:400;line-height:1.35">' + (_kkp ? 'түнде, түн ортасынан кейін · таңға дейін' : 'ночью, после полуночи · до фаджра') + '</small>' : '';
+                  const _noteSr = (key === 'sunrise') ? '<small style="display:block;font-size:0.72rem;opacity:0.8;font-weight:400;line-height:1.35">' + (_kkp ? 'таң намазы аяқталады' : 'фаджр заканчивается') + '</small>' : '';
+                  return '<div class="setting-row" data-select-prayer-pt="'+key+'" style="'+rowStyle+'"><span style="'+spanStyle+'">'+icon+' '+tLabel(label)+(isSel?' ✦':'')+_noteTah+_noteSr+'</span><b id="pt-t-'+key+'" style="'+bStyle+';font-size:1.05rem;font-variant-numeric:tabular-nums">'+val+'</b></div>';
                 }).join('');
                 const srcLabel = t._src === 'cache-muftyat' ? tLabel('ДУМК / muftyat.kz (кэш)') :
                   (t._src === 'muftyat' ? tLabel('ДУМК / muftyat.kz') :
@@ -23334,14 +23438,18 @@ let body = '';
                   ((typeof isKk === 'function' && isKk())
                     ? '🌞 Духа және 🌌 Тәһәжжүд уақыттары ресми кестелерде (ҚМДБ және т.б.) жарияланбайды — бұл сайттың шамамен есебі: Духа — күн шыққаннан кейін ≈20 минуттан бесін намазына (зухр) дейін (Муслим 720, 748); Тәһәжжүд — түннің (ақшам мен таң арасы) соңғы үштен бірінің басы (Бухари 1145, Муслим 758). Нақты уақытты имамнан сұраңыз.'
                     : '🌞 Духа и 🌌 Тахаджуд не публикуются в официальных таблицах (ДУМК и др.) — это ориентировочный расчёт сайта: Духа — начало ≈ через 20 мин после восхода, до Зухра (Муслим 720, 748); Тахаджуд — начало последней трети ночи между Магрибом и Фаджром (Бухари 1145, Муслим 758). Точное время уточняйте у имама.') +
-                  '</div></div>';
+                  '</div></div>' + ptDayCardHtml(loc, methodKey);
               }
             }
           } else if (tab === 'week' || tab === 'month') {
             if (!has) body = '<div class="card"><div class="ayah-translation">'+tLabel('Сначала выберите город.')+'</div></div>';
             else {
               const days = tab === 'week' ? 7 : 30;
-              const names = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+              const _kkt = (typeof isKk === 'function') && isKk();
+              const names = _kkt ? ['Жс','Дс','Сс','Ср','Бс','Жм','Сб'] : ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+              const _hd = _kkt ? ['Күн','Таң','Күн шығуы','Бесін','Екінті','Ақшам','Құптан'] : ['День','Фаджр','Восход','Зухр','Аср','Магриб','Иша'];
+              const _tz0 = getPlaceTz(+loc.lat, +loc.lon, new Date());
+              const _todayStr = ptWall(new Date(), _tz0).toDateString();
               let rows = '';
               for (let i = 0; i < days; i++) {
                 const d0 = new Date(Date.now() + i * 86400000);
@@ -23349,18 +23457,15 @@ let body = '';
                 if (!t) continue;
                 const d = ptWall(d0, getPlaceTz(+loc.lat, +loc.lon, d0));
                 const label = d.getDate()+'.'+String(d.getMonth()+1).padStart(2,'0')+' '+names[d.getDay()];
-                rows += '<tr style="border-top:1px solid var(--border)"><td style="padding:0.35rem 0.25rem;white-space:nowrap">'+label+'</td>' +
-                  '<td style="padding:0.35rem 0.2rem">'+t.fajr+'</td><td style="padding:0.35rem 0.15rem;font-size:0.75rem">'+t.sunrise+'</td>' +
-                  '<td style="padding:0.35rem 0.2rem">'+t.dhuhr+'</td>' +
-                  '<td style="padding:0.35rem 0.2rem">'+t.asr+'</td><td style="padding:0.35rem 0.2rem">'+t.maghrib+'</td>' +
-                  '<td style="padding:0.35rem 0.2rem">'+t.isha+'</td></tr>';
+                const cls = (d.toDateString() === _todayStr ? 'today' : '') + (d.getDay() === 5 ? ' fri' : '');
+                rows += '<tr class="' + cls.trim() + '"><td style="white-space:nowrap">'+label+'</td>' +
+                  '<td>'+t.fajr+'</td><td class="sr">'+t.sunrise+'</td><td>'+t.dhuhr+'</td><td>'+t.asr+'</td><td>'+t.maghrib+'</td><td>'+t.isha+'</td></tr>';
               }
-              body = '<div class="card" style="overflow-x:auto" id="pt-table-card"><b>'+tLabel(tab==='week'?'Таблица на неделю':'Таблица на месяц')+'</b>' +
-                '<div style="margin:0.4rem 0"><button type="button" class="btn btn-sm btn-primary" id="pt-export-img">'+tLabel('📷 Сохранить картинкой')+'</button></div>' +
-                '<table id="pt-table" style="width:100%;font-size:0.78rem;margin-top:0.35rem;border-collapse:collapse">' +
-                '<thead><tr style="color:var(--text-muted);text-align:left"><th style="padding:0.3rem">'+tLabel('День')+'</th><th>Ф</th><th>'+tLabel('Восх')+'</th><th>З</th><th>А</th><th>М</th><th>И</th></tr></thead>' +
+              body = '<div class="card" style="overflow-x:auto" id="pt-table-card"><b>'+(_kkt ? (tab==='week'?'Аптаға кесте':'Айға кесте') : (tab==='week'?'Таблица на неделю':'Таблица на месяц'))+'</b>' +
+                '<div style="margin:0.4rem 0"><button type="button" class="btn btn-sm btn-primary" id="pt-export-img">'+(_kkt ? '📷 Сурет ретінде сақтау' : '📷 Сохранить картинкой')+'</button></div>' +
+                '<table id="pt-table" class="pt-tbl"><thead><tr>' + _hd.map(function(h){ return '<th>'+h+'</th>'; }).join('') + '</tr></thead>' +
                 '<tbody>'+rows+'</tbody></table>' +
-                '<div class="ayah-translation" style="margin-top:0.4rem;font-size:calc(0.78rem * var(--ru-scale, 1))">'+tLabel('Восход = конец времени фаджра · сверяйте с мечетью')+'</div></div>';
+                '<div class="ayah-translation" style="margin-top:0.5rem;font-size:calc(0.78rem * var(--ru-scale, 1))">'+(_kkt ? 'Күн шығуы = таң уақытының соңы · Жұма күні түспен белгіленген · мешітпен салыстырыңыз' : 'Восход = конец времени фаджра · пятница выделена цветом · сверяйте с мечетью')+'</div></div>';
             }
           }
 
@@ -23405,13 +23510,21 @@ let body = '';
           el.innerHTML =
             '<div class="tabs-row" style="margin-bottom:0.65rem;flex-wrap:wrap">' +
             '<button type="button" class="btn btn-sm '+(cat==='times'?'btn-primary':'')+'" data-pt-cat="times">'+tLabel('Времена')+'</button>' +
-            '<button type="button" class="btn btn-sm '+(cat==='guide'?'btn-primary':'')+'" data-pt-cat="guide">📖 '+((typeof isKk==='function'&&isKk())?'Қалай түсінуге болады':'Как понять')+'</button>' +
             '<button type="button" class="btn btn-sm '+(cat==='qibla'?'btn-primary':'')+'" data-pt-cat="qibla">🧭 '+tLabel('Кибла')+'</button>' +
+            '<button type="button" class="btn btn-sm '+(cat==='guide'?'btn-primary':'')+'" data-pt-cat="guide">📖 '+((typeof isKk==='function'&&isKk())?'Қалай түсінуге болады':'Как понять')+'</button>' +
             '<button type="button" class="btn btn-sm '+(cat==='alerts'?'btn-primary':'')+'" data-pt-cat="alerts">'+tLabel('🔔 Уведомления · азан')+'</button>' +
             '</div>' + catBody;
           try { bindExpandableCards(el); } catch(e) {}
           try { if (typeof window.qbStop === 'function') window.qbStop(); } catch(e) {}
           if (cat === 'qibla') { try { window.qiblaTabInit(el.querySelector('#qb-host'), loc); } catch(e) { console.warn('qibla tab', e); } }
+          (function(){
+            el.querySelectorAll('[data-azan-dua-play]').forEach(function(b) {
+              b.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); try { hisnPlay('25'); } catch (err) { toast((typeof isKk === 'function' && isKk()) ? 'Жазба ашылмады' : 'Запись не открылась'); } });
+            });
+            el.querySelectorAll('[data-azan-dua-collapse]').forEach(function(b) {
+              b.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); const card = b.closest('[data-exp="pt-azan-dua"]'); if (card) toggleExpCard(card); });
+            });
+          })();
           (function(){
             const collapseBtn = el.querySelector('#pt-azan-text-collapse');
             if (collapseBtn) collapseBtn.addEventListener('click', function(e){
@@ -23733,43 +23846,63 @@ let body = '';
             try {
               const table = document.getElementById('pt-table');
               if (!table) return;
-              const rows = Array.from(table.querySelectorAll('tr'));
-              const scale = 2;
-              const colW = [110, 70, 70, 70, 70, 70, 70];
-              const tableW = colW.reduce(function(a,b){ return a+b; }, 0);
-              const rowH = 34, pad = 24, headerH = 64;
+              const kkx = (typeof isKk === 'function') && isKk();
+              const trs = Array.from(table.querySelectorAll('tbody tr'));
+              const head = Array.from(table.querySelectorAll('thead th')).map(function(c){ return c.textContent.trim(); });
+              const scale = 2, colW = [92, 62, 66, 62, 62, 66, 62], tableW = colW.reduce(function(a,b){ return a+b; }, 0);
+              const rowH = 34, pad = 22, headerH = 88, footH = 40, W = tableW + pad * 2, H = headerH + 72 + trs.length * rowH + footH + pad;
               const canvas = document.createElement('canvas');
-              canvas.width = (tableW + pad * 2) * scale;
-              canvas.height = (pad * 2 + headerH + rows.length * rowH + 36) * scale;
-              const ctx = canvas.getContext('2d');
-              ctx.scale(scale, scale);
-              ctx.fillStyle = '#0f172a';
-              ctx.fillRect(0, 0, canvas.width / scale, canvas.height / scale);
-              ctx.fillStyle = '#f1f5f9';
-              ctx.font = 'bold 18px system-ui,sans-serif';
-              ctx.fillText('Время намаза · ' + (loc.city || ''), pad, pad + 20);
-              ctx.fillStyle = '#94a3b8';
-              ctx.font = '12px system-ui,sans-serif';
-              ctx.fillText((tab==='week'?'Неделя':'Месяц')+' · ДУМК/расчёт', pad, pad + 40);
-              const startY = pad + headerH;
-              rows.forEach(function(tr, ri) {
-                const cells = Array.from(tr.querySelectorAll('th,td')).map(function(c){ return c.textContent.trim(); });
-                const y = startY + ri * rowH;
-                if (ri === 0) { ctx.fillStyle = '#1e293b'; ctx.fillRect(pad - 6, y - 20, tableW + 12, rowH); }
-                let x = pad;
+              canvas.width = W * scale; canvas.height = H * scale;
+              const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
+              const rr = function(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); };
+              // фон и шапка
+              const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#0f172a'); bg.addColorStop(1, '#13203a');
+              ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+              const hg = ctx.createLinearGradient(0, 0, W, 0); hg.addColorStop(0, '#10b981'); hg.addColorStop(1, '#0e7a66');
+              rr(pad - 8, pad - 8, W - pad * 2 + 16, headerH - 8, 14); ctx.fillStyle = hg; ctx.fill();
+              ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px system-ui,sans-serif';
+              ctx.fillText((kkx ? 'Намаз уақыты' : 'Время намаза') + ' · ' + (loc.city || ''), pad + 4, pad + 22);
+              ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = '13px system-ui,sans-serif';
+              const _per = trs.length ? (trs[0].children[0].textContent.trim().split(' ')[0] + ' — ' + trs[trs.length - 1].children[0].textContent.trim().split(' ')[0]) : '';
+              ctx.fillText((tab==='week' ? (kkx ? 'Апта' : 'Неделя') : (kkx ? 'Ай' : 'Месяц')) + ' · ' + _per + ' · ' + (kkx ? 'ҚМДБ/есеп' : 'ДУМК/расчёт'), pad + 4, pad + 46);
+              // шапка таблицы с цветными точками
+              const cols = ['#ffffff', '#5b7fe0', '#d98b4a', '#2aa876', '#e5822f', '#d6504f', '#7a5ad4'];
+              let y0 = headerH + 34;
+              rr(pad - 8, y0 - 22, W - pad * 2 + 16, 32, 8); ctx.fillStyle = '#1e293b'; ctx.fill();
+              let x = pad;
+              head.forEach(function(h, ci) {
+                ctx.textAlign = ci === 0 ? 'left' : 'center';
+                const cx = ci === 0 ? x : x + colW[ci] / 2 - 4;
+                if (ci) { ctx.fillStyle = cols[ci]; ctx.beginPath(); ctx.arc(cx - ctx.measureText(h).width / 2 - 8, y0 - 6, 4, 0, 6.283); ctx.fill(); }
+                ctx.fillStyle = '#cbd5e1'; ctx.font = 'bold 12px system-ui,sans-serif'; ctx.fillText(h, cx, y0);
+                x += colW[ci];
+              });
+              // строки
+              trs.forEach(function(tr, ri) {
+                const y = y0 + 36 + ri * rowH;
+                const cells = Array.from(tr.children).map(function(c){ return c.textContent.trim(); });
+                const isToday = tr.classList.contains('today'), isFri = tr.classList.contains('fri');
+                if (isToday) { rr(pad - 8, y - 19, W - pad * 2 + 16, rowH - 4, 8); ctx.fillStyle = 'rgba(16,185,129,0.28)'; ctx.fill(); ctx.fillStyle = '#10b981'; ctx.fillRect(pad - 8, y - 17, 4, rowH - 8); }
+                else if (ri % 2 === 0) { rr(pad - 8, y - 19, W - pad * 2 + 16, rowH - 4, 8); ctx.fillStyle = 'rgba(148,163,184,0.08)'; ctx.fill(); }
+                let xx = pad;
                 cells.forEach(function(cell, ci) {
-                  ctx.fillStyle = ri === 0 ? '#94a3b8' : '#e2e8f0';
-                  ctx.font = (ri === 0 ? 'bold ' : '') + '12px ui-monospace,monospace';
-                  ctx.fillText(cell, x, y);
-                  x += colW[ci] || 70;
+                  ctx.textAlign = ci === 0 ? 'left' : 'center';
+                  ctx.fillStyle = ci === 0 ? (isFri ? '#34d399' : '#e2e8f0') : (ci === 2 ? '#94a3b8' : '#f1f5f9');
+                  ctx.font = (isToday || (ci === 0 && isFri) ? 'bold ' : '') + (ci === 0 ? '13px system-ui,sans-serif' : '14px ui-monospace,monospace');
+                  ctx.fillText(cell, ci === 0 ? xx : xx + colW[ci] / 2 - 4, y);
+                  xx += colW[ci];
                 });
               });
+              ctx.textAlign = 'left'; ctx.fillStyle = '#94a3b8'; ctx.font = '11px system-ui,sans-serif';
+              const fy = y0 + 36 + trs.length * rowH + 4;
+              ctx.fillText(kkx ? 'Күн шығуы = таң уақытының соңы · мешітпен салыстырыңыз' : 'Восход = конец времени фаджра · сверяйте с мечетью', pad, fy);
+              ctx.fillStyle = '#64748b'; ctx.fillText('Quran Academy', pad, fy + 18);
               const a = document.createElement('a');
               a.href = canvas.toDataURL('image/png', 1.0);
               a.download = 'namaz-'+tab+'-'+(loc.city||'city')+'.png';
               a.click();
-              toast('Картинка сохранена');
-            } catch(err) { toast('Ошибка сохранения'); }
+              toast(kkx ? 'Сурет сақталды' : 'Картинка сохранена');
+            } catch(err) { toast((typeof isKk === 'function' && isKk()) ? 'Сақтау қатесі' : 'Ошибка сохранения'); }
           });
 
           // compass
@@ -27502,6 +27635,37 @@ function renderDict() {
         } }
       ]);
     }
+    // build 6.41: «В папку…» — выбрать папку и положить аят или целую суру (из читалки и из списка сур)
+    function fsPutAyahIn(s, a, ar, tr, pid) {
+      var dup = fsAllChildren(pid).filter(function(x) { return x.k === 'ayah' && x.d && x.d.s === s && x.d.a === a; })[0];
+      if (dup) return { it: dup, dup: true };
+      return { it: fsCreate({ k: 'ayah', p: pid || null, n: '', d: { s: s, a: a, ar: fsClip(ar, 3000), tr: fsClip(tr, 3000), ed: fsGlobalTr() } }), dup: false };
+    }
+    function fsPickAyahToFolder(s, a, ar, tr) {
+      fsWhenReady(function() {
+        fsPickFolder({ title: fsT('Аят ' + s + ':' + a + ' — в какую папку?', 'Аят ' + s + ':' + a + ' — қай қалтаға?'), onPick: function(pid) {
+          var r = fsPutAyahIn(+s, +a, ar, tr, pid);
+          if (!r.it) { toast(fsT('Не удалось сохранить', 'Сақтау мүмкін болмады')); return; }
+          fsMetaSet('lastFolder', pid || FS_SYS.bookmarks.id);
+          try { fsRefreshUi(); } catch (e) {}
+          toast(r.dup ? fsT('Этот аят уже в этой папке', 'Бұл аят бұл қалтада бар') : fsT('Добавлено в «' + (pid ? fsName(FS.items.get(pid)) : fsT('Корень', 'Түбір')) + '»', '«' + (pid ? fsName(FS.items.get(pid)) : 'Түбір') + '» қалтасына қосылды'));
+        } });
+      });
+    }
+    function fsPickSurahToFolder(s) {
+      s = +s;
+      fsWhenReady(function() {
+        fsPickFolder({ title: fsT('Сура ' + s + ' — в какую папку?', 'Сүре ' + s + ' — қай қалтаға?'), onPick: function(pid) {
+          var dup = fsAllChildren(pid).filter(function(x) { return x.k === 'surah' && x.d && x.d.s === s; })[0];
+          if (dup) { toast(fsT('Эта сура уже в этой папке', 'Бұл сүре бұл қалтада бар')); return; }
+          var it = fsCreate({ k: 'surah', p: pid || null, n: '', d: { s: s } });
+          if (!it) { toast(fsT('Не удалось сохранить', 'Сақтау мүмкін болмады')); return; }
+          fsMetaSet('lastFolder', pid || FS_SYS.bookmarks.id);
+          try { fsRefreshUi(); } catch (e) {}
+          toast(fsT('Сура добавлена в «' + (pid ? fsName(FS.items.get(pid)) : fsT('Корень', 'Түбір')) + '»', 'Сүре «' + (pid ? fsName(FS.items.get(pid)) : 'Түбір') + '» қалтасына қосылды'));
+        } });
+      });
+    }
     function fsAddNoteTo(pid, title, text) {
       var lf = FS.meta.lastFolder && FS.items.get(FS.meta.lastFolder);
       var it = fsCreate({ k: 'note', p: pid || ((lf && !lf.del && lf.k === 'folder') ? lf.id : fsSysFolder('bookmarks').id), n: title || '', d: { text: fsClip(text || '', FS_LIMITS.noteChars) } });
@@ -28689,10 +28853,13 @@ function renderDict() {
     }
     function fsTemplatesMenu() {
       var tps = fsTemplates();
-      fsSheet(fsT('Шаблоны (создаются в текущей папке)', 'Үлгілер (ағымдағы қалтада жасалады)'), tps.map(function(t) {
+      fsSheet(fsT('Шаблоны — сначала выберите шаблон, затем место', 'Үлгілер — алдымен үлгіні, содан кейін орнын таңдаңыз'), tps.map(function(t) {
         return { ico: t.ico, label: t.name, fn: function() {
-          var r = fsBulkApply(t.text, FSUI.cur); fsRenderBody();
-          toast(fsT('Создано: ' + r.made + (r.failed ? ', пропущено: ' + r.failed : ''), 'Жасалды: ' + r.made + (r.failed ? ', өткізілді: ' + r.failed : '')));
+          // build 6.41: место создания выбирается (раньше шаблон всегда создавался в текущей папке/корне)
+          fsPickFolder({ title: fsT('Где создать «' + t.name + '»?', '«' + t.name + '» қайда жасалсын?'), onPick: function(pid) {
+            var r = fsBulkApply(t.text, pid || null); fsRenderBody();
+            toast(fsT('Создано: ' + r.made + (r.failed ? ', пропущено: ' + r.failed : ''), 'Жасалды: ' + r.made + (r.failed ? ', өткізілді: ' + r.failed : '')));
+          } });
         } };
       }));
     }
@@ -34361,21 +34528,6 @@ function playArabicAudio(text, fallbackRu, opts) {
       if (!state.sectionProgress[id].cards) state.sectionProgress[id].cards = {};
       return state.sectionProgress[id];
     }
-    function markSectionVisited(id) {
-      try {
-        var p = ensureSectionProgress(id);
-        p.visited = true;
-        saveState();
-      } catch(e) {}
-    }
-    function markSectionCard(id, cardKey) {
-      try {
-        var p = ensureSectionProgress(id);
-        p.cards[String(cardKey)] = 1;
-        p.visited = true;
-        saveState();
-      } catch(e) {}
-    }
     function markSectionQuizOk(id) {
       try {
         var p = ensureSectionProgress(id);
@@ -34634,7 +34786,6 @@ async function trackSectionVisit(sectionId) {
       var skip = { login:1, register:1, forgot:1, appupdate:1 };
       if (skip[sectionId]) return;
       try {
-        try { markSectionVisited(sectionId); } catch(e) {}
         flushSectionTime();
         var s = ensureRichStats();
         s._activeSection = sectionId;
@@ -36408,10 +36559,28 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         const loc = state.prayerLoc;
         if (loc && loc.lat != null && loc.lon != null) {
           const mk = (state.settings && state.settings.prayerMethod) || 'DUMK';
+          // build 6.41: свайп по виджету — смотреть времена соседних дней (смещение хранится только до перезагрузки)
+          let dhOff = +window._dhPrayerDayOff || 0; if (dhOff < -7) dhOff = -7; if (dhOff > 30) dhOff = 30; window._dhPrayerDayOff = dhOff;
+          const dhDate = new Date(Date.now() + dhOff * 86400000);
           const t = (typeof resolveDayTimes === 'function')
-            ? resolveDayTimes(+loc.lat, +loc.lon, new Date(), mk)
-            : (typeof calcPrayerTimes === 'function' ? calcPrayerTimes(+loc.lat, +loc.lon, new Date(), mk) : null);
-          if (t) {
+            ? resolveDayTimes(+loc.lat, +loc.lon, dhDate, mk)
+            : (typeof calcPrayerTimes === 'function' ? calcPrayerTimes(+loc.lat, +loc.lon, dhDate, mk) : null);
+          const dhKk = !!isKk; // здесь isKk — локальный boolean (kkLang)
+          const dhNav = (function() {
+            const w = ptWall(dhDate, getPlaceTz(+loc.lat, +loc.lon, dhDate));
+            const dn = dhKk ? ['Жексенбі','Дүйсенбі','Сейсенбі','Сәрсенбі','Бейсенбі','Жұма','Сенбі'] : ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+            const ds = String(w.getDate()).padStart(2, '0') + '.' + String(w.getMonth() + 1).padStart(2, '0') + ', ' + dn[w.getDay()];
+            const word = dhOff === 0 ? (dhKk ? 'Бүгін' : 'Сегодня') : dhOff === 1 ? (dhKk ? 'Ертең' : 'Завтра') : dhOff === -1 ? (dhKk ? 'Кеше' : 'Вчера') : '';
+            return '<div class="pt-daynav" data-pt-swipe="1">' +
+              '<button type="button" class="btn btn-sm" data-dh-day="-1" aria-label="' + (dhKk ? 'Алдыңғы күн' : 'Предыдущий день') + '"' + (dhOff <= -7 ? ' disabled' : '') + '>‹</button>' +
+              '<div data-dh-day="0" style="flex:1;text-align:center;font-size:0.85rem;cursor:' + (dhOff ? 'pointer' : 'default') + '"><b>' + (word ? word + ' · ' : '') + ds + '</b>' +
+              (dhOff ? '<div style="font-size:0.7rem;color:var(--accent)">↻ ' + (dhKk ? 'бүгінге қайту' : 'вернуться к сегодняшнему') + '</div>' : '<div style="font-size:0.7rem;color:var(--text-muted)">' + (dhKk ? '← → сырғыту: басқа күндер' : '← → свайп: другие дни') + '</div>') + '</div>' +
+              '<button type="button" class="btn btn-sm" data-dh-day="1" aria-label="' + (dhKk ? 'Келесі күн' : 'Следующий день') + '"' + (dhOff >= 30 ? ' disabled' : '') + '>›</button></div>';
+          })();
+          if (!t && dhOff !== 0) {
+            prayerMini = '<div class="card" data-pt-swipe="1" data-no-swipe="1" style="margin-bottom:0.75rem;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" data-go="prayertimes"><b>🕌 ' + tLabel('Намаз') + ' · ' + (loc.city || '') + '</b></div>' + dhNav +
+              '<div class="ayah-translation" style="margin-top:0.55rem">' + (dhKk ? 'Бұл күнге уақыттар жоқ (кесте жүктелмеген). «Намаз уақыты» бөлімінде жүктеңіз.' : 'На этот день данных нет (таблица не загружена). Загрузите её в разделе «Время намаза».') + '</div></div>';
+          } else if (t) {
             const cells = [
                 ['fajr', tLabel('Фаджр'), t.fajr],
                 ['sunrise', tLabel('Восход'), t.sunrise],
@@ -36431,9 +36600,9 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
               // и виджет покажет обратный отсчёт именно до неё, а не только до
               // ближайшего намаза; повторный клик по уже выбранной — снимает
               // выбор и возвращает автоматический режим «до ближайшего».
-              const selKey = state._dhSelectedPrayerKey || null;
-              const info = (typeof getPrayerCountdownFor === 'function') ? getPrayerCountdownFor(+loc.lat, +loc.lon, mk, selKey) : null;
-              const kk = (typeof isKk === 'function') && isKk();
+              const selKey = dhOff === 0 ? (state._dhSelectedPrayerKey || null) : null;
+              const info = (dhOff === 0 && typeof getPrayerCountdownFor === 'function') ? getPrayerCountdownFor(+loc.lat, +loc.lon, mk, selKey) : null;
+              const kk = kkLang;
               let countdownHtml = '';
               if (info) {
                 const label = kk ? info.kkLabel : info.ruLabel;
@@ -36451,8 +36620,9 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
                   '</div>';
               }
               // 2 в ряд, 3+ строки — каждая карточка кликабельна для выбора отсчёта
-              prayerMini = '<div class="card" style="margin-bottom:0.75rem;overflow:hidden">' +
+              prayerMini = '<div class="card" data-pt-swipe="1" data-no-swipe="1" style="margin-bottom:0.75rem;overflow:hidden">' +
               '<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" data-go="prayertimes"><b>🕌 '+tLabel('Намаз')+' · '+(loc.city||'')+'</b><span style="color:var(--text-muted);font-size:0.78rem">'+(kk?'Толығырақ →':'Подробнее →')+'</span></div>' +
+              dhNav +
               countdownHtml +
               '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;margin-top:0.65rem">' +
               cells.map(function(triple){
@@ -36462,14 +36632,14 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
                 // build 5.75: прошедшие сегодня намазы — сероватые, чтобы сразу
                 // было видно, что время уже позади (тот же принцип, что и в
                 // полном разделе «Время намаза»).
-                const timeDate = (typeof parseHM === 'function') ? parseHM(triple[2], new Date()) : null;
+                const timeDate = (dhOff === 0 && typeof parseHM === 'function') ? parseHM(triple[2], new Date()) : null;
                 const isPast = !isActive && timeDate && timeDate.getTime() < Date.now();
                 const cellStyle = isActive
                   ? 'background:var(--accent);border:1px solid var(--accent);border-radius:0.6rem;padding:0.5rem 0.6rem;font-size:0.82rem;cursor:pointer;transition:transform 0.15s'
                   : ('background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.5rem 0.6rem;font-size:0.82rem;cursor:pointer;transition:transform 0.15s' + (isPast ? ';opacity:0.5' : ''));
                 const labelStyle = isActive ? 'color:rgba(255,255,255,0.88)' : 'color:var(--text-muted)';
                 const valStyle = isActive ? 'font-size:1.08rem;color:#fff' : ('font-size:1.08rem' + (isPast ? ';color:var(--text-muted)' : ''));
-                return '<div data-select-prayer="'+key+'" data-ts="'+(timeDate ? timeDate.getTime() : '')+'" data-act="'+(isActive ? '1' : '0')+'" style="'+cellStyle+'"><span style="'+labelStyle+'">'+icon+' '+triple[1]+(isActive?' ✦':'')+'</span><br><b style="'+valStyle+'">'+triple[2]+'</b></div>';
+                return '<div data-select-prayer="'+key+'" data-ts="'+(timeDate ? timeDate.getTime() : '')+'" data-act="'+(isActive ? '1' : '0')+'" style="'+cellStyle+'"><span style="'+labelStyle+'">'+icon+' '+triple[1]+(isActive?' ✦':'')+'</span><br><b style="'+valStyle+'">'+triple[2]+'</b>'+(key === 'tahajjud' ? '<div style="font-size:0.68rem;opacity:0.8;line-height:1.3;margin-top:0.1rem">'+(kk ? 'түнде, түн ортасынан кейін' : 'ночью, после полуночи')+'</div>' : '')+'</div>';
               }).join('') +
               '</div></div>';
           }
@@ -36477,7 +36647,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       } catch(e) { prayerMini = ''; }
       // build 6.25: если времена показать нельзя (нет города/данных или ошибка расчёта) — не пустой блок, а карточка-ссылка в «Время намаза»
       if (!prayerMini) {
-        const kk0 = (typeof isKk === 'function') && isKk();
+        const kk0 = kkLang;
         var _lk = null, _ploc = state.prayerLoc;
         try {
           if (_ploc && _ploc.lat != null && _ploc.lon != null) {
@@ -36700,6 +36870,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         const todayStr = ptWall(new Date(), ptCurTz(new Date())).toDateString();
         if (todayStr !== window._dhPrayerCountdownDate) {
           window._dhPrayerCountdownDate = todayStr;
+          window._dhPrayerDayOff = 0;
           renderDailyHub();
           return;
         }
@@ -36748,6 +36919,27 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       // build 5.64: клик по карточке конкретного намаза — выбрать его для
       // отсчёта; повторный клик по уже выбранной — снять выбор (вернуться
       // к автоматическому «ближайшему»).
+      // build 6.41: свайп влево/вправо по карточке намаза и кнопки ‹ › — другие дни; общий свайп вкладок здесь не срабатывает (data-no-swipe)
+      el.querySelectorAll('[data-pt-swipe][data-no-swipe]').forEach(function(card) {
+        let sx = 0, sy = 0, st = 0, on = false;
+        card.addEventListener('touchstart', function(e) { if (!e.touches || !e.touches[0]) return; sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); on = true; }, { passive: true });
+        card.addEventListener('touchend', function(e) {
+          if (!on) return; on = false;
+          const t0 = e.changedTouches && e.changedTouches[0]; if (!t0) return;
+          const dx = t0.clientX - sx, dy = t0.clientY - sy;
+          if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.4 || Date.now() - st > 900) return;
+          window._dhPrayerDayOff = (+window._dhPrayerDayOff || 0) + (dx < 0 ? 1 : -1);
+          renderDailyHub();
+        }, { passive: true });
+      });
+      el.querySelectorAll('[data-dh-day]').forEach(function(b) {
+        b.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const v = +b.getAttribute('data-dh-day');
+          window._dhPrayerDayOff = v === 0 ? 0 : (+window._dhPrayerDayOff || 0) + v;
+          renderDailyHub();
+        });
+      });
       el.querySelectorAll('[data-select-prayer]').forEach(function(cellEl){
         cellEl.addEventListener('click', function(){
           const key = cellEl.dataset.selectPrayer;
@@ -53941,15 +54133,6 @@ function getMyVocab() {
           window._expOpenList.push(card);
           enforceExpCardLimit();
         }
-        // прогресс раздела для достижений
-        try {
-          if (!isTip) {
-            var av = document.querySelector('.view.active');
-            var sid = av && av.id ? av.id.replace(/^view-/, '') : '';
-            var key = expKey || (card.querySelector('b,h3,.section-title') || {}).textContent || String(Date.now());
-            if (sid && typeof markSectionCard === 'function') markSectionCard(sid, String(key).slice(0, 80));
-          }
-        } catch(e) {}
       }
       if (isTip) {
         if (!window._tipOpen) window._tipOpen = {};
@@ -57286,7 +57469,7 @@ function startApp() {
         if (document.body.classList.contains('app-locked')) return false;
         if (document.body.classList.contains('quiet-reading')) return false; // «Чистый фокус» сам обрабатывает свайпы
         if (typeof _tourActive !== 'undefined' && _tourActive) return false;
-        if (target && target.closest && target.closest('#lock-screen, #site-tour-overlay, #term-pop, #sel-add-bar, input, textarea, select, .audio-bar, .chat-bottombar')) return false;
+        if (target && target.closest && target.closest('#lock-screen, #site-tour-overlay, #term-pop, #sel-add-bar, input, textarea, select, .audio-bar, .chat-bottombar, [data-no-swipe]')) return false;
         if (target && hScrollAncestor(target)) return false;
         return true;
       }
