@@ -163,21 +163,7 @@
   <link rel="stylesheet" href="styles.css">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- build 4.82: экспорт переписки в PDF — html2canvas рендерит offscreen HTML-блок
-       (значит кириллица/казахский текст рендерятся реальными шрифтами браузера,
-       без проблем с шрифтами внутри PDF), jsPDF нарезает получившийся canvas на
-       страницы A4. Оба - только для кнопки «⬇️ Экспорт» в чатах, на остальной
-       части приложения не сказываются, если раздел экспорта не открыт. -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" onerror="console.warn('qrcodejs cdn failed, QR button will show a fallback message')"></script>
-  <!-- build 5.72: карта для «Рядом мечети/намазхана» и визуализации киблы —
-       Leaflet + бесплатные тайлы OpenStreetMap, без API-ключа. Используется
-       только на экранах «Время намаза»/кибла и «Рядом с тобой», если эти
-       разделы не открыты — просто ничего не рендерит, лишнего веса на
-       остальные страницы не добавляет по нагрузке выполнения. -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" onerror="console.warn('leaflet css cdn failed')">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" onerror="console.warn('leaflet cdn failed, map features will show a fallback message')"></script>
+  <!-- build 6.43: html2canvas, jsPDF, qrcode и Leaflet (карта) больше не грузятся при старте — подгружаются при первом нажатии (loadLib в logic-app.js) -->
 </head>
 <body class="hide-ui-hints">
 
@@ -1564,12 +1550,8 @@
         <option value="2">2×</option>
       </select>
       </div>
-      <div class="pl-row"><span class="pl-lbl" data-pk="play">Воспроизведение</span>
-        <div class="pl-seg"><button type="button" class="pl-chip" id="audio-pm-ayah"><span data-pk="byayah">По аятам</span></button><button type="button" class="pl-chip" id="audio-pm-whole"><span data-pk="whole">Целиком</span></button></div>
-        <select id="audio-whole-reciter" autocomplete="off" class="pl-sel" style="display:none"></select>
-      </div>
       <div class="pl-row"><span class="pl-lbl" data-pk="after">После суры</span>
-        <div class="pl-seg"><button type="button" class="pl-chip" id="audio-after-stop"><span data-pk="stop">Остановиться</span></button><button type="button" class="pl-chip" id="audio-after-next"><span data-pk="next">Дальше сама</span></button></div>
+        <div class="pl-seg"><button type="button" class="pl-chip" id="audio-after-stop"><span data-pk="stop">Остановиться</span></button><button type="button" class="pl-chip" id="audio-after-next"><span data-pk="next">Включить следующую суру</span></button></div>
       </div>
       <div class="pl-row pl-tools">
         <button type="button" class="pl-chip" id="audio-pick-reciter" title="Выбрать чтеца">🎙 <span data-pk="rec">Чтец</span></button>
@@ -1705,7 +1687,7 @@
   <!-- build 5.72: данные вынесены в отдельные файлы для более лёгкого редактирования -->
   <script src="data-changelog.js"></script>
   <script src="data-quran-learning.js"></script>
-  <script src="data-reading-library.js"></script>
+  <!-- build 6.43: data-reading-library.js (истории, 40 хадисов) подгружается из logic-app.js сразу после старта -->
   <script src="data-islamic-knowledge.js"></script>
   <script src="data-hajj-and-names.js"></script>
   <script src="data-daily-practice.js"></script>
