@@ -5625,7 +5625,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     })();
 
     // ----- группы чтецов (учебные сверху, затем для слушания) -----
-    function _isStudyReciter(id) { return ['ar.husarymuallim', 'ar.husary', 'ar.minshawi', 'ar.minshawimujawwad', 'ar.abdulsamad', 'ar.abdulbasitmujawwad'].indexOf(id) >= 0; } /* учебные: муаллим и мураттал (ровное чтение по правилам); муджаввад и остальные — для слушания */
+    function _isStudyReciter(id) { return ['ar.husarymuallim', 'ar.husary', 'ar.minshawi', 'ar.abdulsamad'].indexOf(id) >= 0; } /* учебные: муаллим и мураттал (ровное чтение по правилам); муджаввад и остальные — для слушания */
     function reciterGroups() {
       var list = (typeof RECITER_LIST !== 'undefined') ? RECITER_LIST : [];
       return [
@@ -5633,8 +5633,10 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         { study: false, items: list.filter(function(r) { return !_isStudyReciter(r.id); }) }
       ];
     }
-    function reciterSelectHtml(withWhole) {
+    function reciterSelectHtml(withWhole, learnOnly) {
       var kk = isKk(), g = reciterGroups();
+      // build 6.39: в «Озвучке» и «Таджвиде» — только учебные чтецы (остальные там не нужны и сбивали с толку)
+      if (learnOnly) return '<optgroup label="' + (kk ? '📚 Оқу үшін' : '📚 Учебные') + '">' + g[0].items.map(function (r) { return '<option value="' + r.id + '">' + (kk ? r.kk : r.ru) + '</option>'; }).join('') + '</optgroup>';
       function opt(r) { return '<option value="' + r.id + '">' + (kk ? r.kk : r.ru) + '</option>'; }
       var h = '<optgroup label="' + (kk ? '📚 Оқу үшін' : '📚 Учебные') + '">' + g[0].items.map(opt).join('') + '</optgroup>' +
         '<option disabled value=""> </option>' +
@@ -6589,11 +6591,18 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       const kk = isKk();
       const opts = reciterSelectHtml(); // build 6.27: учебные сверху, затем пустая строка и «для слушания»
       const optsW = reciterSelectHtml(true);
+      const optsL = reciterSelectHtml(false, true);
+      // build 6.39: если для «Озвучки»/«Таджвида» сохранён не учебный чтец — ставим Хусари (мураттал)
+      try {
+        var _learnIds = reciterGroups()[0].items.map(function (r) { return r.id; }), _chg = false;
+        ['study', 'tajweed'].forEach(function (t) { if (_learnIds.indexOf(state.settings.reciterBy[t]) < 0) { state.settings.reciterBy[t] = 'ar.husary'; _chg = true; if (_reciterCtx === t) state.settings.reciter = 'ar.husary'; } });
+        if (_chg) saveState();
+      } catch (e) {}
       RECITER_TABS.forEach(function(t) {
         _RECITER_SELECTS[t].forEach(function(id) {
           const el = document.getElementById(id);
           if (!el) return;
-          el.innerHTML = (t === 'surahs') ? optsW : opts;
+          el.innerHTML = (t === 'surahs') ? optsW : optsL;
           el.value = (t === 'surahs' && wholeModeOn()) ? ('whole:' + wholeReciter().id) : state.settings.reciterBy[t];
         });
       });
@@ -6612,7 +6621,9 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       [['study', 'study-reciter-select'], ['tajweed', 'tajweed-reciter-select']].forEach(function(p) {
         var sel = document.getElementById(p[1]); if (!sel) return;
         var host = sel.closest('.card'); if (!host) return;
-        mk(host).textContent = (kk ? 'Қари: ' : 'Чтец: ') + nm(by[p[0]]) + '. ' + (kk ? 'Абкар мен Лухайдан мұнда жоқ — оларда тек толық сүрелер бар («Сүрелер» қойындысында).' : 'Абкар и Лухайдан здесь недоступны — у них только целые суры (во вкладке «Суры»).');
+        mk(host).textContent = p[0] === 'study'
+          ? (kk ? 'Сөзді басқанда — Quran.com дауысы (біреу, ауыспайды). Таңдау — аятты толық тыңдау үшін: ' : 'При нажатии на слово звучит голос Quran.com (один, не меняется). Выбор — для аята целиком: ') + nm(by[p[0]]) + '.'
+          : (kk ? 'Қари: ' : 'Чтец: ') + nm(by[p[0]]) + '. ' + (kk ? 'Абкар мен Лухайдан мұнда жоқ — оларда тек толық сүрелер бар («Сүрелер» қойындысында).' : 'Абкар и Лухайдан здесь недоступны — у них только целые суры (во вкладке «Суры»).');
       });
       var hs = document.getElementById('home-reciter-select');
       var host2 = hs && hs.closest('.card');
@@ -54482,7 +54493,8 @@ function getMyVocab() {
 
 
     
-    let calendarYear = new Date().getFullYear();
+    // build 6.39: календарь открывается на году ближайшего события (в ноябре — на следующем), а не на календарном годе, где всё уже прошло
+    let calendarYear = null;
     // Approx Gregorian dates for Islamic occasions (Umm al-Qura–style estimates; local moonsighting may differ by ±1 day)
 
 
@@ -54503,7 +54515,11 @@ function getMyVocab() {
       const el = document.getElementById('calendar-body');
       if (!el) return;
       const kk = isKk();
+      if (calendarYear == null) { const _n = findNextCalendarEvent(); calendarYear = _n ? +String(_n.event.g).slice(0, 4) : new Date().getFullYear(); }
       const events = HIJRI_EVENTS[calendarYear] || [];
+      const _today = new Date(); _today.setHours(0, 0, 0, 0);
+      // build 6.39: событие прошло, если его последний день раньше сегодняшнего
+      function isPastEv(e) { return new Date((e.gEnd || e.g) + 'T00:00:00') < _today; }
       // build 4.110: усилено по прямой просьбе пользователя — раньше
       // оговорка «даты ориентировочные» была всего одной строкой в конце
       // подсказки, легко потерять. Даты в HIJRI_EVENTS — не выдумка, они
@@ -54518,11 +54534,21 @@ function getMyVocab() {
       const MOON_DEPENDENT_KEYS = { ramadan: 1, eid_fitr: 1, eid_adha: 1, dhulhijjah_arafah: 1, ashura: 1, new_year: 1, barat: 1 };
       // build 6.38: подпись источника даты (2027 — по объявлению ДУМК от 19.10.2026)
       function srcBadge(e) {
+        if (isPastEv(e)) {
+          const past = '<span style="color:var(--text-muted);font-size:0.75rem">✓ ' + (kk ? 'өтті' : 'прошло') + '</span>';
+          if (e.src === 'dumk' || e.src === 'mixed') return ' ' + past + ' <span style="color:var(--accent);font-size:0.75rem">✔ ' + (kk ? 'ҚМДБ бойынша' : 'по ДУМК') + (e.src === 'mixed' ? (kk ? ' (ішінара)' : ' (частично)') : '') + '</span>';
+          return ' ' + past + ' <span style="color:var(--text-muted);font-size:0.75rem">' + (kk ? 'сайттың есебі' : 'расчёт сайта') + '</span>';
+        }
         if (e.src === 'dumk' || e.src === 'mixed') return ' <span style="color:var(--accent);font-size:0.75rem">✔ ' + (kk ? 'ҚМДБ бойынша' : 'по ДУМК') + (e.src === 'mixed' ? (kk ? ' (ішінара)' : ' (частично)') : '') + '</span>';
         if (e.src === 'calc') return ' <span style="color:var(--danger);font-size:0.75rem">⚠️ ' + (kk ? 'сайттың есебі, ҚМДБ емес' : 'расчёт сайта, не ДУМК') + '</span>';
         return null;
       }
       function srcNote(e) {
+        if (isPastEv(e)) {
+          if (e.src === 'mixed') return kk ? (e.noteKk || e.note || '') : (e.note || '');
+          if (e.src === 'dumk') return kk ? 'ҚМДБ жариялаған күн бойынша.' : 'Дата по объявлению ДУМК.';
+          return kk ? 'Бұл күн сайттың есебі бойынша (ҚМДБ жеке атамаған).' : 'Дата по расчёту сайта (ДУМК отдельно её не называл).';
+        }
         if (e.src === 'dumk') return kk ? 'ҚМДБ бойынша, 19.10.2026 бекітілген; жаңа айдың көрінуіне байланысты 1 күнге ауысуы мүмкін.' : 'По ДУМК, утверждено 19.10.2026; возможен сдвиг на 1 день из-за новолуния.';
         if (e.src === 'mixed') return kk ? (e.noteKk || e.note || '') : (e.note || '');
         if (e.src === 'calc') return kk ? 'Бұл күнді ҚМДБ атамаған — сайттың есебі бойынша; жаңа айдың көрінуіне байланысты ауысуы мүмкін.' : 'Эту дату ДУМК не называл — расчёт сайта; возможен сдвиг из-за новолуния.';
@@ -54568,7 +54594,7 @@ function getMyVocab() {
           const info = EVENT_INFO[e.key] || {};
           const nm = kk ? info.nameKk : info.name;
           const isMoonDepRow = !!MOON_DEPENDENT_KEYS[e.key];
-          return '<div class="card"><b>'+(info.icon||'')+' '+nm+'</b>' +
+          return '<div class="card"' + (isPastEv(e) ? ' style="opacity:0.72"' : '') + '><b>'+(info.icon||'')+' '+nm+'</b>' +
             (srcBadge(e) !== null ? srcBadge(e) : (isMoonDepRow ? ' <span style="color:var(--danger);font-size:0.75rem">⚠️ '+(kk?'болжам':'расчёт, уточняется')+'</span>' : '')) +
             '<div style="margin-top:0.4rem">📅 '+(kk?'басы':'начало')+': '+formatDateRu(e.g)+(e.gEnd ? ' · '+(kk?'соңы':'конец')+': '+formatDateRu(e.gEnd) : '')+'</div>' +
             (srcNote(e) ? '<div class="ayah-translation" style="font-size:0.8rem;margin-top:0.2rem">'+srcNote(e)+'</div>' : '') +
@@ -57284,11 +57310,11 @@ function startApp() {
       }
       function overpassFetch(q) {
         return new Promise(function (resolve, reject) {
-          var order = mirrorOrder(), ctrls = [], done = false, fails = 0, launched = 0, errs = [], timer = null;
+          var order = mirrorOrder(), ctrls = [], done = false, fails = 0, empties = 0, emptyData = null, diag = [], launched = 0, errs = [], timer = null;
           function finish(ok, val) {
             if (done) return; done = true; clearTimeout(timer);
             ctrls.forEach(function (c) { try { c.abort(); } catch (e) {} });
-            if (ok) resolve(val); else reject(new Error(errs.join('; ')));
+            if (ok) { try { val._diag = diag.slice(); } catch (e) {} resolve(val); } else { var er = new Error(errs.join('; ')); er.diag = diag.slice(); reject(er); }
           }
           function launch() {
             if (done || launched >= order.length) return;
@@ -57302,14 +57328,25 @@ function startApp() {
               .then(function (data) {
                 clearTimeout(to);
                 if (!data || !Array.isArray(data.elements)) throw new Error(T('пустой ответ', 'бос жауап'));
+                // build 6.39: перегруженный сервер часто отвечает «успешно», но с пустым списком и пометкой об ошибке — это не «рядом ничего нет»
+                if (data.remark && /error|time.?out|memory|too many|busy|rate/i.test(String(data.remark))) throw new Error(T('сервер перегружен', 'сервер бос емес'));
+                if (!data.elements.length) {
+                  // пустой список без ошибки принимаем, только если его подтвердило ещё одно зеркало (или других ответов не осталось)
+                  empties++; emptyData = data; diag.push(host + ': 0');
+                  if (empties >= 2 || fails + empties >= order.length) finish(true, emptyData);
+                  else launch();
+                  return;
+                }
+                diag.push(host + ': ' + data.elements.length);
                 try { localStorage.setItem(MIRROR_KEY, url); } catch (e) {}
                 finish(true, data);
               })
               .catch(function (e) {
                 clearTimeout(to); if (done) return;
-                errs.push(host + ': ' + ((e && e.name === 'AbortError') ? T('нет ответа 25 с', '25 с жауап жоқ') : ((e && e.message) || 'error')));
+                var em = host + ': ' + ((e && e.name === 'AbortError') ? T('нет ответа 25 с', '25 с жауап жоқ') : ((e && e.message) || 'error'));
+                errs.push(em); diag.push(em);
                 fails++;
-                if (fails >= order.length) finish(false); else launch();
+                if (fails + empties >= order.length) { if (empties > 0) finish(true, emptyData); else finish(false); } else launch();
               });
             if (launched < order.length) timer = setTimeout(launch, 4000);
           }
@@ -57344,6 +57381,7 @@ function startApp() {
         var data = null, lastErr = null;
         try { data = await overpassFetch(q); } catch (e) { lastErr = e; }
         S.nearBusy = false;
+        S.nearDiag = (data && data._diag) || (lastErr && lastErr.diag) || null;
         if (S.nearKey !== key) return; // пока искали, место сменилось
         if (!data) {
           // build 6.38: сервер не ответил — показываем последний удачный результат рядом с этим местом (с пометкой, от какого времени)
@@ -57363,6 +57401,13 @@ function startApp() {
           var addr = [tg['addr:street'], tg['addr:housenumber']].filter(Boolean).join(', ');
           return { name: name, room: room, lat: lat, lon: lon, d: distance(p.lat, p.lon, lat, lon), b: bearing(p.lat, p.lon, lat, lon), addr: addr, hours: tg.opening_hours || '' };
         }).filter(Boolean).sort(function (a, b) { return a.d - b.d; });
+        if (!items.length) {
+          // build 6.39: пустой ответ не запоминаем (раньше он держался 30 минут и «пустота» не исправлялась повторным нажатием);
+          // если раньше рядом что-то находилось — показываем прежний список с пометкой
+          var st2 = readNearSaved(p, R);
+          if (st2) { S.items = st2.items; S.nearStale = st2.t; S.nearErr = null; paintNearby(); drawMosquesOnMap(); return; }
+          S.items = items; paintNearby(); drawMosquesOnMap(); return;
+        }
         S.nearCache[key] = { t: Date.now(), items: items };
         try { localStorage.setItem(NEAR_SAVE_KEY, JSON.stringify({ t: Date.now(), lat: p.lat, lon: p.lon, R: R, items: items.slice(0, 60).map(function (x) { return { name: x.name, room: x.room, lat: x.lat, lon: x.lon, addr: x.addr, hours: x.hours }; }) })); } catch (e) {}
         S.items = items; paintNearby(); drawMosquesOnMap();
@@ -57375,6 +57420,24 @@ function startApp() {
           mk.bindTooltip(esc(it.name) + ' · ' + fmtDist(it.d));
           mk.on('click', function () { focusItem(i); });
           mk.addTo(ml.mosques);
+        });
+      }
+      // build 6.39: «🔖 В Папки» — мечеть остаётся с названием, адресом и ссылкой на маршрут даже без интернета (папка «Мечети»)
+      function saveMosque(i) {
+        var it = S.items && S.items[i]; if (!it) return;
+        if (typeof fsWhenReady !== 'function' || typeof fsCreate !== 'function') { toast(T('Папки пока недоступны', 'Қалталар әзірге қолжетімсіз')); return; }
+        fsWhenReady(function () {
+          try {
+            var nm = T('Мечети', 'Мешіттер');
+            var f = fsAllChildren(null).filter(function (x) { return x.k === 'folder' && !(x.d && x.d.sys) && fsName(x) === nm; })[0];
+            var pid = f ? f.id : ((fsCreate({ k: 'folder', p: null, n: nm }) || {}).id || null);
+            var dup = pid ? fsAllChildren(pid).filter(function (x) { return x.k === 'note' && x.d && x.d.mq === it.lat.toFixed(5) + ',' + it.lon.toFixed(5); })[0] : null;
+            if (dup) { toast(T('Уже сохранено в «Папки → Мечети»', '«Қалталар → Мешіттер» ішінде бар')); return; }
+            var text = (it.room ? T('Намазхана', 'Намазхана') : T('Мечеть', 'Мешіт')) + (it.addr ? '\n' + it.addr : '') + (it.hours ? '\n' + it.hours : '') +
+              '\n' + it.lat.toFixed(5) + ', ' + it.lon.toFixed(5) + '\nhttps://www.google.com/maps/dir/?api=1&destination=' + it.lat + ',' + it.lon;
+            var r = fsAddNoteTo(pid || undefined, it.name, text);
+            if (r) { try { fsUpdate(r.id, { d: { mq: it.lat.toFixed(5) + ',' + it.lon.toFixed(5) } }); } catch (e) {} toast(T('Сохранено в «Папки → Мечети»', '«Қалталар → Мешіттер» ішіне сақталды')); }
+          } catch (e) { toast(T('Не удалось сохранить', 'Сақтау мүмкін болмады')); }
         });
       }
       function focusItem(i) {
@@ -57394,7 +57457,7 @@ function startApp() {
         else if (S.items == null) html += '<button type="button" class="btn btn-sm btn-primary" data-qb-find="1">🔍 ' + T('Найти рядом', 'Жақыннан табу') + '</button>' + (S.pos && S.pos.src !== 'gps' ? '<div class="ayah-translation" style="margin-top:0.35rem">' + T('Поиск идёт от города. Для точного результата сначала определите своё место.', 'Іздеу қала бойынша жүреді. Дәл нәтиже үшін алдымен орныңызды анықтаңыз.') + '</div>' : '');
         else if (!S.items.length) html += '<div class="ayah-translation">' + T('В этом радиусе в базе OpenStreetMap ничего не найдено. Это не значит, что рядом точно ничего нет — данные заполняют добровольцы. Попробуйте радиус больше.', 'Бұл радиуста OpenStreetMap базасында ештеңе табылмады. Бұл жақын жерде ештеңе жоқ дегенді білдірмейді — деректерді еріктілер толтырады. Үлкенірек радиусты байқаңыз.') + '</div>';
         else {
-          if (S.nearStale) { var _d = new Date(S.nearStale); html += '<div class="ayah-translation qb-st-warn">' + T('Не удалось обновить данные (сервер карт не ответил). Показан последний удачный результат от ', 'Деректерді жаңарту мүмкін болмады (карта сервері жауап бермеді). Соңғы сәтті нәтиже көрсетілген: ') + String(_d.getDate()).padStart(2, '0') + '.' + String(_d.getMonth() + 1).padStart(2, '0') + ' ' + String(_d.getHours()).padStart(2, '0') + ':' + String(_d.getMinutes()).padStart(2, '0') + '. ' + T('Мечеть могла закрыться или переехать — проверьте.', 'Мешіт жабылған немесе көшкен болуы мүмкін — тексеріңіз.') + ' <button type="button" class="btn btn-sm" data-qb-find="1">↻ ' + T('Обновить', 'Жаңарту') + '</button></div>'; }
+          if (S.nearStale) { var _d = new Date(S.nearStale); html += '<div class="ayah-translation qb-st-warn">' + T('Не удалось обновить данные (сервер карт не ответил или вернул пустой список). Показан последний удачный результат от ', 'Деректерді жаңарту мүмкін болмады (карта сервері жауап бермеді немесе бос тізім қайтарды). Соңғы сәтті нәтиже көрсетілген: ') + String(_d.getDate()).padStart(2, '0') + '.' + String(_d.getMonth() + 1).padStart(2, '0') + ' ' + String(_d.getHours()).padStart(2, '0') + ':' + String(_d.getMinutes()).padStart(2, '0') + '. ' + T('Мечеть могла закрыться или переехать — проверьте.', 'Мешіт жабылған немесе көшкен болуы мүмкін — тексеріңіз.') + ' <button type="button" class="btn btn-sm" data-qb-find="1">↻ ' + T('Обновить', 'Жаңарту') + '</button></div>'; }
           html += S.items.slice(0, 20).map(function (it, i) {
             var route = 'https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=' + it.lat + ',' + it.lon;
             return '<div class="qb-item" data-i="' + i + '"><div class="qb-item-main" data-qb-focus="' + i + '">' +
@@ -57402,8 +57465,16 @@ function startApp() {
               '<span class="qb-item-t"><b>' + esc(it.name) + '</b>' + (it.room ? ' <small>(' + T('намазхана', 'намазхана') + ')</small>' : '') +
               '<small>' + dirWord(it.b) + ' · ' + fmtDist(it.d) + (it.addr ? ' · ' + esc(it.addr) : '') + (it.hours ? ' · ' + esc(it.hours) : '') + '</small></span>' +
               '<span class="qb-brg" style="transform:rotate(' + it.b.toFixed(0) + 'deg)" title="' + dirWord(it.b) + '">▲</span></div>' +
-              '<a class="btn btn-sm" target="_blank" rel="noopener" href="' + route + '">' + T('Маршрут', 'Бағыт') + '</a></div>';
+              '<a class="btn btn-sm" target="_blank" rel="noopener" href="' + route + '">' + T('Маршрут', 'Бағыт') + '</a>' +
+              '<button type="button" class="btn btn-sm" data-qb-save="' + i + '" title="' + T('Сохранить в «Папки»', '«Қалталарға» сақтау') + '">🔖</button></div>';
           }).join('') + '<div class="ayah-translation" style="font-size:0.75rem;margin-top:0.4rem">' + T('Данные © участники OpenStreetMap. Нажмите на строку — показать на карте. Стрелка — направление от севера.', 'Деректер © OpenStreetMap қатысушылары. Жолды басыңыз — картада көрсету. Көрсеткі — солтүстіктен бағыт.') + '</div>';
+        }
+        if (!S.nearBusy && S.pos && (S.nearErr || (S.items && !S.items.length))) {
+          html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.4rem"><button type="button" class="btn btn-sm" data-qb-find="1">↻ ' + T('Повторить', 'Қайталау') + '</button>' +
+            '<a class="btn btn-sm" target="_blank" rel="noopener" href="https://www.google.com/maps/search/' + encodeURIComponent(T('мечеть', 'мешіт')) + '/@' + S.pos.lat.toFixed(5) + ',' + S.pos.lon.toFixed(5) + ',14z">🗺 ' + T('Искать «мечеть» в Google Maps', 'Google Maps-тан «мешіт» іздеу') + '</a></div>';
+        }
+        if (!S.nearBusy && S.nearDiag && S.nearDiag.length && (S.nearErr || S.nearStale || (S.items && S.items.length === 0))) {
+          html += '<div class="ayah-translation" style="font-size:0.72rem;margin-top:0.35rem;opacity:0.8">' + T('Ответы серверов карт: ', 'Карта серверлерінің жауабы: ') + esc(S.nearDiag.join('; ')) + '</div>';
         }
         box.innerHTML = html;
       }
@@ -57540,7 +57611,7 @@ function startApp() {
           });
         });
         host.addEventListener('click', function (e) {
-          var t = e.target.closest ? e.target.closest('[data-qb-mode],[data-qb-layer],[data-qb-r],[data-qb-find],[data-qb-focus],#qb-recenter') : null;
+          var t = e.target.closest ? e.target.closest('[data-qb-mode],[data-qb-layer],[data-qb-r],[data-qb-find],[data-qb-focus],[data-qb-save],#qb-recenter') : null;
           if (!t) return;
           if (t.hasAttribute('data-qb-mode')) {
             S.mode = t.getAttribute('data-qb-mode');
@@ -57552,7 +57623,8 @@ function startApp() {
             if (S.map && S.base) { S.map.removeLayer(S.base); S.base = layerFor(S.layer).addTo(S.map); S.base.bringToBack(); }
           } else if (t.hasAttribute('data-qb-r')) {
             S.radius = +t.getAttribute('data-qb-r'); S.items = null; S.nearKey = null; S.nearErr = null; paintNearby(); drawMosquesOnMap(); findNearby();
-          } else if (t.hasAttribute('data-qb-find')) { S.nearKey = null; findNearby(); }
+          } else if (t.hasAttribute('data-qb-find')) { S.nearKey = null; findNearby();
+          } else if (t.hasAttribute('data-qb-save')) { saveMosque(+t.getAttribute('data-qb-save')); }
           else if (t.hasAttribute('data-qb-focus')) focusItem(+t.getAttribute('data-qb-focus'));
           else if (t.id === 'qb-recenter') { if (S.map && S.pos) { S.mode === 'far' ? drawMap(true) : S.map.setView([S.pos.lat, S.pos.lon], 16); } }
         });
@@ -58165,4 +58237,23 @@ async function pushUnsub() {
   });
   window.addEventListener('load', function() { setTimeout(function() { pushSync(); }, 5000); });
   document.addEventListener('visibilitychange', function() { if (!document.hidden) setTimeout(function() { pushSync(); }, 1500); });
+})();
+
+// build 6.39: плеер встаёт ровно над нижней панелью — высота панели измеряется, а не берётся «на глаз» (4.2rem давали щель или перекрытие)
+(function () {
+  function sync() {
+    try {
+      var nav = document.querySelector('.bottom-nav');
+      var h = 0;
+      if (nav && getComputedStyle(nav).display !== 'none') { var r = nav.getBoundingClientRect(); h = Math.max(0, Math.round(window.innerHeight - r.top)); if (r.height < 20) h = 0; }
+      document.documentElement.style.setProperty('--nav-h', h + 'px');
+    } catch (e) {}
+  }
+  window.addEventListener('resize', sync);
+  window.addEventListener('orientationchange', function () { setTimeout(sync, 200); });
+  window.addEventListener('load', function () { sync(); setTimeout(sync, 800); setTimeout(sync, 3000); });
+  document.addEventListener('DOMContentLoaded', sync);
+  try { var nav0 = document.querySelector('.bottom-nav'); if (nav0 && typeof ResizeObserver === 'function') new ResizeObserver(sync).observe(nav0); } catch (e) {}
+  try { new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ['class'] }); } catch (e) {}
+  sync();
 })();

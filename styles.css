@@ -1429,7 +1429,7 @@
     .audio-bar {
       display: none;
       position: fixed;
-      bottom: 4.2rem;
+      bottom: var(--nav-h, 4.2rem); /* build 6.39: высота нижней панели измеряется в logic-app.js */
       left: 0;
       right: 0;
       background: var(--bg-card);
