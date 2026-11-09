@@ -21637,7 +21637,8 @@ bKk:
     function renderChangelog() {
       const el = document.getElementById('changelog-body');
       if (!el) return;
-      // .a новое · .b изменения · .f фикс · .d дизайн · .ph фото · .I в работе · .o другое · .s скорость · .on онлайн · .lan языки
+      // Метки (build 6.42): .a новое · .b изменения · .d дизайн · .f исправлено · .s скорость · .rm убрано · .tx тексты и источники · .dt данные · .o другое · .admin для админов.
+      // Одна запись может иметь несколько блоков; казахский текст лежит в x.kk[метка] по тем же индексам.
       const log = CHANGELOG_LOG;
       // build 6.24: временно для всех — админские пометки (.admin) видны всем, т.к. у админа журнал пустел
       const isAdmin = true;
@@ -21677,39 +21678,26 @@ bKk:
         if (actualMajors.indexOf(m) === -1) return { id: m, lab: (_clKk ? m + '-серия' : 'серия ' + m) };
         return { id: m, lab: name ? (m + ' — ' + name) : (_clKk ? m + '-серия' : 'серия ' + m) };
       }));
-      const kindTabs = (_clKk ? [
-        { id: 'all', lab: 'Барлығы' },
-        { id: 'epic', lab: '🌟 ауқымды' },
-        { id: 'big', lab: '🚀 ірі жаңартулар' },
-        { id: 'a', lab: '.a жаңа' },
-        { id: 'b', lab: '.b өзгерістер' },
-        { id: 'f', lab: '.f түзету' },
-        { id: 'd', lab: '.d дизайн' },
-        { id: 'ph', lab: '.ph фото' },
-        { id: 'I', lab: '.I жұмыста' },
-        { id: 'o', lab: '.o басқа' },
-        { id: 's', lab: '.s жылдамдық' },
-        { id: 'on', lab: '.on онлайн' },
-        { id: 'lan', lab: '.lan тілдер' }
-      ] : [
-        { id: 'all', lab: 'Все' },
-        { id: 'epic', lab: '🌟 масштабные' },
-        { id: 'big', lab: '🚀 крупные обновления' },
-        { id: 'a', lab: '.a новое' },
-        { id: 'b', lab: '.b изменения' },
-        { id: 'f', lab: '.f фикс' },
-        { id: 'd', lab: '.d дизайн' },
-        { id: 'ph', lab: '.ph фото' },
-        { id: 'I', lab: '.I в работе' },
-        { id: 'o', lab: '.o другое' },
-        { id: 's', lab: '.s скорость' },
-        { id: 'on', lab: '.on онлайн' },
-        { id: 'lan', lab: '.lan языки' }
-      ]).concat(isAdmin ? [{ id: 'admin', lab: '.admin' + (_clKk ? ' әкімші' : ' админ') }] : []);
+      const CL_KINDS = [
+        ['a',  'новое',               'жаңа',                 'Новое',               'Жаңа'],
+        ['b',  'изменения',           'өзгерістер',           'Изменения',           'Өзгерістер'],
+        ['d',  'дизайн',              'дизайн',               'Дизайн',              'Дизайн'],
+        ['f',  'исправлено',          'түзетілді',            'Исправлено',          'Түзетілді'],
+        ['s',  'скорость',            'жылдамдық',            'Скорость',            'Жылдамдық'],
+        ['rm', 'убрано',              'алынды',               'Убрано',              'Алынды'],
+        ['tx', 'тексты, источники',  'мәтіндер, дереккөздер','Тексты и источники',  'Мәтіндер мен дереккөздер'],
+        ['dt', 'данные',              'деректер',             'Данные',              'Деректер'],
+        ['o',  'другое',              'басқа',                'Другое',              'Басқа']
+      ];
+      const kindTabs = [{ id: 'all', lab: (_clKk ? 'Барлығы' : 'Все') },
+        { id: 'epic', lab: (_clKk ? '🌟 ауқымды' : '🌟 масштабные') },
+        { id: 'big', lab: (_clKk ? '🚀 ірі жаңартулар' : '🚀 крупные обновления') }
+      ].concat(CL_KINDS.map(function(c){ return { id: c[0], lab: '.' + c[0] + ' ' + (_clKk ? c[2] : c[1]) }; }))
+        .concat(isAdmin ? [{ id: 'admin', lab: '.admin' + (_clKk ? ' әкімші' : ' админ') }] : []);
       const filtered = log.filter(function(x){ return major === 'all' ? true : x.major === major; }).filter(function(x) {
         if (isAdmin) return true;
         // Запись, где есть контент только для админов (например .admin), не должна быть видна остальным вовсе.
-        const visibleKinds = ['a','b','f','d','ph','I','o','s','on','lan'];
+        const visibleKinds = ['a','b','d','f','s','rm','tx','dt','o'];
         return visibleKinds.some(function(k){ return x[k] && x[k].length; });
       }).filter(function(x) {
         if (kind === 'all') return true;
@@ -21720,7 +21708,7 @@ bKk:
       }).filter(function(x) {
         const q = (window._clQuery || '').trim().toLowerCase();
         if (!q) return true;
-        const blob = [x.v, x.date].concat(x.a||[], x.b||[], x.f||[], x.d||[], x.ph||[], x.I||[], x.o||[], x.s||[], x.on||[], x.lan||[]).concat(isAdmin ? (x.admin||[]) : []).join(' ').toLowerCase();
+        const blob = [x.v, x.date].concat(x.a||[], x.b||[], x.d||[], x.f||[], x.s||[], x.rm||[], x.tx||[], x.dt||[], x.o||[]).concat(isAdmin ? (x.admin||[]) : []).concat((_clKk && x.kk) ? ['a','b','d','f','s','rm','tx','dt','o','admin'].reduce(function(acc,k){ return acc.concat(x.kk[k]||[]); }, []) : []).join(' ').toLowerCase();
         return blob.indexOf(q) >= 0;
       });
       const _ps = (typeof getListPageSize === 'function') ? getListPageSize() : 25;
@@ -21749,24 +21737,23 @@ bKk:
           }
           const kk = x.kk || {};
           const blocks = [];
-          const rowDefs = (_clKk
-            ? [['a','Жаңа',x.a],['b','Өзгерістер',x.b],['f','Түзету',x.f],['d','Дизайн',x.d],['ph','Фото',x.ph],['I','Жұмыста',x.I],['o','Басқа',x.o],['s','Жылдамдық',x.s],['on','Онлайн',x.on],['lan','Тілдер',x.lan]]
-            : [['a','Новое',x.a],['b','Изменения',x.b],['f','Фикс',x.f],['d','Дизайн',x.d],['ph','Фото',x.ph],['I','В работе',x.I],['o','Другое',x.o],['s','Скорость',x.s],['on','Онлайн',x.on],['lan','Языки',x.lan]]
-          ).concat(isAdmin ? [[ 'admin', (_clKk ? 'Әкімшіге' : 'Для админов'), x.admin ]] : []);
+          const rowDefs = CL_KINDS.map(function(c){ return [c[0], (_clKk ? c[4] : c[3]), x[c[0]]]; })
+          .concat(isAdmin ? [[ 'admin', (_clKk ? 'Әкімшіге' : 'Для админов'), x.admin ]] : []);
           rowDefs.forEach(function(row) {
             if (kind !== 'all' && kind !== 'big' && kind !== 'epic' && kind !== row[0]) return;
-            const items = (row[0] === 'admin') ? ((_clKk && x.adminKk && x.adminKk.length) ? x.adminKk : row[2]) : ((_clKk && kk[row[0]] && kk[row[0]].length) ? kk[row[0]] : row[2]);
+            const kkItems = kk[row[0]] || x[row[0] + 'Kk'];
+            const items = (_clKk && kkItems && kkItems.length === (row[2] ? row[2].length : 0)) ? kkItems : row[2];
             if (!items || !items.length) return;
             blocks.push('<div style="margin-top:0.45rem"><b style="color:var(--accent)">.'+row[0]+' · '+row[1]+'</b><ul style="margin:0.25rem 0 0 1.1rem;color:var(--text-muted);font-size:calc(0.9rem * var(--ru-scale, 1));line-height:1.5">' +
               items.map(function(it){ return '<li>'+it+'</li>'; }).join('') + '</ul></div>');
           });
-          const kindOrder = ['a','b','f','d','ph','I','o','s','on','lan'].concat(isAdmin ? ['admin'] : []);
+          const kindOrder = ['a','b','d','f','s','rm','tx','dt','o'].concat(isAdmin ? ['admin'] : []);
           const tags = kindOrder.filter(function(k){
             return x[k] && x[k].length;
           }).map(function(k){
             return '<span style="font-size:calc(0.7rem * var(--ru-scale, 1));border:1px solid var(--border);border-radius:0.3rem;padding:0.05rem 0.3rem;margin-left:0.25rem">.'+k+'</span>';
           }).join('');
-          const n = (x.a&&x.a.length||0)+(x.b&&x.b.length||0)+(x.f&&x.f.length||0)+(x.d&&x.d.length||0)+(x.ph&&x.ph.length||0)+(x.I&&x.I.length||0)+(x.o&&x.o.length||0)+(x.s&&x.s.length||0)+(x.lan&&x.lan.length||0)+(isAdmin ? (x.admin&&x.admin.length||0) : 0);
+          const n = kindOrder.reduce(function(acc, k){ return acc + ((x[k] && x[k].length) || 0); }, 0);
           // build 4.48: раньше была одна метка «🚀 крупное обновление» на все
           // заметные записи подряд. Теперь два уровня: 🌟 масштабное — у
           // записей, которые реально запускают что-то новое сразу по многим
