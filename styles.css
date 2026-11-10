@@ -746,24 +746,46 @@
     }
     .wt-word.wt-active {
       background: var(--accent);
-      color: #04120c;
+      color: var(--on-accent);
     }
 
     /* build 5.83: цветовая разметка таджвида — по проверенным сторонним
        данным (cpfair/quran-tajweed, CC BY 4.0), а не по своей догадке.
        Цвета подобраны под тёмную/светлую тему приложения; смысл (какое
        правило — какой цвет) соответствует общепринятым таджвид-мусхафам. */
-    .tw-qalqalah { color: #60a5fa; }
-    .tw-ghunnah, .tw-idghaam_ghunnah { color: #4ade80; }
-    .tw-idghaam_no_ghunnah, .tw-idghaam_shafawi, .tw-idghaam_mutajanisayn { color: #fb923c; }
-    .tw-ikhfa, .tw-ikhfa_shafawi { color: #2dd4bf; }
-    .tw-iqlab { color: #c084fc; }
-    .tw-madd_2 { color: #fca5a5; }
-    .tw-madd_246 { color: #f87171; }
-    .tw-madd_muttasil, .tw-madd_munfasil { color: #ef4444; }
-    .tw-madd_6 { color: #dc2626; font-weight: 700; }
-    .tw-hamzat_wasl { color: #a3e635; }
-    .tw-lam_shamsiyyah { color: #f472b6; }
+    /* 6.45: цвета таджвида — переменные: тёмный набор по умолчанию, для светлых и «приподнятых» тёмных тем — свои (проверены по контрасту) */
+    :root { --tw-qalqalah:#60a5fa; --tw-ghunnah:#4ade80; --tw-idghaam-no-ghunnah:#fb923c; --tw-ikhfa:#2dd4bf; --tw-iqlab:#c084fc; --tw-madd-2:#fcb0b0; --tw-madd-246:#f97b7b; --tw-madd-muttasil:#f66262; --tw-madd-6:#f24b4b; --tw-hamzat-wasl:#a3e635; --tw-lam-shamsiyyah:#f472b6; }
+    body.theme-light,
+    body.theme-soft,
+    body.theme-paper,
+    body.theme-sepia,
+    body.theme-mint,
+    body.theme-sage,
+    body.theme-eye,
+    body.theme-warm,
+    body.theme-solarl,
+    body.theme-gruvl,
+    body.theme-latte {
+      --tw-qalqalah:#1d4ed8; --tw-ghunnah:#137337; --tw-idghaam-no-ghunnah:#b13b0b; --tw-ikhfa:#0e6f68; --tw-iqlab:#7e22ce; --tw-madd-2:#e11d48; --tw-madd-246:#be123c; --tw-madd-muttasil:#b91c1c; --tw-madd-6:#7f1d1d; --tw-hamzat-wasl:#456e0d; --tw-lam-shamsiyyah:#be185d;
+    }
+    body.theme-nord,
+    body.theme-solard,
+    body.theme-gruvd,
+    body.theme-mocha,
+    body.theme-ghdim {
+      --tw-qalqalah:#76b2fb; --tw-ghunnah:#4ade80; --tw-idghaam-no-ghunnah:#fb9541; --tw-ikhfa:#2dd4bf; --tw-iqlab:#ca98fc; --tw-madd-2:#fcb0b0; --tw-madd-246:#f98585; --tw-madd-muttasil:#f56e6e; --tw-madd-6:#f35f5f; --tw-hamzat-wasl:#a3e635; --tw-lam-shamsiyyah:#f68cc3;
+    }
+    .tw-qalqalah { color: var(--tw-qalqalah); }
+    .tw-ghunnah, .tw-idghaam_ghunnah { color: var(--tw-ghunnah); }
+    .tw-idghaam_no_ghunnah, .tw-idghaam_shafawi, .tw-idghaam_mutajanisayn { color: var(--tw-idghaam-no-ghunnah); }
+    .tw-ikhfa, .tw-ikhfa_shafawi { color: var(--tw-ikhfa); }
+    .tw-iqlab { color: var(--tw-iqlab); }
+    .tw-madd_2 { color: var(--tw-madd-2); }
+    .tw-madd_246 { color: var(--tw-madd-246); }
+    .tw-madd_muttasil, .tw-madd_munfasil { color: var(--tw-madd-muttasil); }
+    .tw-madd_6 { color: var(--tw-madd-6); font-weight: 700; }
+    .tw-hamzat_wasl { color: var(--tw-hamzat-wasl); }
+    .tw-lam_shamsiyyah { color: var(--tw-lam-shamsiyyah); }
     .tw-silent { color: var(--text-muted); opacity: 0.55; }
 
     .ayah-translation {
@@ -1952,33 +1974,35 @@
     }
 
   
+    /* Светлая (6.45): чуть темнее и теплее чистого белого, карточки светлее фона, рамки заметны */
     body.theme-light {
-      --bg: #f8fafc;
-      --bg-card: #ffffff;
-      --bg-hover: #e2e8f0;
-      --text: #0f172a;
-      --text-muted: #64748b;
-      --border: #cbd5e1;
-      --arabic: #1e293b;
+      --bg: #eef1f5;
+      --bg-card: #fbfcfd;
+      --bg-hover: #dde3ea;
+      --bg-elevated: #dde3ea;
+      --text: #1a2332;
+      --text-muted: #4e5b6e;
+      --border: #b3bfcd;
+      --arabic: #111a28;
       --accent: #047857;
-      --accent-hover: #065f46;
+      --accent-hover: #03664a;
       --src-ayah: #047857;
-      --src-ayah-bg: rgba(16, 185, 129, 0.12);
-      --src-ayah-bd: rgba(4, 120, 87, 0.35);
+      --src-ayah-bg: rgba(4, 120, 87, 0.12);
+      --src-ayah-bd: rgba(4, 120, 87, 0.4);
       --src-hadith: #1d4ed8;
-      --src-hadith-bg: rgba(37, 99, 235, 0.1);
-      --src-hadith-bd: rgba(29, 78, 216, 0.35);
-      --src-opinion: #b45309;
-      --src-opinion-bg: rgba(245, 158, 11, 0.12);
-      --src-opinion-bd: rgba(180, 83, 9, 0.35);
-      --src-note: #475569;
-      --src-note-bg: rgba(100, 116, 139, 0.1);
-      --src-note-bd: #cbd5e1;
+      --src-hadith-bg: rgba(29, 78, 216, 0.11);
+      --src-hadith-bd: rgba(29, 78, 216, 0.4);
+      --src-opinion: #92400e;
+      --src-opinion-bg: rgba(146, 64, 14, 0.12);
+      --src-opinion-bd: rgba(146, 64, 14, 0.4);
+      --src-note: #4e5b6e;
+      --src-note-bg: rgba(78, 91, 110, 0.1);
+      --src-note-bd: #b3bfcd;
     }
     body.theme-light header,
     body.theme-light .bottom-nav,
     body.theme-light .audio-bar {
-      background: rgba(248, 250, 252, 0.95);
+      background: rgba(238, 241, 245, 0.96);
     }
     body.theme-sepia {
       --bg: #f4ecd8;
@@ -1994,7 +2018,7 @@
       --src-hadith: #4e342e;
       --src-hadith-bg: rgba(78, 52, 46, 0.1);
       --src-hadith-bd: rgba(78, 52, 46, 0.35);
-      --src-opinion: #8d6e63;
+      --src-opinion: #75564a;
       --src-opinion-bg: rgba(141, 110, 99, 0.15);
       --src-opinion-bd: rgba(141, 110, 99, 0.4);
       --src-note: #6d4c41;
@@ -3056,34 +3080,6 @@
       background: #000;
       border-color: #fff;
     }
-    /* Сланцевая / midnight */
-    body.theme-slate {
-      --bg: #0f172a;
-      --bg-card: #1e293b;
-      --bg-elevated: #334155;
-      --text: #f1f5f9;
-      --text-muted: #94a3b8;
-      --border: #475569;
-      --accent: #a78bfa;
-      --arabic: #f8fafc;
-      --src-ayah: #c4b5fd;
-      --src-ayah-bg: rgba(167, 139, 250, 0.16);
-      --src-ayah-bd: rgba(196, 181, 253, 0.4);
-      --src-hadith: #93c5fd;
-      --src-hadith-bg: rgba(96, 165, 250, 0.14);
-      --src-hadith-bd: rgba(147, 197, 253, 0.4);
-      --src-opinion: #fcd34d;
-      --src-opinion-bg: rgba(252, 211, 77, 0.12);
-      --src-opinion-bd: rgba(252, 211, 77, 0.4);
-      --src-note: #94a3b8;
-      --src-note-bg: rgba(148, 163, 184, 0.12);
-      --src-note-bd: #475569;
-    }
-    body.theme-slate header,
-    body.theme-slate .bottom-nav,
-    body.theme-slate .audio-bar {
-      background: rgba(15, 23, 42, 0.96);
-    }
     /* Мягкая серая (глаза) */
     body.theme-soft {
       --bg: #e8eaed;
@@ -3141,64 +3137,6 @@
     body.theme-amber .audio-bar {
       background: rgba(26, 18, 8, 0.96);
     }
-    /* Роза — светлая тёплая */
-    body.theme-rose {
-      --bg: #fdf2f4;
-      --bg-card: #fff7f8;
-      --bg-elevated: #fbe4e8;
-      --text: #431419;
-      --text-muted: #8a5a60;
-      --border: #f3d0d6;
-      --accent: #be123c;
-      --accent-hover: #9f1239;
-      --arabic: #3a0f14;
-      --src-ayah: #9f1239;
-      --src-ayah-bg: rgba(190, 18, 60, 0.1);
-      --src-ayah-bd: rgba(159, 18, 57, 0.35);
-      --src-hadith: #9d174d;
-      --src-hadith-bg: rgba(157, 23, 77, 0.1);
-      --src-hadith-bd: rgba(157, 23, 77, 0.35);
-      --src-opinion: #9a3412;
-      --src-opinion-bg: rgba(154, 52, 18, 0.1);
-      --src-opinion-bd: rgba(154, 52, 18, 0.35);
-      --src-note: #8a5a60;
-      --src-note-bg: rgba(138, 90, 96, 0.1);
-      --src-note-bd: #f3d0d6;
-    }
-    body.theme-rose header,
-    body.theme-rose .bottom-nav,
-    body.theme-rose .audio-bar {
-      background: rgba(253, 242, 244, 0.96);
-    }
-    /* Лаванда — светлая фиолетовая */
-    body.theme-lavender {
-      --bg: #f6f3ff;
-      --bg-card: #ffffff;
-      --bg-elevated: #ede7ff;
-      --text: #2e1065;
-      --text-muted: #6d5a9e;
-      --border: #ddd3fb;
-      --accent: #6d28d9;
-      --accent-hover: #5b21b6;
-      --arabic: #25073d;
-      --src-ayah: #6d28d9;
-      --src-ayah-bg: rgba(109, 40, 217, 0.1);
-      --src-ayah-bd: rgba(109, 40, 217, 0.35);
-      --src-hadith: #7e22ce;
-      --src-hadith-bg: rgba(126, 34, 206, 0.1);
-      --src-hadith-bd: rgba(126, 34, 206, 0.35);
-      --src-opinion: #a16207;
-      --src-opinion-bg: rgba(161, 98, 7, 0.1);
-      --src-opinion-bd: rgba(161, 98, 7, 0.35);
-      --src-note: #6d5a9e;
-      --src-note-bg: rgba(109, 90, 158, 0.1);
-      --src-note-bd: #ddd3fb;
-    }
-    body.theme-lavender header,
-    body.theme-lavender .bottom-nav,
-    body.theme-lavender .audio-bar {
-      background: rgba(246, 243, 255, 0.96);
-    }
     /* Индиго — тёмная сине-фиолетовая */
     body.theme-indigo {
       --bg: #181433;
@@ -3235,7 +3173,7 @@
       --bg-elevated: #d1fae5;
       --text: #053b2c;
       --text-muted: #3f7a63;
-      --border: #bbf0d8;
+      --border: #9ed8bd;
       --accent: #047857;
       --accent-hover: #065f46;
       --arabic: #042f24;
@@ -3262,6 +3200,306 @@
     body.theme-sage header, body.theme-sage .bottom-nav, body.theme-sage .audio-bar { background: rgba(250, 247, 240, 0.96); }
     body.theme-graphite header, body.theme-graphite .bottom-nav, body.theme-graphite .audio-bar { background: rgba(27, 31, 36, 0.95); }
     body.theme-teal header, body.theme-teal .bottom-nav, body.theme-teal .audio-bar { background: rgba(13, 31, 34, 0.95); }
+    /* Зелёная для глаз (6.45): классический «защитный» зелёный фон, не слепит */
+    body.theme-eye {
+      --bg: #cfe8d2;
+      --bg-card: #e1f2e3;
+      --bg-hover: #bddcc1;
+      --bg-elevated: #bddcc1;
+      --text: #1d3626;
+      --text-muted: #3a5946;
+      --border: #9cc3a4;
+      --arabic: #12261b;
+      --accent: #1f6b42;
+      --accent-hover: #1a5b38;
+      --src-ayah: #046e50;
+      --src-ayah-bg: rgba(4, 110, 80, 0.12);
+      --src-ayah-bd: rgba(4, 110, 80, 0.4);
+      --src-hadith: #1d4ed8;
+      --src-hadith-bg: rgba(29, 78, 216, 0.11);
+      --src-hadith-bd: rgba(29, 78, 216, 0.4);
+      --src-opinion: #92400e;
+      --src-opinion-bg: rgba(146, 64, 14, 0.12);
+      --src-opinion-bd: rgba(146, 64, 14, 0.4);
+      --src-note: #3a5946;
+      --src-note-bg: rgba(58, 89, 70, 0.1);
+      --src-note-bd: #9cc3a4;
+    }
+    body.theme-eye header,
+    body.theme-eye .bottom-nav,
+    body.theme-eye .audio-bar {
+      background: rgba(207, 232, 210, 0.96);
+    }
+    /* Тёплая серая (6.45): нейтральный бумажно-серый без жёлтого оттенка */
+    body.theme-warm {
+      --bg: #e8e4de;
+      --bg-card: #f5f3ef;
+      --bg-hover: #d9d4cc;
+      --bg-elevated: #d9d4cc;
+      --text: #2a2623;
+      --text-muted: #58524b;
+      --border: #c3bcb2;
+      --arabic: #1c1917;
+      --accent: #0f6b66;
+      --accent-hover: #0d5b57;
+      --src-ayah: #046e50;
+      --src-ayah-bg: rgba(4, 110, 80, 0.12);
+      --src-ayah-bd: rgba(4, 110, 80, 0.4);
+      --src-hadith: #1d4ed8;
+      --src-hadith-bg: rgba(29, 78, 216, 0.11);
+      --src-hadith-bd: rgba(29, 78, 216, 0.4);
+      --src-opinion: #92400e;
+      --src-opinion-bg: rgba(146, 64, 14, 0.12);
+      --src-opinion-bd: rgba(146, 64, 14, 0.4);
+      --src-note: #58524b;
+      --src-note-bg: rgba(88, 82, 75, 0.1);
+      --src-note-bd: #c3bcb2;
+    }
+    body.theme-warm header,
+    body.theme-warm .bottom-nav,
+    body.theme-warm .audio-bar {
+      background: rgba(232, 228, 222, 0.96);
+    }
+    /* Solarized светлая (6.45): известная схема, тексты затемнены для читаемости */
+    body.theme-solarl {
+      --bg: #fdf6e3;
+      --bg-card: #eee8d5;
+      --bg-hover: #e3dcc4;
+      --bg-elevated: #e3dcc4;
+      --text: #073642;
+      --text-muted: #4e6268;
+      --border: #d3cbb0;
+      --arabic: #002b36;
+      --accent: #1b699c;
+      --accent-hover: #175985;
+      --src-ayah: #047152;
+      --src-ayah-bg: rgba(4, 113, 82, 0.12);
+      --src-ayah-bd: rgba(4, 113, 82, 0.4);
+      --src-hadith: #1d4ed8;
+      --src-hadith-bg: rgba(29, 78, 216, 0.11);
+      --src-hadith-bd: rgba(29, 78, 216, 0.4);
+      --src-opinion: #92400e;
+      --src-opinion-bg: rgba(146, 64, 14, 0.12);
+      --src-opinion-bd: rgba(146, 64, 14, 0.4);
+      --src-note: #4e6268;
+      --src-note-bg: rgba(78, 98, 104, 0.1);
+      --src-note-bd: #d3cbb0;
+    }
+    body.theme-solarl header,
+    body.theme-solarl .bottom-nav,
+    body.theme-solarl .audio-bar {
+      background: rgba(253, 246, 227, 0.96);
+    }
+    /* Gruvbox светлая (6.45): тёплая «ретро», акцент — тёмно-оранжевый */
+    body.theme-gruvl {
+      --bg: #fbf1c7;
+      --bg-card: #f2e5bc;
+      --bg-hover: #e7d8a9;
+      --bg-elevated: #e7d8a9;
+      --text: #3c3836;
+      --text-muted: #5f564d;
+      --border: #d5c4a1;
+      --arabic: #282828;
+      --accent: #9d4a05;
+      --accent-hover: #853f04;
+      --src-ayah: #047152;
+      --src-ayah-bg: rgba(4, 113, 82, 0.12);
+      --src-ayah-bd: rgba(4, 113, 82, 0.4);
+      --src-hadith: #1d4ed8;
+      --src-hadith-bg: rgba(29, 78, 216, 0.11);
+      --src-hadith-bd: rgba(29, 78, 216, 0.4);
+      --src-opinion: #92400e;
+      --src-opinion-bg: rgba(146, 64, 14, 0.12);
+      --src-opinion-bd: rgba(146, 64, 14, 0.4);
+      --src-note: #5f564d;
+      --src-note-bg: rgba(95, 86, 77, 0.1);
+      --src-note-bd: #d5c4a1;
+    }
+    body.theme-gruvl header,
+    body.theme-gruvl .bottom-nav,
+    body.theme-gruvl .audio-bar {
+      background: rgba(251, 241, 199, 0.96);
+    }
+    /* Catppuccin Latte (6.45): мягкая пастельная светлая */
+    body.theme-latte {
+      --bg: #eff1f5;
+      --bg-card: #e6e9ef;
+      --bg-hover: #dce0e8;
+      --bg-elevated: #dce0e8;
+      --text: #3b3d57;
+      --text-muted: #545772;
+      --border: #c4c9d6;
+      --arabic: #2b2c40;
+      --accent: #6b2fd6;
+      --accent-hover: #5b28b6;
+      --src-ayah: #047353;
+      --src-ayah-bg: rgba(4, 115, 83, 0.12);
+      --src-ayah-bd: rgba(4, 115, 83, 0.4);
+      --src-hadith: #1d4ed8;
+      --src-hadith-bg: rgba(29, 78, 216, 0.11);
+      --src-hadith-bd: rgba(29, 78, 216, 0.4);
+      --src-opinion: #92400e;
+      --src-opinion-bg: rgba(146, 64, 14, 0.12);
+      --src-opinion-bd: rgba(146, 64, 14, 0.4);
+      --src-note: #545772;
+      --src-note-bg: rgba(84, 87, 114, 0.1);
+      --src-note-bd: #c4c9d6;
+    }
+    body.theme-latte header,
+    body.theme-latte .bottom-nav,
+    body.theme-latte .audio-bar {
+      background: rgba(239, 241, 245, 0.96);
+    }
+    /* Nord (6.45): приглушённый серо-голубой */
+    body.theme-nord {
+      --bg: #2e3440;
+      --bg-card: #3b4252;
+      --bg-hover: #434c5e;
+      --bg-elevated: #434c5e;
+      --text: #eceff4;
+      --text-muted: #b3bccb;
+      --border: #4c566a;
+      --arabic: #f1f3f7;
+      --accent: #88c0d0;
+      --accent-hover: #9cd4e4;
+      --src-ayah: #64ddb1;
+      --src-ayah-bg: rgba(100, 221, 177, 0.12);
+      --src-ayah-bd: rgba(100, 221, 177, 0.4);
+      --src-hadith: #a2cdfd;
+      --src-hadith-bg: rgba(162, 205, 253, 0.11);
+      --src-hadith-bd: rgba(162, 205, 253, 0.4);
+      --src-opinion: #fbbf24;
+      --src-opinion-bg: rgba(251, 191, 36, 0.12);
+      --src-opinion-bd: rgba(251, 191, 36, 0.4);
+      --src-note: #b3bccb;
+      --src-note-bg: rgba(179, 188, 203, 0.1);
+      --src-note-bd: #4c566a;
+    }
+    body.theme-nord header,
+    body.theme-nord .bottom-nav,
+    body.theme-nord .audio-bar {
+      background: rgba(46, 52, 64, 0.96);
+    }
+    /* Solarized тёмная (6.45) */
+    body.theme-solard {
+      --bg: #002b36;
+      --bg-card: #073642;
+      --bg-hover: #0d4452;
+      --bg-elevated: #0d4452;
+      --text: #cfd8d4;
+      --text-muted: #9aa7a7;
+      --border: #1b5666;
+      --arabic: #eee8d5;
+      --accent: #2eafa5;
+      --accent-hover: #42c3b9;
+      --src-ayah: #34d399;
+      --src-ayah-bg: rgba(52, 211, 153, 0.12);
+      --src-ayah-bd: rgba(52, 211, 153, 0.4);
+      --src-hadith: #93c5fd;
+      --src-hadith-bg: rgba(147, 197, 253, 0.11);
+      --src-hadith-bd: rgba(147, 197, 253, 0.4);
+      --src-opinion: #fbbf24;
+      --src-opinion-bg: rgba(251, 191, 36, 0.12);
+      --src-opinion-bd: rgba(251, 191, 36, 0.4);
+      --src-note: #9aa7a7;
+      --src-note-bg: rgba(154, 167, 167, 0.1);
+      --src-note-bd: #1b5666;
+    }
+    body.theme-solard header,
+    body.theme-solard .bottom-nav,
+    body.theme-solard .audio-bar {
+      background: rgba(0, 43, 54, 0.96);
+    }
+    /* Gruvbox тёмная (6.45): тёплый графит, жёлтый акцент */
+    body.theme-gruvd {
+      --bg: #282828;
+      --bg-card: #3c3836;
+      --bg-hover: #504945;
+      --bg-elevated: #504945;
+      --text: #ebdbb2;
+      --text-muted: #bdae93;
+      --border: #504945;
+      --arabic: #fbf1c7;
+      --accent: #fabd2f;
+      --accent-hover: #ffd143;
+      --src-ayah: #34d399;
+      --src-ayah-bg: rgba(52, 211, 153, 0.12);
+      --src-ayah-bd: rgba(52, 211, 153, 0.4);
+      --src-hadith: #93c5fd;
+      --src-hadith-bg: rgba(147, 197, 253, 0.11);
+      --src-hadith-bd: rgba(147, 197, 253, 0.4);
+      --src-opinion: #fbbf24;
+      --src-opinion-bg: rgba(251, 191, 36, 0.12);
+      --src-opinion-bd: rgba(251, 191, 36, 0.4);
+      --src-note: #bdae93;
+      --src-note-bg: rgba(189, 174, 147, 0.1);
+      --src-note-bd: #504945;
+    }
+    body.theme-gruvd header,
+    body.theme-gruvd .bottom-nav,
+    body.theme-gruvd .audio-bar {
+      background: rgba(40, 40, 40, 0.96);
+    }
+    /* Catppuccin Mocha (6.45): мягкая тёмная с пастельным акцентом */
+    body.theme-mocha {
+      --bg: #1e1e2e;
+      --bg-card: #313244;
+      --bg-hover: #45475a;
+      --bg-elevated: #45475a;
+      --text: #cdd6f4;
+      --text-muted: #a6adc8;
+      --border: #45475a;
+      --arabic: #e3e8ff;
+      --accent: #89b4fa;
+      --accent-hover: #9dc8ff;
+      --src-ayah: #34d399;
+      --src-ayah-bg: rgba(52, 211, 153, 0.12);
+      --src-ayah-bd: rgba(52, 211, 153, 0.4);
+      --src-hadith: #93c5fd;
+      --src-hadith-bg: rgba(147, 197, 253, 0.11);
+      --src-hadith-bd: rgba(147, 197, 253, 0.4);
+      --src-opinion: #fbbf24;
+      --src-opinion-bg: rgba(251, 191, 36, 0.12);
+      --src-opinion-bd: rgba(251, 191, 36, 0.4);
+      --src-note: #a6adc8;
+      --src-note-bg: rgba(166, 173, 200, 0.1);
+      --src-note-bd: #45475a;
+    }
+    body.theme-mocha header,
+    body.theme-mocha .bottom-nav,
+    body.theme-mocha .audio-bar {
+      background: rgba(30, 30, 46, 0.96);
+    }
+    /* GitHub Dimmed (6.45): тёмно-серая, не чёрная */
+    body.theme-ghdim {
+      --bg: #22272e;
+      --bg-card: #2d333b;
+      --bg-hover: #373e47;
+      --bg-elevated: #373e47;
+      --text: #c5d1de;
+      --text-muted: #9ba8b6;
+      --border: #444c56;
+      --arabic: #cfdae6;
+      --accent: #5fa2f6;
+      --accent-hover: #73b6ff;
+      --src-ayah: #34d399;
+      --src-ayah-bg: rgba(52, 211, 153, 0.12);
+      --src-ayah-bd: rgba(52, 211, 153, 0.4);
+      --src-hadith: #93c5fd;
+      --src-hadith-bg: rgba(147, 197, 253, 0.11);
+      --src-hadith-bd: rgba(147, 197, 253, 0.4);
+      --src-opinion: #fbbf24;
+      --src-opinion-bg: rgba(251, 191, 36, 0.12);
+      --src-opinion-bd: rgba(251, 191, 36, 0.4);
+      --src-note: #9ba8b6;
+      --src-note-bg: rgba(155, 168, 182, 0.1);
+      --src-note-bd: #444c56;
+    }
+    body.theme-ghdim header,
+    body.theme-ghdim .bottom-nav,
+    body.theme-ghdim .audio-bar {
+      background: rgba(34, 39, 46, 0.96);
+    }
 
     
     .font-pick-wrap { margin-top: 0.35rem; width: 100%; }
@@ -3356,7 +3594,7 @@
       --bg-elevated: #eef2e8;
       --text: #2b3328;
       --text-muted: #66765f;
-      --border: #dfe6d6;
+      --border: #c3cfb6;
       --accent: #587750;
       --accent-hover: #46623e;
       --arabic: #1f2a1d;
@@ -3497,16 +3735,23 @@ body.theme-ocean { --on-accent: #0b1220; }
 body.theme-forest { --on-accent: #0b1220; }
 body.theme-paper { --on-accent: #ffffff; }
 body.theme-contrast { --on-accent: #0b1220; }
-body.theme-slate { --on-accent: #0b1220; }
 body.theme-soft { --on-accent: #ffffff; }
 body.theme-amber { --on-accent: #0b1220; }
-body.theme-rose { --on-accent: #ffffff; }
-body.theme-lavender { --on-accent: #ffffff; }
 body.theme-indigo { --on-accent: #0b1220; }
 body.theme-mint { --on-accent: #ffffff; }
 body.theme-sage { --on-accent: #ffffff; }
 body.theme-graphite { --on-accent: #0b1220; }
 body.theme-teal { --on-accent: #0b1220; }
+body.theme-eye { --on-accent: #ffffff; }
+body.theme-warm { --on-accent: #ffffff; }
+body.theme-solarl { --on-accent: #ffffff; }
+body.theme-gruvl { --on-accent: #ffffff; }
+body.theme-latte { --on-accent: #ffffff; }
+body.theme-nord { --on-accent: #0b1220; }
+body.theme-solard { --on-accent: #0b1220; }
+body.theme-gruvd { --on-accent: #0b1220; }
+body.theme-mocha { --on-accent: #0b1220; }
+body.theme-ghdim { --on-accent: #0b1220; }
 
 /* Крупные цели нажатия на сенсорных экранах (не меньше 44 px) */
 @media (pointer: coarse) {
@@ -3824,7 +4069,7 @@ select.fs-input { padding-right: 0.4rem; }
 
 /* build 6.41: время намаза — шкала суток, строки, таблицы */
 .pt-strip-wrap{position:relative;margin-top:0.85rem;padding-top:0.15rem}
-.pt-strip{display:flex;border-radius:0.6rem;overflow:hidden;height:2.2rem;background:var(--border)}
+.pt-strip{container-type:inline-size;display:flex;border-radius:0.6rem;overflow:hidden;height:2.2rem;background:var(--border)}
 .pt-seg{flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:0.85rem;overflow:hidden;border-left:2px solid var(--bg);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.45)}
 .pt-seg:first-child{border-left:0}
 .pt-seg.gap{background:repeating-linear-gradient(45deg,#8b94a3 0 3px,transparent 3px 6px)!important;color:var(--text)}
@@ -3849,7 +4094,7 @@ select.fs-input { padding-right: 0.4rem; }
 .pt-tbl tr.today td{background:color-mix(in srgb, var(--accent) 22%, var(--bg));font-weight:700}
 .pt-tbl tr.today td:first-child{border-left:4px solid var(--accent);border-radius:0.4rem 0 0 0.4rem}
 .pt-tbl tr.fri td:first-child{color:var(--accent);font-weight:700}
-.pt-tbl tr.past td{opacity:0.55}
+.pt-tbl tr.past td{color:var(--text-muted)}
 .pt-tbl td.sr{color:var(--text-muted);font-size:0.74rem}
 .pt-daynav{display:flex;align-items:center;justify-content:space-between;gap:0.4rem;margin-top:0.55rem}
 .pt-daynav button{min-width:2.2rem}

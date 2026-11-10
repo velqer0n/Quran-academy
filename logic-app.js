@@ -820,6 +820,13 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
       const lang = (state.settings && state.settings.lang) || 'ru';
       document.documentElement.lang = lang === 'kk' ? 'kk' : 'ru';
       const isKk = lang === 'kk';
+      // build 6.45: названия тем в настройках переключаются вместе с языком
+      try {
+        document.querySelectorAll('#pick-theme [data-v]').forEach(b => {
+          const _t = (typeof THEME_LIST !== 'undefined') ? THEME_LIST.find(x => x.v === b.dataset.v) : null;
+          if (_t) b.textContent = isKk ? (_t.kk || _t.name) : _t.name;
+        });
+      } catch (e) {}
 
       const langToggleLabel = document.getElementById('lang-toggle-label');
       if (langToggleLabel) langToggleLabel.textContent = isKk ? 'ҚАЗ' : 'RU';
@@ -966,7 +973,7 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
         '🌓 Вид и тема': '🌓 Түрі мен тақырыбы', 'Тема': 'Тақырып',
         'Светлая': 'Жарық', 'Мягкая': 'Жұмсақ', 'Бумага': 'Қағаз', 'Сепия': 'Сепия',
         'Тёмная': 'Қараңғы', 'Сланец': 'Сланец', 'Ночное': 'Түнгі', 'Янтарь': 'Янтарь',
-        'Океан': 'Мұхит', 'Лес': 'Орман', 'Контраст': 'Контраст',
+        'Океан': 'Мұхит', 'Лес': 'Орман', 'Контраст': 'Контраст', 'Мята': 'Жалбыз', 'Зелёная для глаз': 'Көзге жасыл', 'Тёплая серая': 'Жылы сұр', 'Solarized светлая': 'Solarized жарық', 'Solarized тёмная': 'Solarized қараңғы', 'Gruvbox светлая': 'Gruvbox жарық', 'Gruvbox тёмная': 'Gruvbox қараңғы',
         'Светлые сверху (день), тёмные ниже (вечер). Ночное — тёплое. OLED — чёрный. Контраст — максимум читаемости.':
           'Жоғарыда жарық түстер (күндіз), төменде қараңғылар (кеш). Түнгі — жылы реңк. OLED — қара. Контраст — оқуға ең қолайлы.',
         'Авто «Тёмная» (22:00–6:00)': 'Авто «Қараңғы» (22:00–6:00)',
@@ -6976,6 +6983,14 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         ['pick-font-ar', String((state.settings && state.settings.fontScaleAr) || 1)],
         ['pick-font-ru', String((state.settings && state.settings.fontScaleRu) || 1)]
       ];
+      // build 6.45: названия тем в настройках — на языке интерфейса
+      try {
+        const _kkTh = (typeof isKk === 'function') && isKk();
+        document.querySelectorAll('#pick-theme [data-v]').forEach(b => {
+          const _t = (typeof THEME_LIST !== 'undefined') ? THEME_LIST.find(x => x.v === b.dataset.v) : null;
+          if (_t) b.textContent = _kkTh ? (_t.kk || _t.name) : _t.name;
+        });
+      } catch (e) {}
       pairs.forEach(([id, val]) => {
         const box = document.getElementById(id);
         if (!box) return;
@@ -19453,25 +19468,32 @@ function renderDictation(area) {
 
     // Быстрый выбор темы из шапки — модалка со всеми темами
     var THEME_LIST = [
-      { v: 'light', name: 'Светлая', bg: '#f8fafc', fg: '#0f172a', group: 'light' },
-      { v: 'soft', name: 'Мягкая', bg: '#e8eaed', fg: '#174ea6', group: 'light' },
-      { v: 'paper', name: 'Бумага', bg: '#f7f3ea', fg: '#b45309', group: 'light' },
-      { v: 'sepia', name: 'Сепия', bg: '#f4ecd8', fg: '#3e2723', group: 'light' },
-      { v: 'rose', name: 'Роза', bg: '#fdf2f4', fg: '#be123c', group: 'light' },
-      { v: 'lavender', name: 'Лаванда', bg: '#f6f3ff', fg: '#6d28d9', group: 'light' },
-      { v: 'mint', name: 'Мята', bg: '#ecfdf5', fg: '#047857', group: 'light' },
-      { v: 'sage', name: 'Шалфей', bg: '#faf7f0', fg: '#587750', group: 'light' },
-      { v: 'dark', name: 'Тёмная', bg: '#0f172a', fg: '#e2e8f0', group: 'dark' },
-      { v: 'slate', name: 'Сланец', bg: '#0f172a', fg: '#a78bfa', group: 'dark' },
-      { v: 'indigo', name: 'Индиго', bg: '#181433', fg: '#a78bfa', group: 'dark' },
-      { v: 'night', name: 'Ночное', bg: '#1c1917', fg: '#d6b27c', group: 'dark' },
-      { v: 'amber', name: 'Янтарь', bg: '#1a1208', fg: '#f59e0b', group: 'dark' },
-      { v: 'ocean', name: 'Океан', bg: '#0b1220', fg: '#38bdf8', group: 'dark' },
-      { v: 'forest', name: 'Лес', bg: '#0f1a14', fg: '#4ade80', group: 'dark' },
-      { v: 'graphite', name: 'Графит', bg: '#1b1f24', fg: '#8fb8a8', group: 'dark' },
-      { v: 'teal', name: 'Бирюза', bg: '#0d1f22', fg: '#5fc7bd', group: 'dark' },
-      { v: 'oled', name: 'OLED', bg: '#000000', fg: '#7fc8a0', group: 'special' },
-      { v: 'contrast', name: 'Контраст', bg: '#000000', fg: '#ffff00', group: 'special' }
+      { v: 'light', name: 'Светлая', kk: 'Жарық', bg: '#eef1f5', fg: '#1a2332', group: 'light' },
+      { v: 'eye', name: 'Зелёная для глаз', kk: 'Көзге жасыл', bg: '#cfe8d2', fg: '#1f6b42', group: 'light' },
+      { v: 'warm', name: 'Тёплая серая', kk: 'Жылы сұр', bg: '#e8e4de', fg: '#0f6b66', group: 'light' },
+      { v: 'soft', name: 'Мягкая', kk: 'Жұмсақ', bg: '#e8eaed', fg: '#174ea6', group: 'light' },
+      { v: 'paper', name: 'Бумага', kk: 'Қағаз', bg: '#f7f3ea', fg: '#b45309', group: 'light' },
+      { v: 'sepia', name: 'Сепия', kk: 'Сепия', bg: '#f4ecd8', fg: '#3e2723', group: 'light' },
+      { v: 'mint', name: 'Мята', kk: 'Жалбыз', bg: '#ecfdf5', fg: '#047857', group: 'light' },
+      { v: 'sage', name: 'Шалфей', kk: 'Шалфей', bg: '#faf7f0', fg: '#587750', group: 'light' },
+      { v: 'solarl', name: 'Solarized светлая', kk: 'Solarized жарық', bg: '#fdf6e3', fg: '#1b699c', group: 'light' },
+      { v: 'gruvl', name: 'Gruvbox светлая', kk: 'Gruvbox жарық', bg: '#fbf1c7', fg: '#9d4a05', group: 'light' },
+      { v: 'latte', name: 'Catppuccin Latte', kk: 'Catppuccin Latte', bg: '#eff1f5', fg: '#6b2fd6', group: 'light' },
+      { v: 'dark', name: 'Тёмная', kk: 'Қараңғы', bg: '#0f172a', fg: '#e2e8f0', group: 'dark' },
+      { v: 'indigo', name: 'Индиго', kk: 'Индиго', bg: '#181433', fg: '#a78bfa', group: 'dark' },
+      { v: 'night', name: 'Ночное', kk: 'Түнгі', bg: '#1c1917', fg: '#d6b27c', group: 'dark' },
+      { v: 'amber', name: 'Янтарь', kk: 'Янтарь', bg: '#1a1208', fg: '#f59e0b', group: 'dark' },
+      { v: 'ocean', name: 'Океан', kk: 'Мұхит', bg: '#0b1220', fg: '#38bdf8', group: 'dark' },
+      { v: 'forest', name: 'Лес', kk: 'Орман', bg: '#0f1a14', fg: '#4ade80', group: 'dark' },
+      { v: 'graphite', name: 'Графит', kk: 'Графит', bg: '#1b1f24', fg: '#8fb8a8', group: 'dark' },
+      { v: 'teal', name: 'Бирюза', kk: 'Көгілдір', bg: '#0d1f22', fg: '#5fc7bd', group: 'dark' },
+      { v: 'nord', name: 'Nord', kk: 'Nord', bg: '#2e3440', fg: '#88c0d0', group: 'dark' },
+      { v: 'solard', name: 'Solarized тёмная', kk: 'Solarized қараңғы', bg: '#002b36', fg: '#2eafa5', group: 'dark' },
+      { v: 'gruvd', name: 'Gruvbox тёмная', kk: 'Gruvbox қараңғы', bg: '#282828', fg: '#fabd2f', group: 'dark' },
+      { v: 'mocha', name: 'Catppuccin Mocha', kk: 'Catppuccin Mocha', bg: '#1e1e2e', fg: '#89b4fa', group: 'dark' },
+      { v: 'ghdim', name: 'GitHub Dimmed', kk: 'GitHub Dimmed', bg: '#22272e', fg: '#5fa2f6', group: 'dark' },
+      { v: 'oled', name: 'OLED', kk: 'OLED', bg: '#000000', fg: '#7fc8a0', group: 'special' },
+      { v: 'contrast', name: 'Контраст', kk: 'Контраст', bg: '#000000', fg: '#ffff00', group: 'special' }
     ];
     var THEME_GROUP_LABELS = { light: { ru: 'Светлые', kk: 'Ашық' }, dark: { ru: 'Тёмные спокойные', kk: 'Қараңғы, жайлы' }, special: { ru: 'Особые (батарея, слабое зрение)', kk: 'Ерекше (батарея, көру қиындығы)' } };
 
@@ -19502,7 +19524,7 @@ function renderDictation(area) {
       ['light','dark','special'].forEach(function(g) {
         _html += '<div style="grid-column:1/-1;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin:0.5rem 0 0.15rem">' + (_kkT ? THEME_GROUP_LABELS[g].kk : THEME_GROUP_LABELS[g].ru) + '</div>';
         THEME_LIST.filter(function(t) { return t.group === g; }).forEach(function(t) {
-          _html += '<div class="theme-pick-item' + (t.v === cur ? ' active' : '') + '" data-v="' + t.v + '" style="background:' + t.bg + ';color:' + t.fg + '">' + t.name + '</div>';
+          _html += '<div class="theme-pick-item' + (t.v === cur ? ' active' : '') + '" data-v="' + t.v + '" style="background:' + t.bg + ';color:' + t.fg + '">' + (_kkT ? (t.kk || t.name) : t.name) + '</div>';
         });
       });
       list.innerHTML = _html;
@@ -23172,7 +23194,7 @@ bKk:
     }
 
     // build 6.41: «Сутки по намазам» — отдельные цветные отрезки, подписи границ и заметная метка «сейчас» (видна на любой теме)
-    var PT_COL = { fajr: '#5b7fe0', sunrise: '#d98b4a', gap: '#8b94a3', duha: '#e0a93a', dhuhr: '#2aa876', asr: '#e5822f', maghrib: '#d6504f', isha: '#7a5ad4', tahajjud: '#4b3a98' };
+    var PT_COL = { fajr: '#5b7fe0', sunrise: '#d98b4a', gap: '#8b94a3', duha: '#e0a93a', dhuhr: '#2aa876', asr: '#e5822f', maghrib: '#dd3f8b', isha: '#7a5ad4', tahajjud: '#4b3a98' };
     function ptDayCardHtml(loc, methodKey) {
       try {
         if (!loc || loc.lat == null || loc.lon == null) return '';
@@ -23212,7 +23234,7 @@ bKk:
         let pos = (tn - D.F.getTime()) / total * 100; if (pos < 0) pos = 0; if (pos > 100) pos = 100;
         const strip = segs.map(function(sg) {
           const w = (sg[2].getTime() - sg[1].getTime()) / total * 100;
-          return '<div class="pt-seg' + (sg[0] === 'gap' ? ' gap' : '') + '" style="flex-basis:' + w.toFixed(3) + '%;background:' + PT_COL[sg[0]] + '">' + (w >= 6 ? ic(sg[0]) : '') + '</div>';
+          return '<div class="pt-seg' + (sg[0] === 'gap' ? ' gap' : '') + '" style="flex-basis:' + w.toFixed(3) + '%;background:' + PT_COL[sg[0]] + (w < 6 ? ';font-size:min(0.85rem,' + (w * 0.8).toFixed(2) + 'cqw)' : '') + '">' + (w >= 3 ? ic(sg[0]) : '') + '</div>';
         }).join('');
         const list = rows.map(function(r) {
           const now_ = isNow(r);
@@ -23629,7 +23651,7 @@ let body = '';
                   const _colK = (typeof PT_COL !== 'undefined' && PT_COL[key]) || 'var(--accent)';
                   const rowStyle = isSel
                     ? 'cursor:pointer;background:var(--accent);border-radius:0.65rem;margin:0.3rem 0;padding:0.55rem 0.65rem;border-left:5px solid rgba(255,255,255,0.7)'
-                    : ('cursor:pointer;border-radius:0.65rem;margin:0.3rem 0;padding:0.55rem 0.65rem;border:1px solid var(--border);border-left:5px solid ' + _colK + ';background:var(--bg)' + (isPast ? ';opacity:0.5' : ''));
+                    : ('cursor:pointer;border-radius:0.65rem;margin:0.3rem 0;padding:0.55rem 0.65rem;border:1px solid var(--border);border-left:5px solid ' + (isPast ? 'color-mix(in srgb, ' + _colK + ' 50%, var(--bg))' : _colK) + ';background:var(--bg)');
                   const spanStyle = isSel ? 'color:rgba(255,255,255,0.9)' : (isPast ? 'color:var(--text-muted)' : '');
                   const bStyle = isSel ? 'color:#fff' : (isPast ? 'color:var(--text-muted)' : '');
                   const _kkp = (typeof isKk === 'function') && isKk();
@@ -25288,6 +25310,14 @@ function renderDict() {
       if (t === 'mono') {
         t = 'dark'; state.settings.theme = 'dark';
         try { localStorage.setItem('quran_theme', 'dark'); } catch(e) {}
+        try { saveState(); } catch(e) {}
+      }
+      // build 6.45: убраны «Роза», «Лаванда» и «Сланец» (неудобны для чтения);
+      // у кого они были сохранены — переводим на ближайшую по яркости.
+      var _goneTheme = { rose: 'paper', lavender: 'soft', slate: 'dark' };
+      if (_goneTheme[t]) {
+        t = _goneTheme[t]; state.settings.theme = t;
+        try { localStorage.setItem('quran_theme', t); } catch(e) {}
         try { saveState(); } catch(e) {}
       }
       // Класс темы теперь ставится для ЛЮБОЙ темы одним универсальным
@@ -28211,8 +28241,12 @@ function renderDict() {
       if (it.k === 'list') { var n = (d.items || []).length, x = (d.items || []).filter(function(i) { return i.x; }).length; return n ? (x + ' / ' + n) : fsT('пусто', 'бос'); }
       if (it.k === 'word') return (d.mean || d.tr || '').replace(/\s+/g, ' ').slice(0, 90);
       if (it.k === 'folder') {
-        var c = fsAllChildren(it.id).length, pr = fsFolderProgress(it.id);
-        return c ? (c + ' ' + fsT('эл.', 'бел.') + (pr ? ' · ✓ ' + pr.done + '/' + pr.n : '')) : fsT('пусто', 'бос');
+        var kids = fsAllChildren(it.id), nf0 = 0, nl0 = 0, pr = fsFolderProgress(it.id);
+        kids.forEach(function(x) { if (x.k === 'folder') nf0++; else nl0++; });
+        var parts = [];
+        if (nf0) parts.push(nf0 + ' ' + fsT(fsPlural(nf0, 'папка', 'папки', 'папок'), 'қалта'));
+        if (nl0) parts.push(nl0 + ' ' + fsT(fsPlural(nl0, 'файл', 'файла', 'файлов'), 'файл'));
+        return parts.length ? (parts.join(' · ') + (pr ? ' · ✓ ' + pr.done + '/' + pr.n : '')) : fsT('пусто', 'бос');
       }
       return d.title || '';
     }
@@ -36912,7 +36946,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
                 }
                 const cellStyle = isActive
                   ? 'background:var(--accent);border:1px solid var(--accent);border-radius:0.6rem;padding:0.5rem 0.6rem;font-size:0.82rem;cursor:pointer;transition:transform 0.15s'
-                  : ('background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.5rem 0.6rem;font-size:0.82rem;cursor:pointer;transition:transform 0.15s' + (isPast ? ';opacity:0.5' : ''));
+                  : ('background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.5rem 0.6rem;font-size:0.82rem;cursor:pointer;transition:transform 0.15s' + (isPast ? ';border-style:dashed' : ''));
                 const labelStyle = isActive ? 'color:rgba(255,255,255,0.88)' : 'color:var(--text-muted)';
                 const valStyle = isActive ? 'font-size:1.08rem;color:#fff' : ('font-size:1.08rem' + (isPast ? ';color:var(--text-muted)' : ''));
                 return '<div data-select-prayer="'+key+'" data-ts="'+(timeDate ? timeDate.getTime() : '')+'" data-act="'+(isActive ? '1' : '0')+'" style="'+cellStyle+'"><span style="'+labelStyle+'">'+icon+' '+triple[1]+(isActive?' ✦':'')+'</span><br><b style="'+valStyle+'">'+triple[2]+'</b>'+(key === 'tahajjud' ? '<div style="font-size:0.68rem;opacity:0.8;line-height:1.3;margin-top:0.1rem">'+(kk ? 'түнде, түн ортасынан кейін' : 'ночью, после полуночи')+'</div>' : '')+'</div>';
