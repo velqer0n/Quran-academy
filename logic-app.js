@@ -15196,21 +15196,23 @@ function renderDictation(area) {
     };
     const SALAH_POSES_ANIM = (function() {
       const P = {};
-      P.stand = { torso: 180, head: 183, yaw: 0, finger: 0,
-        R: Object.assign({}, _SP_ARM_DOWN, _SP_LEG), L: Object.assign({}, _SP_ARM_DOWN, _SP_LEG) };
+      P.stand = { torso: 180, head: 172, /* build 6.47: стоя взгляд направлен на место суджуда, а не прямо вперёд */ yaw: 0, finger: 0,
+        R: Object.assign({}, _SP_ARM_DOWN, { w: { at: 'sh', o: [-1, -56.2, 3] } }, _SP_LEG), L: Object.assign({}, _SP_ARM_DOWN, { w: { at: 'sh', o: [-1, -56.2, 3] } }, _SP_LEG) }; /* build 6.47: плечо стало длиннее — опущенная рука висит свободно, локоть не торчит в сторону */
       // такбир: руки подняты до уровня ушей, ладони и пальцы к кибле, пальцы в естественном положении
       // (положение подобрано так, чтобы кисти были на уровне ушей, а ладони смотрели к кибле)
-      const tak = { w: { at: 'ear', o: [9, -8, 17] }, pole: [0.1, -1, 0.35] /* build 6.46: кисти чуть впереди и шире ушей (не прижаты к голове), локти внизу у боков — как поднимает руки человек; раньше локти задирались до плеч, кисти закрывали уши */, hd: [180, -8], tb: [-0.5, -0.8, -1] };
+      // build 6.47: большие пальцы у мочек ушей (спереди кисти стоят вплотную к ушам, как в образце), ладони к кибле, локти разведены чуть ниже плеч.
+      // Ближе нельзя: при ладони строго вперёд и пальце на самой мочке запястье оказывается над плечом, локоть задирается выше головы, а кисть ломается под 90°.
+      const tak = { w: { at: 'ear', o: [6.3, -8.8, 11.7] }, pole: [0.3, -1, 1], hd: [200, -8], tb: [-0.2, -0.4, -1] };
       P.takbir = _sPose(P.stand, { head: 176, R: tak, L: tak });
       // руки ниже пупка (build 6.29: локти у боков, предплечья почти горизонтально): правая ладонь на тыльной стороне левой, мизинец и
       // большой палец обхватывают левое запястье
-      P.fold = _sPose(P.stand, { head: 168,
-        R: { grip: { y: 0.15, /* build 6.29: кисти ниже пупка — предплечья идут к локтям чуть вверх, правое проходит над пальцами левой */ rb: 0.16, lim: 0.9, lw: 10, lat: 1.0, out: 0.015, wl: 0.01, dn: 0, pd: 0, pb: 0.5, ph: 0 } /* build 6.29 (сверено с кадром видео): правая кисть чуть выше левой, пальцы горизонтально вдоль левого предплечья; левая ладонь под ней тоже горизонтально */ /* build 6.29: правая кисть продолжает линию предплечья (запястье ~30°, не излом 80°), ладонь на левом запястье, пальцы обхватывают его */, w: { at: 'pelvis', o: [21.5, 18, 3] }, pole: [0.1, -0.9, 0.7] /* build 6.29: локоть у бока, а не в сторону — как на видео */, hd: [94, -80], tb: [0, 0, -1] },
+      P.fold = _sPose(P.stand, { head: 160, /* build 6.47: взгляд на место суджуда — голова заметно опущена */
+        R: { grip: { y: 0.07, ld: 0.5, /* build 6.47: кисти у пояса, на 6–8 см ниже пупка (раньше были на уровне пупка); левая кисть лежит почти горизонтально под правой */ /* build 6.29: кисти ниже пупка — предплечья идут к локтям чуть вверх, правое проходит над пальцами левой */ rb: 0.16, lim: 0.9, lw: 10, lat: 1.0, out: 0.015, wl: 0.01, dn: 0, pd: 0, pb: 0.5, ph: 0 } /* build 6.29 (сверено с кадром видео): правая кисть чуть выше левой, пальцы горизонтально вдоль левого предплечья; левая ладонь под ней тоже горизонтально */ /* build 6.29: правая кисть продолжает линию предплечья (запястье ~30°, не излом 80°), ладонь на левом запястье, пальцы обхватывают его */, w: { at: 'pelvis', o: [21.5, 18, 3] }, pole: [0.1, -0.9, 0.7] /* build 6.29: локоть у бока, а не в сторону — как на видео */, hd: [94, -80], tb: [0, 0, -1] },
         L: { w: { at: 'pelvis', o: [14, 16, 5] }, pole: [-0.1, -0.9, 0.5], hd: [92, -78], tb: [0, 1, 0] } });
       // руку‘: спина расправлена, голова вровень с крестцом, взгляд на верх
       // стоп, ладони обхватывают колени, пальцы раздвинуты, руки отведены от боков
-      const rk = { w: { at: 'knee', o: [5, 3, 3] }, /* build 6.33: руки прямые, ладони на коленях */ pole: [-1, 0.6, 0.6], hd: [6, 2], tb: [0.3, 0, -1] };
-      P.ruku = _sPose(P.stand, { torso: 90, head: 110, /* build 6.33: спина горизонтальна (крестец и шея на одной высоте), голова опущена — взгляд на верх стоп; таз ~10 см за пятками, ноги почти отвесно (как на видео) */ // build 6.31: спина почти горизонтальна и лишь слегка поднимается к плечам (~6° над горизонталью) — без «жирафьего» подъёма; голова продолжает линию спины, взгляд к стопам
+      const rk = { w: { at: 'knee', o: [2.5, -2, 2.5] }, /* build 6.47: руки почти прямые (были согнуты на 60°), ладони на коленях, локти чуть в стороны */ pole: [-0.55, 0.3, 1], hd: [6, 2], tb: [0.3, 0, -1] };
+      P.ruku = _sPose(P.stand, { torso: 90, head: 95, /* build 6.47: голова продолжает линию спины, лицо вниз (раньше подбородок был задран, лицо смотрело вперёд) */ /* build 6.33: спина горизонтальна (крестец и шея на одной высоте), голова опущена — взгляд на верх стоп; таз ~10 см за пятками, ноги почти отвесно (как на видео) */ // build 6.31: спина почти горизонтальна и лишь слегка поднимается к плечам (~6° над горизонталью) — без «жирафьего» подъёма; голова продолжает линию спины, взгляд к стопам
         R: Object.assign({}, rk, { th: [4, -2], sh: [6, -1], ft: [83.5, 0] }), // build 6.31: таз чуть отведён назад, ноги прямые с лёгким наклоном — как на видео
         L: Object.assign({}, rk, { th: [4, -2], sh: [6, -1], ft: [62, 0] }) });
       // спуск в суджуд: колени → ладони → нос → лоб
@@ -15220,14 +15222,16 @@ function renderDictation(area) {
         L: Object.assign({ w: { at: 'thigh', o: [6, 4, 4] }, pole: [-0.3, 0, 1], hd: [70, 0], tb: [0, 0.3, -1] }, kneeLeg) });
       // build 6.46: ладони ставятся на пол сразу туда, где они лежат в суджуде (раньше висели над полом ближе к коленям и потом ехали вперёд);
       // корпус при этом уже наклонён, локти слегка согнуты — не «на четвереньках на прямых руках»
-      const hf = { w: { at: 'knee', o: [50.6, -24.8, 0.4] }, pole: [-0.1, 1, 0.9], hd: [90, -4], tb: [-0.3, 0, -1] };
+      const hf = { w: { at: 'knee', o: [42.9, -24.8, 11.5] }, pole: [-0.6, 1, 0.7], hd: [90, -10], tb: [-0.3, 0, -1] }; /* build 6.47: под новое место ладоней в суджуде */
       P.hands = _sPose(P.stand, { torso: 100, head: 106,
         R: Object.assign({}, hf, kneeLeg, { th: [16, -2] }),
         L: Object.assign({}, hf, kneeLeg, { th: [16, -2] }) });
       // суджуд: лицо между ладонями, пальцы к кибле, локти не касаются
       // пола и боков, живот отдалён от бёдер, пальцы ног — к кибле
-      const sj = { w: { at: 'ear', o: [0, -7, 4] }, pole: [-0.1, 1, 0.9], hd: [90, -4], tb: [-0.3, 0, -1] };
-      P.sajda = _sPose(P.stand, { torso: 56, head: 39,
+      // build 6.47: локоть позади кисти и в стороне от бока (раньше он оказывался впереди запястья — кисть была вывернута назад под 109°).
+      // Ладони чуть шире и ближе к плечам; пальцы к кибле с небольшим доворотом внутрь, чтобы запястье не ломалось
+      const sj = { w: { at: 'ear', o: [-4, -7, 14] }, pole: [-0.6, 1, 0.7], hd: [90, -10], tb: [-0.3, 0, -1] };
+      P.sajda = _sPose(P.stand, { torso: 56, head: 25,
         R: Object.assign({}, sj, kneeLeg, { th: [0, -2] }),
         L: Object.assign({}, sj, kneeLeg, { th: [0, -2] }) });
       // сидение (ифтираш): на левой стопе, правая стоит на пальцах к кибле,
@@ -15298,9 +15302,9 @@ function renderDictation(area) {
     })();
 
     /* build 6.36: заранее посчитанный подбор положения кистей в сидении (см. буфер __SITCAL): ключ → [сдвиг вдоль бедра, сдвиг по высоте, цена]; при несовпадении подбор делается заново */
-    const SALAH_SIT_CAL = {"_r|-1143,4468,-314;-993,553,1429;-1557,3577,1416;0,4267,-430;0,5389,188;0,9827,925|10834,1024,0,0,":[-0.00599999999999999,-0.004999999999999998,0.12350947303899082],"_l|1143,4468,-314;993,553,1429;1557,3577,1416;0,4267,-430;0,5389,188;0,9827,925|10834,1024,0,0,":[-0.00599999999999999,-0.004999999999999998,0.12459872988515976],"_r|-1143,1581,-333;-1293,544,3825;-1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,0,0,":[-0.04199999999999998,0.10500000000000002,0.003963811891783108],"_l|1143,1581,-333;1293,544,3825;1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,0,0,":[-0.051999999999999984,0.10500000000000002,0.002840856828431291],"_r|-1143,1581,-333;-1293,544,3825;-1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,1,0,":[-0.04199999999999998,0.10500000000000002,0.003963811891783108],"_l|1143,1581,-333;1293,544,3825;1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,1,0,":[-0.051999999999999984,0.10500000000000002,0.002840856828431291],"_r|-1143,2219,-333;-1293,544,3611;-1461,2829,1454;0,2008,-430;0,3183,79;0,7673,349|10834,0,0,0,":[-0.02599999999999996,0.12500000000000003,0.002521579692695958],"_l|1143,2219,-333;1293,544,3611;1461,2829,1454;0,2008,-430;0,3183,79;0,7673,349|10834,0,0,0,":[-0.027999999999999976,0.12500000000000003,0.001876917262704249],"_r|-1143,2219,-333;-1293,544,3611;-1461,2829,1454;0,2008,-430;0,3183,79;0,7673,349|10834,0,1,0,":[-0.02599999999999996,0.12500000000000003,0.002521579692695958],"_l|1143,2219,-333;1293,544,3611;1461,2829,1454;0,2008,-430;0,3183,79;0,7673,349|10834,0,1,0,":[-0.027999999999999976,0.12500000000000003,0.001876917262704249]};
+    const SALAH_SIT_CAL = {"_r|-1143,2225,-333;-1300,544,3827;-1466,2830,1610;0,2014,-430;0,3190,79;0,7680,349|10886,0,0,0,":[-0.02799999999999997,0.13000000000000003,0.003609302500724182],"_l|1143,2225,-333;1300,544,3827;1466,2830,1610;0,2014,-430;0,3190,79;0,7680,349|10886,0,0,0,":[-0.031999999999999966,0.13500000000000004,0.005670938348486636],"_r|-1143,2225,-333;-1300,544,3827;-1466,2830,1610;0,2014,-430;0,3190,79;0,7680,349|10886,0,1,0,":[-0.02799999999999997,0.13000000000000003,0.003609302500724182],"_l|1143,2225,-333;1300,544,3827;1466,2830,1610;0,2014,-430;0,3190,79;0,7680,349|10886,0,1,0,":[-0.031999999999999966,0.13500000000000004,0.005670938348486636],"_r|-1143,4652,-314;-986,553,1511;-1537,3484,1492;0,4451,-430;0,5573,188;0,10011,925|10886,877,0,0,":[1.0408340855860843e-17,0,0.11508952713396253],"_l|1143,4652,-314;986,553,1511;1537,3484,1492;0,4451,-430;0,5573,188;0,10011,925|10886,877,0,0,":[1.0408340855860843e-17,0,0.11642166633451768]};
     /* build 6.46: заранее посчитанная посадка на левую стопу (ключ — углы ног; при несовпадении считается заново) */
-    const SALAH_SEAT_CAL = {"[[76,2],[-92,10],[-100,-5],[-106,-8],[76,2]]":{"sh":[-90.5,10],"ft":[-79,-5],"to":[-82,-8],"th":67},"R|[[67,2],[-98,3],[40,0],[92,0],60]":{"sv":-106,"a":-0.6499999999999998}};
+    const SALAH_SEAT_CAL = {"[[76,2],[-92,10],[-100,-5],[-106,-8],[76,2]]":{"sh":[-90.5,10],"ft":[-79,-5],"to":[-82,-8],"th":68},"R|[[68,2],[-98,3],[40,0],[92,0],60]":{"sv":-106,"a":-0.6499999999999998}};
     const SALAH_F_MAP = { takbir: 'takbirF', fold: 'foldF', ruku: 'rukuF', sajda: 'sajdaF', sit: 'sitF', sitFinger: 'sitFingerF', sitRing: 'sitRingF', salamR: 'salamRF', salamL: 'salamLF', dua: 'duaF' };
     function _sEase(k) { return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; }
     function salahLerpPose(A, B, k) {
@@ -16236,6 +16240,13 @@ function renderDictation(area) {
             c.position.multiplyScalar(k); inverses[a].premultiply(new THREE.Matrix4().makeScale(1, k, 1)); }
           if (f === 'thumb') ['thumb_02', 'thumb_03'].forEach(function(n) { const a = ix[n + sx]; if (a != null) inverses[a].premultiply(new THREE.Matrix4().makeScale(1.12, 1, 1.12)); }); }); });
       }
+      if (!FEM) { /* build 6.47: пропорции как у взрослого мужчины — у модели плечо (сустав→локоть) было 28,6 см при норме ~34, бедро 42,9 при ~45.
+           Из-за короткого плеча руки в такбире не доставали до ушей без задранных локтей. Тот же приём, что у фаланг: кость растягивается вдоль своей оси в привязке кожи. */
+        const ix2 = {}; bones.forEach(function(b, i) { ix2[b.name] = i; });
+        [['upperarm', 'lowerarm', 1.10], ['thigh', 'calf', 1.047]].forEach(function(e) { ['_r', '_l'].forEach(function(sx) {
+          const a = ix2[e[0] + sx], c = B[e[1] + sx]; if (a == null || !c) return;
+          c.position.multiplyScalar(e[2]); inverses[a].premultiply(new THREE.Matrix4().makeScale(1, e[2], 1)); }); });
+      }
       const skeleton = new THREE.Skeleton(bones, inverses);
       const bindM = new THREE.Matrix4().fromArray(H.bind);
       const col = function(c) { return new THREE.Color(c); };
@@ -16400,7 +16411,7 @@ function renderDictation(area) {
       const bodyVert = function(i) { body.getVertexPosition(i, vtx); return vtx.applyMatrix4(body.matrixWorld); };
       // build 6.30: вершины кожи кистей (по главной кости) — ткань в сидении опускается строго под них
       const segVI = { footL: [], toeL: [], calfL: [] }, seatCache = Object.assign({}, typeof SALAH_SEAT_CAL !== 'undefined' ? SALAH_SEAT_CAL : {});
-      try { if (window.__HSDBG) window.__HSDBG.seatAll = seatCache; } catch (e) {}
+      try { if (window.__HSDBG) { window.__HSDBG.seatAll = seatCache; window.__HSDBG.wp = wp; window.__HSDBG.B = B; } } catch (e) {}
       const handVI = { _r: [], _l: [] }, legVI = [], neckVI = []; { const skI = arr('bodySkI'), skW = arr('bodySkW'), nm = H.bones.map(function(b) { return b.n; });
         for (let v = 0; v < skI.length / 4; v++) { let bi = -1, bw = 0; for (let k = 0; k < 4; k++) if (skW[v * 4 + k] > bw) { bw = skW[v * 4 + k]; bi = skI[v * 4 + k]; }
           const m = bi >= 0 ? /^(hand|thumb|index|middle|ring|pinky)(_.*)?_([rl])$/.exec(nm[bi] || '') : null; const m2 = (!m && bi >= 0) ? /^lowerarm(_twist.*)?_([rl])$/.exec(nm[bi] || '') : null;
@@ -16687,7 +16698,7 @@ function renderDictation(area) {
             if (dR.angleTo(fa2) > lim2) { const axq = new THREE.Vector3().crossVectors(fa2, dR).normalize(); dR = fa2.clone().applyAxisAngle(axq, lim2); } }
           const fe0 = wp('lowerarm_r'), fe1 = wp('hand_r'), feL = fe0.distanceTo(fe1), fed = fe1.clone().sub(fe0).normalize();
           // левая кисть: ладонью к животу, пальцы вправо по животу
-          const dL = perpTo(latR.clone().addScaledVector(fwd, -0.8).addScaledVector(up, -0.8), /* build 6.29: пальцы левой уходят вниз под правое запястье — не проходят сквозь правую руку */ /* build 6.29: пальцы левой огибают живот */ radv(wp('hand_l')).normalize()); /* build 6.33: левая кисть горизонтально на животе, пальцы вправо и огибают живот — правое предплечье лежит поверх неё */
+          const dL = perpTo(latR.clone().addScaledVector(fwd, -0.8).addScaledVector(up, -(P.R.grip.ld != null ? P.R.grip.ld : 0.8)), /* build 6.29: пальцы левой уходят вниз под правое запястье — не проходят сквозь правую руку */ /* build 6.29: пальцы левой огибают живот */ radv(wp('hand_l')).normalize()); /* build 6.33: левая кисть горизонтально на животе, пальцы вправо и огибают живот — правое предплечье лежит поверх неё */
           handFacing('_l', dL, perpTo(up, dL), radv(wp('hand_l')).normalize().negate());
           { let bc = 0, be = 1e9;
             for (let c = 0; c <= 0.35; c += 0.02) { fgL[1] = c; /* build 6.29: левая кисть ничего не держит — пальцы расслаблены, не кулак */ fgL[2] = c; fgL[3] = c * 1.05; fgL[4] = c * 1.1; setFingers('_l', { c: fgL, sp: 0, amp: [1.5, 0.7, 0.3] }); B.hand_l.updateMatrixWorld(true);
@@ -16867,7 +16878,7 @@ function renderDictation(area) {
             ar[sx] = { w: sp3.worldToLocal(wp('hand' + sx)), e: sp3.worldToLocal(wp('lowerarm' + sx)),
               hq: qi.clone().multiply(B['hand' + sx].getWorldQuaternion(new THREE.Quaternion())) };
           }); }
-        return { q: bones.map(function(b) { return b.quaternion.clone(); }), y: root.position.y, ar: ar, torso: P.torso };
+        return { q: bones.map(function(b) { return b.quaternion.clone(); }), y: root.position.y, ar: ar, torso: P.torso, grip: !!(P.R && P.R.grip) };
       }
       // ---- кэш решённых поз и кадр перехода ----
       const cache = {};
@@ -16877,6 +16888,8 @@ function renderDictation(area) {
       };
       const sparse = []; { const n = arr('bodyPos').length / 3; for (let i = 0; i < n; i += 7) sparse.push(i); }
       let lastFrame = null;
+      const armSide = bones.map(function(b) { return /^(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)_/.test(b.name) ? (/_r$/.test(b.name) ? '_r' : '_l') : null; });
+      try { if (window.__HSDBG) { window.__HSDBG.cache = cache; window.__HSDBG.lobe = lobeLocal; window.__HSDBG.resetFrame = function() { lastFrame = null; }; } } catch (e) {}
       // build 6.46: переходы через промежуточную позу. Раньше стояние → колени и суджуд → подъём смешивались напрямую,
       // и в середине тело «висело» (ноги сложены, корпус в воздухе). Теперь: стоя → присед на носках → колени; суджуд → на коленях → присед → стоя.
       const VIA = { 'stand|kneel': ['rise', 0.55], 'sajda|rise': ['kneel', 0.5] };
@@ -16889,19 +16902,25 @@ function renderDictation(area) {
         let e = e0; const via = VIA[a + '|' + (b || a)];
         if (via && e0 > 0.001 && e0 < 0.999) { const Vp = getPose(via[0]); if (e0 < via[1]) { Bp = Vp; e = e0 / via[1]; } else { A = Vp; e = (e0 - via[1]) / (1 - via[1]); } }
         const kd = unDisplay();
-        bones.forEach(function(bn, i) { bn.quaternion.copy(A.q[i]).slerp(Bp.q[i], e); });
+        // build 6.47: руки складываются и расходятся по очереди. Правая кисть лежит поверх левой, поэтому при складывании левая приходит первой,
+        // правая ложится на неё последней; при расхождении правая уходит первой. Раньше обе шли одновременно и одна кисть проходила сквозь другую.
+        const eS = { _r: e, _l: e };
+        if (A.grip !== Bp.grip && e > 0.001 && e < 0.999) { // большую часть пути руки идут вместе; расходятся по фазе только у самого живота
+          const x = Bp.grip ? e : 1 - e, sn = Math.sin(Math.PI * Math.max(0, Math.min(1, (x - 0.2) / 0.8))), lead = x + 0.16 * sn, lag = x - 0.24 * sn;
+          if (Bp.grip) { eS._l = lead; eS._r = lag; } else { eS._r = 1 - lag; eS._l = 1 - lead; } }
+        bones.forEach(function(bn, i) { bn.quaternion.copy(A.q[i]).slerp(Bp.q[i], armSide[i] ? eS[armSide[i]] : e); });
         root.position.set(0, A.y + (Bp.y - A.y) * e, 0); root.updateMatrixWorld(true); skeleton.update();
         if (e > 0.001 && e < 0.999 && A.torso >= 150 && Bp.torso >= 150 && A.ar && Bp.ar) { // build 6.28: кисть идёт по своей дуге у груди, а не по углам суставов
           const sp3 = B.spine_03; sp3.updateWorldMatrix(true, false);
           const sq = sp3.getWorldQuaternion(new THREE.Quaternion());
           const latW = wp('upperarm_r').sub(wp('upperarm_l')).normalize();
           const fwdW = FWD.clone().applyQuaternion(sq);
-          const bump = Math.sin(Math.PI * e);
           ['_r', '_l'].forEach(function(sx) {
+            const es = eS[sx], bump = Math.sin(Math.PI * es);
             const sg = sx === '_r' ? 1 : -1, a = A.ar[sx], b = Bp.ar[sx];
             const fb = Math.max(0.035, Math.min(0.2, a.w.distanceTo(b.w) * 0.42)); /* build 6.46: при большом ходе кисть идёт дугой перед телом (а не вдоль бока — локоть тогда выворачивало наружу и назад) */
-            const Wt = sp3.localToWorld(a.w.clone().lerp(b.w, e)).add(latW.clone().multiplyScalar(sg * 0.045 * bump)).add(fwdW.clone().multiplyScalar(fb * bump));
-            const Et = sp3.localToWorld(a.e.clone().lerp(b.e, e));
+            const Wt = sp3.localToWorld(a.w.clone().lerp(b.w, es)).add(latW.clone().multiplyScalar(sg * 0.045 * bump)).add(fwdW.clone().multiplyScalar(fb * bump));
+            const Et = sp3.localToWorld(a.e.clone().lerp(b.e, es));
             const Sp = wp('upperarm' + sx);
             const pole = Et.clone().sub(Sp.clone().lerp(Wt, 0.5)).add(latW.clone().multiplyScalar(sg * 0.02));
             const r = ik(Sp, Wt, lenUA, lenFA, pole);
@@ -16912,7 +16931,7 @@ function renderDictation(area) {
             const restA = yAxis('upperarm' + sx), restHinge = new THREE.Vector3().crossVectors(restA, FWD);
             setWorld('upperarm' + sx, ua, hinge, restA, restHinge);
             setWorld('lowerarm' + sx, fa, hinge, yAxis('lowerarm' + sx), restHinge);
-            setWorldQ('hand' + sx, sq.clone().multiply(a.hq.clone().slerp(b.hq, e)));
+            setWorldQ('hand' + sx, sq.clone().multiply(a.hq.clone().slerp(b.hq, es)));
           });
           root.updateMatrixWorld(true); skeleton.update();
         }
