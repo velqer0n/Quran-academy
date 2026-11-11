@@ -15200,7 +15200,7 @@ function renderDictation(area) {
         R: Object.assign({}, _SP_ARM_DOWN, _SP_LEG), L: Object.assign({}, _SP_ARM_DOWN, _SP_LEG) };
       // такбир: руки подняты до уровня ушей, ладони и пальцы к кибле, пальцы в естественном положении
       // (положение подобрано так, чтобы кисти были на уровне ушей, а ладони смотрели к кибле)
-      const tak = { w: { at: 'ear', o: [1, -8, 8] }, pole: [0.2, -0.7, 0.8] /* build 6.30: локоть вниз и наружу (было вперёд — руки шли через грудь, локти торчали вперёд) */, hd: [180, -12], tb: [-0.5, -0.8, -1] };
+      const tak = { w: { at: 'ear', o: [9, -8, 17] }, pole: [0.1, -1, 0.35] /* build 6.46: кисти чуть впереди и шире ушей (не прижаты к голове), локти внизу у боков — как поднимает руки человек; раньше локти задирались до плеч, кисти закрывали уши */, hd: [180, -8], tb: [-0.5, -0.8, -1] };
       P.takbir = _sPose(P.stand, { head: 176, R: tak, L: tak });
       // руки ниже пупка (build 6.29: локти у боков, предплечья почти горизонтально): правая ладонь на тыльной стороне левой, мизинец и
       // большой палец обхватывают левое запястье
@@ -15218,9 +15218,12 @@ function renderDictation(area) {
       P.kneel = _sPose(P.stand, { torso: 166, head: 168,
         R: Object.assign({ w: { at: 'thigh', o: [6, 4, 4] }, pole: [-0.3, 0, 1], hd: [70, 0], tb: [0, 0.3, -1] }, kneeLeg),
         L: Object.assign({ w: { at: 'thigh', o: [6, 4, 4] }, pole: [-0.3, 0, 1], hd: [70, 0], tb: [0, 0.3, -1] }, kneeLeg) });
-      P.hands = _sPose(P.stand, { torso: 124, head: 128,
-        R: Object.assign({ w: { at: 'knee', o: [30, -3, 4] }, pole: [0, 0.3, 1], hd: [90, 0], tb: [-0.2, 0, -1] }, kneeLeg, { th: [16, -2] }),
-        L: Object.assign({ w: { at: 'knee', o: [30, -3, 4] }, pole: [0, 0.3, 1], hd: [90, 0], tb: [-0.2, 0, -1] }, kneeLeg, { th: [16, -2] }) });
+      // build 6.46: ладони ставятся на пол сразу туда, где они лежат в суджуде (раньше висели над полом ближе к коленям и потом ехали вперёд);
+      // корпус при этом уже наклонён, локти слегка согнуты — не «на четвереньках на прямых руках»
+      const hf = { w: { at: 'knee', o: [50.6, -24.8, 0.4] }, pole: [-0.1, 1, 0.9], hd: [90, -4], tb: [-0.3, 0, -1] };
+      P.hands = _sPose(P.stand, { torso: 100, head: 106,
+        R: Object.assign({}, hf, kneeLeg, { th: [16, -2] }),
+        L: Object.assign({}, hf, kneeLeg, { th: [16, -2] }) });
       // суджуд: лицо между ладонями, пальцы к кибле, локти не касаются
       // пола и боков, живот отдалён от бёдер, пальцы ног — к кибле
       const sj = { w: { at: 'ear', o: [0, -7, 4] }, pole: [-0.1, 1, 0.9], hd: [90, -4], tb: [-0.3, 0, -1] };
@@ -15295,7 +15298,9 @@ function renderDictation(area) {
     })();
 
     /* build 6.36: заранее посчитанный подбор положения кистей в сидении (см. буфер __SITCAL): ключ → [сдвиг вдоль бедра, сдвиг по высоте, цена]; при несовпадении подбор делается заново */
-    const SALAH_SIT_CAL = {"_r|-1143,4468,-314;-993,553,1429;-1557,3577,1416;0,4267,-430;0,5389,188;0,9827,925|10834,1024,0,0,":[-0.00599999999999999,-0.004999999999999998,0.12350947303899082],"_l|1143,4468,-314;993,553,1429;1557,3577,1416;0,4267,-430;0,5389,188;0,9827,925|10834,1024,0,0,":[-0.00599999999999999,-0.004999999999999998,0.12459872988515976],"_r|-1143,1581,-333;-1293,544,3825;-1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,0,0,":[-0.04199999999999998,0.10500000000000002,0.003963811891783108],"_l|1143,1581,-333;1293,544,3825;1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,0,0,":[-0.051999999999999984,0.10500000000000002,0.002840856828431291],"_r|-1143,1581,-333;-1293,544,3825;-1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,1,0,":[-0.04199999999999998,0.10500000000000002,0.003963811891783108],"_l|1143,1581,-333;1293,544,3825;1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,1,0,":[-0.051999999999999984,0.10500000000000002,0.002840856828431291]};
+    const SALAH_SIT_CAL = {"_r|-1143,4468,-314;-993,553,1429;-1557,3577,1416;0,4267,-430;0,5389,188;0,9827,925|10834,1024,0,0,":[-0.00599999999999999,-0.004999999999999998,0.12350947303899082],"_l|1143,4468,-314;993,553,1429;1557,3577,1416;0,4267,-430;0,5389,188;0,9827,925|10834,1024,0,0,":[-0.00599999999999999,-0.004999999999999998,0.12459872988515976],"_r|-1143,1581,-333;-1293,544,3825;-1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,0,0,":[-0.04199999999999998,0.10500000000000002,0.003963811891783108],"_l|1143,1581,-333;1293,544,3825;1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,0,0,":[-0.051999999999999984,0.10500000000000002,0.002840856828431291],"_r|-1143,1581,-333;-1293,544,3825;-1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,1,0,":[-0.04199999999999998,0.10500000000000002,0.003963811891783108],"_l|1143,1581,-333;1293,544,3825;1461,2650,1608;0,1370,-430;0,2546,79;0,7036,349|10834,0,1,0,":[-0.051999999999999984,0.10500000000000002,0.002840856828431291],"_r|-1143,2219,-333;-1293,544,3611;-1461,2829,1454;0,2008,-430;0,3183,79;0,7673,349|10834,0,0,0,":[-0.02599999999999996,0.12500000000000003,0.002521579692695958],"_l|1143,2219,-333;1293,544,3611;1461,2829,1454;0,2008,-430;0,3183,79;0,7673,349|10834,0,0,0,":[-0.027999999999999976,0.12500000000000003,0.001876917262704249],"_r|-1143,2219,-333;-1293,544,3611;-1461,2829,1454;0,2008,-430;0,3183,79;0,7673,349|10834,0,1,0,":[-0.02599999999999996,0.12500000000000003,0.002521579692695958],"_l|1143,2219,-333;1293,544,3611;1461,2829,1454;0,2008,-430;0,3183,79;0,7673,349|10834,0,1,0,":[-0.027999999999999976,0.12500000000000003,0.001876917262704249]};
+    /* build 6.46: заранее посчитанная посадка на левую стопу (ключ — углы ног; при несовпадении считается заново) */
+    const SALAH_SEAT_CAL = {"[[76,2],[-92,10],[-100,-5],[-106,-8],[76,2]]":{"sh":[-90.5,10],"ft":[-79,-5],"to":[-82,-8],"th":67},"R|[[67,2],[-98,3],[40,0],[92,0],60]":{"sv":-106,"a":-0.6499999999999998}};
     const SALAH_F_MAP = { takbir: 'takbirF', fold: 'foldF', ruku: 'rukuF', sajda: 'sajdaF', sit: 'sitF', sitFinger: 'sitFingerF', sitRing: 'sitRingF', salamR: 'salamRF', salamL: 'salamLF', dua: 'duaF' };
     function _sEase(k) { return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; }
     function salahLerpPose(A, B, k) {
@@ -16043,6 +16048,7 @@ function renderDictation(area) {
             window._salahModelState = 'ok';
             meshes.forEach(function(m) { m.visible = false; });
             const sj = model.setFrame('sajda', 'sajda', 1); modelSajdaX = sj.headC.x + 6;
+            try { if (!female && model.warm) model.warm(['takbir', 'fold', 'ruku', 'rise', 'kneel', 'hands', 'sit', 'sitFinger', 'sitRing', 'salamR', 'salamL', 'dua']); } catch (e) {}
             if (typeof onModel === 'function') onModel();
           } catch (e) { model = null; salahDiag(host, 'ошибка сборки модели: ' + (e && e.message || e)); }
         }).catch(function(e) { salahDiag(host, 'файл salah-model.bin не загружен: ' + (e && e.message || e)); });
@@ -16179,7 +16185,7 @@ function renderDictation(area) {
         try { renderer.forceContextLoss(); } catch (e) {}
       }
       if (female) meshes.forEach(function(m) { m.visible = false; });
-      return { upp: function(zoom) { return 2 * camDist(zoom, 0) * Math.tan(camera.fov * Math.PI / 360) / Math.max(120, renderer.domElement.clientHeight || 300); }, render: render, resize: resize, dispose: dispose, canvas: renderer.domElement, onModel: function(fn) { onModel = fn; if (model) fn(); }, hasModel: function() { return !!model; } };
+      return { dbgFrame: function(a, b, k) { return model ? model.setFrame(a, b, k) : null; }, upp: function(zoom) { return 2 * camDist(zoom, 0) * Math.tan(camera.fov * Math.PI / 360) / Math.max(120, renderer.domElement.clientHeight || 300); }, render: render, resize: resize, dispose: dispose, canvas: renderer.domElement, onModel: function(fn) { onModel = fn; if (model) fn(); }, hasModel: function() { return !!model; } };
     }
 
     // ===== 3D-модель человека для «Как читать намаз» — build 6.05, 6.06 =====
@@ -16393,11 +16399,15 @@ function renderDictation(area) {
       const vtx = V();
       const bodyVert = function(i) { body.getVertexPosition(i, vtx); return vtx.applyMatrix4(body.matrixWorld); };
       // build 6.30: вершины кожи кистей (по главной кости) — ткань в сидении опускается строго под них
+      const segVI = { footL: [], toeL: [], calfL: [] }, seatCache = Object.assign({}, typeof SALAH_SEAT_CAL !== 'undefined' ? SALAH_SEAT_CAL : {});
+      try { if (window.__HSDBG) window.__HSDBG.seatAll = seatCache; } catch (e) {}
       const handVI = { _r: [], _l: [] }, legVI = [], neckVI = []; { const skI = arr('bodySkI'), skW = arr('bodySkW'), nm = H.bones.map(function(b) { return b.n; });
         for (let v = 0; v < skI.length / 4; v++) { let bi = -1, bw = 0; for (let k = 0; k < 4; k++) if (skW[v * 4 + k] > bw) { bw = skW[v * 4 + k]; bi = skI[v * 4 + k]; }
           const m = bi >= 0 ? /^(hand|thumb|index|middle|ring|pinky)(_.*)?_([rl])$/.exec(nm[bi] || '') : null; const m2 = (!m && bi >= 0) ? /^lowerarm(_twist.*)?_([rl])$/.exec(nm[bi] || '') : null;
           if (m) handVI['_' + m[3]].push(v); else if (m2) handVI['_' + m2[2]].push(-1 - v);
-          else if (bi >= 0 && /^(thigh|calf)/.test(nm[bi] || '')) legVI.push(v); else if (bi >= 0 && /^(neck|spine_03|clavicle)/.test(nm[bi] || '')) neckVI.push(v); } }
+          else if (bi >= 0 && /^(thigh|calf)/.test(nm[bi] || '')) legVI.push(v); else if (bi >= 0 && /^(neck|spine_03|clavicle)/.test(nm[bi] || '')) neckVI.push(v);
+          { const n0 = bi >= 0 ? (nm[bi] || '') : ''; /* build 6.46: вершины левой стопы, пальцев, голени и таза — для посадки на левую стопу */
+            if (n0 === 'foot_l') segVI.footL.push(v); else if (/^ball(_.*)?_l$/.test(n0)) segVI.toeL.push(v); else if (/^calf(_.*)?_l$/.test(n0)) segVI.calfL.push(v); } } }
       // пальцы: сгиб по фалангам + развод (sp, градусы) у основания
       const setFingers = function(sx, fg) {
         const c = fg ? fg.c : [0.2, 0.18, 0.22, 0.28, 0.32], sp = (fg && fg.sp) || 0;
@@ -16473,6 +16483,40 @@ function renderDictation(area) {
         root.updateMatrixWorld(true); skeleton.update();
         // касание пальцев ног (суджуд, сидение — правая): подбираем голеностоп, чтобы пальцы легли на уровень колен
         const kneePt = function(sx) { const k = wp('calf' + sx); const shn = wp('foot' + sx).sub(k).normalize(); return k.add(shn.clone().multiplyScalar(0.03)).add(V(0, -0.055, 0)); };
+        if (/seat/.test(contacts) && /toesR/.test(contacts) && segVI.footL.length) {
+          // build 6.46: сидение на левой стопе (ифтираш). Раньше левая нога ставилась готовыми углами и стопа висела в воздухе.
+          // Теперь подбирается: голень лежит на полу, стопа лежит на полу тыльной стороной, таз опущен на её пятку.
+          // Считается один раз на набор углов ног (все сидячие позы делят результат).
+          const key = JSON.stringify([P.L.th, P.L.sh, P.L.ft, P.L.to, P.R.th]);
+          let sol = seatCache[key];
+          P = Object.assign({}, P, { L: Object.assign({}, P.L), R: Object.assign({}, P.R) });
+          if (!sol) {
+            const upd = function() { setLegs(null); root.updateMatrixWorld(true); skeleton.update(); };
+            const minY = function(list) { let m = 1e9; for (let i = 0; i < list.length; i++) { const y = bodyVert(list[i]).y; if (y < m) m = y; } return m; };
+            const latS = P.L.sh[1], latF = P.L.ft[1], latT = P.L.to[1];
+            const score = function(sv, fp) {
+              P.L.sh = [sv, latS]; P.L.ft = [fp, latF]; P.L.to = [fp - 3, latT]; upd();
+              const f = kneePt('_l').y;
+              return Math.abs(minY(segVI.footL) - f - 0.003) + Math.abs(minY(segVI.toeL) - f - 0.003) + Math.max(0, f - minY(segVI.calfL)) * 4;
+            };
+            let best = { e: 1e9, sv: P.L.sh[0], fp: P.L.ft[0] };
+            for (let sv = -100; sv <= -78; sv += 2) for (let fp = -112; fp <= -64; fp += 4) { const e = score(sv, fp); if (e < best.e) best = { e: e, sv: sv, fp: fp }; }
+            { const c = best; for (let sv = c.sv - 1.5; sv <= c.sv + 1.5; sv += 0.5) for (let fp = c.fp - 3; fp <= c.fp + 3; fp += 1) { const e = score(sv, fp); if (e < best.e) best = { e: e, sv: sv, fp: fp }; } }
+            P.L.sh = [best.sv, latS]; P.L.ft = [best.fp, latF]; P.L.to = [best.fp - 3, latT];
+            // высота таза: ягодица ложится на пятку левой стопы
+            let bt = { e: 1e9, th: P.L.th[0] };
+            for (let th = 58; th <= 88; th += 1) {
+              P.L.th = [th, P.L.th[1]]; P.R.th = [th, P.R.th[1]]; upd();
+              let top = -1e9; for (let i = 0; i < segVI.footL.length; i++) { const y = bodyVert(segVI.footL[i]).y; if (y > top) top = y; }
+              // тело под камисом в модели не хранится, поэтому берём сустав бедра: седалищный бугор ≈ на 8,5 см ниже него
+              const e = Math.abs(wp('thigh_l').y - top - 0.085); if (e < bt.e) bt = { e: e, th: th };
+            }
+            sol = seatCache[key] = { sh: [best.sv, latS], ft: [best.fp, latF], to: [best.fp - 3, latT], th: bt.th, e: best.e, es: bt.e };
+            if (window.__HSDBG) window.__HSDBG.seat = sol;
+          }
+          P.L.sh = sol.sh.slice(); P.L.ft = sol.ft.slice(); P.L.to = sol.to.slice(); P.L.th = [sol.th, P.L.th[1]]; P.R.th = [sol.th, P.R.th[1]];
+          setLegs(null); root.updateMatrixWorld(true); skeleton.update();
+        }
         if (/toes/.test(contacts)) {
           const tweak = {};
           ['R', 'L'].forEach(function(s) {
@@ -16482,6 +16526,8 @@ function renderDictation(area) {
             // build 6.29: правая стопа в сидении стоит на пальцах круто (≈60° к полу, пятка вверх): подбираем голень и голеностоп
             if (s === 'R' && P.R && P.R.pitch) {
               P = Object.assign({}, P, { R: Object.assign({}, P.R) });
+              const rKey = 'R|' + JSON.stringify([P.R.th, P.R.sh, P.R.ft, P.R.to, P.R.pitch]); // build 6.46: подбор правой стопы считается один раз на все сидячие позы
+              if (seatCache[rKey]) { P.R.sh = [seatCache[rKey].sv, P.R.sh[1]]; tweak.R = seatCache[rKey].a; return; }
               const sh0 = P.R.sh[0]; let bb = { sc: 1e9, sv: sh0, a: 0 };
               for (let sv = sh0 - 50; sv <= sh0 + 30; sv += 2) {
                 P.R.sh = [sv, P.R.sh[1]];
@@ -16490,7 +16536,7 @@ function renderDictation(area) {
                   const fv = wp('ball_leaf_r').sub(wp('foot_r')); const pitch = Math.asin(Math.max(-1, Math.min(1, fv.y / fv.length()))) * 180 / Math.PI;
                   const sc = (te > 0.006 ? 100 + te * 100 : 0) + Math.abs(pitch + P.R.pitch) + Math.abs(sv - sh0) * 0.02;
                   if (sc < bb.sc) bb = { sc: sc, sv: sv, a: a }; } }
-              P.R.sh = [bb.sv, P.R.sh[1]]; tweak.R = bb.a; return;
+              P.R.sh = [sh0, P.R.sh[1]]; seatCache[rKey] = { sv: bb.sv, a: bb.a }; P.R.sh = [bb.sv, P.R.sh[1]]; tweak.R = bb.a; return;
             }
             for (let a = -0.9; a <= 0.9; a += 0.05) { tweak[s] = a; setLegs(tweak); root.updateMatrixWorld(true);
               const e = Math.abs(wp('ball_leaf' + sx).y - 0.012 - (kneePt(sx).y)); if (e < best.e) best = { e: e, a: a }; }
@@ -16831,11 +16877,17 @@ function renderDictation(area) {
       };
       const sparse = []; { const n = arr('bodyPos').length / 3; for (let i = 0; i < n; i += 7) sparse.push(i); }
       let lastFrame = null;
+      // build 6.46: переходы через промежуточную позу. Раньше стояние → колени и суджуд → подъём смешивались напрямую,
+      // и в середине тело «висело» (ноги сложены, корпус в воздухе). Теперь: стоя → присед на носках → колени; суджуд → на коленях → присед → стоя.
+      const VIA = { 'stand|kneel': ['rise', 0.55], 'sajda|rise': ['kneel', 0.5] };
+      let toeZ0 = null; // положение пальцев правой стопы стоя: правая стопа не сдвигается с места весь намаз
       function setFrame(a, b, k) {
-        const A = getPose(a), Bp = getPose(b || a); k = Math.max(0, Math.min(1, k == null ? 1 : k));
-        const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-        const key = a + '|' + (b || a) + '|' + e.toFixed(4);
+        let A = getPose(a), Bp = getPose(b || a); k = Math.max(0, Math.min(1, k == null ? 1 : k));
+        const e0 = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+        const key = a + '|' + (b || a) + '|' + e0.toFixed(4);
         if (lastFrame && lastFrame.key === key) return lastFrame.out;
+        let e = e0; const via = VIA[a + '|' + (b || a)];
+        if (via && e0 > 0.001 && e0 < 0.999) { const Vp = getPose(via[0]); if (e0 < via[1]) { Bp = Vp; e = e0 / via[1]; } else { A = Vp; e = (e0 - via[1]) / (1 - via[1]); } }
         const kd = unDisplay();
         bones.forEach(function(bn, i) { bn.quaternion.copy(A.q[i]).slerp(Bp.q[i], e); });
         root.position.set(0, A.y + (Bp.y - A.y) * e, 0); root.updateMatrixWorld(true); skeleton.update();
@@ -16847,7 +16899,8 @@ function renderDictation(area) {
           const bump = Math.sin(Math.PI * e);
           ['_r', '_l'].forEach(function(sx) {
             const sg = sx === '_r' ? 1 : -1, a = A.ar[sx], b = Bp.ar[sx];
-            const Wt = sp3.localToWorld(a.w.clone().lerp(b.w, e)).add(latW.clone().multiplyScalar(sg * 0.045 * bump)).add(fwdW.clone().multiplyScalar(0.035 * bump));
+            const fb = Math.max(0.035, Math.min(0.2, a.w.distanceTo(b.w) * 0.42)); /* build 6.46: при большом ходе кисть идёт дугой перед телом (а не вдоль бока — локоть тогда выворачивало наружу и назад) */
+            const Wt = sp3.localToWorld(a.w.clone().lerp(b.w, e)).add(latW.clone().multiplyScalar(sg * 0.045 * bump)).add(fwdW.clone().multiplyScalar(fb * bump));
             const Et = sp3.localToWorld(a.e.clone().lerp(b.e, e));
             const Sp = wp('upperarm' + sx);
             const pole = Et.clone().sub(Sp.clone().lerp(Wt, 0.5)).add(latW.clone().multiplyScalar(sg * 0.02));
@@ -16863,9 +16916,15 @@ function renderDictation(area) {
           });
           root.updateMatrixWorld(true); skeleton.update();
         }
-        if (e > 0.001 && e < 0.999) { // переход: ничего не уходит под пол
+        if (e > 0.001 && e < 0.999) { // переход: нижняя точка тела всегда на полу — ничего не уходит под пол и не висит в воздухе (build 6.46)
           let minY = 1e9; for (let i = 0; i < sparse.length; i++) { const y = bodyVert(sparse[i]).y; if (y < minY) minY = y; }
-          if (minY < 0) { root.position.y -= minY; root.updateMatrixWorld(true); }
+          if (minY < 1e8) { root.position.y -= minY; root.updateMatrixWorld(true); }
+        }
+        { // build 6.46: пальцы правой стопы остаются на одном месте коврика (раньше на месте стоял таз, а стопы ездили)
+          if (toeZ0 == null) { const S0 = getPose('stand'); const sq = bones.map(function(bn) { return bn.quaternion.clone(); }), sp = root.position.clone();
+            bones.forEach(function(bn, i) { bn.quaternion.copy(S0.q[i]); }); root.position.set(0, S0.y, 0); root.updateMatrixWorld(true); toeZ0 = wp('ball_r').z - 0.27; /* стоит у заднего края коврика: в суджуде голова и ладони остаются на коврике */
+            bones.forEach(function(bn, i) { bn.quaternion.copy(sq[i]); }); root.position.copy(sp); root.updateMatrixWorld(true); }
+          root.position.z += toeZ0 - wp('ball_r').z; root.updateMatrixWorld(true); skeleton.update();
         }
         buildRobe();
         const info = { indexTip: wp('index_04_leaf_r'), shR: wp('upperarm_r'), shL: wp('upperarm_l'), handR: wp('hand_r'), handL: wp('hand_l'),
@@ -17425,7 +17484,21 @@ function renderDictation(area) {
         });
       }
       function dispose() { [body, robe, sleeves[0], sleeves[1], kufi, scarf, neckFill].concat(sleeveBits).forEach(function(m) { try { m.geometry.dispose(); } catch (e) {} }); }
-      return { display: display, setFrame: setFrame, getPose: getPose, setGhost: setGhost, dispose: dispose, B: B };
+      // build 6.46: позы считаются заранее, по одной в свободные промежутки, — чтобы анимация не замирала на первом показе каждой позы
+      let warmOff = false;
+      const warm = function(names) {
+        let i = 0;
+        const sched = function(fn) { if (typeof requestIdleCallback === 'function') requestIdleCallback(fn, { timeout: 1500 }); else setTimeout(fn, 350); };
+        const step = function() {
+          if (warmOff) return;
+          while (i < names.length && (cache[names[i]] || !SALAH_POSES_ANIM[names[i]])) i++;
+          if (i >= names.length) return;
+          try { getPose(names[i]); lastFrame = null; } catch (e) {}
+          i++; sched(step);
+        };
+        sched(step);
+      };
+      return { display: display, setFrame: setFrame, getPose: getPose, setGhost: setGhost, dispose: function() { warmOff = true; return dispose.apply(this, arguments); }, warm: warm, B: B };
     }
 
     // build 6.21: женская версия — только то, что отличается по книге; остальное берётся из HOWSALAH_STAGES без изменений
@@ -18425,6 +18498,8 @@ function renderDictation(area) {
         if (FEMALE) return; // 2D-схема нарисована мужской фигурой — для женской версии её не показываем
         svg.innerHTML = defs + salahRenderSvg(poseAt(), salahCamera(st.yaw, st.el), { qibla: kk ? 'құбыла' : 'кибла', gaze: G.gaze, gazeK: k, matX: matX });
       };
+      // build 6.46: крючок для проверочного стенда (работает только если стенд заранее завёл window.__HSDBG)
+      try { if (window.__HSDBG) { window.__HSDBG.st = st; window.__HSDBG.steps = steps; window.__HSDBG.draw = draw; window.__HSDBG.poseOf = poseOf; window.__HSDBG.r3d = function() { return r3d; }; } } catch (e) {}
       const femNoFigure = function() {
         if (!host3d || host3d.querySelector('#hs-fem-nofig')) return;
         svg.style.display = 'none';
