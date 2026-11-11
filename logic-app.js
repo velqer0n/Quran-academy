@@ -4526,6 +4526,8 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var kk = isKk();
       var lp = document.getElementById('audio-dua-loop');
       if (lp) { lp.classList.toggle('active', !!window._extLoop); lp.innerHTML = '<span>🔁 ' + (kk ? 'Қайталау' : 'Повтор') + '</span>'; }
+      var fob = document.getElementById('audio-dua-folder'); if (fob) { fob.style.display = cur.hisnKey ? '' : 'none'; fob.title = kk ? 'Қалтаға қосу' : 'В папку'; }
+      var dlb = document.getElementById('audio-dua-dl'); if (dlb) dlb.title = kk ? 'Жүктеу' : 'Скачать';
       var bk = document.getElementById('audio-dua-back'), fw = document.getElementById('audio-dua-fwd');
       if (bk) bk.title = kk ? '10 с артқа' : 'Назад 10 с';
       if (fw) fw.title = kk ? '10 с алға' : 'Вперёд 10 с';
@@ -4535,6 +4537,12 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     (function() {
       var bk = document.getElementById('audio-dua-back'), fw = document.getElementById('audio-dua-fwd');
       var lp = document.getElementById('audio-dua-loop'), sp = document.getElementById('audio-dua-speed');
+      var dl = document.getElementById('audio-dua-dl'), fo = document.getElementById('audio-dua-folder');
+      if (dl) dl.addEventListener('click', function() { try { dlPlayerCurrent(); } catch(e) {} });
+      if (fo) fo.addEventListener('click', function() {
+        var c = audioQueue[audioQueueIdx];
+        if (c && c.hisnKey) fsPickDuaToFolder(c.hisnKey, c.title || '');
+      });
       function seek(d) { try { var dur = audioEl.duration || 0; audioEl.currentTime = Math.max(0, Math.min(dur ? dur - 0.05 : 1e9, audioEl.currentTime + d)); } catch(e) {} }
       if (bk) bk.addEventListener('click', function() { seek(-10); });
       if (fw) fw.addEventListener('click', function() { seek(10); });
@@ -18945,7 +18953,11 @@ function renderDictation(area) {
         const idx = _it ? HISN_ITEMS.filter(function(x) { return x.c === _it.c; }).indexOf(_it) + 1 : 0;
         nm = (cat ? (isKk() ? (cat.kk || cat.ru) : cat.ru) : '') + (idx ? ' · ' + idx : '');
       } catch(e) {}
-      const title = (isKk() ? 'Дұға' : 'Дуа') + (nm ? ' · ' + nm : '');
+      let title = (isKk() ? 'Дұға' : 'Дуа') + (nm ? ' · ' + nm : '');
+      if (key.indexOf('salah-') === 0) {
+        const _sn = { ruku: ['Зикр в руку‘', 'Рукұғтағы зікір'], sujud: ['Зикр в суджуде', 'Сәждедегі зікір'], tashahhud: ['Ташаххуд', 'Тәшәһһуд'], salawat: ['Салават Ибрахима', 'Ибраһим салауаты'] }[key.slice(6)];
+        if (_sn) title = isKk() ? _sn[1] : _sn[0];
+      }
       const card = document.querySelector('[data-hisn-card="' + key + '"]');
       if (card && fromQueue) { try { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e) {} }
       playExtTrack({ kind: 'hisn', key: 'hisn:' + key, hisnKey: key, urls: [(key.indexOf('salah-') === 0 ? 'audio-salah/' + key.slice(6) : 'audio-hisn/' + key) + '.mp3'], title: title, rate: _o.rate !== 1 ? _o.rate : 0, restart: true });
@@ -18988,6 +19000,7 @@ function renderDictation(area) {
             '<div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.35rem">' +
             '<button type="button" class="btn btn-sm" data-hisn-play="' + it.a + '" style="min-width:2.6rem">▶</button>' +
             '<button type="button" class="btn btn-sm" data-hisn-dl="' + it.a + '" data-dl-title="' + esc((kk ? (cat.kk || cat.ru) : cat.ru) + '_' + (i + 1)) + '" title="' + (kk ? 'Телефонға жүктеу' : 'Скачать на телефон') + '">⬇</button>' +
+            '<button type="button" class="btn btn-sm" data-hisn-fold="' + it.a + '" data-dl-title="' + esc((kk ? (cat.kk || cat.ru) : cat.ru) + ' · ' + (i + 1)) + '" title="' + (kk ? 'Қалтаға қосу' : 'Добавить в папку') + '">📁</button>' +
             '<span style="color:var(--text-muted);font-size:0.8rem">' + (i + 1) + ' / ' + items.length + '</span><span style="flex:1"></span>' +
             '<button type="button" class="btn btn-sm' + (memoHas('d:' + it.a) ? ' btn-primary' : '') + '" data-hisn-memo="' + it.a + '">' + (memoHas('d:' + it.a) ? '✓ ' + (kk ? 'Жаттаймын' : 'Учу') : '🧠 ' + (kk ? 'Жаттау' : 'Учить')) + '</button>' +
             (it.n > 1 ? '<button type="button" class="btn btn-sm" data-hisn-count="' + it.n + '" title="' + (kk ? 'Санау үшін басыңыз' : 'Нажимайте, чтобы считать') + '">' + (kk ? 'Қалды ' : 'Осталось ') + '<b>' + it.n + '</b> / ' + it.n + '</button>' : '') +
@@ -28085,6 +28098,41 @@ function renderDict() {
         } });
       });
     }
+    // build 6.50: дуа / зикр в папку (запись хранит ключ озвучки, арабский текст и перевод)
+    function fsPickDuaToFolder(key, title) {
+      key = String(key);
+      var hi = null; try { hi = (typeof HISN_ITEMS !== 'undefined') ? HISN_ITEMS.find(function(x) { return String(x.a) === key; }) : null; } catch (e) {}
+      var ttl = title || (hi ? ('' + hi.a) : key);
+      fsWhenReady(function() {
+        fsPickFolder({ title: fsT('Дуа «' + ttl + '» — в какую папку?', 'Дұға «' + ttl + '» — қай қалтаға?'), onPick: function(pid) {
+          var dup = fsAllChildren(pid).filter(function(x) { return x.k === 'dua' && x.d && String(x.d.hisn) === key; })[0];
+          if (dup) { toast(fsT('Это дуа уже в этой папке', 'Бұл дұға бұл қалтада бар')); return; }
+          var it = fsCreate({ k: 'dua', p: pid || null, n: '', d: { title: fsClip(ttl, 120), hisn: key, ar: hi ? fsClip(hi.ar, 3000) : '', tr: hi ? fsClip(isKk() ? (hi.kk || hi.ru) : hi.ru, 3000) : '' } });
+          if (!it) { toast(fsT('Не удалось сохранить', 'Сақтау мүмкін болмады')); return; }
+          fsMetaSet('lastFolder', pid || FS_SYS.bookmarks.id);
+          try { fsRefreshUi(); } catch (e) {}
+          toast(fsT('Дуа добавлено в «' + (pid ? fsName(FS.items.get(pid)) : fsT('Корень', 'Түбір')) + '»', 'Дұға «' + (pid ? fsName(FS.items.get(pid)) : 'Түбір') + '» қалтасына қосылды'));
+        } });
+      });
+    }
+    function fsOpenDua(id) {
+      var it = FS.items.get(id); if (!it) return;
+      var d = it.d || {};
+      var ov = fsModal('<div class="fs-sheet-title">' + fsEsc(fsName(it)) + '</div>' +
+        '<div class="fs-path">' + fsEsc(fsPath(it.p).join(' › ')) + '</div>' +
+        (d.ar ? '<div class="arabic fs-view-ar" dir="rtl">' + fsEsc(d.ar) + '</div>' : '') +
+        (d.tr ? '<div class="ayah-translation">' + fsEsc(d.tr) + '</div>' : '') +
+        '<div class="fs-row2" style="flex-wrap:wrap"><button type="button" class="btn btn-sm" id="fs-du-play">▶</button>' +
+        '<button type="button" class="btn btn-sm" id="fs-du-dl">📥 ' + fsT('Скачать', 'Жүктеу') + '</button>' +
+        '<button type="button" class="btn btn-sm" id="fs-du-move">' + fsT('Переместить', 'Жылжыту') + '</button>' +
+        '<button type="button" class="btn btn-sm fs-danger" id="fs-du-del">' + fsT('Удалить', 'Жою') + '</button>' +
+        '<button type="button" class="btn btn-sm btn-primary" id="fs-du-ok">' + fsT('Готово', 'Дайын') + '</button></div>');
+      ov.querySelector('#fs-du-play').addEventListener('click', function() { try { hisnPlay(String(d.hisn)); } catch (e) {} });
+      ov.querySelector('#fs-du-dl').addEventListener('click', function() { try { dlDua(String(d.hisn), d.title || ''); } catch (e) {} });
+      ov.querySelector('#fs-du-move').addEventListener('click', function() { fsCloseModal(ov); fsMoveDialog([id]); });
+      ov.querySelector('#fs-du-del').addEventListener('click', function() { fsCloseModal(ov); fsDeleteWithUndo([id]); });
+      ov.querySelector('#fs-du-ok').addEventListener('click', function() { fsCloseModal(ov); });
+    }
     function fsPickSurahToFolder(s) {
       s = +s;
       fsWhenReady(function() {
@@ -28382,6 +28430,7 @@ function renderDict() {
     function fsPreview(it) {
       var d = it.d || {};
       if (it.k === 'ayah') return (d.tr || d.ar || '').replace(/\s+/g, ' ').slice(0, 90);
+      if (it.k === 'dua') return (d.tr || d.ar || '').replace(/\s+/g, ' ').slice(0, 90);
       if (it.k === 'note') return (d.text || '').replace(/\s+/g, ' ').slice(0, 90);
       if (it.k === 'list') { var n = (d.items || []).length, x = (d.items || []).filter(function(i) { return i.x; }).length; return n ? (x + ' / ' + n) : fsT('пусто', 'бос'); }
       if (it.k === 'word') return (d.mean || d.tr || '').replace(/\s+/g, ' ').slice(0, 90);
@@ -28730,6 +28779,7 @@ function renderDict() {
       if (it.k === 'ayah') return fsOpenAyah(id);
       if (it.k === 'surah') { try { openSurah(it.d.s); } catch (e) { showView('home'); } return; }
       if (it.k === 'word') return fsOpenWord(id);
+      if (it.k === 'dua' && it.d && it.d.hisn) return fsOpenDua(id);
       fsSheet(fsName(it), [{ ico: '🗑', label: fsT('Удалить', 'Жою'), danger: true, fn: function() { fsDeleteWithUndo([id]); } }]);
     }
     function fsPlayAyah(s, a, btn, rec) {
@@ -44881,6 +44931,7 @@ c.addEventListener('click', () => {
       if (!it || !it.url) { toast(dlT('Сейчас нечего скачивать — включите аят, суру или дуа', 'Қазір жүктейтін ештеңе жоқ — аят, сүре немесе дұға қосыңыз')); return; }
       if (it.ext === 'azan') return dlAdhanCurrent();
       if (/audio-hisn\//.test(it.url)) { var key = (it.url.match(/audio-hisn\/([^.\/]+)\.mp3/) || [])[1]; return dlDua(key, it.title || ''); }
+      if (/audio-salah\//.test(it.url)) { var key2 = 'salah-' + (it.url.match(/audio-salah\/([^.\/]+)\.mp3/) || [])[1]; return dlDua(key2, it.title || ''); }
       if (it.whole) return openDownloadSheet({ surah: it.surah, ayah: it.ayah, whole: true, wholeId: it.wholeId });
       if (it.surah) return openDownloadSheet({ surah: it.surah, ayah: it.ayah, reciterId: it._recOverride || (state.settings && state.settings.reciter) });
       toast(dlT('Эту запись скачать нельзя', 'Бұл жазбаны жүктеуге болмайды'));
@@ -44896,11 +44947,13 @@ c.addEventListener('click', () => {
         }
       } catch (e) {}
       var name = dlT('Дуа', 'Дұға') + '_' + (dlSafe(nm) || key) + '.mp3';
-      dlOneFile('audio-hisn/' + key + '.mp3', name, {});
+      dlOneFile((String(key).indexOf('salah-') === 0 ? 'audio-salah/' + String(key).slice(6) : 'audio-hisn/' + key) + '.mp3', name, {});
     }
     document.addEventListener('click', function(e) {
       var d = e.target && e.target.closest && e.target.closest('[data-hisn-dl]');
       if (d) { e.preventDefault(); e.stopPropagation(); dlDua(d.getAttribute('data-hisn-dl'), d.getAttribute('data-dl-title') || ''); return; }
+      var fd = e.target && e.target.closest && e.target.closest('[data-hisn-fold]');
+      if (fd) { e.preventDefault(); e.stopPropagation(); fsPickDuaToFolder(fd.getAttribute('data-hisn-fold'), fd.getAttribute('data-dl-title') || ''); return; }
       var a = e.target && e.target.closest && e.target.closest('.btn-dl-ayah');
       if (a) {
         e.preventDefault(); e.stopPropagation();
