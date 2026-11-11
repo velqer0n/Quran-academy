@@ -4072,7 +4072,7 @@ select.fs-input { padding-right: 0.4rem; }
 .pt-strip{container-type:inline-size;display:flex;border-radius:0.6rem;overflow:hidden;height:2.2rem;background:var(--border)}
 .pt-seg{flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:0.85rem;overflow:hidden;border-left:2px solid var(--bg);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.45)}
 .pt-seg:first-child{border-left:0}
-.pt-seg.gap{background:repeating-linear-gradient(45deg,#8b94a3 0 3px,transparent 3px 6px)!important;color:var(--text)}
+.pt-seg.gap{background:repeating-linear-gradient(45deg,#d64545 0 3px,transparent 3px 6px)!important;color:var(--text)}
 .pt-now{position:absolute;top:-0.2rem;bottom:-0.4rem;width:3px;margin-left:-1.5px;border-radius:2px;background:var(--text);box-shadow:0 0 0 2px var(--bg);z-index:2}
 .pt-now::before{content:'';position:absolute;top:-5px;left:50%;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:var(--text);box-shadow:0 0 0 2px var(--bg)}
 .pt-axis{display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-muted);margin-top:0.3rem;font-variant-numeric:tabular-nums}
@@ -4100,3 +4100,19 @@ select.fs-input { padding-right: 0.4rem; }
 .pt-daynav button{min-width:2.2rem}
 .pt-legend{display:flex;flex-wrap:wrap;gap:0.3rem 0.7rem;margin-top:0.5rem;font-size:0.72rem;color:var(--text-muted)}
 .pt-legend i{display:inline-block;width:0.75rem;height:0.75rem;border-radius:0.2rem;margin-right:0.25rem;vertical-align:-0.1rem}
+
+/* build 6.50: плеер дуа/зикров/азана — без кнопок суры, с перемоткой, повтором и скоростью */
+.audio-bar .player-dua { display: none; align-items: center; justify-content: center; gap: 0.4rem; flex-wrap: wrap; width: 100%; }
+.audio-bar.is-dua .player-dua { display: flex !important; }
+.audio-bar.is-dua .player-surahnav,
+.audio-bar.is-dua .pl-more-toggle,
+.audio-bar.is-dua #audio-more,
+.audio-bar.is-dua #audio-help { display: none !important; }
+.audio-bar.is-dua.no-chain #audio-prev,
+.audio-bar.is-dua.no-chain #audio-next,
+.audio-bar.is-dua.no-chain #audio-mini-prev,
+.audio-bar.is-dua.no-chain #audio-mini-next { display: none !important; }
+.audio-bar .player-dua .pl-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.audio-bar .player-dua select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.3rem 0.4rem; border-radius: 0.6rem; font-size: 0.8rem; }
+.audio-bar.collapsed #audio-dua-row { display: none !important; }
+body.theme-light .audio-bar, body.theme-light .audio-bar.visible { background: #eef1f5; }

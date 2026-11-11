@@ -24,7 +24,7 @@ self.addEventListener('fetch', e => {
   // целиком: при первом прослушивании докачиваем файл в фоне, потом
   // отдаём нужный кусок из кэша — так они играют и без интернета.
   if (req.headers.has('range')) {
-    if (url.indexOf('/audio-hisn/') < 0) return;
+    if (url.indexOf('/audio-hisn/') < 0 && url.indexOf('/audio-salah/') < 0) return;
     e.respondWith((async () => {
       const cache = await caches.open(CACHE);
       const hit = await cache.match(url);
