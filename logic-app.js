@@ -1231,6 +1231,9 @@ function _friendlyErrText(rawMsg, kk) {
       ? 'Сіз бандалғансыз — хабарлама жібере алмайсыз'
       : 'Вы забанены — не можете отправлять сообщения';
   }
+  if (/PROFANITY_BLOCKED|недопустимые выражения/i.test(msg)) {
+    return kk ? 'Хабарлама жіберілмеді: жарамсыз сөздер.' : 'Сообщение не отправлено: недопустимые выражения.';
+  }
   return msg;
 }
 
@@ -2825,6 +2828,14 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
 
     function showView(name, isBack) {
       try { name = applyViewAlias(name); } catch (e) {}
+      // build 6.53: перед чатами/форумом/вопросами — правила и согласие (один раз)
+      try {
+        if (CHAT_CONSENT_VIEWS[name] && authSession() && !hasChatConsent()) {
+          var _ccName = name, _ccBack = isBack;
+          openChatConsent(function() { showView(_ccName, _ccBack); });
+          return;
+        }
+      } catch (e) {}
       window._qaView = name;
       try { if (name === 'reader') setReciterCtx('surahs'); } catch (e) {}
       try { twWordTip(null); } catch (e) {}
@@ -3120,7 +3131,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (name === 'dict') try { renderDict(); } catch(e) {}
       if (name === 'export') try { renderExport(); } catch(e) {}
       if (name === 'changelog') try { renderChangelog(); } catch(e) {}
-      if (name === 'sources') try { renderSources(); } catch(e) { console.warn('sources', e); }
+      if (name === 'sources') { try { renderSources(); } catch(e) { console.warn('sources', e); } try { _appendLegalLinks(document.getElementById('sources-body')); } catch(e) {} }
       if (name === 'settings') try { applyTheme(); renderSettingsExtraData(); } catch(e) {}
       if (name === 'help') try { renderHelp(); } catch(e) {}
       if (name === 'account' || name === 'login' || name === 'register' || name === 'forgot') try { renderAuth(name); } catch(e) {}
@@ -4323,75 +4334,18 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       } catch(e) {}
     }
 
-    // Озвучка дуа/азкаров через Google Translate TTS часто не проигрывается при
-    // прямом присвоении audio.src (блокируется CORS/referrer на многих устройствах).
-    // Поэтому для translate_tts пробуем: прямое воспроизведение → blob через fetch →
-    // системный синтез речи. Очередь (next/prev/повтор/подсветка) продолжает работать как обычно.
+    // Озвучка дуа/азкаров без записи чтеца: голос устройства (build 6.53: Google TTS убран).
+    // Очередь (next/prev/повтор/подсветка) продолжает работать как обычно.
     function playTtsQueueItem(item, idx) {
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
       window._ttsPlaying = false;
       const text = (item.ar || '').trim();
       const q = encodeURIComponent(text || item.title || '');
-      // Пробуем оба хоста Google — translate.googleapis.com чаще отдаёт корректные CORS-заголовки,
-      // чем translate.google.com, поэтому первым идёт он.
-      const urls = [
-        'https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + q,
-        item.url || ('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + q)
-      ];
-      function tryDirect(u) {
-        return new Promise(function(resolve, reject) {
-          let done = false;
-          const to = setTimeout(function() { if (done) return; done = true; cleanup(); reject(new Error('timeout')); }, 3500);
-          function cleanup() { audioEl.removeEventListener('playing', onPlaying); audioEl.onerror = null; }
-          function onPlaying() { if (done) return; done = true; clearTimeout(to); cleanup(); resolve(); }
-          audioEl.addEventListener('playing', onPlaying);
-          audioEl.onerror = function() { if (done) return; done = true; clearTimeout(to); cleanup(); reject(new Error('err')); };
-          audioEl.src = u;
-          applyAudioSpeed();
-          const p = audioEl.play();
-          if (p && p.catch) p.catch(function() { if (done) return; done = true; clearTimeout(to); cleanup(); reject(new Error('play')); });
-        });
-      }
-      function tryBlob(u) {
-        let ctrl = null;
-        try { ctrl = new AbortController(); } catch(e) {}
-        const abTo = ctrl ? setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 3500) : null;
-        return fetch(u, { mode: 'cors', signal: ctrl ? ctrl.signal : undefined }).then(function(r) {
-          if (abTo) clearTimeout(abTo);
-          if (!r.ok) throw new Error('http');
-          return r.blob();
-        }).then(function(blob) {
-          return new Promise(function(resolve, reject) {
-            const obj = URL.createObjectURL(blob);
-            let done = false;
-            const to2 = setTimeout(function() { if (done) return; done = true; cleanup(); reject(new Error('timeout')); }, 3500);
-            function cleanup() { audioEl.removeEventListener('playing', onPlaying); audioEl.onerror = null; clearTimeout(to2); }
-            function onPlaying() { if (done) return; done = true; cleanup(); resolve(); }
-            audioEl.addEventListener('playing', onPlaying);
-            audioEl.onerror = function() { if (done) return; done = true; cleanup(); try { URL.revokeObjectURL(obj); } catch(e) {} reject(new Error('blob')); };
-            audioEl.src = obj;
-            applyAudioSpeed();
-            const p = audioEl.play();
-            if (p && p.catch) p.catch(function() { if (done) return; done = true; cleanup(); reject(new Error('play')); });
-          });
-        }).catch(function(e) { if (abTo) clearTimeout(abTo); throw e; });
-      }
-      function tryHost(u) {
-        return tryDirect(u).catch(function() { return tryBlob(u); });
-      }
-      function tryGoogleHostsThenRu() {
-        if (window._ttsHostsBlocked) { synthFallback(); return; }
-        tryHost(urls[0]).catch(function() { return tryHost(urls[1]); }).then(function() {
-          window._ttsHostsBlocked = false;
-        }).catch(function() {
-          window._ttsHostsBlocked = true; // оба хоста недоступны в этом браузере — не тратим время на них дальше в этой сессии
-          synthFallback();
-        });
-      }
+      // build 6.53: Google Translate TTS убран (неофициальный адрес, условия Google это не
+      // разрешают). Остаётся голос устройства; если его нет — русский перевод.
       function tryHostsThenSynth() {
-        // Как в Academy.html: сначала — голос устройства (бесплатно, офлайн, без стороннего
-        // сервиса и без вопросов авторского права). Google Translate TTS — только запасной путь,
-        // если на устройстве нет арабского голоса или синтез не запустился.
+        // Голос устройства (бесплатно, офлайн, без стороннего сервиса). Нет арабского
+        // голоса или синтез не запустился — synthFallback (русский перевод).
         let voices = [];
         try { voices = window.speechSynthesis ? (window.speechSynthesis.getVoices() || []) : []; } catch(e) {}
         const arVoice = voices.find(v => /^ar(-|$)/i.test(v.lang)) || voices.find(v => /arab/i.test(v.name || ''));
@@ -4401,11 +4355,11 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
             if (audioRepeatLeft > 1) { audioRepeatLeft--; updateAudioSub(); playTtsQueueItem(item, idx); return; }
             playNextInQueue();
           }).catch(function() {
-            tryGoogleHostsThenRu();
+            synthFallback();
           });
           return;
         }
-        tryGoogleHostsThenRu();
+        synthFallback();
       }
       // Синтез речи: ждём событие 'start' максимум 2с (иначе движка/голоса нет — не виснем),
       // а после старта ограничиваем общее время разумной оценкой длины текста.
@@ -4653,7 +4607,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       }
       if (item.whole) { playWholeItem(item, idx); return; }
       paintQueueItemUi(item);
-      if (/translate_tts/.test(item.url)) {
+      if (/^device-tts:/.test(item.url)) {
         playTtsQueueItem(item, idx);
         return;
       }
@@ -5683,7 +5637,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
           var n = idx + k;
           if (n >= audioQueue.length) { if (!wrap) break; n = n % audioQueue.length; }
           var it = audioQueue[n];
-          if (!it || !it.url || /translate_tts/.test(it.url)) continue;
+          if (!it || !it.url || /^device-tts:/.test(it.url)) continue;
           var u = it.url;
           if (it.surah && it.ayah && !it._recOverride && state.settings && state.settings.reciter === 'ar.husary') {
             var e = getWordTiming(it.surah, it.ayah);
@@ -7836,54 +7790,8 @@ function speakLetter(ch, name, ttsOnly) {
       }
 
       function goGoogle() {
-        if (!navigator.onLine) {
-          toast('Нужен арабский голос в системе или интернет');
-          return;
-        }
-        // куски для длинного текста
-        function chunks(str, max) {
-          if (typeof splitArabicForSpeech === 'function') {
-            var sp = splitArabicForSpeech(str, max || 170);
-            if (sp && sp.length) return sp;
-          }
-          var out = [], rest = str;
-          max = max || 160;
-          while (rest.length) {
-            if (rest.length <= max) { out.push(rest); break; }
-            var cut = rest.lastIndexOf(' ', max);
-            if (cut < 30) cut = max;
-            out.push(rest.slice(0, cut));
-            rest = rest.slice(cut).trim();
-          }
-          return out;
-        }
-        var parts = chunks(text, 170);
-        var queue = parts.map(function(p, idx) {
-          return {
-            url: 'https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + encodeURIComponent(p),
-            title: parts.length > 1 ? ('Дуа · ' + (idx + 1) + '/' + parts.length) : 'Дуа',
-            ar: p,
-            adhkar: true,
-            surah: null,
-            ayah: null
-          };
-        });
-        if (typeof playAudio === 'function') {
-          try {
-            window._audioCtx = 'adhkar';
-            if (typeof audioPlayMode !== 'undefined') audioPlayMode = parts.length > 1 ? 'surah' : 'single';
-            try { if (typeof updateAudioModeButtons === 'function') updateAudioModeButtons(); } catch(e) {}
-            playAudio(queue[0].url, queue[0].title, {
-              queue: queue,
-              queueIdx: 0,
-              mode: parts.length > 1 ? 'surah' : 'single',
-              repeat: 1
-            });
-            toast('▶ ' + queue[0].title);
-            return;
-          } catch(e) {}
-        }
-        toast('Не удалось озвучить');
+        // build 6.53: запасной путь через Google убран
+        toast('Нужен арабский голос в системе');
       }
 
       // голоса могут подгрузиться с задержкой — как в Academy
@@ -15257,7 +15165,7 @@ function renderDictation(area) {
       // руки ниже пупка (build 6.29: локти у боков, предплечья почти горизонтально): правая ладонь на тыльной стороне левой, мизинец и
       // большой палец обхватывают левое запястье
       P.fold = _sPose(P.stand, { head: 160, /* build 6.47: взгляд на место суджуда — голова заметно опущена */
-        R: { grip: { y: 0.07, ld: 0.5, /* build 6.47: кисти у пояса, на 6–8 см ниже пупка (раньше были на уровне пупка); левая кисть лежит почти горизонтально под правой */ /* build 6.29: кисти ниже пупка — предплечья идут к локтям чуть вверх, правое проходит над пальцами левой */ rb: 0.16, lim: 0.9, lw: 10, lat: 1.0, out: 0.024, wl: -0.06, /* build 6.49: правая ладонь лежит на тыльной стороне левой кисти (раньше — на запястье и рукаве), большой палец и мизинец охватывают левое запястье */ dn: 0, pd: 0, pb: 0.5, ph: 0 } /* build 6.29 (сверено с кадром видео): правая кисть чуть выше левой, пальцы горизонтально вдоль левого предплечья; левая ладонь под ней тоже горизонтально */ /* build 6.29: правая кисть продолжает линию предплечья (запястье ~30°, не излом 80°), ладонь на левом запястье, пальцы обхватывают его */, w: { at: 'pelvis', o: [21.5, 18, 3] }, pole: [0.1, -0.9, 0.7] /* build 6.29: локоть у бока, а не в сторону — как на видео */, hd: [94, -80], tb: [0, 0, -1] },
+        R: { grip: { rr: 0.04, /* build 6.54: правое запястье не дальше 4 см от ткани живота — кисти прижаты к телу (раньше запястье висело в 9 см перед животом) */ lx: 0.06, /* build 6.52: кисти по центру живота — локти симметричны (раньше левый был прижат к боку, а справа оставался зазор); левая кисть лежит ровнее и выше, под правой ладонью */ oc: 0.035, li: 0.3, y: 0.085, ld: 0.3, /* build 6.54: пальцы левой кисти огибают живот и идут чуть вниз, под правое запястье — не проходят сквозь правый рукав */ /* build 6.47: кисти у пояса, на 6–8 см ниже пупка (раньше были на уровне пупка); левая кисть лежит почти горизонтально под правой */ /* build 6.29: кисти ниже пупка — предплечья идут к локтям чуть вверх, правое проходит над пальцами левой */ rb: 0.16, lim: 0.9, lw: 10, lat: 1.0, out: 0.024, wl: -0.06, /* build 6.49: правая ладонь лежит на тыльной стороне левой кисти (раньше — на запястье и рукаве), большой палец и мизинец охватывают левое запястье */ dn: 0, pd: 0, pb: 0.5, ph: 0 } /* build 6.29 (сверено с кадром видео): правая кисть чуть выше левой, пальцы горизонтально вдоль левого предплечья; левая ладонь под ней тоже горизонтально */ /* build 6.29: правая кисть продолжает линию предплечья (запястье ~30°, не излом 80°), ладонь на левом запястье, пальцы обхватывают его */, w: { at: 'pelvis', o: [21.5, 18, 3] }, pole: [0.1, -0.9, 0.7] /* build 6.29: локоть у бока, а не в сторону — как на видео */, hd: [94, -80], tb: [0, 0, -1] },
         L: { w: { at: 'pelvis', o: [14, 16, 5] }, pole: [-0.1, -0.9, 0.5], hd: [92, -78], tb: [0, 1, 0] } });
       // руку‘: спина расправлена, голова вровень с крестцом, взгляд на верх
       // стоп, ладони обхватывают колени, пальцы раздвинуты, руки отведены от боков
@@ -15267,20 +15175,20 @@ function renderDictation(area) {
         L: Object.assign({}, rk, { th: [4, -2], sh: [6, -1], ft: [62, 0] }) });
       // спуск в суджуд: колени → ладони → нос → лоб
       const kneeLeg = { th: [24, -2], sh: [-106, -1], ft: [8, 0], to: [92, 0] };
-      P.kneel = _sPose(P.stand, { torso: 166, head: 168,
+      P.kneel = _sPose(P.stand, { torso: 166, head: 150, /* build 6.52: при опускании взгляд остаётся на месте суджуда — голова не задирается */
         R: Object.assign({ w: { at: 'thigh', o: [6, 4, 4] }, pole: [-0.3, 0, 1], hd: [70, 0], tb: [0, 0.3, -1] }, kneeLeg),
         L: Object.assign({ w: { at: 'thigh', o: [6, 4, 4] }, pole: [-0.3, 0, 1], hd: [70, 0], tb: [0, 0.3, -1] }, kneeLeg) });
       // build 6.46: ладони ставятся на пол сразу туда, где они лежат в суджуде (раньше висели над полом ближе к коленям и потом ехали вперёд);
       // корпус при этом уже наклонён, локти слегка согнуты — не «на четвереньках на прямых руках»
-      const hf = { w: { at: 'knee', o: [42.9, -24.8, 11.5] }, pole: [-0.6, 1, 0.7], hd: [90, -10], tb: [-0.3, 0, -1] }; /* build 6.47: под новое место ладоней в суджуде */
-      P.hands = _sPose(P.stand, { torso: 100, head: 106,
+      const hf = { w: { at: 'knee', o: [47.6, -25.6, 15.2] }, /* build 6.57: ладони ставятся ровно туда, где лежат в суджуде (после сдвига ладоней в 6.55–6.56 они проезжали по полу 4,6 см) */ pole: [-0.6, 1, 0.7], hd: [90, -10], tb: [-0.3, 0, -1] }; /* build 6.47: под новое место ладоней в суджуде */
+      P.hands = _sPose(P.stand, { torso: 100, head: 82, /* build 6.52: лицо вниз, к месту суджуда (раньше голова была задрана вперёд) */
         R: Object.assign({}, hf, kneeLeg, { th: [16, -2] }),
         L: Object.assign({}, hf, kneeLeg, { th: [16, -2] }) });
       // суджуд: лицо между ладонями, пальцы к кибле, локти не касаются
       // пола и боков, живот отдалён от бёдер, пальцы ног — к кибле
       // build 6.47: локоть позади кисти и в стороне от бока (раньше он оказывался впереди запястья — кисть была вывернута назад под 109°).
       // Ладони чуть шире и ближе к плечам; пальцы к кибле с небольшим доворотом внутрь, чтобы запястье не ломалось
-      const sj = { w: { at: 'ear', o: [-4, -7, 14] }, pole: [-1.2, 1.6, 0.35], hd: [90, -10], tb: [-0.3, 0, -1] }; /* build 6.49: локти выше над полом и в стороны, не впереди кистей */
+      const sj = { w: { at: 'ear', o: [-7, -7, 17.5] }, /* build 6.56: ладони на 5 см дальше от лица (4 см назад и 3 см в стороны) — не вплотную к голове; локоть при этом поднялся до 18 см */ pole: [-0.6, 0.45, 1], /* build 6.55: локти отведены назад (на 15 см позади запястий), ладони чуть ближе к голове */ clv: [-0.2, 1, 0.2, 0.7], hd: [90, -10], tb: [-0.3, 0, -1] }; /* build 6.54: локоть поднят примерно на 22 см и стоит позади кисти — предплечье наклонено около 50° (в 6.52 локоть был на 10 см, предплечье шло почти вдоль пола) */ /* build 6.52: по правилам суджуда — предплечья не лежат на полу, локти подняты (~10 см) и отведены от боков, позади кистей; плечи подняты к ушам, руки упираются ладонями */ /* build 6.49: локти выше над полом и в стороны, не впереди кистей */
       P.sajda = _sPose(P.stand, { torso: 56, head: 92, /* build 6.49: лоб и нос на полу, лицо вниз, макушка к кибле (раньше голова была подвёрнута и упиралась макушкой) */
         R: Object.assign({}, sj, kneeLeg, { th: [0, -2] }),
         L: Object.assign({}, sj, kneeLeg, { th: [0, -2] }) });
@@ -15289,14 +15197,14 @@ function renderDictation(area) {
       const sitArm = { w: { at: 'thigh', o: [-10, 12.5, 2] }, pole: [-0.4, 0, 1], hd: [100, -3], tb: [0.1, 0.3, -1] }; // build 6.29: ладони ложатся на ткань бедра, пальцы не висят
       P.sit = _sPose(P.stand, { torso: 172, head: 168, tipT: 1.14, /* build 6.30: спина почти прямая (было 162°/160° — сильный наклон вперёд) */ // build 6.29: корпус чуть вперёд — локти согнуты, кончики пальцев у колен
         R: Object.assign({}, sitArm, { th: [76, 2], sh: [-98, 3], ft: [40, 0], to: [92, 0], pitch: 60 }),
-        L: Object.assign({}, sitArm, { th: [76, 2], sh: [-92, 10], ft: [-100, -40], to: [-106, -45] } /* build 6.49: левая стопа повёрнута внутрь примерно на 40° — пальцы смотрят в сторону правой стопы, так сидят на самом деле */ /* build 6.33: левая стопа продолжает линию голени назад (щиколотка ~17°, без излома), подошва вверх; колени ближе (как на видео) */) }); /* build 6.31: левая стопа плавно повернута пальцами вправо */ // build 6.30: левая стопа подстелена тыльной стороной вниз, пальцы назад и чуть внутрь — без вывиха в щиколотке
+        L: Object.assign({}, sitArm, { th: [76, 2], sh: [-92, 10], ft: [-100, -68], to: [-106, -75] } /* build 6.52: левая стопа лежит поперёк — пальцы направлены к правой стопе (было 40°) */ /* build 6.49: левая стопа повёрнута внутрь примерно на 40° — пальцы смотрят в сторону правой стопы, так сидят на самом деле */ /* build 6.33: левая стопа продолжает линию голени назад (щиколотка ~17°, без излома), подошва вверх; колени ближе (как на видео) */) }); /* build 6.31: левая стопа плавно повернута пальцами вправо */ // build 6.30: левая стопа подстелена тыльной стороной вниз, пальцы назад и чуть внутрь — без вывиха в щиколотке
       // ташаххуд: указательный поднимается на «ля иляха» и опускается на
       // «илля-Ллах»; остальные пальцы лежат вытянутыми на бедре
       P.sitFinger = _sPose(P.sit, { finger: 1 });
-      P.salamR = _sPose(P.sit, { yaw: 75, head: 168 });
-      P.salamL = _sPose(P.sit, { yaw: -75, head: 168 });
+      P.salamR = _sPose(P.sit, { yaw: 75, head: 176 }); /* build 6.55: в саляме голова поднята (подбородок не упирается в воротник), лицо к плечу */
+      P.salamL = _sPose(P.sit, { yaw: -75, head: 176 });
       // подъём на следующий ракаат: ладони на коленях, без опоры о пол
-      P.rise = _sPose(P.stand, { torso: 132, head: 145,
+      P.rise = _sPose(P.stand, { torso: 132, head: 108, /* build 6.52: голова опущена вместе с корпусом, взгляд вниз — шея не вытягивается вперёд */
         R: { w: { at: 'knee', o: [-6, 17, 3] }, pole: [-0.4, 0.3, 1], hd: [25, 0], tb: [0.2, 0, -1], th: [58, -2], sh: [-22, -1], ft: [36, 0], to: [90, 0] }, /* build 6.49: ладони лежат на коленях поверх ткани (раньше висели перед голенями) — опора о колени, не о пол */
         L: { w: { at: 'knee', o: [-6, 17, 3] }, pole: [-0.4, 0.3, 1], hd: [25, 0], tb: [0.2, 0, -1], th: [58, -2], sh: [-22, -1], ft: [36, 0], to: [90, 0] } });
       // пальцы по позам
@@ -15352,9 +15260,9 @@ function renderDictation(area) {
     })();
 
     /* build 6.36: заранее посчитанный подбор положения кистей в сидении (см. буфер __SITCAL): ключ → [сдвиг вдоль бедра, сдвиг по высоте, цена]; при несовпадении подбор делается заново */
-    const SALAH_SIT_CAL = {"_r|-1143,2225,-333;-1300,544,3827;-1466,2830,1610;0,2014,-430;0,3190,79;0,7680,349|10886,0,0,0,":[-0.02799999999999997,0.13000000000000003,0.003609302500724182],"_l|1143,2225,-333;1300,544,3827;1466,2830,1610;0,2014,-430;0,3190,79;0,7680,349|10886,0,0,0,":[-0.031999999999999966,0.13500000000000004,0.005667933280686311],"_r|-1143,2225,-333;-1300,544,3827;-1466,2830,1610;0,2014,-430;0,3190,79;0,7680,349|10886,0,1,0,":[-0.02799999999999997,0.13000000000000003,0.003609302500724182],"_l|1143,2225,-333;1300,544,3827;1466,2830,1610;0,2014,-430;0,3190,79;0,7680,349|10886,0,1,0,":[-0.031999999999999966,0.13500000000000004,0.005667933280686311],"_r|-1143,4652,-314;-986,553,1511;-1537,3484,1492;0,4451,-430;0,5573,188;0,10011,925|10886,877,0,0,":[1.0408340855860843e-17,0,0.11508952713396253],"_l|1143,4652,-314;986,553,1511;1537,3484,1492;0,4451,-430;0,5573,188;0,10011,925|10886,877,0,0,":[1.0408340855860843e-17,0,0.11642166633451768]};
+    const SALAH_SIT_CAL = {"_r|-1143,4652,-314;-986,553,1511;-1538,3485,1512;0,4451,-430;0,5573,188;0,9997,1135|10886,876,0,0,":[-0.0019999999999999896,1.734723475976807e-18,0.1165668826009515],"_l|1143,4652,-314;986,553,1511;1538,3485,1512;0,4451,-430;0,5573,188;0,9997,1135|10886,876,0,0,":[-0.0019999999999999896,1.734723475976807e-18,0.11796700542416863],"_r|-1143,2005,-333;-1300,544,3909;-1466,2769,1669;0,1794,-430;0,2970,79;0,7464,402|10886,0,0,0,":[-0.03399999999999997,0.12500000000000003,0.0033205923927341714],"_l|1143,2005,-333;1300,544,3909;1466,2769,1669;0,1794,-430;0,2970,79;0,7464,402|10886,0,0,0,":[-0.03999999999999999,0.12500000000000003,0.0030312713675841882],"_r|-1143,2005,-333;-1300,544,3909;-1466,2769,1669;0,1794,-430;0,2970,79;0,7464,402|10886,0,1,0,":[-0.03399999999999997,0.12500000000000003,0.0033205923927341714],"_l|1143,2005,-333;1300,544,3909;1466,2769,1669;0,1794,-430;0,2970,79;0,7464,402|10886,0,1,0,":[-0.03999999999999999,0.12500000000000003,0.0030312713675841882],"_r|-1143,2005,-333;-1300,544,3909;-1466,2769,1669;0,1794,-430;0,2970,79;0,7460,349|10886,0,0,0,":[-0.03399999999999997,0.12500000000000003,0.003320744477327732],"_l|1143,2005,-333;1300,544,3909;1466,2769,1669;0,1794,-430;0,2970,79;0,7460,349|10886,0,0,0,":[-0.03999999999999998,0.12500000000000003,0.0030308249960544972]};
     /* build 6.46: заранее посчитанная посадка на левую стопу (ключ — углы ног; при несовпадении считается заново) */
-    const SALAH_SEAT_CAL = {"R|[[68,2],[-98,3],[40,0],[92,0],60]":{"sv":-106,"a":-0.6499999999999998},"[[76,2],[-92,10],[-100,-40],[-106,-45],[76,2]]":{"sh":[-91,10],"ft":[-74,-40],"to":[-77,-45],"th":68}};
+    const SALAH_SEAT_CAL = {"[[76,2],[-92,10],[-100,-68],[-106,-75],[76,2]]":{"sh":[-88,10],"ft":[-79,-68],"to":[-82,-75],"th":71,"e":0.0016927361152162534,"es":0.0018464583057333367},"R|[[71,2],[-98,3],[40,0],[92,0],60]":{"sv":-106,"a":-0.6499999999999998}};
     const SALAH_F_MAP = { takbir: 'takbirF', fold: 'foldF', ruku: 'rukuF', sajda: 'sajdaF', sit: 'sitF', sitFinger: 'sitFingerF', sitRing: 'sitRingF', salamR: 'salamRF', salamL: 'salamLF', dua: 'duaF' };
     function _sEase(k) { return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; }
     function salahLerpPose(A, B, k) {
@@ -16367,11 +16275,13 @@ function renderDictation(area) {
             B.Head.children.forEach(function(m) { if (!m.isMesh || m === kufi || !m.geometry || !m.geometry.attributes.position) return; m.updateWorldMatrix(true, false); const ps = m.geometry.attributes.position; for (let j = 0; j < ps.count; j++) { vq.set(ps.getX(j), ps.getY(j), ps.getZ(j)).applyMatrix4(m.matrixWorld).applyMatrix4(inv_); if (vq.y > -0.3) hp.push(vq.clone()); } });
             for (let v = 0; v < skI.length / 4; v++) { let w = 0; for (let k = 0; k < 4; k++) if (skI[v * 4 + k] === hi || skI[v * 4 + k] === ni) w += skW[v * 4 + k]; if (w < 0.6) continue; body.getVertexPosition(v, vq); vq.applyMatrix4(body.matrixWorld).applyMatrix4(inv_); if (vq.y > -0.3) hp.push(vq.clone()); }
             const fl = V(0, 0, 1).transformDirection(inv_).normalize(); /* спереди шапка свободнее, сзади плотно */ const g = kufi.geometry, pa = g.attributes.position, n = pa.count, rr = new Float32Array(n), dd = [], sc = (kufi.scale.x + kufi.scale.y + kufi.scale.z) / 3;
+            /* build 6.55: шов шапки. У сферы вершины вдоль шва и на макушке продублированы; раньше каждая копия сглаживалась отдельно — по шву шла щель и тёмная линия. Теперь копии считаются одной вершиной */
+            const canon = new Int32Array(n), _kc = {}, _kcN = 0; for (let i = 0; i < n; i++) { const k_ = Math.round(pa.getX(i) * 1e4) + ',' + Math.round(pa.getY(i) * 1e4) + ',' + Math.round(pa.getZ(i) * 1e4); if (_kc[k_] == null) _kc[k_] = i; canon[i] = _kc[k_]; }
             for (let i = 0; i < n; i++) { const d = V(pa.getX(i), pa.getY(i), pa.getZ(i)).normalize(); dd.push(d); let m = 0; for (let j = 0; j < hp.length; j++) { const l = hp[j].length(); if (l > 1e-6 && hp[j].dot(d) / l > KUFI_C) m = Math.max(m, l); } const fw = Math.max(0, Math.min(1, d.dot(fl) * 1.2 + 0.4)); rr[i] = m > 0 ? Math.min(1.08, m + (d.y < 0.25 && fw < 0.5 ? 0.0025 : 0.003 + (KUFI_G - 0.003) * fw) / sc) : 1; }
-            const nb = []; for (let i = 0; i < n; i++) nb.push([]); const ix = g.index.array; for (let k = 0; k < ix.length; k += 3) for (let a = 0; a < 3; a++) { const x = ix[k + a], y = ix[k + (a + 1) % 3]; nb[x].push(y); nb[y].push(x); }
+            const nb = []; for (let i = 0; i < n; i++) nb.push([]); const ix = g.index.array; for (let k = 0; k < ix.length; k += 3) for (let a = 0; a < 3; a++) { const x = canon[ix[k + a]], y = canon[ix[k + (a + 1) % 3]]; if (x !== y) { nb[x].push(y); nb[y].push(x); } }
             const r0 = rr.slice(); for (let it = 0; it < KUFI_S; it++) { const c = rr.slice(); for (let i = 0; i < n; i++) { let s = 0; nb[i].forEach(function(j) { s += c[j]; }); const av = nb[i].length ? s / nb[i].length : c[i]; rr[i] = Math.max(r0[i], av); } }
-            for (let i = 0; i < n; i++) { const p = dd[i].clone().multiplyScalar(rr[i]); pa.setXYZ(i, p.x, p.y, p.z); }
-            pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); } catch (e) {} } /* build 6.29: тюбетейка сидит ровнее — задний край выше, не свисает за затылок */ kufi.castShadow = true; B.Head.add(kufi);
+            for (let i = 0; i < n; i++) { const p = dd[i].clone().multiplyScalar(rr[canon[i]]); pa.setXYZ(i, p.x, p.y, p.z); }
+            pa.needsUpdate = true; g.computeVertexNormals(); { const na = g.attributes.normal, sx = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const c = canon[i] * 3; sx[c] += na.getX(i); sx[c + 1] += na.getY(i); sx[c + 2] += na.getZ(i); } for (let i = 0; i < n; i++) { const c = canon[i] * 3, l = Math.hypot(sx[c], sx[c + 1], sx[c + 2]) || 1; na.setXYZ(i, sx[c] / l, sx[c + 1] / l, sx[c + 2] / l); } na.needsUpdate = true; } g.computeBoundingSphere(); } catch (e) { try { console.warn('kufi', e); } catch (e2) {} } } /* build 6.29: тюбетейка сидит ровнее — задний край выше, не свисает за затылок */ kufi.castShadow = true; B.Head.add(kufi);
       } else {
         // build 6.21: женский головной убор — капюшон-химар из той же ткани: закрывает волосы, шею и спускается на плечи; открыто только лицо
         const prof0 = [[0.228, 0], [0.226, 0.035], [0.217, 0.06], [0.202, 0.08], [0.182, 0.094], [0.15, 0.105], [0.12, 0.11], [0.09, 0.109], [0.06, 0.103], [0.03, 0.097], [0.0, 0.093], [-0.03, 0.09], [-0.08, 0.092]]; // build 6.27: по размерам головы модели (ширина ±0.09, макушка 0.21)
@@ -16510,8 +16420,10 @@ function renderDictation(area) {
           setWorld('pelvis', slerpDir(0.9), lat, restTorso, RIGHT);
           setWorld('spine_01', slerpDir(1.0), lat, restTorso, RIGHT);
           setWorld('spine_02', tdir, lat, restTorso, RIGHT);
-          setWorld('spine_03', tdir, lat, restTorso, RIGHT);
-          setWorld('neck_01', tdir.clone().lerp(hAx, 0.5).normalize(), lat, restNeck, RIGHT);
+          /* build 6.52: наклон головы вперёд начинается от верха спины, а не одним изломом в шее */
+          const _hf = (headT < tt && !FEM) ? (window.__NK || [0.35, 0.65]) : [0, 0.5];
+          setWorld('spine_03', _hf[0] ? tdir.clone().lerp(hAx, _hf[0]).normalize() : tdir, lat, restTorso, RIGHT);
+          setWorld('neck_01', tdir.clone().lerp(hAx, _hf[1]).normalize(), lat, restNeck, RIGHT);
           setWorld('Head', hAx, hR, restSkull, RIGHT);
         };
         const setLegs = function(ankleTweak) {
@@ -16632,7 +16544,9 @@ function renderDictation(area) {
             // плечевой пояс немного следует за рукой
             B['clavicle' + sx].quaternion.copy(rest['clavicle' + sx].lq); B['clavicle' + sx].updateMatrixWorld(true);
             { const sh = wp('upperarm' + sx); const dd = Wt.clone().sub(sh).normalize(); const cur = sh.clone().sub(wp('clavicle' + sx)).normalize();
-              const q = new THREE.Quaternion().slerp(new THREE.Quaternion().setFromUnitVectors(cur, dd), clavF);
+              /* build 6.52: поза может задать подъём плеч (суджуд: плечи подняты к ушам, руки упираются в пол) */
+              const q = S.clv ? new THREE.Quaternion().slerp(new THREE.Quaternion().setFromUnitVectors(cur, map([S.clv[0], S.clv[1], S.clv[2] * sg]).normalize()), S.clv[3])
+                : new THREE.Quaternion().slerp(new THREE.Quaternion().setFromUnitVectors(cur, dd), clavF);
               const b = B['clavicle' + sx]; const wq = b.getWorldQuaternion(new THREE.Quaternion()); setWorldQ('clavicle' + sx, q.multiply(wq)); }
             const solve = function(Wt0) {
               const Sp = wp('upperarm' + sx);
@@ -16717,15 +16631,16 @@ function renderDictation(area) {
           const fwd = new THREE.Vector3().crossVectors(latR, up).normalize();
           if (fwd.dot(map([1, 0, 0])) < 0) fwd.negate();
           const pel = wp('pelvis'), s1 = wp('spine_01');
-          const ax0 = V(s1.x, 0, (pel.z + s1.z) / 2), hY = pel.y + (P.R.grip.y || 0.095); let Rb = P.R.grip.rb || 0.13;
+          const ax0 = V(s1.x, 0, (pel.z + s1.z) / 2), hY = pel.y + (P.R.grip.y || 0.095); let Rb = P.R.grip.rb || 0.13, RbC = Rb;
           const radv = function(p) { const v = p.clone().sub(ax0); v.y = 0; return v; };
-          const rL = fwd.clone().multiplyScalar(Rb).addScaledVector(latR, -0.02).normalize(); /* build 6.29: кисти сходятся по центру — локти симметричны */
+          const rL = fwd.clone().multiplyScalar(Rb).addScaledVector(latR, -(P.R.grip.lx != null ? P.R.grip.lx : 0.02)).normalize(); /* build 6.29: кисти сходятся по центру — локти симметричны */
           { // build 6.29: радиус живота берётся по настоящей ткани камиса (луч), чтобы левая ладонь лежала на животе, а не висела перед ним
             const keepR = P.R.w, keepL = P.L.w; P.R.w = { at: 'sh', o: [0, -60, 30] }; P.L.w = { at: 'sh', o: [0, -60, 30] };
             armsPass(null); root.updateMatrixWorld(true); robeNoHand = true; buildRobe(); robe.updateMatrixWorld(true); robeNoHand = false;
             const o = ax0.clone().setY(hY), hd = robeHit(o.clone().addScaledVector(rL, 0.5), rL.clone().negate().normalize(), 0.6);
             if (hd >= 0) Rb = 0.5 - hd;
-            if (window.__GRIPM) window.__GRIPM.push(['belly', Rb]);
+            { const hc = robeHit(o.clone().addScaledVector(fwd, 0.5), fwd.clone().negate(), 0.6); RbC = hc >= 0 ? 0.5 - hc : Rb; } /* build 6.54: радиус живота по центру — чтобы правое запястье лежало у тела, а не висело перед ним */
+            if (window.__GRIPM) window.__GRIPM.push(['belly', Rb, RbC]);
             P.R.w = keepR; P.L.w = keepL; }
           const Lw = ax0.clone().setY(hY).addScaledVector(rL, Rb + 0.012); /* build 6.29: левая ладонь прижата к животу */
           const w0 = { R: P.R.w, L: P.L.w };
@@ -16741,7 +16656,8 @@ function renderDictation(area) {
           for (let pass = 0; pass < 3; pass++) {
           { /* build 6.33: правая ладонь лежит прямо на левом запястье (центр ладони — на запястье, снаружи), обе кисти на животе; левая кисть остаётся на животе на всех проходах */
             P.L.w = { abs: Lw }; const Wl = Lw.clone().addScaledVector(V(lf.x, 0, lf.z).normalize(), P.R.grip.wl != null ? P.R.grip.wl : 0.015), nW = radv(Wl).normalize();
-            P.R.w = { abs: Wl.clone().addScaledVector(nW, outR).addScaledVector(dR, -(P.R.grip.pc != null ? P.R.grip.pc : 0.05)).addScaledVector(up, P.R.grip.ph || 0) }; }
+            P.R.w = { abs: Wl.clone().addScaledVector(nW, outR).addScaledVector(dR, -(P.R.grip.pc != null ? P.R.grip.pc : 0.05)).addScaledVector(up, P.R.grip.ph || 0) };
+            { const _rr = (window.__RR != null ? window.__RR : P.R.grip.rr); if (_rr != null) { const rv = radv(P.R.w.abs), rl = rv.length(), mx = RbC + _rr + Math.max(0, outR - (P.R.grip.out || 0.045)); /* запас растёт вместе с outR: пальцы левой руки под правым предплечьем должны помещаться */ if (rl > mx) P.R.w.abs.addScaledVector(rv.normalize(), mx - rl); } } /* build 6.54: правое запястье не дальше rr от ткани живота — ладони прижаты к телу */ }
           armsPass(null); root.updateMatrixWorld(true);
           P.R.w = w0.R; P.L.w = w0.L;
           { // запястье сгибается не больше ~23° от линии предплечья, иначе кожа у запястья ломается
@@ -16749,7 +16665,8 @@ function renderDictation(area) {
             if (dR.angleTo(fa2) > lim2) { const axq = new THREE.Vector3().crossVectors(fa2, dR).normalize(); dR = fa2.clone().applyAxisAngle(axq, lim2); } }
           const fe0 = wp('lowerarm_r'), fe1 = wp('hand_r'), feL = fe0.distanceTo(fe1), fed = fe1.clone().sub(fe0).normalize();
           // левая кисть: ладонью к животу, пальцы вправо по животу
-          const dL = perpTo(latR.clone().addScaledVector(fwd, -0.8).addScaledVector(up, -(P.R.grip.ld != null ? P.R.grip.ld : 0.8)), /* build 6.29: пальцы левой уходят вниз под правое запястье — не проходят сквозь правую руку */ /* build 6.29: пальцы левой огибают живот */ radv(wp('hand_l')).normalize()); /* build 6.33: левая кисть горизонтально на животе, пальцы вправо и огибают живот — правое предплечье лежит поверх неё */
+          const dL0 = perpTo(latR.clone().addScaledVector(fwd, -0.8).addScaledVector(up, -(P.R.grip.ld != null ? P.R.grip.ld : 0.8)), /* build 6.29: пальцы левой уходят вниз под правое запястье — не проходят сквозь правую руку */ /* build 6.29: пальцы левой огибают живот */ radv(wp('hand_l')).normalize()); /* build 6.33: левая кисть горизонтально на животе, пальцы вправо и огибают живот — правое предплечье лежит поверх неё */
+          const dL = P.R.grip.li ? dL0.clone().addScaledVector(radv(wp('hand_l')).normalize(), -P.R.grip.li).normalize() : dL0; /* build 6.54: пальцы левой кисти идут по животу (он круглый), а не по касательной от него — иначе они упирались в правый рукав */
           handFacing('_l', dL, perpTo(up, dL), radv(wp('hand_l')).normalize().negate());
           { let bc = 0, be = 1e9;
             for (let c = 0; c <= 0.35; c += 0.02) { fgL[1] = c; /* build 6.29: левая кисть ничего не держит — пальцы расслаблены, не кулак */ fgL[2] = c; fgL[3] = c * 1.05; fgL[4] = c * 1.1; setFingers('_l', { c: fgL, sp: 0, amp: [1.5, 0.7, 0.3] }); B.hand_l.updateMatrixWorld(true);
@@ -16777,7 +16694,7 @@ function renderDictation(area) {
               const q = wp(n), t = Math.min(1, Math.max(0, q.clone().sub(e0).dot(ed) / eL)); if (t <= 0.02) return;
               const pa = e0.clone().addScaledVector(ed, t * eL), dd = Math.max(0.042 - q.distanceTo(pa), radv(q).length() - (radv(pa).length() - 0.025)); /* build 6.29: пальцы левой должны быть ПОД правым предплечьем (ближе к животу), а не перед ним */ if (dd > def) { def = dd; if (window.__GRIPM) window.__GRIPM.push(['worst', n, dd, t]); } }); });
             if (window.__GRIPM) window.__GRIPM.push(['overlap', pass, def, outR, miss.R, miss.L]);
-            if (def < 0.003 || pass === 2) break; outR = Math.min(outR + def * 0.9, 0.04); /* build 6.29: правая ладонь лежит НА левом запястье (центр ладони ~4,7 см от оси запястья), а не висит перед ним */ /* build 6.29: правая ладонь прижата к левой кисти, а не висит перед ней */ }
+            if (def < 0.003 || pass === 2) break; outR = Math.min(outR + def * 0.9, P.R.grip.oc != null ? P.R.grip.oc : 0.04); /* build 6.29: правая ладонь лежит НА левом запястье (центр ладони ~4,7 см от оси запястья), а не висит перед ним */ /* build 6.29: правая ладонь прижата к левой кисти, а не висит перед ней */ }
           }
           // правая кисть: ладонью на тыльную сторону левой, пальцы к левому локтю
           const a0 = wp('lowerarm_l'), a1 = wp('hand_l'), aL = a0.distanceTo(a1), ax = a1.clone().sub(a0).normalize();
@@ -16950,13 +16867,18 @@ function renderDictation(area) {
       try { if (window.__HSDBG) { window.__HSDBG.cache = cache; window.__HSDBG.lobe = lobeLocal; window.__HSDBG.resetFrame = function() { lastFrame = null; }; } } catch (e) {}
       // build 6.46: переходы через промежуточную позу. Раньше стояние → колени и суджуд → подъём смешивались напрямую,
       // и в середине тело «висело» (ноги сложены, корпус в воздухе). Теперь: стоя → присед на носках → колени; суджуд → на коленях → присед → стоя.
-      const VIA = { 'stand|kneel': ['rise', 0.55], 'sajda|rise': ['kneel', 0.5] };
+      const VIA = { 'stand|kneel': ['rise', 0.55], 'sajda|rise': ['kneel', 0.5], 'sit|rise': ['kneel', 0.5], 'sitRing|rise': ['kneel', 0.5], 'sitFinger|rise': ['kneel', 0.5] }; /* build 6.55: из сидения встают через стойку на коленях (раньше колени сразу отрывались от пола, и тело «висело») */
+      const floorW = {}; // build 6.57: место запястий на полу по позам
       let toeZ0 = null; // положение пальцев правой стопы стоя: правая стопа не сдвигается с места весь намаз
       function setFrame(a, b, k) {
         let A = getPose(a), Bp = getPose(b || a); k = Math.max(0, Math.min(1, k == null ? 1 : k));
         const e0 = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
         const key = a + '|' + (b || a) + '|' + e0.toFixed(4);
         if (lastFrame && lastFrame.key === key) return lastFrame.out;
+        let _fw = null; { const PA = SALAH_POSES_ANIM[a], PB = SALAH_POSES_ANIM[b || a];
+          if (b && b !== a && e0 > 0.001 && e0 < 0.999 && PA && PB && PA.R.floor && PA.L.floor && PB.R.floor && PB.L.floor && !window.__NOFW) {
+            const g = function(n) { if (!floorW[n]) { setFrame(n, n, 1); const k0 = unDisplay(); root.updateMatrixWorld(true); floorW[n] = { _r: wp('hand_r'), _l: wp('hand_l') }; reDisplay(k0); lastFrame = null; } return floorW[n]; };
+            _fw = { a: g(a), b: g(b) }; } }
         let e = e0; const via = VIA[a + '|' + (b || a)];
         if (via && e0 > 0.001 && e0 < 0.999) { const Vp = getPose(via[0]); if (e0 < via[1]) { Bp = Vp; e = e0 / via[1]; } else { A = Vp; e = (e0 - via[1]) / (1 - via[1]); } }
         const kd = unDisplay();
@@ -17003,6 +16925,22 @@ function renderDictation(area) {
             bones.forEach(function(bn, i) { bn.quaternion.copy(sq[i]); }); root.position.copy(sp); root.updateMatrixWorld(true); }
           root.position.z += toeZ0 - wp('ball_r').z; root.updateMatrixWorld(true); skeleton.update();
         }
+        /* build 6.57: ладони, стоящие на полу в обеих позах (руки на полу → суджуд → обратно), в переходе не ездят по полу:
+           запястье ведётся по прямой между своими местами в двух позах, локоть и плечо подстраиваются. Раньше суставы поворачивались по углам, и кисть уходила вперёд и вбок на 5–6 см и возвращалась */
+        if (_fw) ['_r', '_l'].forEach(function(sx) {
+          const Wt = _fw.a[sx].clone().lerp(_fw.b[sx], eS[sx]), Sp = wp('upperarm' + sx), Et = wp('lowerarm' + sx), hq0 = B['hand' + sx].getWorldQuaternion(new THREE.Quaternion());
+          const pole = Et.clone().sub(Sp.clone().lerp(Wt, 0.5));
+          const r = ik(Sp, Wt, lenUA, lenFA, pole);
+          const ua = r.E.clone().sub(Sp).normalize(), fa = r.W.clone().sub(r.E).normalize();
+          let m = fa.clone().sub(ua.clone().multiplyScalar(fa.dot(ua)));
+          if (m.length() < 0.05) m = pole.clone().sub(ua.clone().multiplyScalar(pole.dot(ua)));
+          const hinge = new THREE.Vector3().crossVectors(ua, m.normalize()).normalize();
+          const restA = yAxis('upperarm' + sx), restHinge = new THREE.Vector3().crossVectors(restA, FWD);
+          setWorld('upperarm' + sx, ua, hinge, restA, restHinge);
+          setWorld('lowerarm' + sx, fa, hinge, yAxis('lowerarm' + sx), restHinge);
+          setWorldQ('hand' + sx, hq0);
+        });
+        if (_fw) { root.updateMatrixWorld(true); skeleton.update(); }
         buildRobe();
         const info = { indexTip: wp('index_04_leaf_r'), shR: wp('upperarm_r'), shL: wp('upperarm_l'), handR: wp('hand_r'), handL: wp('hand_l'),
           feet: wp('ball_r').lerp(wp('ball_l'), 0.5), lap: wp('thigh_r').lerp(wp('calf_r'), 0.78), pelvis: wp('pelvis') };
@@ -17233,7 +17171,7 @@ function renderDictation(area) {
           prim(s2, s3.clone().addScaledVector(f3.u, 0.08), f3.l, f3.f, 0.165 * bkW, (FEM ? 0.095 : 0.078) * bkD, (FEM ? 0.1 : 0.09) * bkD),
           prim(shL.clone().lerp(shR, 0.16).addScaledVector(f3.u, -0.02), shR.clone().lerp(shL, 0.16).addScaledVector(f3.u, -0.02), f3.u, f3.f, 1, 1, 1, 0.052),
           prim(nk, shR, one, f3.f, 1, 1, 1, 0.045), prim(nk, shL, one, f3.f, 1, 1, 1, 0.045),
-          prim(nk, hd, one, f3.f, 1, 1, 1, FEM ? 0.052 : 0.058),
+          prim(nk, hd, one, f3.f, 1, 1, 1, FEM ? 0.052 : 0.064), /* build 6.55: воротник на 6 мм шире — кожа у основания шеи больше не проступает сквозь него оранжевыми треугольниками */
           prim(hipMid.clone().addScaledVector(fP.f, FEM ? 0.012 : -0.01 - 0.035 * wB * (1 - bkB)), hipMid.clone().addScaledVector(fP.f, FEM ? 0.012 : -0.01 - 0.035 * wB * (1 - bkB)), one, fP.f, 1, 1, 1, 0.118 - (FEM ? 0 : 0.022 * wB)), /* build 6.49: в наклоне ткань натянута на тазе — без «шара» */ // build 6.30: живот не выпирает дальше груди
           prim(thR, kR, one, fP.f, 1, 1, 1, 0.092 * sitK, 0.072 * lgK), prim(thL, kL, one, fP.f, 1, 1, 1, 0.092 * sitK, 0.072 * lgK), // build 6.29: ткань не рвётся у колен
           prim(kR, aR, one, fP.f, 1, 1, 1, 0.088 * lgK, 0.066 * lgK), prim(kL, aL, one, fP.f, 1, 1, 1, 0.088 * lgK, 0.066 * lgK)
@@ -17256,7 +17194,7 @@ function renderDictation(area) {
         // линия камиса
         const thighDir = kneeMid.clone().sub(hipMid).normalize();
         const hemLen = Math.max(0.02, Math.min(0.21, kneeMid.y - floorY));
-        const P = [nk.clone().addScaledVector(V(0, 1, 0).applyQuaternion(dq('neck_01')), FEM ? 0.058 : (f1.u.y < 0.5 ? 0.11 : 0.11)), s3, s2, s1, hipMid, hipMid.clone().addScaledVector(thighDir, 0.22), kneeMid, kneeMid.clone().add(V(0, -hemLen, 0))];
+        const P = [nk.clone().addScaledVector(V(0, 1, 0).applyQuaternion(dq('neck_01')), FEM ? 0.058 : (f1.u.y < 0.5 ? 0.11 : 0.085)) /* build 6.55: воротник стоя и сидя ниже на 2,5 см — подбородок не врезается в него при повороте головы в саляме */, s3, s2, s1, hipMid, hipMid.clone().addScaledVector(thighDir, 0.22), kneeMid, kneeMid.clone().add(V(0, -hemLen, 0))];
         let slackV = FEM ? [0.042, 0.04, 0.026, 0.034, 0.045, 0.055, 0.062, 0.062] : [0.024, 0.014, 0.01, 0.014, 0.03, 0.05, 0.062, 0.062]; // build 6.29: мужской камис на груди и животе ближе к телу — без «подушки»
         let sagV = [0, 0.008, 0.012, 0.018, 0.028, 0.04, 0.05, 0.05];
         let foldV = [0, 0.002, 0.003, 0.004, 0.005, 0.007, 0.009, 0.012];
@@ -18178,7 +18116,7 @@ function renderDictation(area) {
         add('sahwJalsa', { tr: 1300, hold: 2600, r: 2 });
         add('sahwSajda2', { tr: 1200, hold: 3400, r: 2 });
         add('sahwQada', { tr: 1300, hold: 4200, r: 2 });
-        add('finger', { tr: 700, hold: 2400, r: 2 });
+        add('finger', { tr: 1400, hold: 2100, fin: { d: 900, h: 1200, dn: 500 }, r: 2 });
         add('salawat', { tr: 700, hold: 3200, r: 2 });
         add('salamR', { tr: 1200, hold: 3000, r: 2 });
         add('salamL', { tr: 1500, hold: 3000, r: 2 });
@@ -18204,13 +18142,13 @@ function renderDictation(area) {
         if (r === 2 && n > 2) {
           const q1 = 'qada1';
           add(q1, { tr: 1300, hold: 4200, r: r });
-          add('finger', { tr: 700, hold: 2400, r: r });
+          add('finger', { tr: 1400, hold: 2100, fin: { d: 900, h: 1200, dn: 500 }, r: r });
           add(q1, { tr: 700, hold: 1200, r: r, short: true });
           add('rise3', { tr: 1600, hold: 700, r: r });
         } else if (r < n) add('rise', { tr: 1600, hold: 700, r: r });
       }
       add('qada', { tr: 1300, hold: 4200, r: n });
-      add('finger', { tr: 700, hold: 2600, r: n });
+      add('finger', { tr: 1400, hold: 2100, fin: { d: 900, h: 1200, dn: 500 }, r: n });
       add('salawat', { tr: 700, hold: 4400, r: n });
       add('salamR', { tr: 1200, hold: 3000, r: n });
       add('salamL', { tr: 1500, hold: 3000, r: n });
@@ -18555,10 +18493,21 @@ function renderDictation(area) {
         d.querySelector('button').addEventListener('click', function() { window._hsTab = 'quiz'; renderHowSalah(); try { document.getElementById('howsalah-body').scrollIntoView({ behavior: 'smooth' }); } catch(e) {} });
         cap.appendChild(d);
       };
+      /* build 6.55: палец в ташаххуде движется по словам внутри одного шага: «Ашхаду ан» — кисть лежит, «ля иляха» — палец поднимается,
+         «илля-Ллах» — опускается (раньше он поднимался сразу и опускался только на следующем шаге). s.fin = { d: пауза до подъёма, h: сколько держится, dn: опускание } */
+      const endPose = function(s) { if (!s.fin) return poseOf(s); return FEMALE && SALAH_F_MAP.sit ? SALAH_F_MAP.sit : 'sit'; };
+      const frameOf = function() {
+        const s = steps[st.i], prevS = st.i > 0 ? steps[st.i - 1] : s;
+        if (s.fin) { const t3 = s.tr + s.fin.h;
+          if (st.t < s.tr) return { a: endPose(prevS), b: poseOf(s), k: Math.max(0, (st.t - s.fin.d) / (s.tr - s.fin.d)) };
+          if (st.t < t3) return { a: poseOf(s), b: poseOf(s), k: 1 };
+          return { a: poseOf(s), b: endPose(s), k: Math.min(1, (st.t - t3) / s.fin.dn) }; }
+        return { a: endPose(prevS), b: poseOf(s), k: s.tr ? Math.min(1, st.t / s.tr) : 1 };
+      };
       const poseAt = function() {
         const s = steps[st.i];
-        const prev = st.i > 0 ? steps[st.i - 1] : s;
-        return salahLerpPose(SALAH_POSES_ANIM[poseOf(prev)], SALAH_POSES_ANIM[poseOf(s)], s.tr ? Math.min(1, st.t / s.tr) : 1);
+        const f = frameOf();
+        return salahLerpPose(SALAH_POSES_ANIM[f.a], SALAH_POSES_ANIM[f.b], f.k);
       };
       const gazeK = function() {
         const s = steps[st.i];
@@ -18569,8 +18518,7 @@ function renderDictation(area) {
         const k = gazeK();
         st.lastGazeK = k;
         if (r3d) {
-          const prevS = st.i > 0 ? steps[st.i - 1] : s;
-          try { r3dBusy = r3d.render(poseAt(), { yaw: st.yaw, el: st.el, zoom: st.zoom, panX: st.panX, panY: st.panY, focus: st.focus, ghost: st.ghost, frame: { a: poseOf(prevS), b: poseOf(s), k: s.tr ? Math.min(1, st.t / s.tr) : 1 } }, G.gaze, k, matX); return; }
+          try { r3dBusy = r3d.render(poseAt(), { yaw: st.yaw, el: st.el, zoom: st.zoom, panX: st.panX, panY: st.panY, focus: st.focus, ghost: st.ghost, frame: frameOf() }, G.gaze, k, matX); return; }
           catch (e) { try { r3d.dispose(); } catch (_) {} r3d = null; if (host3d) host3d.innerHTML = ''; if (FEMALE) femNoFigure(); else svg.style.display = ''; }
         }
         if (FEMALE) return; // 2D-схема нарисована мужской фигурой — для женской версии её не показываем
@@ -18635,7 +18583,7 @@ function renderDictation(area) {
           if (st.t >= s.tr + s.hold) {
             if (st.i >= steps.length - 1) { setPlay(false); st.t = s.tr + s.hold; showQuizOffer(); }
             else { go(st.i + 1); need = false; }
-          } else if (st.t <= s.tr + 450) need = true;
+          } else if (st.t <= s.tr + 450 || (s.fin && st.t >= s.tr + s.fin.h - 30 && st.t <= s.tr + s.fin.h + s.fin.dn + 80)) need = true;
         }
         if (need || r3dBusy) {
           /* build 6.30: на слабом телефоне пересчёт ткани в переходах занимает десятки мс — тогда реже обновляем кадр (анимация идёт по времени, не замедляется), чтобы кнопки и жесты не зависали */
@@ -19229,6 +19177,7 @@ function renderDictation(area) {
       if (qEsc.length < 2) return [];
       var results = [];
       try {
+        if (PUBLIC_CHAT_DISABLED) throw 0;
         var gc = await sb.from('chat_messages').select('id,user_id,nick,text,created_at')
           .ilike('text', '%'+qEsc+'%').is('deleted_at', null).order('created_at', { ascending: false }).limit(20);
         ((gc && gc.data) || []).forEach(function(m) {
@@ -20600,9 +20549,294 @@ bKk:
               detectSessionInUrl: true
             }
           });
+          try { modWrapSb(_sb); } catch (e) { console.warn('mod wrap', e); }
         }
       } catch (e) { console.warn('supabase init', e); }
       return _sb;
+    }
+    // ========== build 6.58: фильтр недопустимых выражений и предупреждения администратора ==========
+    // Правила — те же, что в Supabase-6.58.sql (функция mod_check): сначала проверяет приложение, затем база.
+    // Явное — не отправляется; сомнительное — уходит, но администратор видит его во вкладке «Автоотметки».
+    var MOD_RULES = [
+      ["block", new RegExp("^(?:на|по|за|вы|у|с|от|об|до|про|раз|рас|при|под|пере|из|ис|в|во|не|ни|съ|объ|подъ)?(?:ху(?:й|я|е|ю)|хуи(?:$|н|л)|хули$)")],
+      ["block", new RegExp("пизд")],
+      ["block", new RegExp("^(?:на|по|за|вы|у|с|от|об|до|про|раз|рас|при|под|пере|из|ис|в|во|не|ни|съ|объ|подъ)?(?:бляд|блят|бля$|блях|блеа[дт])")],
+      ["block", new RegExp("^(?:на|по|за|вы|у|с|от|об|до|про|раз|рас|при|под|пере|из|ис|в|во|не|ни|съ|объ|подъ)?еб(?:ат|ал|ан|ну|уч|ло|ис|ут|ыв|ун|ак|ок|аш|ет$|еш)")],
+      ["block", new RegExp("^еб(?:у)?$")],
+      ["block", new RegExp("^долбо?еб")],
+      ["block", new RegExp("^муд(?:ак|ач|ил|ох|озвон)")],
+      ["block", new RegExp("залуп")],
+      ["block", new RegExp("^[гк][ао]ндон")],
+      ["block", new RegExp("^(?:пид[оа]р|пидр[иа]|педик|педераст)")],
+      ["block", new RegExp("^(?:сук[аи]$|сукой$|сукою$|сукин|сучк|сучар|сучь)")],
+      ["block", new RegExp("^(?:шлюх|шлюш)")],
+      ["block", new RegExp("^(?:ублюд|выблядок)")],
+      ["block", new RegExp("^сик(?:ейин|ейм|етин|тир|ти$)")],
+      ["block", new RegExp("^ам[ыи]нд[аы]")],
+      ["block", new RegExp("^кота[кг]")],
+      ["block", new RegExp("^жезокше")],
+      ["flag", new RegExp("^(?:сук[ую]|суке)$")],
+      ["flag", new RegExp("^говн")],
+      ["flag", new RegExp("^дерьм")],
+      ["flag", new RegExp("^жоп[аыуеой]")],
+      ["flag", new RegExp("^(?:срат|сра[лк]|сран)")],
+      ["flag", new RegExp("^дебил")],
+      ["flag", new RegExp("^идиот")],
+      ["flag", new RegExp("^твар(?:ь|и$)")],
+      ["flag", new RegExp("^мраз")],
+      ["flag", new RegExp("^урод$")],
+      ["flag", new RegExp("^(?:хй|нхй|похй|пзд|пздц|пздт|блд|блдь|блт|блть|бл|ебт|ебнтй|мдк|мдак)$")]
+    ];
+    var MOD_SEEDS = ["хуй", "хуя", "хуе", "хуйня", "нахуй", "похуй", "пизда", "пизду", "пизде", "пиздец", "блядь", "блять", "бля", "ебать", "ебал", "ебаный", "ебанутый", "ебло", "сука", "суки", "сучка", "мудак", "мудила", "залупа", "гондон", "пидор", "пидорас", "шлюха", "ублюдок"];
+    function modNorm(t) {
+      if (t == null) return '';
+      var s = String(t).toLowerCase();
+      var KZ = { 'ё': 'е', 'ә': 'а', 'і': 'и', 'ң': 'н', 'ғ': 'г', 'ү': 'у', 'ұ': 'у', 'қ': 'к', 'ө': 'о', 'һ': 'х', '@': 'а', '$': 'с' };
+      s = s.replace(/[ёәіңғүұқөһ@$]/g, function(c) { return KZ[c]; });
+      s = s.replace(/yu/g, 'ю').replace(/ya/g, 'я').replace(/yo/g, 'е').replace(/ye/g, 'е').replace(/ch/g, 'ч').replace(/sh/g, 'ш').replace(/zh/g, 'ж').replace(/kh/g, 'х').replace(/ts/g, 'ц');
+      s = s.replace(/([aeiou])y/g, '$1й');
+      s = s.replace(/[a-z]/g, function(c) { return 'абсдефгхийклмнопкрстуввхуз'.charAt(c.charCodeAt(0) - 97); });
+      s = s.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
+      if (!s) return '';
+      var out = [], run = '', runlen = 0;
+      s.split(/\s+/).forEach(function(tok) {
+        var c = tok.replace(/^[^а-я0-9*#]+|[^а-я0-9*#]+$/g, '');
+        if (/^([а-я0-9][._\-*+|\/\\]){2,}[а-я0-9]$/.test(c)) c = c.replace(/[._\-*+|\/\\]/g, '');
+        if (/[а-я]/.test(c) && /[0-9]/.test(c)) c = c.replace(/[01346]/g, function(d) { return { '0': 'о', '1': 'и', '3': 'е', '4': 'ч', '6': 'б' }[d]; });
+        c = c.replace(/(.)\1+/g, '$1');
+        if (c.length === 1) { run += c; runlen++; out.push(c); }
+        else { if (runlen >= 3) out.push(run); run = ''; runlen = 0; if (c) out.push(c); }
+      });
+      if (runlen >= 3) out.push(run);
+      return out.join(' ');
+    }
+    function modCheckLocal(t) {
+      var n = modNorm(t); if (!n) return { tier: 'ok' };
+      var flag = null, toks = n.split(' ');
+      for (var i = 0; i < toks.length; i++) {
+        var tok = toks[i]; if (!tok) continue;
+        for (var j = 0; j < MOD_RULES.length; j++) {
+          if (MOD_RULES[j][1].test(tok)) { if (MOD_RULES[j][0] === 'block') return { tier: 'block', hit: tok }; if (!flag) flag = tok; }
+        }
+        if (/[*#]/.test(tok) && tok.replace(/[*#]/g, '').length >= 2) {
+          var re = new RegExp('^' + tok.replace(/[*#]/g, '.') + '$');
+          if (MOD_SEEDS.some(function(sd) { return re.test(sd); }) && !flag) flag = tok;
+        }
+      }
+      return flag ? { tier: 'flag', hit: flag } : { tier: 'ok' };
+    }
+    var MOD_TABLES = { chat_messages: 1, group_messages: 1, direct_messages: 1, qa_comments: 1, questions: 1, feedback_reports: 1, scheduled_messages: 1 };
+    var MOD_KEYS = ['text', 'message', 'body', 'title', 'question_text', 'extra_text', 'comment', 'description', 'poll_question', 'poll_options', 'reply_to_text'];
+    function modSrcName(table) {
+      return { chat_messages: 'general', group_messages: 'group', direct_messages: 'dm' }[table] || table;
+    }
+    function modPayloadText(p) {
+      var parts = [];
+      (Array.isArray(p) ? p : [p]).forEach(function(o) {
+        if (!o || typeof o !== 'object') return;
+        MOD_KEYS.forEach(function(k) {
+          var v = o[k];
+          if (v == null) return;
+          if (typeof v === 'string') parts.push(v);
+          else if (Array.isArray(v)) v.forEach(function(x) { parts.push(typeof x === 'string' ? x : (x && x.text) ? String(x.text) : ''); });
+        });
+      });
+      return parts.join(' ').trim();
+    }
+    function modErrText() {
+      return isKk() ? 'Хабарлама жіберілмеді: жарамсыз сөздер.' : 'Сообщение не отправлено: недопустимые выражения.';
+    }
+    // Ответ «как от базы», без обращения к сети: цепочки .select()/.single() работают, await возвращает ошибку.
+    function modBlockedBuilder(table, txt) {
+      var res = { data: null, error: { message: modErrText(), hint: 'PROFANITY_BLOCKED', code: 'P0001' }, status: 400, statusText: 'Bad Request', count: null };
+      var fired = false;
+      function fire() { if (!fired) { fired = true; try { modOnBlocked(table, txt); } catch (e) {} } }
+      var self;
+      var handler = {
+        get: function(_, prop) {
+          if (prop === 'then') return function(ok, fail) { fire(); return Promise.resolve(res).then(ok, fail); };
+          if (prop === 'catch') return function(fail) { fire(); return Promise.resolve(res).catch(fail); };
+          if (prop === 'finally') return function(fn) { fire(); return Promise.resolve(res).finally(fn); };
+          return function() { return self; };
+        }
+      };
+      self = (typeof Proxy === 'function') ? new Proxy(function() {}, handler) : {
+        then: function(ok, fail) { fire(); return Promise.resolve(res).then(ok, fail); },
+        select: function() { return self; }, single: function() { return self; }, maybeSingle: function() { return self; }
+      };
+      return self;
+    }
+    function modWrapSb(c) {
+      if (!c || c.__modWrapped || typeof c.from !== 'function') return c;
+      var origFrom = c.from.bind(c);
+      c.from = function(table) {
+        var q = origFrom(table);
+        if (!MOD_TABLES[table] || !q) return q;
+        ['insert', 'update', 'upsert'].forEach(function(m) {
+          if (typeof q[m] !== 'function') return;
+          var om = q[m].bind(q);
+          q[m] = function(payload, opts) {
+            var txt = '';
+            try { txt = modPayloadText(payload); } catch (e) { txt = ''; }
+            if (txt) {
+              var chk = modCheckLocal(txt);
+              if (chk.tier === 'block') return modBlockedBuilder(table, txt);
+            }
+            var b = om(payload, opts);
+            // Если отказала база (кто-то обошёл проверку в браузере) — показываем то же окно.
+            if (b && typeof b.then === 'function') {
+              var ot = b.then;
+              b.then = function(a, r) {
+                return ot.call(b, function(res) {
+                  try { if (res && res.error && /PROFANITY_BLOCKED/.test(String(res.error.hint || ''))) modOnBlocked(table, txt); } catch (e) {}
+                  return a ? a(res) : res;
+                }, r);
+              };
+            }
+            return b;
+          };
+        });
+        return q;
+      };
+      c.__modWrapped = true;
+      return c;
+    }
+    function modNotice(id, icon, title, bodyHtml, btnLabel, onClose) {
+      var ex = document.getElementById(id); if (ex) ex.remove();
+      var box = document.createElement('div');
+      box.id = id;
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99990;display:flex;align-items:center;justify-content:center;padding:1.2rem';
+      box.innerHTML =
+        '<div class="card" style="max-width:23rem;text-align:center;border-color:var(--warning)">' +
+          '<div style="font-size:2rem">' + icon + '</div>' +
+          '<b style="font-size:1.05rem;display:block;margin-top:0.3rem">' + title + '</b>' +
+          '<div class="ayah-translation" style="margin-top:0.5rem;text-align:left">' + bodyHtml + '</div>' +
+          '<button type="button" class="btn" style="width:100%;margin-top:0.8rem">' + btnLabel + '</button>' +
+        '</div>';
+      document.body.appendChild(box);
+      box.querySelector('button').addEventListener('click', function() { box.remove(); if (onClose) try { onClose(); } catch (e) {} });
+    }
+    var _modLastNotice = 0;
+    async function modOnBlocked(table, text) {
+      var now = Date.now();
+      if (now - _modLastNotice < 1500) return;
+      _modLastNotice = now;
+      var kk = isKk(), info = null;
+      try {
+        var sb = getSb();
+        if (sb) {
+          var r = await sb.rpc('mod_report_block', { p_source: modSrcName(table), p_text: String(text || '').slice(0, 500) });
+          if (r && !r.error) info = r.data;
+        }
+      } catch (e) {}
+      if (info && info.banned_until) {
+        showBanScreen(new Date(info.banned_until), kk ? 'Қайталанған жарамсыз сөздер' : 'Повторные недопустимые выражения');
+        return;
+      }
+      var n = info && info.count ? info.count : 0, lim = info && info.limit ? info.limit : 3;
+      var body = kk
+        ? 'Хабарлама жіберілмеді: құрамында жарамсыз сөздер бар. Бір-бірімізді сыйлап сөйлесеміз.' + (n ? '<br><br>Ескерту: <b>' + n + ' / ' + lim + '</b> (бір сағат ішінде). Үшіншіден кейін жіберу 1 сағатқа жабылады.' : '')
+        : 'Сообщение не отправлено: в нём недопустимые выражения. Мы общаемся уважительно.' + (n ? '<br><br>Предупреждение: <b>' + n + ' из ' + lim + '</b> за час. После третьего отправка сообщений закроется на 1 час.' : '');
+      modNotice('mod-warn-modal', '✋', kk ? 'Олай болмайды' : 'Так нельзя', body, kk ? 'Түсінікті' : 'Понятно');
+    }
+    // Предупреждения администратора: показываем при входе, пока человек их не прочитал.
+    async function checkMyWarnings(sb, uid) {
+      try {
+        var nowIso = new Date().toISOString();
+        var res = await sb.from('user_warnings').select('id,reason,created_at').eq('user_id', uid).is('seen_at', null).gt('expires_at', nowIso).order('created_at', { ascending: true });
+        var rows = res && res.data;
+        if (!rows || !rows.length) return;
+        var cnt = await sb.from('user_warnings').select('id', { count: 'exact', head: true }).eq('user_id', uid).gt('expires_at', nowIso);
+        var total = (cnt && cnt.count) || rows.length;
+        var kk = isKk();
+        var list = rows.map(function(w) {
+          return '<div style="margin-top:0.35rem;padding:0.4rem 0.55rem;background:var(--bg);border-radius:0.4rem;white-space:pre-wrap;word-break:break-word">' +
+            String(w.reason || (kk ? 'Қоғамдастық ережесін бұзу' : 'Нарушение правил общения')).replace(/</g, '&lt;') + '</div>';
+        }).join('');
+        var body = (kk ? 'Әкімшіден ескерту:' : 'Предупреждение от администратора:') + list +
+          '<div style="margin-top:0.6rem;font-size:0.85rem">' + (kk
+            ? 'Ескертулер саны (90 күн ішінде): <b>' + total + '</b>. 3-ші ескертуден кейін — 24 сағатқа, 4-шіден кейін — 7 күнге бұғат.'
+            : 'Предупреждений за 90 дней: <b>' + total + '</b>. После третьего — блокировка на 24 часа, после четвёртого — на 7 дней.') + '</div>';
+        modNotice('mod-admin-warn-modal', '⚠️', kk ? 'Ескерту' : 'Предупреждение', body, kk ? 'Оқыдым' : 'Прочитано', function() {
+          try { sb.rpc('ack_my_warnings'); } catch (e) {}
+        });
+      } catch (e) {}
+    }
+    // Администратор: предупредить пользователя (кнопка в жалобах и во вкладке «Автоотметки»).
+    async function adminWarnFlow(uid, nick, defReason, eventId, after) {
+      var kk = isKk(), sb = getSb();
+      if (!sb || !uid) return;
+      var why = prompt((kk ? 'Ескерту себебі (пайдаланушы көреді) — ' : 'Причина предупреждения (увидит пользователь) — ') + (nick || ''), defReason || (kk ? 'Қоғамдастық ережесін бұзу' : 'Нарушение правил общения'));
+      if (why === null) return;
+      try {
+        var r = await sb.rpc('admin_warn_user', { p_user: uid, p_reason: why, p_event: eventId || null });
+        if (r && r.error) { toast((kk ? 'Қате: ' : 'Ошибка: ') + (r.error.message || '')); return; }
+        var d = r && r.data || {};
+        var act = d.action === 'ban_24h' ? (kk ? ' · 24 сағатқа бұғат' : ' · бан на 24 часа')
+          : d.action === 'ban_7d' ? (kk ? ' · 7 күнге бұғат' : ' · бан на 7 дней')
+          : d.action === 'needs_decision' ? (kk ? ' · шешімді өзіңіз қабылдаңыз' : ' · решение за вами (бан вручную)') : '';
+        toast((kk ? 'Ескерту берілді: ' : 'Предупреждение выдано: ') + (d.count || '?') + act);
+        if (after) after();
+      } catch (e) { toast((kk ? 'Қате: ' : 'Ошибка: ') + (e.message || e)); }
+    }
+    async function renderModEventsTab(box, sb, kk) {
+      if (!window._modSub) window._modSub = 'flag';
+      var SUBS = [
+        { id: 'flag', lab: kk ? 'Күмәнді' : 'Сомнительные' },
+        { id: 'block', lab: kk ? 'Тоқтатылған' : 'Остановленные' },
+        { id: 'done', lab: kk ? 'Өңделген' : 'Обработанные' }
+      ];
+      var head = '<div class="ayah-translation" style="margin-bottom:0.5rem">' + (kk
+        ? 'Сайт өзі белгілеген хабарламалар: «күмәнді» — жіберілді, бірақ сізге көрінеді; «тоқтатылған» — жарамсыз сөз, жіберілмеді.'
+        : 'Что сайт отметил сам: «сомнительные» — сообщение ушло, но вы его видите; «остановленные» — явный мат, сообщение не отправилось.') + '</div>' +
+        '<div style="display:flex;gap:0.35rem;margin-bottom:0.6rem">' + SUBS.map(function(s) {
+          var a = window._modSub === s.id;
+          return '<button type="button" class="btn btn-sm mod-sub-btn" data-s="' + s.id + '" style="' + (a ? 'background:var(--accent);color:#04120c;border-color:var(--accent)' : '') + '">' + s.lab + '</button>';
+        }).join('') + '</div><div id="mod-ev-list">' + (kk ? 'Жүктелуде…' : 'Загрузка…') + '</div>';
+      box.innerHTML = head;
+      box.querySelectorAll('.mod-sub-btn').forEach(function(b) {
+        b.addEventListener('click', function() { window._modSub = b.getAttribute('data-s'); renderModEventsTab(box, sb, kk); });
+      });
+      var list = box.querySelector('#mod-ev-list');
+      var q = sb.from('moderation_events').select('id,user_id,nick,source,tier,hit,snippet,status,created_at');
+      if (window._modSub === 'flag') q = q.eq('tier', 'flag').eq('status', 'new');
+      else if (window._modSub === 'block') q = q.eq('tier', 'block');
+      else q = q.in('status', ['warned', 'dismissed', 'banned']);
+      var r = await q.order('created_at', { ascending: false }).limit(200);
+      if (r && r.error) {
+        list.innerHTML = '<p style="color:var(--danger)">' + (kk ? 'Кестені оқу мүмкін болмады. Supabase-6.58.sql орындалды ма?' : 'Не удалось прочитать таблицу. Выполнен ли Supabase-6.58.sql?') + '</p><p style="font-size:0.78rem;color:var(--text-muted);word-break:break-all">' + String(r.error.message || '').replace(/</g, '&lt;') + '</p>';
+        return;
+      }
+      var rows = (r && r.data) || [];
+      if (!rows.length) { list.innerHTML = '<p class="ayah-translation">' + (kk ? 'Бұл санатта жазба жоқ.' : 'В этой категории пусто.') + '</p>'; return; }
+      var SRC = { general: kk ? 'Жалпы чат' : 'Общий чат', group: kk ? 'Топ' : 'Группа', dm: kk ? 'Жеке' : 'Личные', qa_comments: kk ? 'Сұрақ пікірі' : 'Комментарий к вопросу', questions: kk ? 'Сұрақ' : 'Вопрос', feedback_reports: kk ? 'Пікір' : 'Обратная связь', scheduled_messages: kk ? 'Кейінге қалдырылған' : 'Отложенное' };
+      list.innerHTML = rows.map(function(e) {
+        var open = e.status === 'new';
+        return '<div class="card" style="padding:0.6rem 0.8rem;margin-bottom:0.5rem;' + (open ? 'border-color:var(--warning)' : 'opacity:0.75') + '">' +
+          '<div style="display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;font-size:0.72rem;color:var(--text-muted)">' +
+            '<span>' + (SRC[e.source] || String(e.source || '?').replace(/</g, '&lt;')) + ' · ' + (e.tier === 'block' ? '⛔' : '🤖') + ' «' + String(e.hit || '').replace(/</g, '&lt;') + '»</span>' +
+            '<span>' + String(e.created_at || '').slice(0, 16).replace('T', ' ') + '</span></div>' +
+          '<div style="margin-top:0.3rem;font-size:0.78rem;color:var(--text-muted)">' + (kk ? 'Кім: ' : 'Кто: ') + '<b style="color:var(--text)">' + String(e.nick || '???').replace(/</g, '&lt;') + '</b></div>' +
+          '<div style="margin-top:0.3rem;white-space:pre-wrap;word-break:break-word;font-size:0.88rem;padding:0.4rem 0.55rem;background:var(--bg);border-radius:0.4rem">' + String(e.snippet || '').replace(/</g, '&lt;') + '</div>' +
+          ((open || e.tier === 'block') && e.user_id ? '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem">' +
+            '<button type="button" class="btn btn-sm mod-warn-btn" data-id="' + e.id + '" data-uid="' + _chatEsc(e.user_id) + '" data-nick="' + _chatEsc(e.nick || '') + '" style="color:var(--warning)">⚠ ' + (kk ? 'Ескерту' : 'Предупредить') + '</button>' +
+            (open ? '<button type="button" class="btn btn-sm mod-close-btn" data-id="' + e.id + '">✓ ' + (kk ? 'Жабу' : 'Закрыть') + '</button>' : '') +
+          '</div>' : '') + '</div>';
+      }).join('');
+      list.querySelectorAll('.mod-warn-btn').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var ev = rows.filter(function(x) { return String(x.id) === b.getAttribute('data-id'); })[0] || {};
+          adminWarnFlow(b.getAttribute('data-uid'), b.getAttribute('data-nick'), kk ? 'Қоғамдастық ережесін бұзу: жарамсыз сөздер' : 'Нарушение правил общения: недопустимые выражения', ev.id, function() { renderModEventsTab(box, sb, kk); });
+        });
+      });
+      list.querySelectorAll('.mod-close-btn').forEach(function(b) {
+        b.addEventListener('click', async function() {
+          b.disabled = true;
+          var rr = await sb.rpc('admin_set_mod_event', { p_id: parseInt(b.getAttribute('data-id'), 10), p_status: 'dismissed' });
+          if (rr && rr.error) { toast((kk ? 'Қате: ' : 'Ошибка: ') + (rr.error.message || '')); b.disabled = false; return; }
+          renderModEventsTab(box, sb, kk);
+        });
+      });
     }
     // local fallback storage
     function authUsers() {
@@ -20984,6 +21218,7 @@ bKk:
           authSetSession(s);
           try { if (typeof upsertMyProfile === 'function') upsertMyProfile(); } catch(e) {}
           try { checkMyBanStatus(sb, u.id); } catch(e) {}
+          try { checkMyWarnings(sb, u.id); } catch(e) {}
           try { startOnlineHeartbeat(); } catch(e) {}
           try { if (_pendingInviteCode) { var codeToJoin = _pendingInviteCode; _pendingInviteCode = null; tryJoinByInviteCode(codeToJoin); } } catch(e) {}
           return s;
@@ -21124,7 +21359,9 @@ bKk:
             (sess.online ? '<div id="acc-sync-status" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.35rem"></div>' : '') +
             '<button type="button" class="btn btn-sm" id="btn-acc-nick" style="width:100%;margin-top:0.4rem">'+(kk?'Никті өзгерту':'Сменить ник')+'</button>' +
             '<button type="button" class="btn btn-sm" id="btn-acc-pass" style="width:100%;margin-top:0.35rem">'+(kk?'Аккаунт құпиясөзін өзгерту':'Сменить пароль аккаунта')+'</button>' +
-            '<button type="button" class="btn" id="btn-logout" style="width:100%;margin-top:0.6rem">'+(kk?'Шығу':'Выйти')+'</button></div>' +
+            '<button type="button" class="btn" id="btn-logout" style="width:100%;margin-top:0.6rem">'+(kk?'Шығу':'Выйти')+'</button>' +
+            '<div style="margin-top:0.7rem;font-size:0.85rem;color:var(--text-muted)">'+(kk?'Құжаттар мен ережелер':'Документы и правила')+'</div><div>'+_legalLinksHtml(kk)+'</div>' +
+            '<button type="button" class="btn btn-sm" id="btn-acc-del" style="width:100%;margin-top:0.5rem">🗑 '+(kk?'Аккаунтты және деректерімді жою':'Удалить аккаунт и мои данные')+'</button></div>' +
             '</div>' +
             (sess.online ? (
               '<div class="acc-tab-content acc-tab-privacy">' +
@@ -21503,6 +21740,7 @@ bKk:
               } catch(e) { toast((kk?'Қате: ':'Ошибка: ')+(e.message||e)); }
             });
           });
+          document.getElementById('btn-acc-del')?.addEventListener('click', function() { confirmDeleteAccount(); });
           document.getElementById('btn-logout')?.addEventListener('click', async function() {
             var sb = getSb();
             if (sb) try { await sb.auth.signOut(); } catch(e) {}
@@ -21620,6 +21858,9 @@ bKk:
           '<div class="ayah-translation" style="margin-bottom:0.5rem">'+(kk
             ? 'Аккаунт барлық құрылғыларға ортақ. Никнейм 3–20; email бірегей; құпиясөз ≥8, әріп пен сан.'
             : 'Аккаунт общий для всех устройств. Никнейм 3–20; email уникальный; пароль ≥8, буква и цифра.')+'</div>' +
+          '<label style="display:flex;gap:0.5rem;align-items:flex-start;margin:0.4rem 0;cursor:pointer;font-size:0.88rem"><input type="checkbox" id="reg-agree" style="margin-top:0.2rem"><span>'+(kk
+            ? 'Мен <a href="#" style="color:var(--accent)" data-legal="terms">Пайдаланушы келісімімен</a>, <a href="#" style="color:var(--accent)" data-legal="privacy">Құпиялылық саясатымен</a> және <a href="#" style="color:var(--accent)" data-legal="chatrules">Чат ережелерімен</a> таныстым, келісемін. Деректерім Қазақстаннан тыс жерде (Supabase) сақталатынына келісемін.'
+            : 'Я ознакомился(ась) и согласен(на) с <a href="#" style="color:var(--accent)" data-legal="terms">Пользовательским соглашением</a>, <a href="#" style="color:var(--accent)" data-legal="privacy">Политикой конфиденциальности</a> и <a href="#" style="color:var(--accent)" data-legal="chatrules">Правилами чатов</a>. Согласен(на), что мои данные хранятся за пределами Казахстана (Supabase).')+'</span></label>' +
           '<button type="button" class="btn btn-primary" id="btn-reg" style="width:100%">'+(kk?'Аккаунт құру':'Создать аккаунт')+'</button>' +
           '<button type="button" class="btn btn-sm" id="btn-reg-login" style="width:100%;margin-top:0.4rem">'+(kk?'Аккаунт бар — кіру':'Уже есть аккаунт — вход')+'</button>' +
           '</div>';
@@ -21633,6 +21874,7 @@ bKk:
           var level = (document.getElementById('reg-level') || {}).value || '';
           var err = authValidNick(nick) || authValidEmail(email) || authValidPass(pass);
           if (err) { toast(err); return; }
+          if (!(document.getElementById('reg-agree') || {}).checked) { toast(kk ? 'Тіркелу үшін келісімді қабылдаңыз (құсбелгі)' : 'Для регистрации отметьте согласие с документами'); return; }
           if (pass !== pass2) { toast(kk ? 'Құпиясөздер сәйкес келмейді' : 'Пароли не совпадают'); return; }
           // build 4.35: ник после регистрации можно будет менять не чаще
           // раза в 7 дней — предупреждаем заранее, чтобы не удивлялись
@@ -21956,6 +22198,237 @@ bKk:
     // ===== build 6.15: страница «Источники и лицензии» =====
     // Что здесь указано — только то, что реально есть в коде и данных приложения (адреса запросов, id изданий, заголовки файлов данных).
     // Где лицензия не проверена — так и написано: «условия — на сайте источника».
+    // ===== build 6.53: документы (политика, соглашение, правила чатов, оговорка),
+    // согласие перед чатами и удаление аккаунта =====
+    // Почта для обращений. Пока пусто — показываем обращение через «Идеи и баги».
+    var LEGAL_CONTACT_EMAIL = '';
+    var LEGAL_UPDATED = '12.11.2026';
+    var LEGAL_DOCS = {
+      privacy: {
+        t: ['Политика конфиденциальности', 'Құпиялылық саясаты'],
+        ru: [
+          ['Кто мы', 'Quran Academy — учебное приложение для изучения Корана (сайт на GitHub Pages). Оператор — автор проекта.'],
+          ['Какие данные', 'Без аккаунта всё хранится только в вашем браузере (закладки, прогресс, настройки, кэш) — нам это не передаётся.\nС аккаунтом: никнейм, email, пароль (в зашифрованном виде у сервиса авторизации), уровень (ученик/учитель), синхронизируемые данные приложения, друзья, сообщения в личных и групповых чатах, форуме и вопросах, жалобы и блокировки, отметка «в сети».'],
+          ['Где хранятся', 'Онлайн-часть работает на облачном сервисе Supabase; его серверы находятся за пределами Казахстана. Регистрируясь и принимая документы, вы соглашаетесь на такую обработку и передачу данных. Сайт размещён на GitHub Pages.'],
+          ['Сторонние сервисы', 'При открытии приложения ваш браузер обращается к сторонним сервисам, и они видят ваш IP-адрес: Google Fonts (шрифты), jsDelivr и cdnjs (библиотеки), YouTube (встроенные видео — только при открытии), alquran.cloud, api.quran.com, everyayah.com, mp3quran.net, qurancdn (текст, переводы и аудио Корана), muftyat.kz и aladhan.com (время намаза), OpenStreetMap, Overpass и Esri (карта и мечети рядом). Рекламы и аналитики в приложении нет.'],
+          ['Разрешения браузера', 'Геолокация — только по вашей кнопке (время намаза, кибла, мечети). Координаты хранятся на вашем устройстве и отправляются сервисам времени намаза и карты для расчёта; в нашу базу данных они не записываются.\nМикрофон — для проверки чтения: речь распознаёт ваш браузер, и в некоторых браузерах (например, Chrome) звук обрабатывается сервисом самого браузера.\nУведомления — только с вашего согласия.'],
+          ['Срок хранения и удаление', 'Данные аккаунта хранятся, пока аккаунт существует. В разделе «Аккаунт» есть кнопка «Удалить аккаунт и мои данные». Данные, которые лежат только в вашем браузере, удаляются очисткой данных сайта.'],
+          ['Ваши права', 'Вы можете узнать, какие ваши данные хранятся, исправить их (никнейм и пароль меняются в аккаунте), потребовать удаления и отозвать согласие — удалением аккаунта или обращением по контакту ниже.'],
+          ['Безопасность', 'Мы принимаем разумные меры защиты, но ни один сервис не может гарантировать абсолютную безопасность. Не публикуйте в чатах пароли, паспортные и банковские данные.'],
+          ['Изменения', 'Текст может обновляться; дата последнего обновления указана вверху.']
+        ],
+        kk: [
+          ['Біз кімбіз', 'Quran Academy — Құранды үйренуге арналған оқу қолданбасы (GitHub Pages сайты). Оператор — жоба авторы.'],
+          ['Қандай деректер', 'Аккаунтсыз барлығы тек браузеріңізде сақталады (бетбелгілер, прогресс, баптаулар, кэш) — бізге берілмейді.\nАккаунтпен: лақап ат, email, құпиясөз (авторизация сервисінде шифрланған түрде), деңгей (оқушы/мұғалім), қолданбаның синхрондалатын деректері, достар, жеке және топтық чаттардағы, форумдағы және сұрақтардағы хабарламалар, шағымдар мен бұғаттаулар, «желіде» белгісі.'],
+          ['Қайда сақталады', 'Онлайн бөлім Supabase бұлттық сервисінде жұмыс істейді; оның серверлері Қазақстаннан тыс жерде орналасқан. Тіркеліп, құжаттарды қабылдай отырып, деректерді осылай өңдеуге және беруге келісесіз. Сайт GitHub Pages-те орналасқан.'],
+          ['Үшінші тарап сервистері', 'Қолданбаны ашқанда браузеріңіз үшінші тарап сервистеріне жүгінеді, олар IP-мекенжайыңызды көреді: Google Fonts (қаріптер), jsDelivr және cdnjs (кітапханалар), YouTube (кірістірілген бейнелер — тек ашқанда), alquran.cloud, api.quran.com, everyayah.com, mp3quran.net, qurancdn (Құран мәтіні, аудармалары және аудиосы), muftyat.kz және aladhan.com (намаз уақыты), OpenStreetMap, Overpass және Esri (карта және жақын мешіттер). Қолданбада жарнама мен аналитика жоқ.'],
+          ['Браузер рұқсаттары', 'Геолокация — тек сіздің батырмаңыз бойынша (намаз уақыты, құбыла, мешіттер). Координаттар құрылғыңызда сақталады және есептеу үшін намаз уақыты мен карта сервистеріне жіберіледі; біздің дерекқорға жазылмайды.\nМикрофон — оқуды тексеру үшін: сөзді браузеріңіз таниды, кейбір браузерлерде (мысалы, Chrome) дыбысты браузердің өз сервисі өңдейді.\nХабарландырулар — тек сіздің келісіміңізбен.'],
+          ['Сақтау мерзімі және жою', 'Аккаунт деректері аккаунт бар кезде сақталады. «Аккаунт» бөлімінде «Аккаунтты және деректерімді жою» батырмасы бар. Тек браузеріңізде жатқан деректер сайт деректерін тазалағанда жойылады.'],
+          ['Құқықтарыңыз', 'Қандай деректеріңіз сақталғанын білуге, оларды түзетуге (лақап ат пен құпиясөз аккаунтта өзгертіледі), жоюды талап етуге және келісімді қайтарып алуға болады — аккаунтты жою арқылы немесе төмендегі байланыс арқылы.'],
+          ['Қауіпсіздік', 'Біз қорғаудың орынды шараларын қолданамыз, бірақ ешбір сервис абсолютті қауіпсіздікке кепілдік бере алмайды. Чаттарда құпиясөзді, төлқұжат және банк деректерін жарияламаңыз.'],
+          ['Өзгерістер', 'Мәтін жаңартылуы мүмкін; соңғы жаңарту күні жоғарыда көрсетілген.']
+        ]
+      },
+      terms: {
+        t: ['Пользовательское соглашение', 'Пайдаланушы келісімі'],
+        ru: [
+          ['Назначение', 'Приложение учебное: оно помогает изучать Коран, чтение, молитву и основы религии. Оно не заменяет имама, муфтия или религиозного учёного.'],
+          ['Аккаунт', 'Вы указываете достоверные данные и храните пароль в тайне. Вы отвечаете за действия со своего аккаунта.'],
+          ['Ваш контент', 'Сообщения, вопросы, ответы и файлы, которые вы публикуете, остаются вашими; вы разрешаете показывать их другим пользователям в рамках приложения. Вы сами отвечаете за их содержание.'],
+          ['Что нельзя', 'Нарушать законы Республики Казахстан; публиковать то, что запрещено Правилами чатов; пытаться взломать приложение или чужие аккаунты; выдавать себя за другого человека.'],
+          ['Права администрации', 'Администрация может предупредить пользователя, удалить сообщение, временно ограничить или заблокировать аккаунт за нарушение правил или закона.'],
+          ['Без гарантий', 'Приложение предоставляется «как есть». Мы стараемся проверять тексты, но ошибки возможны; сервис может быть недоступен или изменён. Тексты религиозного содержания нужно сверять с авторитетными источниками.'],
+          ['Ответственность', 'В пределах, разрешённых законом, оператор не отвечает за ущерб от использования приложения, за контент пользователей и за работу сторонних сервисов.'],
+          ['Право и отзыв согласия', 'Применяется право Республики Казахстан. Согласие можно отозвать, удалив аккаунт.']
+        ],
+        kk: [
+          ['Мақсаты', 'Қолданба оқу қолданбасы: ол Құранды, оқуды, намазды және діннің негіздерін үйренуге көмектеседі. Ол имамды, мүфтиді немесе дін ғалымын алмастырмайды.'],
+          ['Аккаунт', 'Сіз шынайы деректер көрсетесіз және құпиясөзді құпия ұстайсыз. Аккаунтыңыздан жасалған әрекеттерге өзіңіз жауап бересіз.'],
+          ['Сіздің контентіңіз', 'Сіз жариялаған хабарламалар, сұрақтар, жауаптар және файлдар сіздікі болып қалады; оларды қолданба шеңберінде басқа пайдаланушыларға көрсетуге рұқсат бересіз. Олардың мазмұнына өзіңіз жауап бересіз.'],
+          ['Не істеуге болмайды', 'Қазақстан Республикасының заңдарын бұзу; Чат ережелерінде тыйым салынғанды жариялау; қолданбаны немесе біреудің аккаунтын бұзуға әрекет ету; өзін басқа адам ретінде көрсету.'],
+          ['Әкімшілік құқықтары', 'Әкімшілік ереже немесе заңды бұзғаны үшін пайдаланушыға ескерту жасай алады, хабарламаны жоя алады, аккаунтты уақытша шектей немесе бұғаттай алады.'],
+          ['Кепілдіксіз', 'Қолданба «қалай бар, солай» беріледі. Біз мәтіндерді тексеруге тырысамыз, бірақ қателер болуы мүмкін; сервис қолжетімсіз болуы немесе өзгеруі мүмкін. Діни мазмұнды мәтіндерді сенімді дереккөздермен салыстыру керек.'],
+          ['Жауапкершілік', 'Заң рұқсат еткен шекте оператор қолданбаны пайдаланудан келген зиян үшін, пайдаланушылар контенті үшін және үшінші тарап сервистерінің жұмысы үшін жауап бермейді.'],
+          ['Құқық және келісімді қайтару', 'Қазақстан Республикасының құқығы қолданылады. Келісімді аккаунтты жою арқылы қайтарып алуға болады.']
+        ]
+      },
+      chatrules: {
+        t: ['Правила чатов', 'Чат ережелері'],
+        ru: [
+          ['Главное', 'Чат — это общение людей, а не площадка для споров. Вы сами отвечаете за то, что пишете.'],
+          ['Нельзя', '• оскорбления, мат, унижение;\n• угрозы и травля, особенно детей;\n• экстремизм, терроризм, оправдание насилия;\n• разжигание вражды — национальной, религиозной, между мазхабами;\n• пропаганда наркотиков, самоповреждения и самоубийства;\n• мошенничество, пирамиды, азартные игры;\n• чужие личные данные: телефоны, адреса, документы, фото без согласия;\n• порнография;\n• реклама, спам, посторонние ссылки;\n• выдавать себя за другого, распространять заведомо ложные сведения.'],
+          ['Что бывает за нарушение', 'Явный мат и оскорбления сайт останавливает автоматически: сообщение не отправляется, а три такие попытки за час закрывают отправку на 1 час. Сомнительные сообщения автоматически видит администратор. Администрация может выдать предупреждение (оно видно вам при входе и действует 90 дней), удалить сообщение, временно ограничить или заблокировать аккаунт. Обычно: третье предупреждение — блокировка на 24 часа, четвёртое — на 7 дней; при тяжёлых нарушениях меры могут быть строже, а блокировка — постоянной.'],
+          ['Жалобы', 'Если вы увидели нарушение — нажмите «Пожаловаться» у сообщения. Администрация рассматривает жалобы.'],
+          ['Ваша ответственность', 'Заходя в чат, вы подтверждаете, что прочитали правила и сами отвечаете за свои сообщения.']
+        ],
+        kk: [
+          ['Басты ереже', 'Чат — адамдардың қарым-қатынасы, дау алаңы емес. Не жазғаныңыз үшін өзіңіз жауап бересіз.'],
+          ['Болмайды', '• балағат сөз, боқтау, қорлау;\n• қорқыту және қудалау, әсіресе балаларды;\n• экстремизм, терроризм, зорлық-зомбылықты ақтау;\n• өшпенділікті қоздыру — ұлттық, діни, мазхабтар арасындағы;\n• есірткіні, өзіне зиян келтіруді және өз-өзіне қол жұмсауды насихаттау;\n• алаяқтық, пирамидалар, құмар ойындар;\n• біреудің жеке деректері: телефон, мекенжай, құжаттар, келісімсіз фото;\n• порнография;\n• жарнама, спам, бөгде сілтемелер;\n• өзін басқа адам ретінде көрсету, жалған мәліметтер тарату.'],
+          ['Бұзғаны үшін не болады', 'Айқын балағат пен қорлауды сайт өзі тоқтатады: хабарлама жіберілмейді, ал бір сағат ішінде мұндай үш әрекет жіберуді 1 сағатқа жабады. Күмәнді хабарламаларды әкімші автоматты түрде көреді. Әкімшілік ескерту жасай алады (кірген кезде көрсетіледі, 90 күн күшінде), хабарламаны жоя алады, аккаунтты уақытша шектей немесе бұғаттай алады. Әдетте: үшінші ескерту — 24 сағатқа, төртінші — 7 күнге бұғат; ауыр бұзушылықта шара қатаңырақ, бұғат тұрақты болуы мүмкін.'],
+          ['Шағымдар', 'Бұзушылықты көрсеңіз — хабарламадағы «Шағымдану» батырмасын басыңыз. Әкімшілік шағымдарды қарайды.'],
+          ['Сіздің жауапкершілігіңіз', 'Чатқа кіре отырып, ережелерді оқығаныңызды және хабарламаларыңыз үшін өзіңіз жауап беретініңізді растайсыз.']
+        ]
+      },
+      disclaimer: {
+        t: ['Оговорка о содержании', 'Мазмұн туралы ескерту'],
+        ru: [
+          ['Это не фетва', 'Приложение образовательное. Переводы, пояснения, хадисы, правила молитвы и других разделов подготовлены на основе открытых источников и не являются фетвой. По личным вопросам обращайтесь к имаму или религиозному учёному.'],
+          ['Возможны ошибки', 'Часть текстов подготовлена с помощью программных средств (ИИ) и проверяется постепенно, поэтому в них могут быть неточности. Нумерация хадисов в разных изданиях различается; ссылки на источники даны, чтобы вы могли проверить текст.'],
+          ['Сообщить об ошибке', 'Нашли ошибку — сообщите через раздел «Идеи и баги»: мы исправим.']
+        ],
+        kk: [
+          ['Бұл пәтуа емес', 'Қолданба білім беру мақсатында жасалған. Аудармалар, түсіндірмелер, хадистер, намаз және басқа бөлімдердің ережелері ашық дереккөздер негізінде дайындалған және пәтуа болып табылмайды. Жеке сұрақтар бойынша имамға немесе дін ғалымына жүгініңіз.'],
+          ['Қателер болуы мүмкін', 'Мәтіндердің бір бөлігі бағдарламалық құралдардың (ЖИ) көмегімен дайындалған және бірте-бірте тексеріледі, сондықтан онда дәлсіздіктер болуы мүмкін. Хадистердің нөмірленуі басылымдарда әр түрлі; дереккөздерге сілтемелер мәтінді тексеру үшін берілген.'],
+          ['Қате туралы хабарлау', 'Қате тапсаңыз — «Идеялар мен қателер» бөлімі арқылы хабарлаңыз: түзетеміз.']
+        ]
+      }
+    };
+    function _legalEsc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function _legalContact(kk) {
+      return LEGAL_CONTACT_EMAIL
+        ? (kk ? 'Байланыс: ' : 'Контакт: ') + LEGAL_CONTACT_EMAIL
+        : (kk ? 'Байланыс: қолданбадағы «Идеялар мен қателер» бөлімі арқылы.' : 'Контакт: через раздел «Идеи и баги» в приложении.');
+    }
+    function openLegalDoc(kind) {
+      var kk = isKk();
+      if (!LEGAL_DOCS[kind]) kind = 'privacy';
+      var ex = document.getElementById('legal-doc-modal'); if (ex) ex.remove();
+      var box = document.createElement('div');
+      box.id = 'legal-doc-modal';
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:0.8rem';
+      var doc = LEGAL_DOCS[kind];
+      var tabs = Object.keys(LEGAL_DOCS).map(function(k) {
+        return '<button type="button" class="btn btn-sm' + (k === kind ? ' btn-primary' : '') + '" data-legal-tab="' + k + '" style="padding:0.2rem 0.5rem;font-size:0.78rem">' + _legalEsc(LEGAL_DOCS[k].t[kk ? 1 : 0]) + '</button>';
+      }).join('');
+      var secs = (kk ? doc.kk : doc.ru).map(function(sec) {
+        return '<h4 style="margin:0.8rem 0 0.2rem">' + _legalEsc(sec[0]) + '</h4><div class="ayah-translation" style="white-space:pre-line;line-height:1.5">' + _legalEsc(sec[1]) + '</div>';
+      }).join('');
+      box.innerHTML =
+        '<div class="card" style="max-width:34rem;width:100%;max-height:88vh;display:flex;flex-direction:column">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">' +
+            '<b>' + _legalEsc(doc.t[kk ? 1 : 0]) + '</b>' +
+            '<button type="button" id="legal-close" class="btn btn-sm" style="padding:0.15rem 0.55rem">✕</button>' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.5rem 0">' + tabs + '</div>' +
+          '<div style="overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch">' +
+            '<div style="font-size:0.78rem;color:var(--text-muted)">' + (kk ? 'Жаңартылған: ' : 'Обновлено: ') + LEGAL_UPDATED + '</div>' +
+            secs +
+            '<p class="ayah-translation" style="margin-top:0.9rem;font-size:0.85rem">' + _legalEsc(_legalContact(kk)) + '</p>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(box);
+      box.addEventListener('click', function(e) { if (e.target === box) box.remove(); });
+      box.querySelector('#legal-close').addEventListener('click', function() { box.remove(); });
+      box.querySelectorAll('[data-legal-tab]').forEach(function(b) {
+        b.addEventListener('click', function() { openLegalDoc(b.getAttribute('data-legal-tab')); });
+      });
+    }
+    // Ссылки на документы (страница «Источники и лицензии», аккаунт)
+    function _legalLinksHtml(kk) {
+      return Object.keys(LEGAL_DOCS).map(function(k) {
+        return '<button type="button" class="btn btn-sm" data-legal="' + k + '" style="margin:0.15rem 0.25rem 0.15rem 0">' + _legalEsc(LEGAL_DOCS[k].t[kk ? 1 : 0]) + '</button>';
+      }).join('');
+    }
+    function _appendLegalLinks(el) {
+      if (!el) return;
+      var kk = isKk();
+      var old = document.getElementById('legal-links-card'); if (old) old.remove();
+      el.insertAdjacentHTML('beforeend', '<div class="card" id="legal-links-card"><b>' + (kk ? 'Құжаттар мен ережелер' : 'Документы и правила') + '</b><div style="margin-top:0.4rem">' + _legalLinksHtml(kk) + '</div></div>');
+    }
+    document.addEventListener('click', function(e) {
+      var a = e.target && e.target.closest ? e.target.closest('[data-legal]') : null;
+      if (a) { e.preventDefault(); openLegalDoc(a.getAttribute('data-legal')); }
+    });
+    // Согласие перед чатами
+    var CHAT_CONSENT_VIEWS = { groups: 1, groupchat: 1, dm: 1, dmlist: 1, forum: 1, myqa: 1, publicchat: 1 };
+    function hasChatConsent() {
+      try { var v = JSON.parse(localStorage.getItem('quran_chat_consent') || 'null'); return !!(v && v.v >= 1); } catch(e) { return false; }
+    }
+    function openChatConsent(onOk) {
+      var kk = isKk();
+      var ex = document.getElementById('chat-consent-modal'); if (ex) ex.remove();
+      var box = document.createElement('div');
+      box.id = 'chat-consent-modal';
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10002;display:flex;align-items:center;justify-content:center;padding:0.8rem';
+      box.innerHTML =
+        '<div class="card" style="max-width:28rem;width:100%;max-height:90vh;overflow-y:auto">' +
+          '<b>' + (kk ? '💬 Чат ережелері' : '💬 Правила чатов') + '</b>' +
+          '<div class="ayah-translation" style="margin:0.5rem 0;line-height:1.5">' + (kk
+            ? 'Чаттарға, форумға және сұрақтарға кірер алдында ережелермен танысыңыз. Болмайды: қорлау мен балағат сөз, қорқыту мен қудалау, экстремизм мен өшпенділік, есірткі, алаяқтық, біреудің жеке деректері, порнография, спам. Бұзушылық ескертуге, хабарламаны жоюға және бұғаттауға әкелуі мүмкін.'
+            : 'Перед входом в чаты, форум и вопросы ознакомьтесь с правилами. Нельзя: оскорбления и мат, угрозы и травля, экстремизм и вражда, наркотики, мошенничество, чужие личные данные, порнография, спам. Нарушения могут привести к предупреждению, удалению сообщений и блокировке.') + '</div>' +
+          '<p style="margin:0.3rem 0"><a href="#" style="color:var(--accent)" data-legal="chatrules">' + (kk ? 'Толық ережелер' : 'Полные правила') + '</a> · <a href="#" style="color:var(--accent)" data-legal="terms">' + (kk ? 'Келісім' : 'Соглашение') + '</a> · <a href="#" style="color:var(--accent)" data-legal="privacy">' + (kk ? 'Құпиялылық' : 'Конфиденциальность') + '</a></p>' +
+          '<label style="display:flex;gap:0.5rem;align-items:flex-start;margin:0.6rem 0;cursor:pointer"><input type="checkbox" id="cc-agree" style="margin-top:0.2rem"><span>' + (kk
+            ? 'Ережелерді оқыдым және жазғандарым үшін өзім жауап беремін'
+            : 'Я прочитал(а) правила и сам(а) отвечаю за то, что пишу') + '</span></label>' +
+          '<button type="button" class="btn btn-primary" id="cc-ok" style="width:100%" disabled>' + (kk ? 'Қабылдаймын және кіремін' : 'Принимаю и вхожу') + '</button>' +
+          '<button type="button" class="btn btn-sm" id="cc-cancel" style="width:100%;margin-top:0.4rem">' + (kk ? 'Бас тарту' : 'Отмена') + '</button>' +
+        '</div>';
+      document.body.appendChild(box);
+      var agree = box.querySelector('#cc-agree'), ok = box.querySelector('#cc-ok');
+      agree.addEventListener('change', function() { ok.disabled = !agree.checked; });
+      box.querySelector('#cc-cancel').addEventListener('click', function() { box.remove(); });
+      ok.addEventListener('click', async function() {
+        var ts = new Date().toISOString();
+        try { localStorage.setItem('quran_chat_consent', JSON.stringify({ v: 1, ts: ts })); } catch(e) {}
+        box.remove();
+        // запись на сервере — если в таблице profiles есть столбец chat_consent_at (см. SQL в описании 6.53)
+        try {
+          var sb = getSb(), sess = authSession();
+          if (sb && sess && sess.online && sess.userId) await sb.from('profiles').update({ chat_consent_at: ts }).eq('id', sess.userId);
+        } catch(e) {}
+        try { if (onOk) onOk(); } catch(e) {}
+      });
+    }
+    // Удаление аккаунта: на сервере — функцией delete_my_account (SQL в описании 6.53)
+    function confirmDeleteAccount() {
+      var kk = isKk(), sess = authSession();
+      if (!sess) return;
+      var ex = document.getElementById('del-acc-modal'); if (ex) ex.remove();
+      var box = document.createElement('div');
+      box.id = 'del-acc-modal';
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10002;display:flex;align-items:center;justify-content:center;padding:0.8rem';
+      box.innerHTML =
+        '<div class="card" style="max-width:26rem;width:100%">' +
+          '<b>🗑 ' + (kk ? 'Аккаунтты және деректерді жою' : 'Удалить аккаунт и данные') + '</b>' +
+          '<div class="ayah-translation" style="margin:0.5rem 0;line-height:1.5">' + (kk
+            ? 'Аккаунт, профиль, достар, хабарламалар және серверде сақталған деректер жойылады. Бұл әрекетті қайтару мүмкін емес. Растау үшін лақап атыңызды жазыңыз: '
+            : 'Будут удалены аккаунт, профиль, друзья, сообщения и данные, сохранённые на сервере. Отменить это нельзя. Для подтверждения впишите свой ник: ') + '<b>' + _legalEsc(sess.nick) + '</b></div>' +
+          '<input id="del-acc-input" autocomplete="off" style="' + authFormStyle() + '">' +
+          '<button type="button" class="btn btn-primary" id="del-acc-ok" style="width:100%;margin-top:0.5rem" disabled>' + (kk ? 'Жою' : 'Удалить') + '</button>' +
+          '<button type="button" class="btn btn-sm" id="del-acc-cancel" style="width:100%;margin-top:0.4rem">' + (kk ? 'Бас тарту' : 'Отмена') + '</button>' +
+        '</div>';
+      document.body.appendChild(box);
+      var inp = box.querySelector('#del-acc-input'), ok = box.querySelector('#del-acc-ok');
+      inp.addEventListener('input', function() { ok.disabled = inp.value.trim() !== String(sess.nick); });
+      box.querySelector('#del-acc-cancel').addEventListener('click', function() { box.remove(); });
+      ok.addEventListener('click', async function() {
+        ok.disabled = true;
+        var sb = getSb();
+        if (sess.online && sb) {
+          try {
+            var r = await sb.rpc('delete_my_account');
+            if (r && r.error) {
+              ok.disabled = false;
+              toast(kk ? 'Серверде жою әлі қосылмаған. «Идеялар мен қателер» арқылы жазыңыз — қолмен жоямыз.' : 'Удаление на сервере пока не включено. Напишите в «Идеи и баги» — удалим вручную.');
+              return;
+            }
+          } catch(e) {
+            ok.disabled = false;
+            toast(kk ? 'Желі қатесі, кейінірек қайталаңыз' : 'Ошибка сети, повторите позже');
+            return;
+          }
+          try { await sb.auth.signOut(); } catch(e) {}
+        }
+        try { authSaveUsers(authUsers().filter(function(u) { return u.id !== sess.userId; })); } catch(e) {}
+        try { localStorage.removeItem('quran_chat_consent'); } catch(e) {}
+        authSetSession(null);
+        box.remove();
+        try { _onlineBadges = { friends: 0, dmlist: 0, groups: 0, myqa: 0 }; renderMoreMenu(); } catch(e) {}
+        toast(kk ? 'Аккаунт жойылды' : 'Аккаунт удалён');
+        try { renderAuthSync('account'); } catch(e) {}
+      });
+    }
+
     function renderSources() {
       const el = document.getElementById('sources-body'); if (!el) return;
       const kk = isKk();
@@ -21990,7 +22463,7 @@ bKk:
         [ 'Буквы и произношение', 'Әріптер мен айтылым', [
           ['Записи 28 букв (папка audio-letters)', '28 әріптің жазбалары (audio-letters қалтасы)', 'Происхождение записей в проекте не зафиксировано. В версии 6.14 они обработаны (убрана тишина, выровнена громкость). Запланирована замена на записи с открытой лицензией', 'Жазбалардың шығу тегі жобада тіркелмеген. 6.14 нұсқасында өңделді (тыныштық алынды, дыбыс деңгейі теңестірілді). Ашық лицензиялы жазбаларға ауыстыру жоспарда', 'не подтверждена', 'расталмаған', ''],
           ['Схема произношения', 'Айтылым сызбасы', 'Положения языка у эмфатических и глоточных — по фонетическим работам (Ghazeli; Heselwood; Al-Tamimi); внешние материалы: ImamFaisal.com, eQuranCoaching, Seeing Speech (Glasgow), SimplyQuran', 'Эмфатикалық және көмей дыбыстарында тіл орны — фонетикалық еңбектер бойынша (Ghazeli; Heselwood; Al-Tamimi); сыртқы материалдар: ImamFaisal.com, eQuranCoaching, Seeing Speech (Glasgow), SimplyQuran', 'ссылки на сайты авторов', 'авторлар сайттарына сілтеме', 'https://www.seeingspeech.ac.uk/ipa-charts/'],
-          ['Запасной синтез речи', 'Қосалқы дыбыстау', 'Синтез речи браузера (Web Speech) и Google Translate TTS — только когда нет живой записи', 'Браузердің дыбыс синтезі (Web Speech) және Google Translate TTS — тірі жазба жоқ кезде ғана', U, UK, '']
+          ['Запасной синтез речи', 'Қосалқы дыбыстау', 'Синтез речи браузера (Web Speech, голос устройства) — только когда нет живой записи', 'Браузердің дыбыс синтезі (Web Speech, құрылғы дауысы) — тірі жазба жоқ кезде ғана', U, UK, '']
         ]],
         [ 'Программные компоненты', 'Бағдарламалық компоненттер', [
           ['Шрифты', 'Қаріптер', 'Amiri, Scheherazade New, Noto Naskh Arabic, Inter — Google Fonts', 'Amiri, Scheherazade New, Noto Naskh Arabic, Inter — Google Fonts', 'открытые лицензии шрифтов (SIL OFL)', 'ашық қаріп лицензиялары (SIL OFL)', 'https://fonts.google.com'],
@@ -29627,9 +30100,8 @@ function renderDict() {
     }
 
     function ttsUrlFor(chunk) {
-      return navigator.onLine
-        ? ('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + encodeURIComponent(chunk))
-        : '';
+      // build 6.53: не адрес Google, а метка «голос устройства» (очередь воспроизведения её узнаёт)
+      return 'device-tts:' + encodeURIComponent(chunk);
     }
 
     // Строит один или несколько элементов очереди для одного азкара/дуа:
@@ -29757,15 +30229,6 @@ function playArabicAudio(text, fallbackRu, opts) {
         speakArText(t, 0.85);
         return;
       }
-      // запасной машинный путь
-      try {
-        var chunk = t.length > 180 ? t.slice(0, 180) : t;
-        var url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + encodeURIComponent(chunk);
-        if (typeof playAudio === 'function') {
-          playAudio(url, fallbackRu || 'Дуа', { mode: 'single', repeat: 1 });
-          return;
-        }
-      } catch(e) {}
       if (typeof speakArabicFallback === 'function') speakArabicFallback(t, fallbackRu);
     }
 
@@ -29840,84 +30303,6 @@ function playArabicAudio(text, fallbackRu, opts) {
         return parts;
       }
 
-      // Google TTS через blob (чаще проходит, чем прямой src у audio)
-      function playTtsBlob(textAr) {
-        if (!textAr || !navigator.onLine) return Promise.reject(new Error('offline'));
-        var parts = chunkText(textAr, 100);
-        var i = 0;
-        function next() {
-          if (i >= parts.length) { hidePlaying(); return Promise.resolve(); }
-          var q = encodeURIComponent(parts[i]);
-          var urls = [
-            'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + q,
-            'https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=ar&q=' + q
-          ];
-          showBar((i+1) + '/' + parts.length);
-          return tryUrl(urls, 0).then(function() {
-            i++;
-            return next();
-          });
-        }
-        function tryUrl(urls, ui) {
-          if (ui >= urls.length) return Promise.reject(new Error('tts fail'));
-          var url = urls[ui];
-          // 1) прямой Audio
-          return new Promise(function(resolve, reject) {
-            var a = new Audio();
-            window._adhkarAudio = a;
-            var done = false;
-            var to = setTimeout(function() {
-              if (done) return;
-              done = true;
-              try { a.pause(); } catch(e) {}
-              reject(new Error('timeout'));
-            }, 8000);
-            a.onended = function() {
-              if (done) return;
-              done = true;
-              clearTimeout(to);
-              resolve();
-            };
-            a.onerror = function() {
-              if (done) return;
-              done = true;
-              clearTimeout(to);
-              reject(new Error('err'));
-            };
-            a.src = url;
-            var p = a.play();
-            if (p && p.then) {
-              p.then(function() {
-                toast('▶ ' + title);
-              }).catch(function() {
-                if (done) return;
-                done = true;
-                clearTimeout(to);
-                reject(new Error('play'));
-              });
-            }
-          }).catch(function() {
-            // 2) fetch blob
-            return fetch(url, { mode: 'cors' }).then(function(r) {
-              if (!r.ok) throw new Error('http');
-              return r.blob();
-            }).then(function(blob) {
-              return new Promise(function(resolve, reject) {
-                var obj = URL.createObjectURL(blob);
-                var a = new Audio(obj);
-                window._adhkarAudio = a;
-                a.onended = function() { try { URL.revokeObjectURL(obj); } catch(e) {} resolve(); };
-                a.onerror = function() { try { URL.revokeObjectURL(obj); } catch(e) {} reject(new Error('blob')); };
-                a.play().then(function() { toast('▶ ' + title); }).catch(reject);
-              });
-            }).catch(function() {
-              return tryUrl(urls, ui + 1);
-            });
-          });
-        }
-        return next();
-      }
-
       function speakSynth(textAr, asLatin) {
         if (!window.speechSynthesis) return Promise.reject(new Error('no synth'));
         return new Promise(function(resolve) {
@@ -29955,16 +30340,9 @@ function playArabicAudio(text, fallbackRu, opts) {
         });
       }
 
-      // Цепочка: TTS → synth араб. → synth транскрипция/перевод (чтобы хоть что-то было слышно)
+      // Цепочка: synth араб. → synth транскрипция/перевод (чтобы хоть что-то было слышно)
       var chain = Promise.resolve();
-      if (t && navigator.onLine) {
-        chain = playTtsBlob(t).catch(function() {
-          return speakSynth(t, false);
-        }).catch(function() {
-          var lat = ru || t;
-          return speakSynth(lat, true);
-        });
-      } else if (t) {
+      if (t) {
         chain = speakSynth(t, false).catch(function() {
           return speakSynth(ru || t, true);
         });
@@ -36138,7 +36516,8 @@ async function renderRegistrationSection() {
         { id: 'message_deleted', lab: kk ? '🛡 Хабарлама жойылды' : '🛡 Удалено сообщение' },
         { id: 'dismissed', lab: kk ? '🚫 Қабылданбады' : '🚫 Отклонена' },
         { id: 'temp_banned', lab: kk ? '⏱ Уақытша бан' : '⏱ Временный бан' },
-        { id: 'banned', lab: kk ? '⛔ Бұғатталды' : '⛔ Заблокирован' }
+        { id: 'banned', lab: kk ? '⛔ Бұғатталды' : '⛔ Заблокирован' },
+        { id: 'auto', lab: kk ? '🤖 Автобелгілер' : '🤖 Автоотметки' }
       ];
       if (!window._reportsTab) window._reportsTab = 'new';
       var tabsHtml = '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.6rem">' +
@@ -36163,6 +36542,11 @@ async function renderRegistrationSection() {
       // build 4.93: вкладка «Пользователи» переехала в «Регистрацию» (см.
       // renderRegistrationSection, категория «userstats») — по просьбе
       // пользователя. Тут её больше нет.
+      // build 6.58: вкладка «Автоотметки» — что фильтр отметил или остановил сам.
+      if (window._reportsTab === 'auto') {
+        try { await renderModEventsTab(box, sb, kk); } catch (e) { if (box) box.innerHTML = String(e.message || e).replace(/</g, '&lt;'); }
+        return;
+      }
       try {
         var q = sb.from('reports')
           .select('id,source,message_id,group_id,message_text,message_nick,message_user_id,reporter_id,reporter_nick,reason,created_at,resolved,status');
@@ -36306,6 +36690,10 @@ async function renderRegistrationSection() {
           var delMsgBtn = canDeleteMsg ? '<button type="button" class="btn btn-sm rep-delmsg-btn" data-src="'+r.source+'" data-mid="'+_chatEsc(r.message_id)+'" data-id="'+r.id+'" style="flex-shrink:0;color:var(--danger)">🛡 '+(kk?'Хабарламаны жою':'Удалить сообщение')+'</button>' : '';
           var dismissBtn = status !== 'dismissed' ? '<button type="button" class="btn btn-sm rep-dismiss-btn" data-id="'+r.id+'" style="flex-shrink:0;color:var(--warning)">🚫 '+(kk?'Шағымды қабылдамау':'Отклонить жалобу')+'</button>' : '';
           var purgeBtn = '<button type="button" class="btn btn-sm rep-purge-btn" data-id="'+r.id+'" title="'+(kk?'Мүлдем жою (қалпына келтіру мүмкін емес)':'Удалить навсегда (без возврата)')+'" style="flex-shrink:0;color:var(--text-muted);margin-left:auto">🗑</button>';
+          // build 6.58: предупреждение автору (1–2 — уведомление, 3 — бан на 24 ч, 4 — на 7 дней)
+          var warnBtn = (r.message_user_id && r.message_user_id !== myOwnUid)
+            ? '<button type="button" class="btn btn-sm rep-warn-btn" data-uid="'+_chatEsc(r.message_user_id)+'" data-nick="'+_chatEsc(mnick)+'" data-txt="'+_chatEsc(String(r.message_text || '').slice(0, 120))+'" style="flex-shrink:0;color:var(--warning)">⚠ '+(kk?'Ескерту':'Предупредить')+'</button>'
+            : '';
           // build 4.38: временный/постоянный бан — блокирует отправку
           // сообщений по всему сайту (не только в разделе жалобы). Доступно,
           // только если известен message_user_id (не всегда бывает у очень
@@ -36338,7 +36726,7 @@ async function renderRegistrationSection() {
             '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem">'+(kk?'Шағымданды: ':'Пожаловался: ')+'<b style="color:var(--text)">'+rnick+'</b>'+(rEmail ? ' · '+rEmail : '')+'</div>' +
             (reason ? '<div style="font-size:0.8rem;color:var(--warning);margin-top:0.2rem">'+(kk?'Себебі: ':'Текст жалобы: ')+reason+'</div>' : '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem;font-style:italic">'+(kk?'Себебі көрсетілмеген':'Причина не указана')+'</div>') +
             '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem;align-items:center">' +
-            delMsgBtn + dismissBtn + purgeBtn +
+            delMsgBtn + dismissBtn + warnBtn + purgeBtn +
             '</div>' +
             banControls +
             '</div>';
@@ -36425,6 +36813,11 @@ async function renderRegistrationSection() {
               btn.disabled = false;
               toast((kk?'Қате: ':'Ошибка: ')+(err.message||err));
             }
+          });
+        });
+        el.querySelectorAll('.rep-warn-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            adminWarnFlow(btn.getAttribute('data-uid'), btn.getAttribute('data-nick'), kk ? 'Қоғамдастық ережесін бұзу' : 'Нарушение правил общения', null);
           });
         });
         el.querySelectorAll('.rep-delmsg-btn').forEach(function(btn) {
@@ -40908,6 +41301,9 @@ c.addEventListener('click', () => {
     // Таблица chat_messages создаётся отдельным SQL-скриптом (см. ниже в чате с пользователем).
     // Здесь: загрузка истории, отправка сообщений и Realtime-подписка (новые сообщения
     // появляются у всех участников без перезагрузки страницы).
+    // build 6.53: общий чат временно закрыт («в разработке»): ни показа, ни запросов к базе.
+    // Вернуть — поставить false (правила чатов и согласие уже подключены).
+    var PUBLIC_CHAT_DISABLED = true;
     var _publicChatChannel = null;   // текущая Realtime-подписка (канал Supabase)
     var _publicChatBound = false;    // чтобы не вешать обработчик beforeunload повторно
 
@@ -45315,6 +45711,13 @@ c.addEventListener('click', () => {
       try { _applyChatTheme(null); } catch(e) {}
       // Отписываемся от предыдущей подписки на случай повторного открытия раздела.
       unsubscribePublicChat();
+      if (PUBLIC_CHAT_DISABLED) {
+        el.innerHTML = '<div class="empty-state" style="opacity:0.7;filter:grayscale(1);padding:2rem 1rem">' +
+          '<div style="font-size:2.4rem">💭</div>' +
+          '<p style="font-weight:600;margin:0.5rem 0">' + (kk ? 'Жалпы чат — әзірленуде' : 'Общий чат — в разработке') + '</p>' +
+          '<p style="color:var(--text-muted);font-size:0.9rem">' + (kk ? 'Бөлім уақытша жабық. Топтар, жеке хабарлар және форум жұмыс істейді.' : 'Раздел временно закрыт. Группы, личные сообщения и форум работают.') + '</p></div>';
+        return;
+      }
       if (!sb) {
         el.innerHTML = '<div class="empty-state"><p>'+(kk?'Бөлім тек онлайн-режимде қолжетімді.':'Раздел доступен только в онлайн-режиме.')+'</p></div>';
         return;
@@ -48808,7 +49211,7 @@ c.addEventListener('click', () => {
         var tsById = {};
         rows.forEach(function(r) { if (idsBySource[r.source]) { idsBySource[r.source].push(r.message_id); tsById[r.message_id] = r.created_at; } });
 
-        if (idsBySource.general.length) {
+        if (idsBySource.general.length && !PUBLIC_CHAT_DISABLED) {
           var gc = await sb.from('chat_messages').select('id,nick,text,created_at').in('id', idsBySource.general);
           ((gc && gc.data) || []).forEach(function(m) { results.push({ source: 'general', ts: tsById[m.id] || m.created_at, nick: m.nick, text: m.text, id: m.id }); });
         }
@@ -48871,7 +49274,7 @@ c.addEventListener('click', () => {
         var tsById = {};
         rows.forEach(function(r) { if (idsBySource[r.source]) { idsBySource[r.source].push(r.message_id); tsById[r.message_id] = r.created_at; } });
 
-        if (idsBySource.general.length) {
+        if (idsBySource.general.length && !PUBLIC_CHAT_DISABLED) {
           var gc = await sb.from('chat_messages').select('id,nick,text,created_at').in('id', idsBySource.general);
           ((gc && gc.data) || []).forEach(function(m) { results.push({ source: 'general', ts: tsById[m.id] || m.created_at, nick: m.nick, text: m.text, id: m.id }); });
         }
