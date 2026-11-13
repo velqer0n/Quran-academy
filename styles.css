@@ -89,6 +89,8 @@
     .view.active.view-slide-fwd { animation: viewSlideFwd 0.28s var(--ease); }
     .view.active.view-slide-back { animation: viewSlideBack 0.28s var(--ease); }
     body.reduce-motion .view.active.view-slide-fwd, body.reduce-motion .view.active.view-slide-back { animation: none !important; }
+    /* build 6.57: после скольжения базовая анимация .view.active (fadeIn) не должна запускаться заново, когда снимается класс скольжения — это и было «дрожание» раздела */
+    .view.active.view-anim-done { animation: none; }
     @media (prefers-reduced-motion: reduce) {
       .view-fade-in, .view.active.view-slide-fwd, .view.active.view-slide-back { animation: none; }
       html { scroll-behavior: auto; }
@@ -97,7 +99,7 @@
     .arabic {
       font-family: 'Amiri', serif;
       font-size: calc(1.55rem * var(--ar-scale, 1));
-      line-height: 2.1;
+      line-height: var(--ar-lh, 2.1);
       direction: rtl;
       text-align: right;
       color: var(--arabic);
@@ -370,6 +372,21 @@
       background: var(--chat-theme-bg);
       border-radius: var(--r-md);
       transition: background 0.3s;
+    }
+    /* build 6.57: все темы переписки тёмные, а на светлых темах сайта текст сообщений, время и имена оставались тёмными (сливались с фоном) —
+       внутри списка переписки переопределяем цвета на светлые, пока включена тема чата */
+    body.chat-themed #pchat-list,
+    body.chat-themed #dm-list,
+    body.chat-themed #grpc-list {
+      --text: #f1f5f9;
+      --text-muted: #b9c4d8;
+      --arabic: #e2e8f0;
+      --accent: #6ee7b7;
+      --border: rgba(255, 255, 255, 0.2);
+      --bg: rgba(0, 0, 0, 0.3);
+      --bg-card: rgba(0, 0, 0, 0.24);
+      --bg-hover: rgba(255, 255, 255, 0.14);
+      color: var(--text);
     }
     body.chat-themed .chat-msg-card.msg-mine {
       background: var(--chat-theme-mine) !important;
@@ -4116,3 +4133,94 @@ select.fs-input { padding-right: 0.4rem; }
 .audio-bar .player-dua select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.3rem 0.4rem; border-radius: 0.6rem; font-size: 0.8rem; }
 .audio-bar.collapsed #audio-dua-row { display: none !important; }
 body.theme-light .audio-bar, body.theme-light .audio-bar.visible { background: #eef1f5; }
+
+/* build 6.57: индикатор загрузки 3D-фигуры намаза */
+@keyframes hsSpin { to { transform: rotate(360deg); } }
+.hs-spin { width: 2rem; height: 2rem; margin: 0 auto 0.6rem; border: 3px solid rgba(148, 163, 184, 0.3); border-top-color: var(--accent, #10b981); border-radius: 50%; animation: hsSpin 0.9s linear infinite; }
+body.reduce-motion .hs-spin { animation: none; }
+
+/* build 6.61: плавающее окно «Шрифт и размеры» */
+#fw-panel { position: fixed; left: 0; top: 0; z-index: 10050; width: min(22rem, calc(100vw - 1rem)); max-height: min(82vh, 36rem); display: none; flex-direction: column; background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-lg, 0.9rem); box-shadow: 0 10px 36px rgba(0,0,0,0.55); }
+#fw-panel.open { display: flex; }
+#fw-head { display: flex; align-items: center; justify-content: space-between; min-height: 3rem; padding: 0 0.35rem 0 0.85rem; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; font-weight: 700; font-size: 0.95rem; border-bottom: 1px solid var(--border); }
+#fw-head:active { cursor: grabbing; }
+#fw-panel { opacity: var(--fw-op, 1); transition: opacity 0.25s ease; }
+#fw-panel.fw-ghost { opacity: 0.15 !important; }
+.fw-sel { width: 100%; min-height: 2.7rem; padding: 0 0.5rem; border-radius: 0.6rem; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 0.95rem; box-sizing: border-box; }
+.fw-op-demo { margin-top: 0.4rem; padding: 0.5rem; border-radius: 0.6rem; background: repeating-linear-gradient(45deg, var(--border) 0 8px, transparent 8px 16px); }
+.fw-op-demo .fw-sample { margin: 0; background: var(--bg-card); }
+.fw-hb { min-width: 2.7rem; min-height: 2.7rem; border-radius: 0.6rem; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 1rem; cursor: pointer; }
+#fw-tabs { display: flex; gap: 0.3rem; padding: 0.45rem 0.55rem 0.2rem; }
+.fw-tab { flex: 1; min-width: 0; padding: 0 0.15rem; min-height: 2.7rem; border-radius: 0.6rem; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 0.82rem; cursor: pointer; }
+.fw-tab.on { background: var(--accent); color: #04120c; border-color: var(--accent); font-weight: 700; }
+#fw-body { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0.4rem 0.7rem 0.8rem; }
+.fw-sample { margin: 0.2rem 0 0.3rem; padding: 0.45rem 0.5rem; border: 1px solid var(--border); border-radius: 0.5rem; background: var(--bg); word-break: break-word; }
+.fw-lab { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin: 0.6rem 0 0.25rem; }
+.fw-hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; }
+.fw-step { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.fw-sb { min-width: 3.4rem; min-height: 3rem; font-size: 1.5rem; line-height: 1; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.fw-num { width: 5rem; min-height: 3rem; text-align: center; font-size: 1.4rem; font-weight: 700; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg); color: var(--text); box-sizing: border-box; }
+.fw-unit { font-size: 0.85rem; color: var(--text-muted); min-width: 1.4rem; }
+.fw-rng { width: 100%; margin: 0.5rem 0 0; accent-color: var(--accent); min-height: 1.6rem; }
+.fw-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.fw-chip { flex: 1; min-height: 2.7rem; }
+.fw-chip.on { background: var(--accent); color: #04120c; border-color: var(--accent); font-weight: 700; }
+.fw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.fw-card { display: flex; flex-direction: column; gap: 0.15rem; text-align: left; min-height: 3.4rem; padding: 0.4rem 0.55rem; border-radius: 0.6rem; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
+.fw-card.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.fw-fn { font-size: 0.68rem; color: var(--text-muted); }
+.fw-fs { font-size: 1.05rem; }
+.fw-prow { display: flex; gap: 0.4rem; margin-bottom: 0.4rem; }
+.fw-pn { flex: 1; min-height: 3rem; text-align: left; display: flex; flex-direction: column; align-items: flex-start; }
+.fw-pn small { font-size: 0.68rem; color: var(--text-muted); }
+.fw-pd { min-width: 3rem; min-height: 3rem; color: var(--danger); }
+.fw-save { width: 100%; min-height: 3rem; margin-top: 0.3rem; }
+
+/* build 6.61: «Тел» на компьютере — узкая колонка как на телефоне */
+html.force-narrow-root { background: #03060c; }
+body.force-narrow { max-width: 430px; margin: 0 auto; box-shadow: 0 0 0 1px var(--border), 0 0 60px rgba(0,0,0,0.6); min-height: 100vh; position: relative; }
+body.force-narrow .bottom-nav, body.force-narrow .audio-bar, body.force-narrow .msg-select-bar {
+  left: max(0px, calc(50% - 215px)) !important; right: max(0px, calc(50% - 215px)) !important; width: auto !important; max-width: none !important; transform: none;
+}
+body.force-narrow .offline-badge { right: max(0.75rem, calc(50% - 215px + 0.75rem)); }
+body.force-narrow #device-mode-btn { right: max(0.55rem, calc(50% - 215px + 0.55rem)); }
+body.force-narrow #btn-site-help { left: max(0.7rem, calc(50% - 215px + 0.7rem)); }
+body.force-narrow #fw-panel { max-width: 420px; }
+/* то же, что даёт @media (max-width: 640px), но по режиму «Тел» на широком экране */
+body.force-narrow header nav { display: none; }
+body.force-narrow .bottom-nav { display: flex; }
+body.force-narrow main { padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)); }
+body.force-narrow #view-settings.view.active { padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px)) !important; }
+body.force-narrow .arabic { font-size: calc(1.4rem * var(--ar-scale, 1)); }
+body.force-narrow .audio-bar { bottom: var(--nav-h, 4.2rem) !important; border-radius: 0 !important; }
+body.force-narrow .toast { bottom: 5.5rem; }
+
+/* build 6.61: размер элементов. «Обычно» — только минимальная высота 36 px (вкладки были 28), остальное как раньше */
+body[data-ui="compact"] { --ui-h: 28px; }
+body[data-ui="normal"] { --ui-h: 36px; }
+body[data-ui="big"] { --ui-h: 44px; }
+body[data-ui="xl"] { --ui-h: 50px; }
+body[data-ui] .btn, body[data-ui] .btn-sm, body[data-ui] .btn-icon, body[data-ui] .lock-btn-header, body[data-ui] .pl-chip,
+body[data-ui] .study-switch-btn, body[data-ui] .acc-tab-btn, body[data-ui] .avp-tab, body[data-ui] .qz-mode { min-height: var(--ui-h); }
+body[data-ui="compact"] .btn { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+body[data-ui="compact"] .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.75rem; }
+body[data-ui="compact"] .card { padding: 0.55rem 0.7rem; margin-bottom: 0.5rem; }
+body[data-ui="compact"] .bottom-nav button { padding-top: 0.2rem; padding-bottom: 0.2rem; }
+body[data-ui="big"] .btn { padding: 0.6rem 1rem; font-size: 0.95rem; }
+body[data-ui="big"] .btn-sm { padding: 0.5rem 0.85rem; font-size: 0.88rem; }
+body[data-ui="big"] .card { padding: 1.1rem 1.2rem; }
+body[data-ui="big"] .bottom-nav button { min-height: 3.4rem; }
+body[data-ui="xl"] .btn { padding: 0.75rem 1.1rem; font-size: 1rem; }
+body[data-ui="xl"] .btn-sm { padding: 0.65rem 0.95rem; font-size: 0.92rem; }
+body[data-ui="xl"] .card { padding: 1.25rem 1.3rem; }
+body[data-ui="xl"] .bottom-nav button { min-height: 3.8rem; }
+body[data-ui="big"] input[type="text"], body[data-ui="big"] input[type="search"], body[data-ui="big"] input[type="number"], body[data-ui="big"] input[type="email"],
+body[data-ui="big"] input[type="password"], body[data-ui="big"] input[type="tel"], body[data-ui="big"] input[type="url"], body[data-ui="big"] select, body[data-ui="big"] textarea { min-height: 44px; font-size: 1rem; }
+body[data-ui="xl"] input[type="text"], body[data-ui="xl"] input[type="search"], body[data-ui="xl"] input[type="number"], body[data-ui="xl"] input[type="email"],
+body[data-ui="xl"] input[type="password"], body[data-ui="xl"] input[type="tel"], body[data-ui="xl"] input[type="url"], body[data-ui="xl"] select, body[data-ui="xl"] textarea { min-height: 50px; font-size: 1.05rem; }
+body[data-ui] #fw-panel .btn { min-height: 2.7rem; }
+body[data-ui] #fw-panel .fw-sel { min-height: 3rem; }
+body[data-ui] #fw-panel .fw-sb, body[data-ui] #fw-panel .fw-pn, body[data-ui] #fw-panel .fw-pd, body[data-ui] #fw-panel .fw-save { min-height: 3rem; }
+body[data-ui] .sr-btn:not(.btn-sm) { min-height: 3rem; }
+.ui-chips .fw-chip { flex: 1 1 45%; }
+.ui-sample { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-top: 0.5rem; padding: 0.45rem; border: 1px dashed var(--border); border-radius: 0.5rem; }

@@ -875,6 +875,11 @@
       <div id="sources-body"></div>
     </div>
 
+    <div id="view-legaldocs" class="view">
+      <h2 class="section-title">Документы</h2>
+      <div id="legaldocs-body"></div>
+    </div>
+
     <div id="view-help" class="view">
       <h2 class="section-title">Справка</h2>
       <div id="help-body"></div>
@@ -948,7 +953,7 @@
         </div>
 
         <div class="subtab-panel" data-subtab-panel="lists" data-subtabs-group="morecfg">
-          <div class="ayah-translation" style="margin:0.4rem 0;font-size:calc(0.85rem * var(--ru-scale, 1))">До 8 списков. Пустой список не показывается. Скрытые разделы пропадают из меню.</div>
+          <div class="ayah-translation" style="margin:0.4rem 0;font-size:calc(0.85rem * var(--ru-scale, 1))">До 10 списков. Пустой список не показывается. Скрытые разделы пропадают из меню.</div>
           <div id="morecfg-lists"></div>
           <div style="margin-top:0.75rem;display:flex;gap:0.4rem;flex-wrap:wrap">
             <input type="text" id="morecfg-newlist" placeholder="Имя нового списка" style="flex:1;min-width:120px;padding:0.45rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">
@@ -1182,6 +1187,8 @@
         </div>
       <div class="card set-cat" data-set-panel="view" style="margin-bottom:0.75rem;display:none">
         <b>🌓 Вид и тема</b>
+        <div class="setting-row ui-size-host" id="ui-size-setting" data-label="1" style="flex-direction:column;align-items:stretch;gap:0.35rem;margin-top:0.5rem"></div>
+        <div class="setting-row fw-op-host" id="fw-op-setting" data-label="1" data-sample="1" style="flex-direction:column;align-items:stretch;gap:0.35rem;margin-top:0.5rem"></div>
         <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:0.35rem;margin-top:0.5rem">
           <span>Тема</span>
           <select id="setting-theme" style="display:none">
@@ -1710,6 +1717,7 @@
 
   <!-- build 5.72: данные вынесены в отдельные файлы для более лёгкого редактирования -->
   <script src="data-changelog.js"></script>
+  <script src="data-legal.js"></script>
   <script src="data-quran-learning.js"></script>
   <!-- build 6.43: data-reading-library.js (истории, 40 хадисов) подгружается из logic-app.js сразу после старта -->
   <script src="data-islamic-knowledge.js"></script>
