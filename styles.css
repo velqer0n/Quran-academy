@@ -694,8 +694,11 @@
       transition: background 0.18s var(--ease), border-color 0.18s var(--ease), box-shadow 0.18s var(--ease), transform 0.12s var(--ease);
     }
 
+    /* build 6.63: на телефоне :hover «залипает» после тапа (кнопка «−» у фигуры, нечитаемая категория «Вид» в настройках) — подсветка только там, где есть мышь */
+    @media (hover: hover) {
     .btn:hover {
       background: var(--bg-hover);
+    }
     }
     /* build 5.66: тактильный отклик при нажатии на любую кнопку сайта —
        мелочь, но именно такие мелочи создают ощущение «живого», а не
@@ -709,9 +712,12 @@
       box-shadow: var(--shadow-accent);
     }
 
+    @media (hover: hover) {
     .btn-primary:hover {
       background: var(--accent-hover);
+      color: var(--on-accent, #fff);
       box-shadow: var(--shadow-md);
+    }
     }
 
     .btn-sm {
@@ -1400,6 +1406,7 @@
       border-radius: var(--r-lg);
       padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom, 0px));
       box-shadow: 0 -12px 40px rgba(0,0,0,0.6);
+      max-height: calc(100vh - 1.5rem); max-height: calc(100dvh - 1.5rem); overflow-y: auto; /* build 6.63: заголовок не уходит за верх экрана */
     }
     #theme-picker-card h3 { font-size: 1rem; margin-bottom: 0.6rem; color: var(--text); }
     #theme-picker-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
@@ -3862,7 +3869,7 @@ body.reduce-motion .fb-ok, body.reduce-motion .fb-bad { animation: none; }
     /* build 6.22: окно помощи, обзор сайта, пузырьки-подсказки */
     #sg-ov { position: fixed; inset: 0; z-index: 10060; background: rgba(4,8,16,0.72); display: none; align-items: center; justify-content: center; padding: 1rem 0.75rem; box-sizing: border-box; }
     #sg-ov.open { display: flex; }
-    #sg-card { width: 100%; max-width: 28rem; max-height: 86vh; background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 0.9rem 1rem 0.8rem; box-shadow: 0 20px 50px rgba(0,0,0,0.6); display: flex; flex-direction: column; }
+    #sg-card { width: 100%; max-width: 28rem; max-height: 86vh; max-height: 86dvh; background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 0.9rem 1rem 0.8rem; box-shadow: 0 20px 50px rgba(0,0,0,0.6); display: flex; flex-direction: column; }
     #sg-title { margin: 0 0 0.3rem; font-size: 1.05rem; color: var(--accent); }
     #sg-prog { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.35rem; }
     #sg-body { font-size: 0.9rem; line-height: 1.45; white-space: pre-wrap; overflow-y: auto; min-height: 0; flex: 1 1 auto; }
@@ -3973,7 +3980,7 @@ body.reduce-motion .fb-ok, body.reduce-motion .fb-bad { animation: none; }
     #salah-anim.hs-full #salah-anim-step { font-size: 0.85rem !important; background: rgba(15,23,42,0.6); padding: 0.15rem 0.4rem; border-radius: 0.35rem; }
     .hs-zoom-btn { margin: 0.45rem 0.35rem 0 0; }
     #hs-pic-modal { position: fixed; inset: 0; z-index: 500; background: rgba(2,6,23,0.82); display: flex; align-items: center; justify-content: center; padding: 1rem; }
-    #hs-pic-modal > div { background: #1e293b; border: 1px solid var(--border); border-radius: 0.6rem; max-width: 420px; width: 100%; max-height: 92vh; overflow: auto; padding-bottom: 0.5rem; }
+    #hs-pic-modal > div { background: #1e293b; border: 1px solid var(--border); border-radius: 0.6rem; max-width: 420px; width: 100%; max-height: 92vh; max-height: 92dvh; overflow: auto; padding-bottom: 0.5rem; }
 
 /* build 6.32: «Папки» — единая система сохранённого. Только переменные темы. */
 .fs-wrap { display: flex; flex-direction: column; gap: 0.6rem; }
@@ -4017,7 +4024,7 @@ textarea.fs-input { resize: vertical; line-height: 1.45; }
 .fs-warn { font-size: 0.8rem; color: var(--warning); }
 /* окна */
 .fs-ov { position: fixed; inset: 0; z-index: 100000; background: rgba(0,0,0,0.55); display: flex; align-items: flex-end; justify-content: center; }
-.fs-sheet { width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 1rem 1rem 0 0; padding: 1rem; display: flex; flex-direction: column; gap: 0.55rem; box-sizing: border-box; }
+.fs-sheet { width: 100%; max-width: 560px; max-height: 88vh; max-height: 88dvh; overflow-y: auto; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 1rem 1rem 0 0; padding: 1rem; display: flex; flex-direction: column; gap: 0.55rem; box-sizing: border-box; }
 .fs-sheet.fs-tall { min-height: 55vh; }
 @media (min-width: 700px) { .fs-ov { align-items: center; } .fs-sheet { border-radius: 1rem; } }
 .fs-sheet-title { font-weight: 700; font-size: 1.05rem; overflow-wrap: anywhere; }
@@ -4224,3 +4231,124 @@ body[data-ui] #fw-panel .fw-sb, body[data-ui] #fw-panel .fw-pn, body[data-ui] #f
 body[data-ui] .sr-btn:not(.btn-sm) { min-height: 3rem; }
 .ui-chips .fw-chip { flex: 1 1 45%; }
 .ui-sample { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-top: 0.5rem; padding: 0.45rem; border: 1px dashed var(--border); border-radius: 0.5rem; }
+
+/* build 6.63: плитки тем в «Быстрых настройках», образец размера без нажатия, кнопка «🌓» убрана */
+.fw-themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+.fw-theme { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; min-height: 3.6rem; padding: 0.4rem 0.5rem; border-radius: 0.6rem; border: 1px solid rgba(127,127,127,0.35); cursor: pointer; text-align: left; font: inherit; }
+.fw-theme.on { outline: 3px solid var(--accent); outline-offset: 1px; }
+.fw-theme-aa { font-size: 1.05rem; font-weight: 700; line-height: 1.2; }
+.fw-theme-n { font-size: 0.72rem; line-height: 1.15; opacity: 0.9; }
+.ui-sample { pointer-events: none; }
+.ui-sample .btn { cursor: default; }
+.ui-sample-lab { font-size: 0.78rem; color: var(--text-muted); margin-right: 0.15rem; }
+#btn-header-theme { display: none !important; }
+#btn-header-fontsize svg { display: block; }
+
+/* build 6.73: «Суры» — компактный список, фильтры, панели читалки, режимы, мусхаф */
+.surah-filter-bar{display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center;margin:0 0 0.6rem}
+.surah-filter-bar select{padding:0.35rem 0.5rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.8rem}
+.surah-row{padding:0.55rem 0.7rem !important;gap:0.65rem !important;margin-bottom:0.45rem}
+.surah-row .surah-num{width:2.1rem;height:2.1rem;font-size:0.85rem;flex:0 0 auto}
+.surah-row .surah-info{flex:1;min-width:0}
+.surah-row .surah-name{font-size:0.98rem;display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap}
+.surah-row .surah-meta{font-size:0.76rem;margin-top:0.1rem}
+.surah-row .surah-ar{font-size:calc(1.15rem * var(--ar-scale, 1));color:var(--accent);white-space:nowrap;flex:0 0 auto}
+.surah-row .surah-more-btn{padding:0.2rem 0.55rem;flex:0 0 auto}
+.surah-row .surah-more-row{gap:0.35rem;margin-top:0.35rem;flex-wrap:wrap}
+.surah-row .progress-ring{width:28px;height:28px;flex:0 0 auto}
+.reader-panel{display:flex;gap:0.4rem;flex-wrap:wrap;margin:0 0 0.7rem;padding:0.6rem;border:1px solid var(--border);border-radius:0.75rem;background:var(--bg-card)}
+#reader-view-panel{display:block}
+#reader-view-panel .audio-controls-bar{margin-bottom:0 !important;border:none !important;padding:0.3rem 0 0 !important;background:none !important}
+.reader-modes{display:flex;gap:0.35rem;overflow-x:auto;margin:0 0 0.8rem;padding-bottom:0.2rem;scrollbar-width:none}
+.reader-modes .btn{white-space:nowrap}
+.ayah-actions{align-items:center}
+.ayah-actions .ayah-more{flex-wrap:wrap;gap:0.35rem;width:100%;margin-top:0.35rem}
+.juz-divider{display:flex;align-items:center;gap:0.6rem;margin:1rem 0 0.6rem;color:var(--accent);font-size:0.8rem;font-weight:700}
+.juz-divider:before,.juz-divider:after{content:"";flex:1;height:1px;background:var(--border)}
+.sajda-badge{background:#7c3aed !important;color:#fff !important}
+.mushaf-hint{font-size:0.78rem;color:var(--text-muted);text-align:center;margin-bottom:0.6rem}
+.mushaf-page{border:1px solid var(--border-gold, var(--border));border-radius:0.9rem;padding:0.9rem 0.95rem 1rem;margin-bottom:0.8rem;background:var(--bg-card)}
+.mushaf-page-no{text-align:center;font-size:0.72rem;color:var(--text-muted);margin-bottom:0.4rem}
+.mushaf-bism{text-align:center;font-size:calc(1.35rem * var(--ar-scale, 1));margin-bottom:0.5rem}
+.mushaf-text{text-align:justify;text-align-last:center;font-size:var(--arabic-size, 1.55rem);line-height:calc(var(--ar-lh, 2.1) * 1.05)}
+.mushaf-ayah{cursor:pointer;border-radius:0.3rem}
+.mushaf-ayah:active,.mushaf-ayah:hover{background:color-mix(in srgb, var(--accent) 14%, transparent)}
+.mushaf-num{display:inline-flex;align-items:center;justify-content:center;min-width:1.6em;height:1.6em;margin:0 0.15em;border:1.5px solid var(--accent);border-radius:50%;font-size:0.62em;color:var(--accent);vertical-align:middle;line-height:1}
+.mushaf-juz{font-size:0.5em;color:var(--accent);border:1px solid var(--accent);border-radius:0.4rem;padding:0 0.3em;vertical-align:middle}
+body.quiet-reading #reader-view-panel,body.quiet-reading #reader-more-panel,body.quiet-reading #reader-modes{display:none !important}
+
+/* build 6.74: папки */
+.fs-row{position:relative}
+.fs-play{background:var(--accent);color:#fff;border:0;border-radius:50%;width:2rem;height:2rem;flex:0 0 auto;cursor:pointer;font-size:0.8rem}
+.fs-prog{position:absolute;left:3.4rem;right:3rem;bottom:0.25rem;height:3px;border-radius:2px;background:var(--border);overflow:hidden}
+.fs-prog i{display:block;height:100%;background:var(--accent)}
+.fs-intro{margin-bottom:0.6rem;border-color:var(--accent)}
+.fs-smart{display:flex;gap:0.35rem;flex-wrap:wrap;margin:0 0 0.6rem}
+
+/* build 6.75: Онлайн и «Мой прогресс» */
+.online-group-title{font-size:0.78rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin:0.8rem 0 0.4rem}
+.online-me,.online-guest{margin-bottom:0.7rem;border-color:var(--accent)}
+.online-me-row{display:flex;align-items:center;gap:0.6rem;cursor:pointer}
+.online-ava{width:2.4rem;height:2.4rem;border-radius:50%;background:var(--accent);color:#04120c;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;flex:0 0 auto}
+.online-me-chips{display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.6rem}
+.online-chip{border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:999px;padding:0.3rem 0.65rem;font-size:0.8rem;cursor:pointer}
+.online-chip b{color:var(--accent)}
+.pg-card{margin-bottom:0.7rem}
+.pg-head{display:flex;justify-content:space-between;align-items:center}
+.pg-head span{color:var(--accent);font-weight:700}
+.pg-bar{height:0.5rem;border-radius:999px;background:var(--border);overflow:hidden;margin-top:0.45rem}
+.pg-bar i{display:block;height:100%;background:var(--accent)}
+.pg-sub{margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted);line-height:1.5}
+.pg-sub b{color:var(--text)}
+.pg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(6.5rem,1fr));gap:0.5rem;margin-top:0.6rem}
+.pg-grid div{background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.5rem;text-align:center}
+.pg-grid b{display:block;font-size:1.2rem;color:var(--accent)}
+.pg-grid span{font-size:0.74rem;color:var(--text-muted)}
+.pg-cal{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;margin-top:0.6rem}
+.pg-cal i{aspect-ratio:1;border-radius:3px;background:var(--border)}
+.pg-cal i.l1{background:color-mix(in srgb, var(--accent) 35%, var(--border))}
+.pg-cal i.l2{background:color-mix(in srgb, var(--accent) 65%, var(--border))}
+.pg-cal i.l3{background:var(--accent)}
+
+/* build 6.76: «Ещё» — плитки, частые, подвал */
+.more-tile{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;padding:0.75rem 0.4rem !important;gap:0.25rem}
+.more-tile .more-ico{font-size:1.55rem;line-height:1}
+.more-tile .more-lbl{font-size:0.8rem;line-height:1.25}
+.more-freq{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;margin-bottom:0.3rem}
+.more-freq + .surah-meta{grid-column:1/-1}
+#more-menu > .surah-meta{grid-column:1/-1}
+.more-freq-btn{display:flex;flex-direction:column;align-items:center;gap:0.2rem;border:1px solid var(--accent);background:color-mix(in srgb, var(--accent) 10%, var(--bg-card));color:var(--text);border-radius:0.8rem;padding:0.55rem 0.2rem;font-size:0.72rem;cursor:pointer;line-height:1.2}
+.more-freq-btn span{font-size:1.35rem}
+.site-footer{margin:1.4rem -0.2rem 0.5rem;padding:1.2rem 0.6rem 0.8rem;border-top:1px solid var(--border);color:var(--text-muted);font-size:0.8rem;line-height:1.5;text-align:center}
+.site-footer button:not(.btn){background:none;border:0;color:var(--accent);padding:0.15rem 0.35rem;cursor:pointer;font-size:inherit}
+.sf-brand{font-weight:800;color:var(--text);font-size:1rem}
+.sf-about{margin:0.25rem auto 0.7rem;max-width:22rem}
+.sf-share{margin-bottom:0.7rem}
+.sf-links{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.1rem 0.3rem;margin:0 auto 0.6rem;max-width:24rem}
+.sf-ver{margin-bottom:0.5rem}
+.sf-credits{font-size:0.72rem;opacity:0.85;max-width:24rem;margin:0 auto 0.6rem}
+.sf-dua{margin-bottom:0.5rem;color:var(--text)}
+.sf-copy{font-size:0.75rem}
+
+/* build 6.77: знакомство, «что нового», офлайн, липкая кнопка «Назад» */
+.view-back-bar{position:sticky;top:calc(var(--hdr-vis, 0px) + 0.35rem);z-index:30;pointer-events:none}
+.view-back-bar .btn{pointer-events:auto;box-shadow:0 4px 14px rgba(0,0,0,0.25)}
+.hdr-offline{font-size:0.72rem;padding:0.15rem 0.45rem;border-radius:999px;background:#7f1d1d;color:#fff;white-space:nowrap;align-self:center;margin-right:0.25rem}
+.qa-onb{position:fixed;inset:0;z-index:10060;background:rgba(5,10,20,0.72);display:flex;align-items:center;justify-content:center;padding:1rem}
+.qa-onb-card{background:var(--bg-card);border:1px solid var(--accent);border-radius:1.1rem;max-width:24rem;width:100%;padding:1.1rem 1rem 0.9rem;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,0.5)}
+.qa-onb-card h3{margin:0.3rem 0 0.4rem;font-size:1.15rem}
+.qa-onb-card p{color:var(--text-muted);font-size:0.9rem;line-height:1.45;margin:0 0 0.8rem}
+.qa-onb-ico{font-size:2.4rem}
+.qa-onb-dots{display:flex;gap:6px;justify-content:center;margin-bottom:0.4rem}
+.qa-onb-dots i{width:7px;height:7px;border-radius:50%;background:var(--border)}
+.qa-onb-dots i.on{background:var(--accent)}
+.qa-onb-row{display:flex;gap:0.5rem;justify-content:center}
+.qa-onb-row .btn{flex:1}
+.qa-onb-col{display:flex;flex-direction:column;gap:0.45rem}
+.qa-onb-map{display:flex;flex-direction:column;gap:0.35rem;text-align:left;margin:0.4rem 0 0.2rem}
+.qa-onb-map div{display:grid;grid-template-columns:1.8rem 5.5rem 1fr;align-items:center;gap:0.3rem;font-size:0.84rem}
+.qa-onb-map span{font-size:1.2rem;text-align:center}
+.qa-onb-map i{font-style:normal;color:var(--text-muted);font-size:0.78rem}
+.qa-onb-nav{display:flex;justify-content:space-between;align-items:center;margin-top:0.9rem}
+.qa-wn-list{margin:0.3rem 0 0;padding-left:1.1rem;font-size:0.88rem;line-height:1.5}
+.qa-wn-list li{margin-bottom:0.35rem}

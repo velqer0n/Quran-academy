@@ -186,7 +186,7 @@
         <button type="button" class="lock-btn-header" id="btn-header-bookmarks" title="Папки" style="display:none">📁</button>
         <button type="button" class="lock-btn-header" id="btn-header-cache" title="Офлайн и кэш" style="display:none">📥</button>
         <button type="button" class="lock-btn-header" id="btn-header-account" title="Мой аккаунт" style="display:none">👤</button>
-        <button type="button" class="lock-btn-header" id="btn-header-fontsize" title="Шрифт и размеры">Aa</button>
+        <button type="button" class="lock-btn-header" id="btn-header-fontsize" title="Быстрые настройки" aria-label="Быстрые настройки"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="7" cy="18" r="2.2" fill="currentColor"/></svg></button>
         <button type="button" class="lock-btn-header" id="btn-header-update" title="Обновить сайт" style="position:relative">🔄<span id="hdr-update-badge" style="display:none;position:absolute;top:0.1rem;right:0.1rem;width:0.5rem;height:0.5rem;border-radius:50%;background:var(--danger)"></span></button>
         <button type="button" class="lock-btn-header" id="btn-header-dmlist" title="Личные сообщения" style="display:none">✉️</button>
         <button type="button" class="lock-btn-header" id="btn-header-friends" title="Друзья" style="display:none">🧑‍🤝‍🧑</button>
@@ -217,7 +217,7 @@
            «Суры» и «Озвучкой», а не спрятана внутри «Учёба» — именно так,
            как договаривались: отдельно от этих двух, но на том же уровне,
            а не задвинута в другой раздел, где её не ищут. -->
-      <div class="learn-nav" id="surah-sub-tabs" style="margin-bottom:0.75rem">
+      <div class="learn-nav" id="surah-sub-tabs" style="margin-bottom:0.75rem;display:none">
         <button type="button" class="btn btn-primary btn-sm" id="surah-subtab-surahs">Суры</button>
         <button type="button" class="btn btn-sm" id="surah-subtab-study">🎧 Озвучка</button>
         <button type="button" class="btn btn-sm" id="surah-subtab-tajweed">🎨 Таджвид</button>
@@ -231,12 +231,6 @@
            можно было только в Настройках, отдельно от самого чтения; тот
            же select#setting-reciter (только другой id элемента, значение
            синхронизируется в обе стороны через тот же обработчик change). -->
-      <div class="card" id="home-reciter-quick" style="margin-bottom:0.7rem;padding:0.6rem 0.75rem">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
-          <span style="font-size:0.85rem;color:var(--text-muted)">🎧 Чтец для «Сур»</span>
-        </div>
-        <div style="display:flex;gap:0.4rem;margin-top:0.35rem"><select id="home-reciter-select" style="flex:1;min-width:0;padding:0.45rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select></div>
-      </div>
       <div class="search-box">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         <input type="search" id="search-surah" placeholder="Поиск суры..." autocomplete="off" />
@@ -246,6 +240,14 @@
         <input type="search" id="search-text" placeholder="Поиск по тексту Корана..." autocomplete="off" />
       </div>
       <div id="search-results" style="display:none;margin-bottom:1rem"></div>
+      <!-- build 6.73: фильтры списка сур -->
+      <div id="surah-filter-bar" class="surah-filter-bar">
+        <button type="button" class="btn btn-sm btn-primary" data-sf="all">Все</button>
+        <button type="button" class="btn btn-sm" data-sf="recent">🕘 Недавние</button>
+        <button type="button" class="btn btn-sm" data-sf="short">Короткие</button>
+        <select id="surah-juz-select" aria-label="Джуз"><option value="">Джуз…</option></select>
+        <button type="button" class="btn btn-sm" id="surah-random-ayah">🎲</button>
+      </div>
       <div id="surah-list"></div>
       </div>
       <!-- build 5.26: «Суры → Учёба» — сюда перенесена «🎧 Суры (озвучка)»
@@ -263,6 +265,9 @@
           </div>
         </div>
         <div id="home-wbw-surahs"></div>
+        <details id="home-fav-ayahs" class="card" style="margin-top:0.7rem;padding:0.6rem 0.75rem"><summary style="cursor:pointer;font-weight:600">⭐ Избранные аяты по словам</summary>
+          <div id="acad-ayahs" style="margin-top:0.5rem"><div id="learn-ayahs"></div></div>
+        </details>
       </div>
       <div id="home-tajweed-pane" style="display:none">
         <!-- build 6.09: свой чтец для «Таджвида» -->
@@ -297,15 +302,31 @@
         <div class="reader-actions">
           <button class="btn btn-sm btn-primary" id="btn-play-surah" title="Вся сура">▶ Вся сура</button>
           <button class="btn btn-sm" id="btn-resume-surah" style="display:none" title="Продолжить с места остановки">↩ Продолжить</button>
+          <button class="btn btn-sm" id="btn-reader-view" title="Вид и звук" aria-expanded="false">Aa</button>
+          <button class="btn btn-sm" id="btn-reader-more" title="Ещё" aria-expanded="false">⋯</button>
+        </div>
+        <div class="reader-panel" id="reader-more-panel" style="display:none">
           <button class="btn btn-sm" id="btn-fold-surah" title="Добавить суру в папку">📁 В папку…</button>
           <button class="btn btn-sm" id="btn-offline-surah" title="Скачать аудио суры для офлайн-прослушивания">⬇️ Офлайн</button>
           <button class="btn btn-sm" id="btn-mark-surah" title="Отметить суру выученной">✓ Сура</button>
-          <button class="btn btn-sm" id="btn-hide-tr" title="Скрыть переводы">👁 Перевод</button>
           <button class="btn btn-sm" id="btn-compare-tr" title="Сравнить переводы">⇄ Сравнить</button>
           <button class="btn btn-sm" id="btn-reverse-ayahs" title="С конца">↕ С конца</button>
           <button class="btn btn-sm" id="btn-quiet-read" title="Чистый фокус — убрать всё, кроме текста (по одному аяту или вся сура)">🧘 Чистый фокус</button>
            <button class="btn btn-sm" id="btn-print-surah" title="Печать суры (чистая версия для бумаги)">🖨 Печать</button>
         </div>
+      </div>
+      <div class="reader-panel" id="reader-view-panel" style="display:none">
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+          <button class="btn btn-sm" id="btn-hide-tr" title="Скрыть переводы">👁 Перевод</button>
+          <button class="btn btn-sm" id="btn-font-minus" title="Мельче">A−</button>
+          <button class="btn btn-sm" id="btn-font-plus" title="Крупнее">A+</button>
+          <button class="btn btn-sm" data-bigtext="1" title="Крупный текст одним нажатием">🔍 Крупный текст</button>
+        </div>
+      <div class="card" id="home-reciter-quick" style="margin-bottom:0.5rem;padding:0.6rem 0.75rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
+          <span style="font-size:0.85rem;color:var(--text-muted)">🎧 Чтец для «Сур»</span>
+        </div>
+        <div style="display:flex;gap:0.4rem;margin-top:0.35rem"><select id="home-reciter-select" style="flex:1;min-width:0;padding:0.45rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select></div>
       </div>
       <div class="audio-controls-bar" id="reader-audio-controls" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:1rem;padding:0.6rem 0.75rem;background:var(--bg-card);border:1px solid var(--border);border-radius:0.75rem">
         <label style="font-size:0.8rem;color:var(--text-muted)">Скорость</label>
@@ -327,6 +348,14 @@
         <span style="color:var(--text-muted)">–</span>
         <input type="number" id="loop-to" min="1" placeholder="по" style="width:2.8rem;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.3rem;border-radius:0.4rem;font-size:0.85rem"/>
         <button class="btn btn-sm btn-primary" id="btn-loop-range">🔁 Цикл</button>
+      </div>
+      </div>
+      <!-- build 6.73: режимы чтения -->
+      <div class="reader-modes" id="reader-modes">
+        <button type="button" class="btn btn-sm btn-primary" data-rmode="normal">📄 Обычный</button>
+        <button type="button" class="btn btn-sm" data-rmode="mushaf">📖 Мусхаф</button>
+        <button type="button" class="btn btn-sm" data-rmode="tajweed">🎨 Таджвид</button>
+        <button type="button" class="btn btn-sm" data-rmode="wbw">🎧 По словам</button>
       </div>
       <div id="ayah-list"></div>
     </div>
@@ -386,8 +415,9 @@
 
     <!-- PROGRESS -->
     <div id="view-progress" class="view">
-      <h2 style="margin-bottom:1rem;font-size:1.25rem">Ваш прогресс</h2>
-      <div class="stats-grid" id="stats-grid"></div>
+      <h2 style="margin-bottom:1rem;font-size:1.25rem">📈 Мой прогресс</h2>
+      <div id="progress-body"></div>
+      <div class="stats-grid" id="stats-grid" style="display:none"></div>
       <div class="card">
         <h3 style="font-size:1rem;margin-bottom:0.75rem">Выученные суры</h3>
         <div id="learned-surahs"></div>
@@ -401,24 +431,19 @@
     <!-- LEARN: Alphabet + Rules -->
     <div id="view-learn" class="view">
       <div class="study-switch" style="display:flex;gap:0.4rem;margin-bottom:0.7rem">
-        <button type="button" class="btn btn-sm btn-primary study-switch-btn" data-study="learn" style="flex:1">📖 Теория</button>
-        <button type="button" class="btn btn-sm study-switch-btn" data-study="games" style="flex:1">🎯 Практика</button>
-        <button type="button" class="btn btn-sm study-switch-btn" data-study="teacher" style="flex:1">👨‍🏫 Учитель</button>
+        <button type="button" class="btn btn-sm study-switch-btn" data-study="teacher" style="flex:1">👨‍🏫 Курс</button>
+        <button type="button" class="btn btn-sm study-switch-btn" data-study="games" style="flex:1">🎯 Тренировка</button>
+        <button type="button" class="btn btn-sm btn-primary study-switch-btn" data-study="learn" style="flex:1">📚 Справочник</button>
       </div>
-      <h2 class="section-title" data-i18n="learn_title">Теория</h2>
+      <h2 class="section-title" data-i18n="learn_title">Справочник</h2>
       <div class="learn-nav" id="academy-main-tabs">
-        <button class="btn btn-primary btn-sm" data-acad-tab="path">Путь</button>
-        <button class="btn btn-sm" data-acad-tab="alphabet">Буквы</button>
+        <button class="btn btn-primary btn-sm" data-acad-tab="alphabet">Буквы</button>
         <button class="btn btn-sm" data-acad-tab="harakat">Огласовки</button>
-        <button class="btn btn-sm" data-acad-tab="rules">Правила</button>
+        <button class="btn btn-sm" data-acad-tab="rules">Письмо</button>
         <button class="btn btn-sm" data-acad-tab="tajweed">Таджвид</button>
         <button class="btn btn-sm" data-acad-tab="makharij">Махаридж</button>
-        <button class="btn btn-sm" data-acad-tab="surahs">Суры</button>
-        <button class="btn btn-sm" data-acad-tab="ayahs">Аяты</button>
-        <button class="btn btn-sm" data-acad-tab="twcolor">🎨 Цвета таджвида</button>
-        <button class="btn btn-sm" data-acad-tab="mistakes">Ошибки</button>
       </div>
-      <div id="acad-path">
+      <div id="acad-path" style="display:none">
         <div id="academy-body"></div>
       </div>
       <div id="acad-alphabet" style="display:none">
@@ -458,59 +483,56 @@
       <div id="acad-surahs" style="display:none">
         <div id="learn-surahs"></div>
       </div>
-      <div id="acad-ayahs" style="display:none">
-        <div id="learn-ayahs"></div>
-      </div>
       <div id="acad-srs-unused" style="display:none!important" style="display:none">
         <div id="learn-srs-static"></div>
-      </div>
-      <div id="acad-mistakes" style="display:none">
-        <div id="learn-mistakes"></div>
       </div>
       <audio id="acad-audio" preload="none"></audio>
     </div>
 
     <div id="view-games" class="view">
       <div class="study-switch" style="display:flex;gap:0.4rem;margin-bottom:0.7rem">
-        <button type="button" class="btn btn-sm study-switch-btn" data-study="learn" style="flex:1">📖 Теория</button>
-        <button type="button" class="btn btn-sm btn-primary study-switch-btn" data-study="games" style="flex:1">🎯 Практика</button>
-        <button type="button" class="btn btn-sm study-switch-btn" data-study="teacher" style="flex:1">👨‍🏫 Учитель</button>
+        <button type="button" class="btn btn-sm study-switch-btn" data-study="teacher" style="flex:1">👨‍🏫 Курс</button>
+        <button type="button" class="btn btn-sm btn-primary study-switch-btn" data-study="games" style="flex:1">🎯 Тренировка</button>
+        <button type="button" class="btn btn-sm study-switch-btn" data-study="learn" style="flex:1">📚 Справочник</button>
       </div>
-      <h2 class="section-title" data-i18n="games_title">Практика и тесты</h2>
+      <h2 class="section-title" data-i18n="games_title">Тренировка</h2>
       <div id="games-tip"></div>
+      <details id="games-mistakes-box" class="card" style="margin-bottom:0.7rem;padding:0.6rem 0.75rem;border-color:#f43f5e"><summary style="cursor:pointer;font-weight:600">⚠️ Мои ошибки — повторить слабые места</summary>
+        <div id="acad-mistakes" style="margin-top:0.5rem"><div id="learn-mistakes"></div></div>
+      </details>
       <!-- build 5.74: раньше все 10 кнопок были в одном ряду сразу — тесно и
            легко промахнуться. Теперь сверху 3 более крупные кнопки-группы,
            а сами варианты (data-game) показываются только для активной
            группы — одновременно видно максимум 4 вместо 10. -->
       <div class="tabs-row games-group-switch" id="games-group-switch">
-        <button type="button" class="btn btn-primary" data-gamegroup="tests">📝 Тесты</button>
-        <button type="button" class="btn" data-gamegroup="speak">🎤 Устно</button>
-        <button type="button" class="btn" data-gamegroup="drills">🎯 Тренажёры</button>
+        <button type="button" class="btn btn-primary" data-gamegroup="st-letters">🔤 Буквы</button>
+        <button type="button" class="btn" data-gamegroup="st-syl">🧩 Слоги</button>
+        <button type="button" class="btn" data-gamegroup="st-read">📖 Чтение</button>
+        <button type="button" class="btn" data-gamegroup="st-tajweed">🎨 Таджвид</button>
       </div>
       <div class="tabs-row" id="games-tabs">
-        <button class="active" data-game="letters" data-group="tests">Тест: буквы</button>
-        <button data-game="names" data-group="tests">Тест: названия</button>
-        <button data-game="rules" data-group="tests">Тест: правила</button>
-        <button data-game="ayah" data-group="tests">Тест: аят</button>
-        <button data-game="findrule" data-group="tests">Найдите правило</button>
-        <button data-game="speak" data-group="speak" style="display:none">🎤 Буквы</button>
-        <button data-game="speak-ayah" data-group="speak" style="display:none">🎤 Аят</button>
-        <button data-game="joinmic" data-group="speak" style="display:none">🎤 Соединение голосом</button>
-        <button data-game="syllables" data-group="drills" style="display:none">Слоги</button>
-        <button data-game="practice" data-group="drills" style="display:none">Слова</button>
-        <button data-game="srs" data-group="drills" style="display:none">Карточки</button>
-        <button data-game="dictation" data-group="drills" style="display:none">Диктовка</button>
-        <button data-game="minimal-pairs" data-group="drills" style="display:none">👂 Тест на слух</button>
-        <button data-game="write" data-group="drills" style="display:none">✍️ Написать букву</button>
-        <button data-game="listenwrite" data-group="drills" style="display:none">🎧 Послушайте и напишите</button>
-        <!-- build 6.09: упражнения «Учителя» — отдельными тренажёрами -->
-        <button data-game="fillgap" data-group="drills" style="display:none">Вставьте огласовку</button>
-        <button data-game="qaida" data-group="drills" style="display:none">Строки для чтения</button>
-        <button data-game="blend" data-group="drills" style="display:none">Слоги из букв</button>
-        <button data-game="construct" data-group="drills" style="display:none">Соберите слог</button>
-        <button data-game="join" data-group="drills" style="display:none">Читаем с соединением</button>
-        <button data-game="noharakat" data-group="drills" style="display:none">Без огласовок</button>
-        <button data-game="speed" data-group="drills" style="display:none">Скорость чтения</button>
+        <button class="active" data-game="letters" data-group="st-letters">Тест: буквы</button>
+        <button data-game="names" data-group="st-letters">Тест: названия</button>
+        <button data-game="speak" data-group="st-letters">🎤 Буквы</button>
+        <button data-game="minimal-pairs" data-group="st-letters">👂 Тест на слух</button>
+        <button data-game="write" data-group="st-letters">✍️ Написать букву</button>
+        <button data-game="listenwrite" data-group="st-letters">🎧 Послушайте и напишите</button>
+        <button data-game="syllables" data-group="st-syl" style="display:none">Слоги</button>
+        <button data-game="blend" data-group="st-syl" style="display:none">Слоги из букв</button>
+        <button data-game="construct" data-group="st-syl" style="display:none">Соберите слог</button>
+        <button data-game="fillgap" data-group="st-syl" style="display:none">Вставьте огласовку</button>
+        <button data-game="join" data-group="st-syl" style="display:none">Читаем с соединением</button>
+        <button data-game="joinmic" data-group="st-syl" style="display:none">🎤 Соединение голосом</button>
+        <button data-game="practice" data-group="st-syl" style="display:none">Слова</button>
+        <button data-game="dictation" data-group="st-syl" style="display:none">Диктовка</button>
+        <button data-game="qaida" data-group="st-read" style="display:none">Строки для чтения</button>
+        <button data-game="ayah" data-group="st-read" style="display:none">Тест: аят</button>
+        <button data-game="speak-ayah" data-group="st-read" style="display:none">🎤 Аят</button>
+        <button data-game="noharakat" data-group="st-read" style="display:none">Без огласовок</button>
+        <button data-game="speed" data-group="st-read" style="display:none">Скорость чтения</button>
+        <button data-game="srs" data-group="st-read" style="display:none">Карточки</button>
+        <button data-game="rules" data-group="st-tajweed" style="display:none">Тест: правила</button>
+        <button data-game="findrule" data-group="st-tajweed" style="display:none">Найдите правило</button>
       </div>
       <!-- build 5.78: выбор сложности — только там, где он реально что-то меняет
            (число вариантов ответа в тестах буквы/названия/правила, и набор пар
@@ -531,19 +553,20 @@
          накопленной статистике ошибок), а не даёт выбирать модуль вручную. -->
     <div id="view-teacher" class="view">
       <div class="study-switch" style="display:flex;gap:0.4rem;margin-bottom:0.7rem">
-        <button type="button" class="btn btn-sm study-switch-btn" data-study="learn" style="flex:1">📖 Теория</button>
-        <button type="button" class="btn btn-sm study-switch-btn" data-study="games" style="flex:1">🎯 Практика</button>
-        <button type="button" class="btn btn-sm btn-primary study-switch-btn" data-study="teacher" style="flex:1">👨‍🏫 Учитель</button>
+        <button type="button" class="btn btn-sm btn-primary study-switch-btn" data-study="teacher" style="flex:1">👨‍🏫 Курс</button>
+        <button type="button" class="btn btn-sm study-switch-btn" data-study="games" style="flex:1">🎯 Тренировка</button>
+        <button type="button" class="btn btn-sm study-switch-btn" data-study="learn" style="flex:1">📚 Справочник</button>
       </div>
-      <h2 class="section-title">Личный учитель</h2>
+      <h2 class="section-title">Курс</h2>
       <div id="teacher-body"></div>
     </div>
 
     <!-- ONLINE (build 4.47): общение/соцсеть — переехало сюда из «Ещё» отдельной вкладкой -->
     <div id="view-online" class="view">
       <h2 class="section-title">Онлайн</h2>
-      <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem;align-items:center">
-        <div style="display:flex;flex-wrap:wrap;gap:0.35rem;width:100%">
+      <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem;align-items:center;justify-content:flex-end">
+        <button type="button" class="btn btn-sm" id="online-layout-toggle" style="margin-top:-2.6rem">⋯ Вид</button>
+        <div id="online-layout-row" style="display:none;flex-wrap:wrap;gap:0.35rem;width:100%">
           <button type="button" class="btn btn-sm" id="online-layout-list">Список</button>
           <button type="button" class="btn btn-sm" id="online-layout-grid">Сетка 2</button>
           <button type="button" class="btn btn-sm" id="online-layout-grid3">Сетка 3</button>
@@ -560,7 +583,8 @@
       <div style="margin-bottom:0.65rem">
         <input id="more-quick-search" type="search" placeholder="🔍 Поиск по всему приложению..." style="width:100%;padding:0.6rem 0.85rem;border-radius:0.65rem;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:0.95rem">
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem;align-items:center">
+      <div style="display:flex;justify-content:flex-end;margin:-0.2rem 0 0.4rem"><button type="button" class="btn btn-sm" id="more-layout-toggle">⋯ Вид</button></div>
+      <div id="more-layout-row" style="display:none;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem;align-items:center">
         <div style="display:flex;flex-wrap:wrap;gap:0.35rem;width:100%;margin-bottom:0.35rem">
           <button type="button" class="btn btn-sm" id="more-layout-list">Список</button>
           <button type="button" class="btn btn-sm" id="more-layout-grid">Сетка 2</button>
@@ -573,10 +597,11 @@
       </div>
       <p id="more-edit-hint" style="display:none;color:var(--text-muted);font-size:0.85rem;margin-bottom:0.5rem">Порядок: ↑↓ ←→. «Группы» — показать/скрыть заголовки. В режиме порядка группы двигаются кнопками ↑↓ группа.</p>
       <div id="more-menu"></div>
-      <div class="card" style="margin-top:1rem">
+      <div class="card" id="more-install-card" style="margin-top:1rem">
         <button type="button" class="btn btn-sm btn-install-pwa" style="width:100%">Установить (как приложение / на экран)</button>
         <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.4rem">На Android: Chrome → меню ⋮ → «Установить приложение» / «На экран».</p>
       </div>
+      <footer id="more-footer" class="site-footer"></footer>
     </div>
 
     <div id="view-dailyhub" class="view">
@@ -665,10 +690,6 @@
     <div id="view-calendar" class="view">
       <h2 class="section-title">Духовный календарь</h2>
       <div id="calendar-body"></div>
-    </div>
-    <div id="view-ihouse" class="view">
-      <h2 class="section-title">Материалы IslamHouse</h2>
-      <div id="ihouse-body"></div>
     </div>
     <div id="view-library" class="view">
       <h2 class="section-title">Личная библиотека</h2>
@@ -1493,6 +1514,12 @@
           <input type="file" id="import-file" accept="application/json" style="display:none"/>
           <button class="btn btn-sm" id="btn-remind">Напоминание</button>
           <button type="button" class="btn btn-sm btn-install-pwa">Установить приложение</button>
+        </div>
+        <div class="card" id="settings-offline-card" style="margin-top:1rem;border-color:var(--accent)">
+          <b>📥 Подготовить сайт к офлайну</b>
+          <div class="ayah-translation" style="margin-top:0.3rem">Скачает разом всё нужное для работы без интернета: джюз «Амма» (78–114) и суры для «Напоминания дня».</div>
+          <button type="button" class="btn btn-sm btn-primary" id="settings-offline-all" style="margin-top:0.5rem;width:100%">⬇ Скачать всё для офлайна</button>
+          <div id="settings-offline-st" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.35rem"></div>
         </div>
         <div id="settings-extra-data" style="margin-top:1rem"></div>
         </div>
