@@ -4352,3 +4352,28 @@ body.quiet-reading #reader-view-panel,body.quiet-reading #reader-more-panel,body
 .qa-onb-nav{display:flex;justify-content:space-between;align-items:center;margin-top:0.9rem}
 .qa-wn-list{margin:0.3rem 0 0;padding-left:1.1rem;font-size:0.88rem;line-height:1.5}
 .qa-wn-list li{margin-bottom:0.35rem}
+
+/* build 6.79: «Суры | Мусхаф», управление мусхафом, кнопки схемы рта */
+.surah-main-tabs{display:flex;gap:0.4rem;margin-bottom:0.7rem}
+.surah-main-tabs .btn{flex:1}
+.mushaf-ctrl{display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;margin-bottom:0.7rem}
+.mushaf-modes{display:flex;gap:0.3rem;flex-wrap:wrap}
+#mushaf-sel{padding:0.35rem 0.5rem;border-radius:0.6rem;border:1px solid var(--border);background:var(--bg-card);color:var(--text);max-width:100%}
+.mushaf-shead{text-align:center;margin:0.9rem 0 0.4rem;font-weight:700;color:var(--accent)}
+.mushaf-shead .arabic{display:block;font-size:calc(1.4rem * var(--ar-scale, 1))}
+.mushaf-ayah.mushaf-here{background:color-mix(in srgb, var(--accent) 18%, transparent)}
+.mushaf-one{text-align:center}
+.mushaf-one .mushaf-text{font-size:calc(var(--arabic-size, 1.55rem) * 1.35);text-align:center}
+.mushaf-nav{display:flex;justify-content:center;gap:0.5rem;margin-top:0.8rem;flex-wrap:wrap}
+.mushaf-more{display:flex;justify-content:center;margin:0.8rem 0}
+.mouth-wrap [data-primary]{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+
+/* build 6.82: «Фатиха: как произносить» */
+.fp-text{max-height:38vh;overflow-y:auto;margin-top:0.6rem;font-size:calc(var(--arabic-size, 1.55rem) * 1.05);line-height:2.3;text-align:justify;text-align-last:center;padding:0.6rem 0.8rem;border:1px solid var(--border);border-radius:0.9rem;background:var(--bg-card);margin-bottom:0.6rem}
+.fp-w{cursor:pointer;border-radius:0.35rem;padding:0 0.1em;transition:background .15s,color .15s}
+.fp-w.fp-on{background:var(--accent);color:#fff}
+.fp-num{border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:999px;font-size:0.6em;min-width:1.7em;height:1.7em;cursor:pointer;vertical-align:middle}
+.fp-fig{max-width:420px;margin:0 auto}
+.fp-status{text-align:center;min-height:1.8em;font-size:0.95rem;margin:0.2rem 0 0.5rem}
+.fp-ctrl{display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;justify-content:center}
+.fp-ctrl select{padding:0.2rem 0.3rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg-card);color:var(--text)}
