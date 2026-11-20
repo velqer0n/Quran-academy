@@ -680,37 +680,38 @@
 
     const PRESET_FIELD_META = {
       hintsCollapsed: {
-        label: 'Подсказки-карточки «💡 Подсказка» по умолчанию',
-        valueLabel: v => v ? 'Сворачивать' : 'Показывать развёрнутыми'
+        label: 'Подсказки-карточки «💡 Подсказка» по умолчанию', labelKk: '«💡 Кеңес» карточкалары әдепкіде',
+        valueLabel: v => v ? 'Сворачивать' : 'Показывать развёрнутыми', valueLabelKk: v => v ? 'Жию' : 'Ашық көрсету'
       },
       cardAutoClose: {
-        label: 'Закрывать предыдущую карточку при открытии новой',
-        valueLabel: v => v ? 'Вкл' : 'Выкл'
+        label: 'Закрывать предыдущую карточку при открытии новой', labelKk: 'Жаңасын ашқанда алдыңғы карточканы жабу',
+        valueLabel: v => v ? 'Вкл' : 'Выкл', valueLabelKk: v => v ? 'Қосулы' : 'Өшірулі'
       },
       reduceMotion: {
-        label: 'Анимации интерфейса',
-        valueLabel: v => v ? 'Отключить' : 'Обычные'
+        label: 'Анимации интерфейса', labelKk: 'Интерфейс анимациялары',
+        valueLabel: v => v ? 'Отключить' : 'Обычные', valueLabelKk: v => v ? 'Өшіру' : 'Әдеттегі'
       },
       startupView: {
-        label: 'Стартовый экран',
-        valueLabel: v => ({ last: 'Последний открытый раздел', dailyhub: 'Ежедневное', home: 'Суры' }[v] || v)
+        label: 'Стартовый экран', labelKk: 'Бастапқы экран',
+        valueLabel: v => ({ last: 'Последний открытый раздел', dailyhub: 'Ежедневное', home: 'Суры' }[v] || v), valueLabelKk: v => ({ last: 'Соңғы ашылған бөлім', dailyhub: 'Күнделікті', home: 'Сүрелер' }[v] || v)
       },
       theme: {
-        label: 'Тема',
+        label: 'Тема', labelKk: 'Тақырып',
+        valueLabelKk: v => { try { var th = THEME_LIST.find(function(x) { return x.v === v; }); return th ? th.kk : v; } catch (e) { return v; } },
         valueLabel: v => ({ light:'Светлая', soft:'Мягкая', paper:'Бумага', sepia:'Сепия', dark:'Тёмная', slate:'Сланец', night:'Ночное', amber:'Янтарь', ocean:'Океан', forest:'Лес', oled:'OLED', contrast:'Контраст' }[v] || v)
       },
       quranOnly: {
-        label: 'Режим «только Коран»',
-        valueLabel: v => v ? 'Вкл' : 'Выкл'
+        label: 'Режим «только Коран»', labelKk: '«Тек Құран» режимі',
+        valueLabel: v => v ? 'Вкл' : 'Выкл', valueLabelKk: v => v ? 'Қосулы' : 'Өшірулі'
       }
     };
 
     const BUILTIN_PRESETS = [
-      { id: 'focus', icon: '🎯', label: 'Минимум отвлечений',
-        desc: 'Сворачивает подсказки, включает автозакрытие карточек, выключает анимации.',
+      { id: 'focus', icon: '🎯', label: 'Минимум отвлечений', labelKk: 'Алаңдатпайтын режим',
+        desc: 'Сворачивает подсказки, включает автозакрытие карточек, выключает анимации.', descKk: 'Кеңестерді жияды, карточкаларды автоматты жабуды қосады, анимацияларды өшіреді.',
         values: { hintsCollapsed: true, cardAutoClose: true, reduceMotion: true } },
-      { id: 'hints', icon: '💡', label: 'Максимум подсказок',
-        desc: 'Разворачивает все подсказки и включает анимации обратно.',
+      { id: 'hints', icon: '💡', label: 'Максимум подсказок', labelKk: 'Барынша көп кеңес',
+        desc: 'Разворачивает все подсказки и включает анимации обратно.', descKk: 'Барлық кеңесті ашады және анимацияларды қайта қосады.',
         values: { hintsCollapsed: false, reduceMotion: false } }
     ];
 

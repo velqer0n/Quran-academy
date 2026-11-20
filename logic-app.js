@@ -84,6 +84,14 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
     }
 
 
+    // build 6.96: названия месяцев хиджры в казахском интерфейсе (Ражаб, Шағбан, Рамазан, Шәууәл, Зұлхижжа…)
+    const HIJRI_KK = { 'Мухаррам': 'Мұхаррам', 'Сафар': 'Сафар', 'Рабиуль-Авваль': 'Рабиғул-әууәл', 'Рабиуль-Ахир': 'Рабиғус-сәни', 'Джумада-ль-Уля': 'Жұмәдәл-әууәл', 'Джумада-ль-Ахира': 'Жұмәдәс-сәни',
+      'Раджаб': 'Ражаб', 'Шаабан': 'Шағбан', 'Рамадан': 'Рамазан', 'Шавваль': 'Шәууәл', 'Зуль-када': 'Зұлқағда', 'Зуль-хиджа': 'Зұлхижжа' };
+    function hijriLocal(s) {
+      s = String(s || '');
+      if (!(typeof isKk === 'function' && isKk())) return s;
+      return s.replace(/[А-ЯЁ][а-яё]+(?:-[А-ЯЁа-яё]+)?/g, function(w) { return HIJRI_KK[w] || w; });
+    }
     function formatDateRu(v) {
       try {
         const d = (v instanceof Date) ? v : new Date(v);
@@ -189,7 +197,7 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
     function updateLockPlayerLabels() {
       const p = getLastAudioPos();
       const t = document.getElementById('lock-lp-title');
-      if (t) t.innerHTML = '🎧 Сура ' + p.s + ' · аят ' + p.a;
+      if (t) t.innerHTML = (typeof isKk === 'function' && isKk()) ? '🎧 ' + p.s + '-сүре · ' + p.a + '-аят' : '🎧 Сура ' + p.s + ' · аят ' + p.a;
       const aud = document.getElementById('audio-player');
       const btn = document.getElementById('lock-play');
       if (btn) btn.textContent = (aud && !aud.paused && aud.src) ? '⏸' : '▶';
@@ -875,6 +883,8 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
 
       // Menu cards in "more" and labels — phrase map
       const phrase = isKk ? {
+        // build 6.96: недостающие фразы казахского режима
+        'Словари': 'Сөздіктер', 'Поклонение': 'Ғибадат', 'Все слова': 'Барлық сөздер', 'Сохранить': 'Сақтау', 'удвоение': 'қосарлану', 'ā (долгий)': 'ā (ұзын)', 'Микат': 'Миқат', 'Аудио, мин': 'Аудио, мин', 'Азан (аудио)': 'Азан (аудио)',
         'Ещё': 'Тағы', 'Закладки': 'Бетбелгілер', 'Прогресс': 'Үлгерім',
         'Слова в карточках': 'Карточкадағы сөздер', 'По нажатию': 'Басқанда', 'Сразу': 'Бірден',
         'Планы чтения': 'Оқу жоспарлары', 'Азкары и дуа': 'Зікірлер мен дұғалар', 'Нажмите — открыть в разделе «Дуа и зикры» →': 'Басыңыз — «Дұғалар мен зікірлер» бөлімінде ашу →',
@@ -8034,7 +8044,7 @@ function speakLetter(ch, name, ttsOnly) {
           '<div class="card" style="cursor:pointer" data-har="'+i+'">' +
           '<div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">' +
           '<span style="font-size:2rem;font-family:Amiri,serif;min-width:2.5rem;text-align:center" dir="rtl">ب'+h.symbol+'</span>' +
-          '<div style="flex:1"><b>'+(kkH ? (h.nameKk || h.name) : h.name)+'</b> <span style="color:var(--text-muted)"><span class="hk-mark" dir="rtl">◌'+h.symbol+'</span> · '+h.tr+'</span>' +
+          '<div style="flex:1"><b>'+(kkH ? (h.nameKk || h.name) : h.name)+'</b> <span style="color:var(--text-muted)"><span class="hk-mark" dir="rtl">◌'+h.symbol+'</span> · '+letterTr(h)+'</span>' +
           '<div class="ayah-translation">'+(kkH ? (h.noteKk || h.note) : h.note)+'</div>' +
           '<div class="arabic" style="font-size:calc(1.4rem * var(--ar-scale, 1));margin-top:0.25rem" dir="rtl">'+h.example+' <span style="font-size:0.85rem;color:var(--text-muted);font-family:Inter,sans-serif">'+((kkH && h.exampleTrKk) ? h.exampleTrKk : h.exampleTr)+'</span></div>' +
           '</div></div></div>'
@@ -10780,16 +10790,16 @@ function speakLetter(ch, name, ttsOnly) {
           '<div id="dl-prepare-all-st" style="font-size:0.8rem;color:rgba(255,255,255,0.85);margin-top:0.35rem"></div>' +
           '</div>' +
           '<div class="card" style="border-color:var(--accent)"><b>'+tLabel('Офлайн 78–114 (джюз ‘Амма)')+'</b>' +
-          '<div class="ayah-translation">В кэше: '+ammaCount+' сур. Скачанные остаются здесь после обновления страницы.</div>' +
+          '<div class="ayah-translation">'+(isKk() ? 'Кэште: '+ammaCount+' сүре. Жүктелгендері бетті жаңартқаннан кейін де осында қалады.' : 'В кэше: '+ammaCount+' сур. Скачанные остаются здесь после обновления страницы.')+'</div>' +
           '<button type="button" class="btn btn-sm btn-primary" id="dl-amma" style="margin-top:0.4rem">'+tLabel('⬇ Скачать/обновить 78–114')+'</button>' +
           '<div id="dl-amma-st" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem"></div>' +
           '<button type="button" class="btn btn-sm" id="dl-daily-feat" style="margin-top:0.5rem;width:100%">'+tLabel('⬇ Скачать для «Напоминания дня» (суры 2, 6, 17, 24, 31, 49)')+'</button>' +
           '<div id="dl-daily-feat-st" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem"></div></div>' +
-          '<p style="color:var(--text-muted);font-size:0.9rem;margin:0.75rem 0">Формат: <b>'+tLabel('номер · имя · аятов')+'</b>. ✓ = в кэше. Откройте → «По словам».</p>' +
+          '<p style="color:var(--text-muted);font-size:0.9rem;margin:0.75rem 0">'+(isKk() ? 'Пішімі: <b>нөмір · атауы · аят саны</b>. ✓ = кэште. Ашыңыз → «Сөзбе-сөз».' : 'Формат: <b>номер · имя · аятов</b>. ✓ = в кэше. Откройте → «По словам».')+'</p>' +
           list.map(s =>
             '<div class="card" style="cursor:pointer" data-ss="'+s.n+'">' +
-            '<b>'+s.n+' · '+s.name+' · '+s.ayahs+(s.cached?' ✓':'')+'</b>' +
-            '<div class="ayah-translation">'+(s.cached?'В кэше · ':'')+'нажмите, чтобы изучать</div></div>'
+            '<b>'+s.n+' · '+((isKk() && SURAH_KK[s.n]) ? SURAH_KK[s.n] : s.name)+' · '+s.ayahs+(s.cached?' ✓':'')+'</b>' +
+            '<div class="ayah-translation">'+(isKk() ? (s.cached?'Кэште · ':'')+'үйрену үшін басыңыз' : (s.cached?'В кэше · ':'')+'нажмите, чтобы изучать')+'</div></div>'
           ).join('');
         document.getElementById('dl-amma')?.addEventListener('click', async () => {
           const st = document.getElementById('dl-amma-st');
@@ -10797,12 +10807,12 @@ function speakLetter(ch, name, ttsOnly) {
           if (btn) btn.disabled = true;
           try {
             await downloadAmma78114((n, cached, err) => {
-              if (st) st.textContent = err ? ('Ошибка суры '+n) : ('Сура '+n+(cached?' (уже была)':' ✓'));
+              if (st) st.textContent = isKk() ? (err ? (n+'-сүре қатесі') : (n+'-сүре'+(cached?' (бұрын болған)':' ✓'))) : (err ? ('Ошибка суры '+n) : ('Сура '+n+(cached?' (уже была)':' ✓')));
             });
-            toast('Джюз «Амма» в кэше');
+            toast(isKk() ? '«Амма» парасы кэште' : 'Джюз «Амма» в кэше');
             showList();
           } catch(e) {
-            toast('Не удалось скачать — нужен интернет');
+            toast(isKk() ? 'Жүктеу мүмкін болмады — интернет керек' : 'Не удалось скачать — нужен интернет');
             if (btn) btn.disabled = false;
           }
         });
@@ -10812,11 +10822,11 @@ function speakLetter(ch, name, ttsOnly) {
           if (btn) btn.disabled = true;
           try {
             await downloadDailyFeatureSurahs((n, cached, err) => {
-              if (st) st.textContent = err ? ('Ошибка суры '+n) : ('Сура '+n+(cached?' (уже была)':' ✓'));
+              if (st) st.textContent = isKk() ? (err ? (n+'-сүре қатесі') : (n+'-сүре'+(cached?' (бұрын болған)':' ✓'))) : (err ? ('Ошибка суры '+n) : ('Сура '+n+(cached?' (уже была)':' ✓')));
             });
-            toast('Суры для «Напоминания дня» в кэше');
+            toast(isKk() ? '«Күн ескертуі» сүрелері кэште' : 'Суры для «Напоминания дня» в кэше');
           } catch(e) {
-            toast('Не удалось скачать — нужен интернет');
+            toast(isKk() ? 'Жүктеу мүмкін болмады — интернет керек' : 'Не удалось скачать — нужен интернет');
           } finally {
             if (btn) btn.disabled = false;
           }
@@ -11005,7 +11015,7 @@ function speakLetter(ch, name, ttsOnly) {
         optsIn = optsIn || {};
         if (listIdx < 0 || listIdx >= STUDY_AYAHS.length) return;
         const ay = STUDY_AYAHS[listIdx];
-        const title = (ay.s + ':' + ay.a) + (ay.name ? (' ' + ay.name) : '');
+        const title = (ay.s + ':' + ay.a) + (ay.name ? (' ' + ((isKk() && ay.nameKk) || ay.name)) : '');
         const trFull = (typeof transliterateArabic === 'function') ? transliterateArabic(ay.ar || '') : '';
         const fullAr = String(ay.ar || '').trim();
         let wordUnits;
@@ -11117,9 +11127,9 @@ function speakLetter(ch, name, ttsOnly) {
 
       const showList = () => {
         el.innerHTML =
-          '<p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:0.75rem">Слова листайте кнопками ← →. Между аятами — «Пред./След. аят».</p>' +
+          '<p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:0.75rem">'+(isKk() ? 'Сөздерді ← → батырмаларымен ауыстырыңыз. Аяттар арасында — «Алдыңғы/Келесі аят».' : 'Слова листайте кнопками ← →. Между аятами — «Пред./След. аят».')+'</p>' +
           STUDY_AYAHS.map((ay, i) => {
-            const label = (ay.s + ':' + ay.a) + (ay.name ? (' ' + ay.name) : '');
+            const label = (ay.s + ':' + ay.a) + (ay.name ? (' ' + ((isKk() && ay.nameKk) || ay.name)) : '');
             return '<div class="card" style="cursor:pointer" data-sa="'+i+'"><b>'+label+'</b></div>';
           }).join('');
         el.querySelectorAll('[data-sa]').forEach(card => {
@@ -15807,7 +15817,7 @@ function renderMistakes() {
       let dispAr, dispTr, dispMean, dispCount, dispTarget, stepLabel = '';
       if (sess && sess.steps && sess.steps[sess.idx]) {
         const st = sess.steps[sess.idx];
-        dispAr = st.ar; dispTr = st.tr; dispMean = kk && st.meanKk ? st.meanKk : st.mean;
+        dispAr = st.ar; dispTr = letterTr(st); dispMean = kk && st.meanKk ? st.meanKk : st.mean;
         dispCount = sess.count; dispTarget = st.target;
         stepLabel = (kk?'Қадам ':'Шаг ')+(sess.idx+1)+(kk?' / ':' из ')+sess.steps.length+' · '+(kk?(DHIKR_SESSIONS[sess.key]&&DHIKR_SESSIONS[sess.key].labelKk||''):(DHIKR_SESSIONS[sess.key]&&DHIKR_SESSIONS[sess.key].label||''));
       } else {
@@ -15865,7 +15875,7 @@ function renderMistakes() {
       if (listEl) {
         listEl.innerHTML = d.list.map((x,i) =>
           '<button type="button" class="btn btn-sm '+(!sess && x.ar===d.phrase?'btn-primary':'')+'" data-di="'+i+'" style="margin:0.2rem;white-space:normal;text-align:left">' +
-          '<span dir="rtl">'+x.ar+'</span> · '+(x.tr||'')+'</button>'
+          '<span dir="rtl">'+x.ar+'</span> · '+(letterTr(x)||'')+'</button>'
         ).join('');
         listEl.querySelectorAll('[data-di]').forEach(b => b.addEventListener('click', () => {
           const it = d.list[+b.dataset.di];
@@ -16131,13 +16141,17 @@ function renderMistakes() {
       const off = (typeof OFFLINE_SURAHS !== 'undefined' && OFFLINE_SURAHS[s]) ? OFFLINE_SURAHS[s] : null;
       const ay = off && off.ayahs ? off.ayahs.find(x => x.number === a) || off.ayahs[0] : null;
       el.innerHTML = ay
-        ? '<div class="card" style="border-color:var(--accent)"><div class="surah-meta">Сура '+s+', аят '+(ay.number||a)+' · '+day+'</div>' +
+        ? '<div class="card" style="border-color:var(--accent)"><div class="surah-meta">'+(isKk() ? s+'-сүре, '+(ay.number||a)+'-аят' : 'Сура '+s+', аят '+(ay.number||a))+' · '+day+'</div>' +
           '<div class="arabic" dir="rtl" style="font-size:calc(1.5rem * var(--ar-scale, 1));margin:0.6rem 0">'+ay.text+'</div>' +
-          (ay.translation ? '<div class="ayah-translation">'+ay.translation+'</div>' : '') +
-          '<button type="button" class="btn btn-sm btn-primary" id="ayahday-speak" style="margin-top:0.5rem">▶ Слушать</button></div>' +
+          (ay.translation && !isKk() ? '<div class="ayah-translation">'+ay.translation+'</div>' : (isKk() ? '<div class="ayah-translation" id="ayahday-tr"></div>' : '')) +
+          '<button type="button" class="btn btn-sm btn-primary" id="ayahday-speak" style="margin-top:0.5rem">▶ '+(isKk() ? 'Тыңдау' : 'Слушать')+'</button></div>' +
           '<div class="card"><b>'+tLabel('На сегодня')+'</b><div class="ayah-translation">'+tLabel('Прочитайте аят трижды, найдите одно слово для словаря, сделайте одно добро по смыслу аята.')+'</div></div>'
-        : '<div class="empty-state"><p>Нет офлайн-аятов. Скачайте суры 78–114 в Теории.</p></div>';
-      document.getElementById('ayahday-speak')?.addEventListener('click', () => {
+        : '<div class="empty-state"><p>'+(isKk() ? 'Офлайн аяттар жоқ. 78–114 сүрелерін «Оқу» бөлімінде жүктеңіз.' : 'Нет офлайн-аятов. Скачайте суры 78–114 в Теории.')+'</p></div>';
+        // build 6.96: встроенный перевод аята — русский; в казахском режиме берём казахский через fetchSurah (сеть или кэш)
+        if (ay && isKk() && typeof fetchSurah === 'function') {
+        Promise.resolve(fetchSurah(s)).then(function(d) { var x = d && d.ayahs ? d.ayahs.find(function(q) { return +q.number === +(ay.number || a); }) : null, box = document.getElementById('ayahday-tr'); if (box && x && x.translation) box.textContent = x.translation; }).catch(function() {});
+        }
+        document.getElementById('ayahday-speak')?.addEventListener('click', () => {
         if (ay && typeof speakArText === 'function') speakArText(ay.text);
       });
     }
@@ -29461,10 +29475,11 @@ function renderDict() {
 
 
     function presetFieldLabel(key) {
-      return (PRESET_FIELD_META[key] && PRESET_FIELD_META[key].label) || key;
+      var m0 = PRESET_FIELD_META[key]; return (m0 && ((isKk() && m0.labelKk) || m0.label)) || key;
     }
     function presetValueLabel(key, v) {
       const m = PRESET_FIELD_META[key];
+      if (m && isKk() && m.valueLabelKk) { try { return m.valueLabelKk(v); } catch(e) {} }
       if (m && m.valueLabel) { try { return m.valueLabel(v); } catch(e) {} }
       return String(v);
     }
@@ -29481,13 +29496,13 @@ function renderDict() {
         const toLbl = presetValueLabel(k, next);
         return '<div>• ' + presetFieldLabel(k) + ': ' +
           (isSame
-            ? '<span style="opacity:0.7">уже «' + toLbl + '»</span>'
+            ? '<span style="opacity:0.7">' + (isKk() ? 'қазір «' + toLbl + '»' : 'уже «' + toLbl + '»') + '</span>'
             : '<span style="opacity:0.7">' + fromLbl + '</span> → <b>' + toLbl + '</b>')
           + '</div>';
       }).join('');
       const appliedNow = keys.length > 0 && changedCount === 0;
       const badge = appliedNow
-        ? '<span style="font-size:0.72rem;color:var(--accent);border:1px solid var(--accent);border-radius:0.4rem;padding:0.05rem 0.4rem;white-space:nowrap">✓ Применено сейчас</span>'
+        ? '<span style="font-size:0.72rem;color:var(--accent);border:1px solid var(--accent);border-radius:0.4rem;padding:0.05rem 0.4rem;white-space:nowrap">✓ ' + (isKk() ? 'Қазір қолданылған' : 'Применено сейчас') + '</span>'
         : '';
       const delBtn = isCustom
         ? '<button type="button" class="btn btn-sm" data-del-preset="' + preset.id + '" title="Удалить пресет" style="padding:0.3rem 0.5rem">🗑</button>'
@@ -29495,11 +29510,11 @@ function renderDict() {
       return '' +
         '<div class="card" style="border-color:var(--accent);cursor:pointer;margin:0" data-tip-toggle="1" data-preset-card="' + preset.id + '">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap">' +
-        '<b>' + (preset.icon || '⭐') + ' ' + preset.label + '</b>' +
+        '<b>' + (preset.icon || '⭐') + ' ' + ((isKk() && preset.labelKk) || preset.label) + '</b>' +
         '<div style="display:flex;align-items:center;gap:0.4rem">' + badge +
         '<button type="button" class="btn btn-sm btn-primary" data-apply-preset="' + preset.id + '">'+tLabel('Применить')+'</button>' + delBtn +
         '</div></div>' +
-        '<div class="ayah-translation" style="margin-top:0.3rem;font-size:calc(0.82rem * var(--ru-scale, 1))">' + (preset.desc || '') + ' Нажмите — что изменится ▾</div>' +
+        '<div class="ayah-translation" style="margin-top:0.3rem;font-size:calc(0.82rem * var(--ru-scale, 1))">' + ((isKk() && preset.descKk) || preset.desc || '') + (isKk() ? ' Басыңыз — не өзгереді ▾' : ' Нажмите — что изменится ▾') + '</div>' +
         '<div class="tip-body ayah-translation" style="display:none;margin-top:0.5rem;font-size:calc(0.82rem * var(--ru-scale, 1))">'+tLabel('Будет изменено:')+'<br>' + lines + '</div>' +
         '</div>';
     }
@@ -38273,7 +38288,7 @@ function playArabicAudio(text, fallbackRu, opts) {
       var body = document.getElementById('hadith-full-body');
       var ov = document.getElementById('hadith-full-overlay');
       if (!ov || !body) return;
-      if (title) title.textContent = h.srcLabel || 'Хадис';
+      if (title) title.textContent = hadithLabelLocal(h.srcLabel) || (isKk() ? 'Хадис' : 'Хадис');
       var from = kk && h.fromKk ? h.fromKk : (h.from || '');
       var tr = kk && h.kk ? h.kk : h.ru;
       // build 6.27: «заглушки» базы (нет арабского текста, только краткая тема) раньше выглядели как полноценный хадис, хотя у части из них
@@ -38290,7 +38305,7 @@ function playArabicAudio(text, fallbackRu, opts) {
             (quote ? '<div class="ayah-translation" style="margin-top:0.6rem;border-left:3px solid var(--accent);padding-left:0.6rem;line-height:1.5">' + (kk ? 'Мәтінде былай айтылған: ' : 'Как сказано в тексте: ') + '«' + esc0(quote) + '»</div>' : '') +
             (tr && showTopic0 ? '<div style="margin-top:0.6rem;font-size:0.82rem;color:var(--text-muted)">' + (kk ? 'Каталогтағы қысқаша тақырып (нөмірмен сәйкестігін тексеріңіз): ' : 'Краткая тема по каталогу приложения (сверьте с номером): ') + '«' + esc0(tr) + '»</div>' : '') +
             (url0 ? '<a class="btn btn-sm btn-primary" href="' + url0 + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:0.7rem;text-decoration:none">' + (kk ? 'sunnah.com сайтында ашу' : 'Открыть на sunnah.com') + '</a>' : '') +
-            '<div style="margin-top:0.55rem;font-size:0.82rem;color:var(--accent);font-weight:600">' + (h.srcLabel || '') + '</div>';
+            '<div style="margin-top:0.55rem;font-size:0.82rem;color:var(--accent);font-weight:600">' + hadithLabelLocal(h.srcLabel || '') + '</div>';
           var gb0 = document.getElementById('hadith-full-goto'); if (gb0) gb0.style.display = 'none';
           var cb0 = document.getElementById('hadith-full-close'); if (cb0) cb0.textContent = kk ? 'Жабу' : 'Закрыть';
           ov.classList.add('open');
@@ -38301,7 +38316,7 @@ function playArabicAudio(text, fallbackRu, opts) {
         (from ? '<div style="font-size:0.88rem;font-weight:600;margin-bottom:0.45rem;color:var(--text)">'+from+'</div>' : '') +
         (h.ar ? '<div class="arabic" dir="rtl" style="font-size:calc(1.25rem * var(--ar-scale, 1));line-height:1.9;margin-bottom:0.65rem">'+h.ar+'</div>' : '') +
         '<div class="ayah-translation" style="line-height:1.55;white-space:pre-wrap">'+tr+'</div>' +
-        '<div style="margin-top:0.55rem;font-size:0.82rem;color:var(--accent);font-weight:600">'+(h.srcLabel||'')+'</div>';
+        '<div style="margin-top:0.55rem;font-size:0.82rem;color:var(--accent);font-weight:600">'+hadithLabelLocal(h.srcLabel||'')+'</div>';
       var gotoBtn = document.getElementById('hadith-full-goto');
       if (gotoBtn) { gotoBtn.textContent = kk ? '«Хадистер» бөліміне' : 'В раздел «Хадисы»'; gotoBtn.style.display = ''; }
       var closeBtn = document.getElementById('hadith-full-close');
@@ -38558,7 +38573,7 @@ function playArabicAudio(text, fallbackRu, opts) {
           ar: h.ar||'',
           ru: (fromRu ? fromRu + ': ' : '') + (h.ru||''),
           ruKk: (fromKk ? fromKk + ': ' : '') + (h.kk||h.ru||''),
-          src: h.srcLabel||'', full: (fromRu ? fromRu + ': ' : '') + (h.ru||''),
+          src: hadithLabelLocal(h.srcLabel||''), full: (fromRu ? fromRu + ': ' : '') + (h.ru||''),
           fullKk: (fromKk ? fromKk + ': ' : '') + (h.kk||h.ru||''),
           num: h.num, key: h.key, topic: h.topic||'', from: fromRu, fromKk: fromKk
         };
@@ -38607,6 +38622,14 @@ function playArabicAudio(text, fallbackRu, opts) {
      * Подсветка в тексте: (2:255), Бухари 123, Муслим 456 → единый вид.
      * Не ломает HTML, если уже есть теги — работает по plain text кускам грубо.
      */
+    // build 6.96: подпись источника хадиса по-казахски (әл-Бухари, Мүслім, әт-Тирмизи, Ибн Мәжә, хасан ғариб…)
+    function hadithLabelLocal(s) {
+      s = String(s == null ? '' : s);
+      if (!((typeof srcIsKk === 'function' && srcIsKk()) || (typeof isKk === 'function' && isKk()))) return s;
+      return s.replace(/аль-Бухари/g, 'әл-Бухари').replace(/(^|[^а-яёА-ЯЁәіңғүұқөһ-])Бухари/g, '$1әл-Бухари').replace(/Муслим(?![а-яёА-ЯЁ])/g, 'Мүслім')
+        .replace(/Абу Дауд/g, 'Әбу Дәуіт').replace(/ан-Насаи/g, 'ән-Насаи').replace(/ат-Тирмизи/g, 'әт-Тирмизи').replace(/Ат-Тирмизи/g, 'Әт-Тирмизи').replace(/(^|[^а-яёА-ЯЁ-])Тирмизи/g, '$1әт-Тирмизи')
+        .replace(/Ибн Маджа/g, 'Ибн Мәжә').replace(/Ахмад(?![а-яё])/g, 'Ахмад').replace(/гариб/g, 'ғариб').replace(/Сахих\b/g, 'Сахих');
+    }
     function formatSourcesInText(text, ctx) {
       if (!text) return '';
       var s = String(text);
@@ -38647,7 +38670,7 @@ function playArabicAudio(text, fallbackRu, opts) {
             var miss = nums.some(function (n) { return !new RegExp('(?:^|[^0-9])' + n + '(?:[^0-9]|$)').test(found.srcLabel); });
             if (miss) label = group.replace(/^\(|\)$/g, '').replace(/\s*;\s*/g, '; ').replace(/\s*,\s*(?=[^\d№\s])/g, '; ');
           }
-          if (typeof srcIsKk === 'function' && srcIsKk()) { label = String(label).replace(/аль-Бухари/g, 'әл-Бухари').replace(/Муслим(?![а-яёА-ЯЁ])/g, 'Мүслім').replace(/Абу Дауд/g, 'Әбу Дәуіт').replace(/ан-Насаи/g, 'ән-Насаи'); } // build 6.35: в казахском режиме названия в ссылке по-казахски
+          label = hadithLabelLocal(label); // build 6.35: в казахском режиме названия в ссылке по-казахски
           return '<button type="button" class="src-chip hadith"'+keyAttr+bAttr+ctxAttr+' style="cursor:pointer">'+label+'</button>';
         });
       })();
@@ -38687,6 +38710,10 @@ function playArabicAudio(text, fallbackRu, opts) {
         return NAME_MEAN_KK[n.tr] || NAME_MEAN_KK[n.mean] || n.mean;
       }
       return n.mean;
+    }
+    // build 6.96: казахская запись имени (Әр-Рахман, Әл-Мәлик…) — по списку zharar.com, артикль как в казахских названиях сур
+    function nameTrLocal(n) {
+      return (n && (typeof isKk === 'function' && isKk()) && n.trKk) ? n.trKk : (n ? n.tr : '');
     }
 
     // Толық сипаттама аудармасы (99 есімнің алғашқы 50-і — қалғаны кезең-кезеңімен қосылады)
@@ -38739,7 +38766,7 @@ function playArabicAudio(text, fallbackRu, opts) {
             '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem">' +
               '<div><div class="surah-meta">'+numLabel+'</div>' +
               '<div class="arabic" style="font-size:calc(1.55rem * var(--ar-scale, 1))">'+n.ar+'</div>' +
-              '<div style="font-weight:600;margin-top:0.2rem">'+n.tr+'</div>' +
+              '<div style="font-weight:600;margin-top:0.2rem">'+nameTrLocal(n)+'</div>' +
               '<div class="ayah-translation">'+nameMeanLocal(n)+'</div></div>' +
               '<button type="button" class="btn btn-sm btn-speak-name" data-i="'+i+'" title="Слушать">🔊</button>' +
             '</div>' +
@@ -38784,7 +38811,7 @@ function playArabicAudio(text, fallbackRu, opts) {
             // skip same Arabic name
             if (r.ar === n.ar || r.tr === n.tr) return '';
             seen.add(idx);
-            return '<button type="button" class="topic-chip btn-rel-name" data-i="'+idx+'">'+r.tr+'</button>';
+            return '<button type="button" class="topic-chip btn-rel-name" data-i="'+idx+'">'+nameTrLocal(r)+'</button>';
           }).filter(Boolean).join(' ');
           det.innerHTML =
             '<div class="compare-block"><div class="cmp-label">'+t('meaning')+'</div><b>'+nameMeanLocal(n)+'</b></div>' +
@@ -40809,7 +40836,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           ar: h.ar,
           ru: h.ru,
           kk: h.kk,
-          src: h.srcLabel,
+          src: hadithLabelLocal(h.srcLabel),
           full: (h.from ? (h.from + ': «' + h.ru + '»') : h.ru),
           topic: h.topic
         };
@@ -40951,7 +40978,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
           const mean = (typeof nameMeanLocal === 'function') ? nameMeanLocal(n) : (n.mean||'');
           var nameIdx = ALLAH_NAMES.indexOf(n);
           if (nameIdx < 0) nameIdx = 0;
-          nameCard = '<div class="card" style="cursor:pointer" data-go-name="'+nameIdx+'" title="'+(isKk?'«Аллаһтың 99 есімі» бөлімінде ашу':'Открыть в разделе 99 имён')+'"><div style="display:flex;justify-content:space-between;align-items:center;gap:0.35rem;flex-wrap:wrap"><b>🌟 '+(isKk?'Аллаһтың есімі':'Имя Аллаха')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-name="'+nameIdx+'" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic" style="font-size:calc(1.6rem * var(--ar-scale, 1));margin:0.5rem 0">'+n.ar+'</div><div>'+(n.tr||'')+' — '+mean+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — есімді ашу →':'Нажмите — открыть имя →')+'</div></div>';
+          nameCard = '<div class="card" style="cursor:pointer" data-go-name="'+nameIdx+'" title="'+(isKk?'«Аллаһтың 99 есімі» бөлімінде ашу':'Открыть в разделе 99 имён')+'"><div style="display:flex;justify-content:space-between;align-items:center;gap:0.35rem;flex-wrap:wrap"><b>🌟 '+(isKk?'Аллаһтың есімі':'Имя Аллаха')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="name" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-name="'+nameIdx+'" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic" style="font-size:calc(1.6rem * var(--ar-scale, 1));margin:0.5rem 0">'+n.ar+'</div><div>'+(nameTrLocal(n)||'')+' — '+mean+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — есімді ашу →':'Нажмите — открыть имя →')+'</div></div>';
         }
       } catch(e) {}
       let       prayerMini = '';
@@ -41139,7 +41166,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
               return '<div style="display:flex;justify-content:space-between;gap:0.5rem;align-items:baseline;margin-top:'+(i?0.35:0)+'rem;'+(i===0?'':'opacity:0.92')+'">' +
                 '<span>'+icon+' <b>'+nm+'</b></span>' +
                 '<span style="color:var(--accent);font-weight:600;white-space:nowrap;font-size:0.9rem">'+when+'</span></div>' +
-                (i===0 ? '<div style="font-size:0.8rem;color:var(--text-muted)">'+formatDateRu(item.e.g)+(item.e.h ? ' · '+item.e.h : '')+'</div>' : '');
+                (i===0 ? '<div style="font-size:0.8rem;color:var(--text-muted)">'+formatDateRu(item.e.g)+(item.e.h ? ' · '+hijriLocal(item.e.h) : '')+'</div>' : '');
             }).join('');
             return '<div class="card" style="cursor:pointer;border-color:var(--accent)" data-go="calendar">' +
               '<div style="display:flex;justify-content:space-between;align-items:center"><b>📅 '+(isKk?'Оқиғалар күнтізбесі':'Календарь событий')+'</b><span style="display:flex;align-items:center;gap:0.2rem"><span style="font-size:0.8rem;color:var(--text-muted)">→</span><button type="button" data-ev-dis="'+top[0].dk+'" data-ev-lvl="'+top[0].L+'" aria-label="'+(isKk?'Жасыру':'Скрыть')+'" style="border:none;background:none;color:var(--text-muted);font-size:1.05rem;cursor:pointer;padding:0.3rem 0.5rem;min-width:2.4rem;min-height:2.4rem">✕</button></span></div>' +
@@ -41154,8 +41181,8 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         story: '<div id="dailyhub-story"></div>',
         dua: '<div class="card" style="cursor:pointer" data-go-dua="1" title="'+(isKk?'Басыңыз — «Дұғалар мен зікірлер» бөлімінде ашу':'Нажмите — открыть в разделе «Дуа и зикры»')+'"><div style="display:flex;justify-content:space-between"><b>🤲 '+(isKk?'Күн дұғасы':'Дуа дня')+'</b><span><button type="button" class="btn btn-sm" data-speak-dua="1">🔊</button> <button type="button" class="btn btn-sm" data-daily-next="dua" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="dua" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-dua="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic" style="font-size:calc(1.3rem * var(--ar-scale, 1));margin:0.5rem 0">'+dua.ar+'</div>'+(dailyDuaTr(dua)?'<div class="dua-tr" style="color:var(--accent);margin:0.25rem 0;font-size:0.95rem;font-style:italic;line-height:1.6">'+dailyDuaTr(dua)+'</div>':'')+'<div class="ayah-translation">'+(isKk&&dua.kk?dua.kk:dua.ru)+'</div>'+(dua.hisn?'<div class="surah-meta" style="margin-top:0.3rem">'+(isKk?'Дереккөз: «Хисн әл-мүслим» (Сағид әл-Қахтани)':'Источник: «Хисн аль-муслим» (Са‘ид аль-Кахтани)')+'</div>':'')+'<div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Азкар және дұға» бөлімінде ашу →':'Нажмите — открыть в разделе «Дуа и зикры» →')+'</div></div>',
         name: nameCard,
-        hadith: '<div class="card" style="cursor:pointer" data-go-hadith="1" title="'+(isKk?'Басыңыз — «Хадистер» бөлімінде ашу':'Нажмите — открыть в разделе «Хадисы»')+'"><div style="display:flex;justify-content:space-between"><b>📜 '+(isKk?'Күн хадисі':'Хадис дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="hadith" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="hadith" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-hadith="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic" style="margin:0.5rem 0">'+had.ar+'</div><div class="ayah-translation">'+(isKk&&had.kk?had.kk:had.ru)+'</div><div style="color:var(--text-muted);font-size:0.85rem">'+had.src+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Хадистер» бөлімінде ашу →':'Нажмите — открыть в разделе «Хадисы» →')+'</div></div>',
-        sunnah: '<div class="card" style="cursor:pointer" data-go-sunnah="1" title="'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу':'Нажмите — открыть в разделе «Сунны»')+'"><div style="display:flex;justify-content:space-between"><b>🌱 '+(isKk?'Күн сүннеті':'Сунна дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-sunnah="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><b>'+(isKk&&sun.titleKk?sun.titleKk:sun.title)+'</b><div class="ayah-translation">'+(isKk&&sun.kk?sun.kk:sun.ru)+'</div><div style="font-size:0.85rem;color:var(--text-muted)">'+sun.proof+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу →':'Нажмите — открыть в разделе «Сунны» →')+'</div></div>',
+        hadith: '<div class="card" style="cursor:pointer" data-go-hadith="1" title="'+(isKk?'Басыңыз — «Хадистер» бөлімінде ашу':'Нажмите — открыть в разделе «Хадисы»')+'"><div style="display:flex;justify-content:space-between"><b>📜 '+(isKk?'Күн хадисі':'Хадис дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="hadith" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="hadith" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-hadith="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic" style="margin:0.5rem 0">'+had.ar+'</div><div class="ayah-translation">'+(isKk&&had.kk?had.kk:had.ru)+'</div><div style="color:var(--text-muted);font-size:0.85rem">'+hadithLabelLocal(had.src)+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Хадистер» бөлімінде ашу →':'Нажмите — открыть в разделе «Хадисы» →')+'</div></div>',
+        sunnah: '<div class="card" style="cursor:pointer" data-go-sunnah="1" title="'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу':'Нажмите — открыть в разделе «Сунны»')+'"><div style="display:flex;justify-content:space-between"><b>🌱 '+(isKk?'Күн сүннеті':'Сунна дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="sunnah" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-sunnah="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><b>'+(isKk&&sun.titleKk?sun.titleKk:sun.title)+'</b><div class="ayah-translation">'+(isKk&&sun.kk?hadithLabelLocal(sun.kk):sun.ru)+'</div><div style="font-size:0.85rem;color:var(--text-muted)">'+hadithLabelLocal(sun.proof)+'</div><div class="surah-meta" style="margin-top:0.35rem">'+(isKk?'Басыңыз — «Сүннеттер» бөлімінде ашу →':'Нажмите — открыть в разделе «Сунны» →')+'</div></div>',
         word: '<div class="card"><div style="display:flex;justify-content:space-between"><b>🔤 '+(isKk?'Күн сөзі':'Слово дня')+'</b><span><button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="prev">←</button> <button type="button" class="btn btn-sm" data-daily-next="word" data-daily-dir="next">→</button> <button type="button" class="btn btn-sm" data-share-word="1" title="'+(isKk?'Бөлісу':'Поделиться')+'">📤</button></span></div><div class="arabic">'+word.ar+'</div><div>'+word.tr+' — '+(isKk&&word.kk?word.kk:word.ru)+'</div></div>'
       };
       const widgetOrder = (typeof getDailyWidgetOrder === 'function') ? getDailyWidgetOrder() : ['prayer','events','teachernext','ayah','command','story','dua','name','hadith','sunnah','word'];
@@ -42681,7 +42708,7 @@ function renderHadiths() {
             (dlCards ? '<h3 style="margin:0.5rem 0">Скачанные</h3>' + dlCards : '<div class="card"><div class="ayah-translation">'+tLabel('Пока ничего не скачано. Нажмите «Скачать хадисы».')+'</div></div>') +
             '<h3 style="margin:1rem 0 0.5rem">'+tLabel('Каталог (образцы)')+'</h3>' +
             HADITH_SOURCES.map(s =>
-              '<div class="card" style="cursor:pointer" data-open-src="'+s.id+'"><b>'+s.name+'</b><div class="ayah-translation">'+(s.books?s.books.length:0)+' книг(и) в каталоге</div></div>'
+              '<div class="card" style="cursor:pointer" data-open-src="'+s.id+'"><b>'+tLabel(s.name)+'</b><div class="ayah-translation">'+(s.books?s.books.length:0)+(isKk() ? ' кітап каталогта' : ' книг(и) в каталоге')+'</div></div>'
             ).join('');
           document.getElementById('hadith-section-search')?.addEventListener('input', (e) => {
         window._hadithSectionQ = e.target.value || '';
@@ -42977,7 +43004,7 @@ c.addEventListener('click', () => {
 
           function cardHtml(h, i) {
             var num = (h.num != null && h.num !== '') ? h.num : (i + 1);
-            var srcDisp = kk ? (h.srcKk || h.src || '') : (h.src || '');
+            var srcDisp = kk ? (h.srcKk || hadithLabelLocal(h.src || '')) : (h.src || '');
             var numLabel = '\u2116 ' + num + (srcDisp ? (' \u00b7 ' + srcDisp) : '');
             var tr = kk ? (h.fullKk || h.ruKk || h.full || h.ru || '') : (h.full || h.ru || '');
             var topicLine = h.topic ? ('<div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.15rem">'+h.topic+'</div>') : '';
@@ -43154,7 +43181,7 @@ c.addEventListener('click', () => {
             const kkMode = isKk();
             listEl.innerHTML = shown.length ? shown.map(({h,i}) => {
               const num = (h.num != null && h.num !== '') ? h.num : (i + 1);
-              const srcDisp = kkMode ? (h.srcKk || h.src || bookTitle || '') : (h.src || bookTitle || '');
+              const srcDisp = kkMode ? (h.srcKk || hadithLabelLocal(h.src || bookTitle || '')) : (h.src || bookTitle || '');
               const srcShort = srcDisp.replace(/^\s+|\s+$/g, '');
               // Компактная строка: № N · Источник №N
               const numLabel = '№ ' + num + (srcShort ? (' · ' + srcShort) : '');
@@ -58735,8 +58762,8 @@ function getMyVocab() {
           if (qi >= questions.length) {
             var need = Math.ceil(questions.length * 0.67);
             var passed = score >= need;
-            box.innerHTML = '<b>✅ Мини-тест</b><div class="ayah-translation" style="margin-top:0.4rem">Результат: <b>'+score+' / '+questions.length+'</b>'+(passed ? ' · сдан ✓' : '')+'</div>' +
-              '<button type="button" class="btn btn-sm" data-mq-restart style="margin-top:0.45rem">Ещё раз</button>';
+            box.innerHTML = '<b>✅ '+(isKk() ? 'Шағын тест' : 'Мини-тест')+'</b><div class="ayah-translation" style="margin-top:0.4rem">'+(isKk() ? 'Нәтиже' : 'Результат')+': <b>'+score+' / '+questions.length+'</b>'+(passed ? (isKk() ? ' · тапсырылды ✓' : ' · сдан ✓') : '')+'</div>' +
+              '<button type="button" class="btn btn-sm" data-mq-restart style="margin-top:0.45rem">'+(isKk() ? 'Қайтадан' : 'Ещё раз')+'</button>';
             box.querySelector('[data-mq-restart]')?.addEventListener('click', function(){ qi = 0; score = 0; paint(); });
             if (passed && topicKey) {
               try { markSectionQuizOk(topicKey); } catch(e) {}
@@ -58744,8 +58771,8 @@ function getMyVocab() {
             return;
           }
           const q = questions[qi];
-          box.innerHTML = '<b>📝 Мини-тест · '+(qi+1)+'/'+questions.length+'</b>' +
-            '<div class="ayah-translation" style="margin-top:0.45rem;line-height:1.5">'+q.q+'</div>' +
+          box.innerHTML = '<b>📝 '+(isKk() ? 'Шағын тест' : 'Мини-тест')+' · '+(qi+1)+'/'+questions.length+'</b>' +
+            '<div class="ayah-translation" style="margin-top:0.45rem;line-height:1.5">'+((isKk() && q.qKk) || q.q)+'</div>' +
             '<div style="display:flex;flex-direction:column;gap:0.35rem;margin-top:0.55rem">' +
             (q.opts||[]).map(function(o,i){
               return '<button type="button" class="btn btn-sm" data-mq="'+i+'" style="text-align:left;white-space:normal;height:auto;padding:0.45rem 0.6rem">'+o+'</button>';
@@ -58753,8 +58780,8 @@ function getMyVocab() {
           box.querySelectorAll('[data-mq]').forEach(function(b){
             b.addEventListener('click', function(){
               const ans = +b.getAttribute('data-mq');
-              if (ans === q.ok) { score++; try { toast('Верно'); } catch(e) {} }
-              else { try { toast('Неверно. '+(q.hint||'')); } catch(e) {} }
+              if (ans === q.ok) { score++; try { toast(isKk() ? 'Дұрыс' : 'Верно'); } catch(e) {} }
+              else { try { toast((isKk() ? 'Қате. ' : 'Неверно. ')+((isKk() && q.hintKk) || q.hint || '')); } catch(e) {} }
               qi++;
               paint();
             });
@@ -58996,12 +59023,14 @@ function getMyVocab() {
         'Будить и приглашать к ночному поклонению семью'
       ];
       const IFTAR_DUA = {
+        trKk: 'Аллаһуммә ләкә сумту, уә бикә әмәнту, уә ғаләйкә тәуәккәлту, уә ғалә ризқикә әфтарту, фағфирли иә Ғаффару мә қаддамту уә мә әххарту', // build 6.96: казахская транскрипция
         ar: 'اَللَّهُمَّ لَكَ صُمْتُ وَبِكَ آمَنْتُ وَعَلَيْكَ تَوَكَّلْتُ وَعَلَى رِزْقِكَ أَفْطَرْتُ فَاغْفِرْ لِي يَا غَفَّارُ مَا قَدَّمْتُ وَمَا أَخَّرْتُ',
         tr: 'Аллаахумма ляка сумту, ва бикя ааманту, ва ‘аляйкя таваккяльту, ва ‘аля ризкыкя афтарту, фагъфирли йа гаффаару маа каддамту ва маа аххарту',
         ru: 'О Аллах, ради Тебя я постился, в Тебя уверовал, на Тебя положился, Твоей пищей разговелся. О Прощающий, прости мне грехи, что я совершил или совершу.',
         kkTr: 'Уа Аллаһ, Сен үшін ораза тұттым, Саған сендім, Саған тәуекел еттім және Сенің ризығыңмен ауыз аштым. Уа Кешірімді, бұрын жасаған және кейін жасайтын күнәларымды кешіре гөр.'
       };
       const IFTAR_DUA_ALT = {
+        trKk: 'Зәһабәз-зама’у уабталләтил-ғуруқу уә сәбәтәл-әжру ин шә Аллаһ', // build 6.96: казахская транскрипция
         ar: 'ذَهَبَ الظَّمَأُ وَابْتَلَّتِ الْعُرُوقُ وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ',
         tr: 'Захаба-з-зама’у уа-бталлят-иль-‘уруку уа сабата-ль-аджру ин шаа-Ллах',
         ru: 'Жажда ушла, вены наполнились влагой, и награда утвердилась, если угодно Аллаху.',
@@ -59015,6 +59044,7 @@ function getMyVocab() {
         src: 'Сахих аль-Бухари 38; Сахих Муслим 760'
       };
       const LAYLAT_DUA = {
+        trKk: 'Аллаһуммә иннәкә ғафууун тухиббул-ғафуә фағфу ғанни', // build 6.96: казахская транскрипция
         ar: 'اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي',
         tr: 'Аллаахумма иннакя ‘афуввун тухыббуль-‘афва фа‘фу ‘аннии',
         ru: 'О Аллах, поистине Ты — Прощающий, любишь прощать, так прости же меня!',
@@ -59022,6 +59052,7 @@ function getMyVocab() {
         src: 'Ат-Тирмизи 3513'
       };
       const NEWMOON_DUA = {
+        trKk: 'Аллаһу әкбар, Аллаһуммә әһилләһу ғаләйнә бил-әмни уәл-иман, уәс-сәләмәти уәл-ислам', // build 6.96: казахская транскрипция
         ar: 'اللَّهُ أَكْبَرُ، اللَّهُمَّ أَهِلَّهُ عَلَيْنَا بِالْأَمْنِ وَالْإِيمَانِ، وَالسَّلَامَةِ وَالْإِسْلَامِ',
         tr: 'Аллаху акбар, Аллаахумма ахилляху ‘аляйна биль-амни уаль-иман, уас-саляма уаль-ислям',
         ru: 'Аллах Велик! О Аллах, яви нам этот месяц с миром, верой, благополучием и Исламом.',
@@ -59029,12 +59060,14 @@ function getMyVocab() {
         src: 'Ат-Тирмизи 3451'
       };
       const NIYYAH_DUA = {
+        trKk: 'Нәуәйту ән әсумә саумә шәһри Рамазана минәл-фәжри иләл-мағриби халисан лилләһи тағалә', // build 6.96: казахская транскрипция
         ar: 'نَوَيْتُ أَنْ أَصُومَ صَوْمَ فَرْضٍ مِنَ الْفَجْرِ إِلَى الْمَغْرِبِ خَالِصًا لِلَّهِ تَعَالَى',
         tr: 'Навайту ан-асуума саума шяхри рамадаан миняль-фаджри иляль-магриби хаалисан лилляяхи та‘ааля',
         ru: 'Намереваюсь держать пост месяца Рамадан от рассвета до заката искренне ради Аллаха.',
         kkTr: 'Таңнан күн батысқа дейін тек Аллаһ үшін Рамазан айының парыз оразасын тұтуға ниет еттім.'
       };
       const SUHUR_DUA = {
+        trKk: 'Бисмилләһ', // build 6.96: казахская транскрипция
         ar: 'بِسْمِ اللَّهِ',
         tr: 'Бисмиллях',
         ru: 'С именем Аллаха.',
@@ -59067,6 +59100,7 @@ function getMyVocab() {
         }
       };
       const WITR_QUNUT_DUA = {
+        trKk: 'Аллаһуммә иннә нәстағинукә уә нәстағфирукә уә нәстаһдикә, уә нуминү бикә уә нәтубу иләйкә, уә нәтәуәккәлу ғаләйкә, уә нусни ғаләйкәл-хайра куллаһ, нәшкурукә уә лә нәкфурукә, уә нәхлағу уә нәтруку мән йәфжурук. Аллаһуммә иййәкә нәғбуду, уә ләкә нусалли уә нәсжуду, уә иләйкә нәсға уә нәхфиду, нәржу рахматакә уә нәхшә ғазабәкә, иннә ғазабәкәл-жиддә бил-куффари мулхиқ', // build 6.96: казахская транскрипция
         ar: 'اللَّهُمَّ إِنَّا نَسْتَعِينُكَ وَنَسْتَغْفِرُكَ وَنَسْتَهْدِيكَ، وَنُؤْمِنُ بِكَ وَنَتُوبُ إِلَيْكَ، وَنَتَوَكَّلُ عَلَيْكَ، وَنُثْنِي عَلَيْكَ الْخَيْرَ كُلَّهُ، نَشْكُرُكَ وَلَا نَكْفُرُكَ، وَنَخْلَعُ وَنَتْرُكُ مَنْ يَفْجُرُكَ. اللَّهُمَّ إِيَّاكَ نَعْبُدُ، وَلَكَ نُصَلِّي وَنَسْجُدُ، وَإِلَيْكَ نَسْعَى وَنَحْفِدُ، نَرْجُو رَحْمَتَكَ وَنَخْشَى عَذَابَكَ، إِنَّ عَذَابَكَ الْجِدَّ بِالْكُفَّارِ مُلْحِقٌ',
         tr: 'Аллахумма инна наста‘инука уа настагфирука уа настахдика, уа ну’мину бика уа натубу иляйка, уа натаваккалю ‘аляйка, уа нусни ‘аляйкаль-хайра куллях, нашкурука уа ля накфурука, уа нахля‘у уа натруку ман яфджурук. Аллахумма ийяка на‘буду, уа ляка нусалли уа насджуду, уа иляйка нас‘а уа нахфиду, нарджу рахматака уа нахша ‘азабака, инна ‘азабакаль-джидда биль-куффари мульхик',
         ru: 'О Аллах, поистине, мы просим Твоей помощи, прощения и верного руководства; веруем в Тебя и каемся Тебе; полагаемся на Тебя и восхваляем Тебя всяческим благом; благодарим Тебя и не проявляем неблагодарности; отрекаемся и оставляем тех, кто ослушается Тебя. О Аллах, Тебе одному мы поклоняемся, ради Тебя совершаем намаз и падаем ниц, к Тебе стремимся и спешим; надеемся на Твою милость и страшимся Твоего наказания — поистине, Твоё наказание непременно постигнет неверующих.',
@@ -59176,10 +59210,10 @@ function getMyVocab() {
           '<div style="margin-top:0.75rem"><b>📜 Күннің хадисі</b>' +
           '<div class="arabic" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0" dir="rtl">'+RAMADAN_HADITH.ar+'</div>' +
           '<div class="ayah-translation">'+RAMADAN_HADITH.kkTr+'</div>' +
-          '<div style="font-size:0.8rem;color:var(--text-muted)">'+RAMADAN_HADITH.src+'</div></div>' +
+          '<div style="font-size:0.8rem;color:var(--text-muted)">'+hadithLabelLocal(RAMADAN_HADITH.src)+'</div></div>' +
           '<div style="margin-top:0.75rem"><b>🤲 Ауызашар дұғасы</b>' +
           '<div class="arabic" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0" dir="rtl">'+IFTAR_DUA.ar+'</div>' +
-          '<div style="color:var(--accent);font-size:0.9rem">'+IFTAR_DUA.tr+'</div>' +
+          '<div style="color:var(--accent);font-size:0.9rem">'+letterTr(IFTAR_DUA)+'</div>' +
           '<div class="ayah-translation">'+IFTAR_DUA.kkTr+'</div>' +
           '<button type="button" class="btn btn-sm btn-primary" id="ram-speak-iftar" style="margin-top:0.4rem">🔊 Дұғаны тыңдау</button></div>' +
           '<div style="margin-top:0.75rem"><b>💚 Күннің ісі</b><div class="ayah-translation">Садақа беру, ата-анаға хабарласу, көршіге көмектесу немесе намаздан кейін тыныш зікір ету.</div></div>' +
@@ -59190,10 +59224,10 @@ function getMyVocab() {
           '<div style="margin-top:0.75rem"><b>📜 Хадис дня</b>' +
           '<div class="arabic" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0" dir="rtl">'+RAMADAN_HADITH.ar+'</div>' +
           '<div class="ayah-translation">'+RAMADAN_HADITH.ru+'</div>' +
-          '<div style="font-size:0.8rem;color:var(--text-muted)">'+RAMADAN_HADITH.src+'</div></div>' +
+          '<div style="font-size:0.8rem;color:var(--text-muted)">'+hadithLabelLocal(RAMADAN_HADITH.src)+'</div></div>' +
           '<div style="margin-top:0.75rem"><b>🤲 Дуа при ифтаре</b>' +
           '<div class="arabic" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0" dir="rtl">'+IFTAR_DUA.ar+'</div>' +
-          '<div style="color:var(--accent);font-size:0.9rem">'+IFTAR_DUA.tr+'</div>' +
+          '<div style="color:var(--accent);font-size:0.9rem">'+letterTr(IFTAR_DUA)+'</div>' +
           '<div class="ayah-translation">'+IFTAR_DUA.ru+'</div>' +
           '<button type="button" class="btn btn-sm btn-primary" id="ram-speak-iftar" style="margin-top:0.4rem">🔊 Слушать дуа</button></div>' +
           '<div style="margin-top:0.75rem"><b>💚 Дело дня</b><div class="ayah-translation">Садака, звонок родителям, помощь соседу или тихий зикр после намаза.</div></div>' +
@@ -59305,9 +59339,9 @@ function getMyVocab() {
         body += '</div>';
         body += '<div class="card"><b>'+(kk ? 'Жаңа айды көру дұғасы' : 'Дуа при виде новой луны')+'</b>' +
           '<div class="arabic" dir="rtl" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0">'+NEWMOON_DUA.ar+'</div>' +
-          '<div style="color:var(--accent);font-size:0.85rem">'+NEWMOON_DUA.tr+'</div>' +
+          '<div style="color:var(--accent);font-size:0.85rem">'+letterTr(NEWMOON_DUA)+'</div>' +
           '<div class="ayah-translation">'+(kk ? NEWMOON_DUA.kkTr : NEWMOON_DUA.ru)+'</div>' +
-          '<div style="font-size:0.8rem;color:var(--text-muted)">'+NEWMOON_DUA.src+'</div></div>';
+          '<div style="font-size:0.8rem;color:var(--text-muted)">'+hadithLabelLocal(NEWMOON_DUA.src)+'</div></div>';
       } else if (tab === 'nights') {
         const NIGHT_CARDS = [
           { title: '🌙 ' + (kk ? 'Неге соңғы 10 түн маңызды?' : 'Почему важны последние 10 ночей?'),
@@ -59348,9 +59382,9 @@ function getMyVocab() {
         body += '</div>';
         body += '<div class="card"><b>'+(kk ? 'Кадір туні дугасы' : 'Дуа Лайлятуль-Кадр')+'</b>' +
           '<div class="arabic" style="font-size:calc(1.1rem * var(--ar-scale, 1));margin:0.35rem 0" dir="rtl">'+LAYLAT_DUA.ar+'</div>' +
-          '<div style="color:var(--accent);font-size:0.85rem">'+LAYLAT_DUA.tr+'</div>' +
+          '<div style="color:var(--accent);font-size:0.85rem">'+letterTr(LAYLAT_DUA)+'</div>' +
           '<div class="ayah-translation">'+(kk ? LAYLAT_DUA.kkTr : LAYLAT_DUA.ru)+'</div>' +
-          '<div style="font-size:0.8rem;color:var(--text-muted)">'+LAYLAT_DUA.src+'</div></div>';
+          '<div style="font-size:0.8rem;color:var(--text-muted)">'+hadithLabelLocal(LAYLAT_DUA.src)+'</div></div>';
       } else if (tab === 'duas') {
         const duaTab = state.ramadanDuaTab || 'suhur';
         const duaCats = [
@@ -59364,28 +59398,28 @@ function getMyVocab() {
           duaBody =
             '<div class="card"><b>'+(kk ? 'Дұға сахуры (ниет)' : 'Дуа сухура (ниет/намерение)')+'</b>' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0">'+NIYYAH_DUA.ar+'</div>' +
-            '<div style="color:var(--accent);font-size:0.85rem">'+NIYYAH_DUA.tr+'</div>' +
+            '<div style="color:var(--accent);font-size:0.85rem">'+letterTr(NIYYAH_DUA)+'</div>' +
             '<div class="ayah-translation">'+(kk ? NIYYAH_DUA.kkTr : NIYYAH_DUA.ru)+'</div>' +
             '<div class="ayah-translation" style="margin-top:0.3rem">'+(kk ? 'Ниет — жүрекпен де жеткілікті, дауыстап айту міндетті емес; таңертеңге дейін ниет ету жеткілікті (немесе алдыңғы кеште).' : 'Нийя достаточна в сердце, произносить вслух не обязательно; важно успеть до фаджра (или сделать её накануне вечером).')+'</div></div>' +
             '<div class="card"><b>'+(kk ? 'Тамақ алдында' : 'Перед едой на сухуре')+'</b>' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0">'+SUHUR_DUA.ar+'</div>' +
-            '<div style="color:var(--accent);font-size:0.85rem">'+SUHUR_DUA.tr+'</div>' +
+            '<div style="color:var(--accent);font-size:0.85rem">'+letterTr(SUHUR_DUA)+'</div>' +
             '<div class="ayah-translation">'+(kk ? SUHUR_DUA.kkTr : SUHUR_DUA.ru)+' — '+(kk ? 'тамақ жеу алдында айтылатын жалпы дұға.' : 'общая формула, произносимая перед началом любой еды, в том числе сухура.')+'</div>' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.05rem * var(--ar-scale, 1));margin:0.5rem 0 0.3rem">'+SUHUR_DUA.hadithAr+'</div>' +
             '<div class="ayah-translation">'+(kk ? SUHUR_DUA.hadithKk : SUHUR_DUA.hadithRu)+'</div>' +
-            '<div style="font-size:0.8rem;color:var(--text-muted)">'+SUHUR_DUA.src+'</div></div>';
+            '<div style="font-size:0.8rem;color:var(--text-muted)">'+hadithLabelLocal(SUHUR_DUA.src)+'</div></div>';
         } else if (duaTab === 'iftar') {
           duaBody =
             '<div class="card"><b>'+(kk ? 'Ауызашар дұғасы' : 'Дуа при разговении (ифтаре)')+'</b>' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.25rem * var(--ar-scale, 1));margin:0.4rem 0">'+IFTAR_DUA.ar+'</div>' +
-            '<div style="color:var(--accent)">'+IFTAR_DUA.tr+'</div>' +
+            '<div style="color:var(--accent)">'+letterTr(IFTAR_DUA)+'</div>' +
             '<div class="ayah-translation">'+(kk ? IFTAR_DUA.kkTr : IFTAR_DUA.ru)+'</div>' +
             '<button type="button" class="btn btn-sm btn-primary" id="ram-speak-iftar2" style="margin-top:0.4rem">🔊 '+(kk?'Дұғаны тыңдау':'Слушать дуа')+'</button></div>' +
             '<div class="card"><b>'+(kk ? 'Балама нұсқа' : 'Альтернативный вариант')+'</b>' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0">'+IFTAR_DUA_ALT.ar+'</div>' +
-            '<div style="color:var(--accent);font-size:0.9rem">'+IFTAR_DUA_ALT.tr+'</div>' +
+            '<div style="color:var(--accent);font-size:0.9rem">'+letterTr(IFTAR_DUA_ALT)+'</div>' +
             '<div class="ayah-translation">'+(kk ? IFTAR_DUA_ALT.kkTr : IFTAR_DUA_ALT.ru)+'</div>' +
-            '<div style="font-size:0.8rem;color:var(--text-muted)">'+IFTAR_DUA_ALT.src+'</div>' +
+            '<div style="font-size:0.8rem;color:var(--text-muted)">'+hadithLabelLocal(IFTAR_DUA_ALT.src)+'</div>' +
             '<div class="ayah-translation" style="margin-top:0.3rem;color:var(--text-muted);font-size:calc(0.85rem * var(--ru-scale, 1))">'+(kk ? 'Екі нұсқа да сахих хадистерде келген — қалауыңызша оқи аласыз.' : 'Обе дуа встречаются в достоверных хадисах — можно использовать любую из них.')+'</div></div>' +
             '<div class="card"><b>'+(kk ? 'Ораза тұтқанға дұға оқу (қонақ болғанда)' : 'Дуа за постящегося (в гостях)')+'</b>' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0">أَفْطَرَ عِنْدَكُمُ الصَّائِمُونَ وَأَكَلَ طَعَامَكُمُ الْأَبْرَارُ وَصَلَّتْ عَلَيْكُمُ الْمَلَائِكَةُ</div>' +
@@ -59408,23 +59442,23 @@ function getMyVocab() {
             '<div class="ayah-translation" style="margin-top:0.3rem;color:var(--text-muted);font-size:calc(0.85rem * var(--ru-scale, 1))">'+(kk ? TARAWIH_TASBIH_21_30.note.kk : TARAWIH_TASBIH_21_30.note.ru)+'</div></div>' +
             '<div class="card"><b>'+(kk ? 'Витрдегі құнұт дұғасы (тарауихтан кейін)' : 'Дуа Кунут в витр-намазе (после таравиха)')+'</b>' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.05rem * var(--ar-scale, 1));margin:0.4rem 0">'+WITR_QUNUT_DUA.ar+'</div>' +
-            '<div style="color:var(--accent);font-size:0.8rem">'+WITR_QUNUT_DUA.tr+'</div>' +
+            '<div style="color:var(--accent);font-size:0.8rem">'+letterTr(WITR_QUNUT_DUA)+'</div>' +
             '<div class="ayah-translation">'+(kk ? WITR_QUNUT_DUA.kkTr : WITR_QUNUT_DUA.ru)+'</div>' +
-            '<div style="font-size:0.8rem;color:var(--text-muted)">'+WITR_QUNUT_DUA.src+'</div>' +
+            '<div style="font-size:0.8rem;color:var(--text-muted)">'+hadithLabelLocal(WITR_QUNUT_DUA.src)+'</div>' +
             '<div class="ayah-translation" style="margin-top:0.3rem;color:var(--text-muted);font-size:calc(0.85rem * var(--ru-scale, 1))">'+(kk ? WITR_QUNUT_DUA.note.kk : WITR_QUNUT_DUA.note.ru)+'</div></div>' +
             '<div class="card"><b>'+(kk ? 'Қадір түні дұғасы' : 'Дуа Лайлятуль-Кадр')+'</b>' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0">'+LAYLAT_DUA.ar+'</div>' +
-            '<div style="color:var(--accent);font-size:0.85rem">'+LAYLAT_DUA.tr+'</div>' +
+            '<div style="color:var(--accent);font-size:0.85rem">'+letterTr(LAYLAT_DUA)+'</div>' +
             '<div class="ayah-translation">'+(kk ? LAYLAT_DUA.kkTr : LAYLAT_DUA.ru)+'</div>' +
-            '<div style="font-size:0.8rem;color:var(--text-muted)">'+LAYLAT_DUA.src+'</div>' +
+            '<div style="font-size:0.8rem;color:var(--text-muted)">'+hadithLabelLocal(LAYLAT_DUA.src)+'</div>' +
             '<div class="ayah-translation" style="margin-top:0.3rem;color:var(--text-muted);font-size:calc(0.85rem * var(--ru-scale, 1))">'+(kk ? 'Соңғы 10 күннің тақ түндерінде оқылады, әсіресе намаздан кейін.' : 'Читается в нечётные ночи последних 10 дней, особенно после намазов.')+'</div></div>';
         } else if (duaTab === 'other') {
           duaBody =
             '<div class="card"><b>'+(kk ? 'Жаңа айды көру' : 'При виде новой луны')+'</b>' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0">'+NEWMOON_DUA.ar+'</div>' +
-            '<div style="color:var(--accent);font-size:0.85rem">'+NEWMOON_DUA.tr+'</div>' +
+            '<div style="color:var(--accent);font-size:0.85rem">'+letterTr(NEWMOON_DUA)+'</div>' +
             '<div class="ayah-translation">'+(kk ? NEWMOON_DUA.kkTr : NEWMOON_DUA.ru)+'</div>' +
-            '<div style="font-size:0.8rem;color:var(--text-muted)">'+NEWMOON_DUA.src+'</div></div>';
+            '<div style="font-size:0.8rem;color:var(--text-muted)">'+hadithLabelLocal(NEWMOON_DUA.src)+'</div></div>';
         }
         body =
           '<div class="tabs-row" style="margin-bottom:0.65rem;flex-wrap:wrap">' +
@@ -59827,7 +59861,7 @@ function getMyVocab() {
             (srcBadge(e) !== null ? srcBadge(e) : (isMoonDepRow ? ' <span style="color:var(--danger);font-size:0.75rem">⚠️ '+(kk?'болжам':'расчёт, уточняется')+'</span>' : '')) +
             '<div style="margin-top:0.4rem">📅 '+(kk?'басы':'начало')+': '+formatDateRu(e.g)+(e.gEnd ? ' · '+(kk?'соңы':'конец')+': '+formatDateRu(e.gEnd) : '')+'</div>' +
             (srcNote(e) ? '<div class="ayah-translation" style="font-size:0.8rem;margin-top:0.2rem">'+srcNote(e)+'</div>' : '') +
-            '<div style="color:var(--text-muted)">🌙 '+e.h+(e.hEnd ? ' — '+e.hEnd : '')+'</div>' +
+            '<div style="color:var(--text-muted)">🌙 '+hijriLocal(e.h)+(e.hEnd ? ' — '+hijriLocal(e.hEnd) : '')+'</div>' +
             '<div class="ayah-translation" style="margin-top:0.4rem">'+(kk ? info.descKk : info.desc)+'</div>' +
             '<div style="margin-top:0.3rem;font-size:0.85rem"><b>'+(kk?'Ұсынылады: ':'Рекомендуется: ')+'</b>'+(kk ? info.deedsKk : info.deeds)+'</div></div>';
         }).join('');
@@ -60728,6 +60762,9 @@ function startApp() {
     // ========== ИГРЫ → ВИКТОРИНА (build 6.26): одиночный режим ==========
     // Вопросы строятся из данных сайта по случайному ключу (seed), поэтому позже все игроки комнаты смогут получить одинаковый набор.
     const QZ_CFG_KEY = 'quran_quiz_cfg', QZ_SAVE_KEY = 'quran_quiz_save', QZ_MIST_KEY = 'quran_quiz_mistakes';
+    // build 6.96: экраны викторины на казахском — словарь фраз (длинные сначала); тексты самих вопросов пока по-русски
+    const QZ_KK = [["Выберите хотя бы одну тему.","Кемінде бір тақырып таңдаңыз."],["Выберите хотя бы один вид вопросов.","Кемінде бір сұрақ түрін таңдаңыз."],["Выбранные виды вопросов не подходят к выбранным темам — отметьте доступный (не серый) вид.","Таңдалған сұрақ түрлері тақырыптарға сәйкес келмейді — қолжетімді (сұр емес) түрді белгілеңіз."],["Не удалось загрузить дуа — проверьте интернет или уберите эту тему.","Дұғаларды жүктеу мүмкін болмады — интернетті тексеріңіз немесе бұл тақырыпты алып тастаңыз."],["Не получилось составить вопросы по этим настройкам. Выберите другие темы или виды (для вопросов про аяты нужны скачанные суры).","Бұл баптаулар бойынша сұрақ құрастыру мүмкін болмады. Басқа тақырып не түр таңдаңыз (аяттар туралы сұрақтарға жүктелген сүрелер керек)."],["Максимум — 100 вопросов","Ең көбі — 100 сұрақ"],[" вопросов — больше уникальных нет"," сұрақ — бұдан артық қайталанбайтын жоқ"],["Получилось ","Шықты: "],["Чем сложнее — тем больше вариантов ответа, а числа на «сложной» нужно вводить самому. Если в вопросе вариантов меньше, показывается сколько есть.","Күрделірек болған сайын жауап нұсқалары көбейеді, ал «күрделіде» сандарды өзіңіз енгізесіз. Сұрақта нұсқалар азырақ болса, барынша көрсетіледі."],["Вопросы, на которые вы ответили неверно и сохранили. Разберите ошибку и отметьте «Разобрал».","Қате жауап берген және сақтаған сұрақтарыңыз. Қатені талдап, «Талдадым» деп белгілеңіз."],["Тексты нашего сайта. Если нашли ошибку — нажмите «Сообщить об ошибке» в вопросе.","Біздің сайттың мәтіндері. Қате тапсаңыз — сұрақтағы «Қате туралы хабарлау» батырмасын басыңыз."],["3 варианта · к арабскому тексту показаны транскрипция и перевод · короткие суры","3 нұсқа · араб мәтініне транскрипция мен аударма көрсетіледі · қысқа сүрелер"],["Для этих тем не отмечен ни один подходящий вид, вопросов по ним не будет: ","Бұл тақырыптарға сәйкес бірде-бір түр белгіленбеген, олар бойынша сұрақ болмайды: "],["Коран и «Хисн аль-муслим»: тексты и переводы взяты из внешних источников.","Құран және «Хисн әл-муслим»: мәтіндер мен аудармалар сыртқы дереккөздерден алынған."],["Пока пусто. После неверного ответа в викторине нажмите «В мои ошибки».","Әзірге бос. Викторинада қате жауап бергеннен кейін «Қателеріме» батырмасын басыңыз."],["5 вариантов · к арабскому тексту показан только перевод · суры шире","5 нұсқа · араб мәтініне тек аударма көрсетіледі · сүрелер кеңірек"],["8 вариантов · только арабский текст · любые суры · числа вводятся","8 нұсқа · тек араб мәтіні · кез келген сүре · сандар енгізіледі"],["<b>Одиночный</b><small>играть самому, в своём темпе</small>","<b>Жеке</b><small>өз қарқыныңызбен ойнау</small>"],["<b>Онлайн-комната</b><small>в разработке</small>","<b>Онлайн-бөлме</b><small>әзірленуде</small>"],["<b>С друзьями</b><small>в разработке</small>","<b>Достармен</b><small>әзірленуде</small>"],["номер, количество (на сложной — вводится)","нөмір, сан (күрделіде — енгізіледі)"],["вопросы из раздела «Как читать намаз»","«Намазды қалай оқу» бөлімінен сұрақтар"],["узнать аят, дуа или букву по звучанию","аятты, дұғаны не әріпті дыбысынан тану"],["расставить слова по порядку","сөздерді ретімен қою"],["когда читают, что означают","қашан оқылады, мағынасы"],["выбрать ответ из вариантов","нұсқалардан жауап таңдау"],["Нет неразобранных ошибок.","Талданбаған қате жоқ."],["номера, число аятов, аяты","нөмірлері, аят саны, аяттар"],["Из внешних источников","Сыртқы дереккөздерден"],["нет для выбранных тем","таңдалған тақырыптарға жоқ"],["Дуа (Хисн аль-муслим)","Дұға (Хисн әл-муслим)"],["Потренировать ошибки","Қателерді жаттықтыру"],["Показать разобранные","Талданғандарды көрсету"],["🚩 Сообщить об ошибке","🚩 Қате туралы хабарлау"],["Правильный ответ: <b","Дұрыс жауап: <b"],["названия букв, звуки","әріп атаулары, дыбыстар"],["Количество вопросов","Сұрақ саны"],["placeholder=\"число\"","placeholder=\"сан\""],[">Проверить</button>",">Тексеру</button>"],["оценить утверждение","тұжырымды бағалау"],["Скрыть разобранные","Талданғандарды жасыру"],["🚩 Ошибка в вопросе","🚩 Сұрақтағы қате"],["✓ В «Моих ошибках»","✓ «Қателерімде»"],["Незаконченная игра","Аяқталмаған ойын"],["placeholder=\"своё\"","placeholder=\"өзіңіз\""],[">Ответить</button>",">Жауап беру</button>"],[">Сбросить</button>",">Тазарту</button>"],["имя и его значение","есім және мағынасы"],[">Неверно</button>",">Қате</button>"],["Из текстов сайта","Сайт мәтіндерінен"],["<b>Сложность</b>","<b>Күрделілік</b>"],["Намаз (по книге)","Намаз (кітап бойынша)"],["Максимум — 100.","Ең көбі — 100."],["Время на вопрос","Бір сұраққа уақыт"],[">Верно</button>",">Дұрыс</button>"],["Верно / неверно","Дұрыс / қате"],["Правильно: <b>","Дұрысы: <b>"],["✓ В заучивании","✓ Жаттауда"],["🧠 В заучивание","🧠 Жаттауға"],["📝 В мои ошибки","📝 Қателеріме"],["Выберите режим","Режимді таңдаңыз"],[" вар.</button>"," нұсқа</button>"],["99 имён Аллаха","Аллаһтың 99 есімі"],["Арабские буквы","Араб әріптері"],["Собери из слов","Сөздерден құра"],["⏰ Время вышло","⏰ Уақыт бітті"],["Виды вопросов","Сұрақ түрлері"],["<span>Вопрос ","<span>Сұрақ "],["▶ Продолжить","▶ Жалғастыру"],["<b>Число</b>","<b>Сан</b>"],[">Результат<",">Нәтиже<"],["<b>Темы</b>","<b>Тақырыптар</b>"],["выбрать все","барлығын таңдау"],[" с</button>"," с</button>"],["Суры Корана","Құран сүрелері"],["✓ Разобрал","✓ Талдадым"],["без лимита","шектеусіз"],["↩ Вернуть","↩ Қайтару"],["❌ Неверно","❌ Қате"],[">Удалить<",">Жою<"],["🔊 Слушать","🔊 Тыңдау"],["▶ Начать","▶ Бастау"],["Далее →","Келесі →"],["✅ Верно","✅ Дұрыс"],["← Режим","← Режим"],["⏸ Пауза","⏸ Үзіліс"],["✕ Выйти","✕ Шығу"],["На слух","Естіп тану"],["Средняя","Орташа"],["Сложная","Күрделі"],["Лёгкая","Жеңіл"],[">Все (",">Барлығы ("]];
+    function qzKk(s) { if (!(typeof isKk === 'function' && isKk())) return s; s = String(s); for (var i = 0; i < QZ_KK.length; i++) s = s.split(QZ_KK[i][0]).join(QZ_KK[i][1]); return s; }
     const QZ_TYPES = [
       { id: 'choice', ic: '🔘', t: 'Тест', d: 'выбрать ответ из вариантов' },
       { id: 'tf', ic: '✅', t: 'Верно / неверно', d: 'оценить утверждение' },
@@ -61143,7 +61180,7 @@ function startApp() {
         '<button type="button" class="qz-mode" id="qz-solo"><span class="qz-ic">👤</span><span><b>Одиночный</b><small>играть самому, в своём темпе</small></span></button>' +
         '<button type="button" class="qz-mode qz-off" disabled><span class="qz-ic">👥</span><span><b>С друзьями</b><small>в разработке</small></span></button>' +
         '<button type="button" class="qz-mode qz-off" disabled><span class="qz-ic">🌐</span><span><b>Онлайн-комната</b><small>в разработке</small></span></button>';
-      el.innerHTML = h;
+      el.innerHTML = qzKk(h);
       el.querySelector('#qz-solo').addEventListener('click', function() { window._qzStep = 'settings'; qzHome(); });
       el.querySelector('#qz-resume')?.addEventListener('click', function() {
         const s = qzLoadSave(); if (!s) return;
@@ -61186,6 +61223,7 @@ function startApp() {
         '<div class="card"><b>Время на вопрос</b><div class="qz-row">' + QZ_TIMERS.map(function(t) { return '<button type="button" class="btn btn-sm' + (cfg.timer === t ? ' btn-primary' : '') + '" data-qz-timer="' + t + '">' + (t ? t + ' с' : 'без лимита') + '</button>'; }).join('') + '</div></div>' +
         '<button type="button" class="btn btn-primary" id="qz-go" style="width:100%;margin-top:0.4rem;padding:0.75rem">▶ Начать</button>' +
         '<div id="qz-warn" class="ayah-translation" style="margin-top:0.4rem;color:var(--danger)"></div>';
+      el.innerHTML = qzKk(el.innerHTML);
       const re = function() { qzSaveCfg(cfg); qzSettings(); };
       el.querySelector('#qz-back').addEventListener('click', function() { window._qzStep = 'mode'; qzHome(); });
       el.querySelectorAll('[data-qz-topic]').forEach(function(b) { b.addEventListener('click', function() { const id = b.getAttribute('data-qz-topic'), i = cfg.topics.indexOf(id); if (i >= 0) cfg.topics.splice(i, 1); else cfg.topics.push(id); re(); }); });
@@ -61204,7 +61242,7 @@ function startApp() {
       el.querySelector('#qz-count-in').addEventListener('change', function(e) {
         let v = Math.floor(+e.target.value);
         if (!(v >= 1)) { e.target.value = ''; return; }
-        if (v > 100) { v = 100; toast('Максимум — 100 вопросов'); }
+        if (v > 100) { v = 100; toast(qzKk('Максимум — 100 вопросов')); }
         cfg.count = v; re();
       });
       el.querySelector('#qz-go').addEventListener('click', function() { qzStart(cfg); });
@@ -61213,17 +61251,17 @@ function startApp() {
     async function qzStart(cfg, preset) {
       const warn = document.getElementById('qz-warn'), btn = document.getElementById('qz-go');
       if (!preset) {
-        if (!cfg.topics.length) { if (warn) warn.textContent = 'Выберите хотя бы одну тему.'; return; }
-        if (!cfg.types.length) { if (warn) warn.textContent = 'Выберите хотя бы один вид вопросов.'; return; }
-        { const av = qzTypesAvail(cfg.topics); if (!cfg.types.some(function(x) { return av.has(x); })) { if (warn) warn.textContent = 'Выбранные виды вопросов не подходят к выбранным темам — отметьте доступный (не серый) вид.'; return; } }
+        if (!cfg.topics.length) { if (warn) warn.textContent = qzKk('Выберите хотя бы одну тему.'); return; }
+        if (!cfg.types.length) { if (warn) warn.textContent = qzKk('Выберите хотя бы один вид вопросов.'); return; }
+        { const av = qzTypesAvail(cfg.topics); if (!cfg.types.some(function(x) { return av.has(x); })) { if (warn) warn.textContent = qzKk('Выбранные виды вопросов не подходят к выбранным темам — отметьте доступный (не серый) вид.'); return; } }
         if (btn) btn.disabled = true;
-        try { if (cfg.topics.indexOf('dua') >= 0 && typeof HISN_ITEMS === 'undefined') await loadHisnData(); } catch (e) { if (warn) warn.textContent = 'Не удалось загрузить дуа — проверьте интернет или уберите эту тему.'; if (btn) btn.disabled = false; return; }
+        try { if (cfg.topics.indexOf('dua') >= 0 && typeof HISN_ITEMS === 'undefined') await loadHisnData(); } catch (e) { if (warn) warn.textContent = qzKk('Не удалось загрузить дуа — проверьте интернет или уберите эту тему.'); if (btn) btn.disabled = false; return; }
       }
       const qs = preset || qzBuildQuestions(cfg, (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
       if (btn) btn.disabled = false;
-      if (!qs.length) { if (warn) warn.textContent = 'Не получилось составить вопросы по этим настройкам. Выберите другие темы или виды (для вопросов про аяты нужны скачанные суры).'; return; }
+      if (!qs.length) { if (warn) warn.textContent = qzKk('Не получилось составить вопросы по этим настройкам. Выберите другие темы или виды (для вопросов про аяты нужны скачанные суры).'); return; }
       _qz = { cfg: cfg, qs: qs, i: 0, ans: [], rem: cfg.timer || 0, answered: false, mistakeMode: !!preset };
-      if (!preset && qs.length < cfg.count) toast('Получилось ' + qs.length + ' из ' + cfg.count + ' вопросов — больше уникальных нет');
+      if (!preset && qs.length < cfg.count) toast(isKk() ? 'Шықты: ' + qs.length + ' / ' + cfg.count + ' сұрақ — бұдан артық қайталанбайтын жоқ' : 'Получилось ' + qs.length + ' из ' + cfg.count + ' вопросов — больше уникальных нет');
       qzPersist();
       renderQuiz();
     }
@@ -61248,7 +61286,7 @@ function startApp() {
       else if (q.kind === 'tf') h += '<div class="qz-row"><button type="button" class="btn" style="flex:1" data-qz-tf="1">Верно</button><button type="button" class="btn" style="flex:1" data-qz-tf="0">Неверно</button></div>';
       else if (q.kind === 'input') h += '<div class="qz-row"><input type="number" inputmode="numeric" id="qz-num" placeholder="число" style="flex:1;padding:0.6rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:1.1rem"><button type="button" class="btn btn-primary" id="qz-num-ok">Ответить</button></div>';
       else if (q.kind === 'build') h += '<div id="qz-slots" class="qz-slots" dir="rtl"></div><div id="qz-chips" class="qz-chips" dir="rtl"></div><div class="qz-row"><button type="button" class="btn btn-sm" id="qz-reset">Сбросить</button><button type="button" class="btn btn-primary" id="qz-check" style="flex:1">Проверить</button></div>';
-      el.innerHTML = h;
+      el.innerHTML = qzKk(h);
       el.querySelector('#qz-pause').addEventListener('click', qzPause);
       el.querySelector('#qz-exit').addEventListener('click', qzExitAsk);
       if (q.audio) {
@@ -61315,7 +61353,7 @@ function startApp() {
         (q.mem ? '<button type="button" class="btn btn-sm" id="qz-addmem">' + (memoHas(q.mem) ? '✓ В заучивании' : '🧠 В заучивание') + '</button>' : '') +
         '<button type="button" class="btn btn-sm" id="qz-report">🚩 Сообщить об ошибке</button></div>' +
         '<button type="button" class="btn btn-primary" id="qz-next" style="width:100%;margin-top:0.6rem;padding:0.7rem">' + (last ? 'Результат' : 'Далее →') + '</button>';
-      el.innerHTML = h;
+      el.innerHTML = qzKk(h);
       el.querySelector('#qz-exit').addEventListener('click', qzExitAsk);
       el.querySelector('#qz-addm')?.addEventListener('click', function() { qzAddMistake(q); this.textContent = '✓ В «Моих ошибках»'; });
       el.querySelector('#qz-addmem')?.addEventListener('click', function() { memoToggle(q.mem); this.textContent = memoHas(q.mem) ? '✓ В заучивании' : '🧠 В заучивание'; });
@@ -61391,7 +61429,7 @@ function startApp() {
           '<button type="button" class="btn btn-sm" data-qm-rep="' + q.id + '">🚩 Ошибка в вопросе</button>' +
           '<button type="button" class="btn btn-sm" data-qm-del="' + q.id + '" style="color:var(--danger)">Удалить</button></div></div>';
       });
-      el.innerHTML = h;
+      el.innerHTML = qzKk(h);
       const upd = function(fn) { const a = qzMistakes(); fn(a); qzSaveMistakes(a); renderQuizMistakes(); };
       el.querySelectorAll('[data-qm-topic]').forEach(function(b) { b.addEventListener('click', function() { window._qzMTopic = b.getAttribute('data-qm-topic'); renderQuizMistakes(); }); });
       el.querySelector('#qm-rev').addEventListener('click', function() { window._qzShowRev = !window._qzShowRev; renderQuizMistakes(); });
