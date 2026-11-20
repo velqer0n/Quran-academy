@@ -88,11 +88,15 @@
     @keyframes viewSlideBack { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
     .view.active.view-slide-fwd { animation: viewSlideFwd 0.28s var(--ease); }
     .view.active.view-slide-back { animation: viewSlideBack 0.28s var(--ease); }
+    /* build 6.95: переход на соседнюю вкладку — короткое проявление без сдвига */
+    @keyframes viewTabIn { from { opacity: 0.25; } to { opacity: 1; } }
+    .view.active.view-tab-in { animation: viewTabIn 0.16s ease-out; }
+    body.reduce-motion .view.active.view-tab-in { animation: none !important; }
     body.reduce-motion .view.active.view-slide-fwd, body.reduce-motion .view.active.view-slide-back { animation: none !important; }
     /* build 6.57: после скольжения базовая анимация .view.active (fadeIn) не должна запускаться заново, когда снимается класс скольжения — это и было «дрожание» раздела */
     .view.active.view-anim-done { animation: none; }
     @media (prefers-reduced-motion: reduce) {
-      .view-fade-in, .view.active.view-slide-fwd, .view.active.view-slide-back { animation: none; }
+      .view-fade-in, .view.active.view-slide-fwd, .view.active.view-slide-back, .view.active.view-tab-in { animation: none; }
       html { scroll-behavior: auto; }
     }
 
@@ -4390,3 +4394,7 @@ body.quiet-reading #reader-view-panel,body.quiet-reading #reader-more-panel,body
 @media (prefers-reduced-motion: reduce) { .teacher-group > summary > span:first-child::before { transition: none; } }
 /* build 6.93: место под нижним плеером, чтобы он не закрывал конец страницы */
 main::after { content: ''; display: block; height: var(--player-h, 0px); pointer-events: none; }
+/* build 6.95: дерево папок при добавлении — кнопка ▸/▾ */
+.fs-pick-tg { flex: 0 0 auto; width: 2rem; height: 2rem; border: none; background: transparent; color: var(--accent); font-size: 1rem; cursor: pointer; border-radius: 0.4rem; }
+.fs-pick-tg:hover { background: var(--bg); }
+.fs-pick-tg0 { display: inline-block; cursor: default; }

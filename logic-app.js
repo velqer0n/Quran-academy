@@ -2960,11 +2960,13 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       // счётчики, чат, обновления виджетов) — те его повторно не навешивают.
       if (el) {
         // build 6.04: лёгкое скольжение — вглубь справа, «назад» слева (отключается «меньше движения»)
-        el.classList.remove('view-fade-in', 'view-slide-fwd', 'view-slide-back', 'view-anim-done');
+        el.classList.remove('view-fade-in', 'view-slide-fwd', 'view-slide-back', 'view-tab-in', 'view-anim-done');
         void el.offsetWidth; // форсируем reflow, иначе повторное добавление класса не перезапустит анимацию
-        el.classList.add(isBack ? 'view-slide-back' : 'view-slide-fwd');
+        // build 6.95: вглубь — скольжение справа, «Назад» — слева, соседняя вкладка — короткое проявление без сдвига, повторный тап — без анимации
+        if (window._viewNoAnim) el.classList.add('view-anim-done');
+        else el.classList.add(isBack ? 'view-slide-back' : (MAIN_TABS.has(name) ? 'view-tab-in' : 'view-slide-fwd'));
         clearTimeout(el._fadeInCleanupTimer);
-        el._fadeInCleanupTimer = setTimeout(function(){ el.classList.add('view-anim-done'); el.classList.remove('view-fade-in', 'view-slide-fwd', 'view-slide-back'); }, 320); /* build 6.57: 'view-anim-done' гасит повторный запуск fadeIn при снятии класса */
+        el._fadeInCleanupTimer = setTimeout(function(){ el.classList.add('view-anim-done'); el.classList.remove('view-fade-in', 'view-slide-fwd', 'view-slide-back', 'view-tab-in'); }, 320); /* build 6.57: 'view-anim-done' гасит повторный запуск fadeIn при снятии класса */
       }
       if (name === 'study') { try { renderHifzStats(); } catch(e) {} }
       // build 6.06: на видео виден баг — если был прокручен вниз в одном
@@ -2977,8 +2979,10 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       // Повторяем сброс ещё дважды — сразу после кадра отрисовки и чуть
       // позже — чтобы перебить любой такой поздний реflow, а не бороться
       // с конкретной причиной в каждом разделе по отдельности.
+      var _scrollTgt = +window._viewScrollTarget || 0; window._viewScrollTarget = 0;
       function _forceScrollTop0() {
         try {
+          if (_scrollTgt > 0) { window.scrollTo(0, _scrollTgt); return; }
           window.scrollTo(0, 0);
           var mainEl2 = document.querySelector('main');
           if (mainEl2) mainEl2.scrollTop = 0;
@@ -4712,11 +4716,17 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
 
     // build 6.44: азан и дуа — в общем нижнем плеере (пауза/продолжение, перемотка, скорость, скачивание)
     function _extT(ru, kz) { return isKk() ? kz : ru; }
-    function _extFail(item) {
+    function _extFail(item, url) {
       var off = (typeof navigator !== 'undefined' && navigator.onLine === false);
-      toast(off
-        ? _extT('Нет сети — запись не загрузилась. Подключитесь к интернету и нажмите ▶.', 'Желі жоқ — жазба жүктелмеді. Интернетке қосылып, ▶ басыңыз.')
-        : _extT('Сервер записи не ответил или файла нет. Попробуйте позже.', 'Жазба сервері жауап бермеді немесе файл жоқ. Кейінірек көріңіз.'));
+      if (off) toast(_extT('Нет сети — запись не загрузилась. Подключитесь к интернету и нажмите ▶.', 'Желі жоқ — жазба жүктелмеді. Интернетке қосылып, ▶ басыңыз.'));
+      else if (url) {
+        // build 6.95: уточняем причину коротким запросом: файла нет (404) / сервер ответил ошибкой / не ответил / файл есть, но не проигрался
+        fetch(url, { method: 'HEAD', cache: 'no-store' }).then(function(r) {
+          if (r.status === 404) toast(_extT('Файла этой записи нет на сайте — сообщите нам в «Идеи и баги».', 'Бұл жазбаның файлы сайтта жоқ — «Идеялар мен қателер» арқылы хабарлаңыз.'));
+          else if (r.ok) toast(_extT('Файл доступен, но браузер не смог его проиграть. Нажмите ▶ ещё раз.', 'Файл қолжетімді, бірақ браузер оны ойната алмады. ▶ қайта басыңыз.'));
+          else toast(_extT('Сервер ответил ошибкой ', 'Сервер қатемен жауап берді ') + r.status + _extT('. Попробуйте через минуту.', '. Бір минуттан соң көріңіз.'));
+        }).catch(function() { toast(_extT('Сервер записи не ответил — слабая или нестабильная сеть. Попробуйте ещё раз.', 'Жазба сервері жауап бермеді — желі әлсіз не тұрақсыз. Қайта көріңіз.')); });
+      } else toast(_extT('Сервер записи не ответил или файла нет. Попробуйте позже.', 'Жазба сервері жауап бермеді немесе файл жоқ. Кейінірек көріңіз.'));
       try { var b = document.getElementById('audio-play-pause'); if (b) b.textContent = '▶'; } catch(e) {}
       try { _hisnResetState(); } catch(e) {}
       _extSyncBtns();
@@ -4727,12 +4737,18 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       try { _curTrim = null; _curTrimUrl = ''; } catch(e) {}
       try { wtRestore(); } catch(e) {}
       var urls = item.urls && item.urls.length ? item.urls : [item.url];
-      function go(k) {
+      item._retried = false;
+      function go(k, bust) {
         if (audioQueueIdx !== idx || audioQueue[idx] !== item) return;
-        if (k >= urls.length) { try { audioEl.onerror = null; } catch(e) {} _extFail(item); return; }
+        // build 6.95: сбой загрузки (обрыв, сервер на миг не ответил) — один повтор через 1,2 с мимо кэша, потом понятная причина
+        if (k >= urls.length) {
+          try { audioEl.onerror = null; } catch(e) {}
+          if (!item._retried && navigator.onLine !== false) { item._retried = true; toast(_extT('Запись не загрузилась — пробую ещё раз…', 'Жазба жүктелмеді — қайта көріп жатырмын…')); setTimeout(function() { go(0, true); }, 1200); return; }
+          _extFail(item, urls[0]); return;
+        }
         item.url = urls[k];
-        audioEl.onerror = function() { go(k + 1); };
-        audioEl.src = urls[k];
+        audioEl.onerror = function() { go(k + 1, bust); };
+        audioEl.src = bust ? urls[k] + (urls[k].indexOf('?') < 0 ? '?' : '&') + 'r=' + Date.now() : urls[k];
         try { _resetSeekUi(); } catch(e) {}
         window._lastPlayedUrl = urls[k];
         applyAudioSpeed();
@@ -4745,7 +4761,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
             try { var b = document.getElementById('audio-play-pause'); if (b) b.textContent = '▶'; } catch(e) {}
             return;
           }
-          go(k + 1);
+          go(k + 1, bust);
         });
         _extSyncBtns();
       }
@@ -7540,21 +7556,17 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       btn.addEventListener('click', () => {
         const v = btn.dataset.view;
         if (v === 'reader') return;
-        // Двойной тап по тому же главному разделу → вверх экрана
+        // build 6.95: повторный тап по ТЕКУЩЕЙ вкладке: уже в её корне — плавно наверх; во вложенном экране — в корень вкладки, сразу наверху
         try {
-          const now = Date.now();
-          if (window._navLastView === v && window._navLastTap && (now - window._navLastTap) < 450) {
-            window._navLastTap = 0;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            const main = document.querySelector('.app-main') || document.querySelector('main');
-            if (main && main.scrollTo) main.scrollTo({ top: 0, behavior: 'smooth' });
-            document.querySelectorAll('.view.active, .view[style*="display: block"]').forEach(function(el){
-              try { el.scrollTop = 0; } catch(e) {}
-            });
-            return;
+          const _curTop = (viewStack && viewStack.length) ? viewStack[viewStack.length - 1] : '';
+          if (btn.classList.contains('active') && btn.closest('.bottom-nav, #main-nav, nav')) {
+            if (_curTop === v) {
+              const _rm = document.body.classList.contains('reduce-motion') || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+              window.scrollTo({ top: 0, behavior: _rm ? 'auto' : 'smooth' });
+              return;
+            }
+            window._navRetap = true;
           }
-          window._navLastView = v;
-          window._navLastTap = now;
         } catch(e) {}
 
         if (v === 'more') {
@@ -32196,21 +32208,28 @@ function renderDict() {
         (function walk(pid, depth) {
           fsChildren(pid).filter(function(x) { return x.k === 'folder' && !excl[x.id]; }).forEach(function(f) {
             var ok = ids.every(function(id) { return fsCanMoveTo(id, f.id); });
-            rows.push('<div class="fs-pick-row' + (ok ? '' : ' fs-dis') + '" style="padding-left:' + (depth * 14) + 'px"><button type="button" class="fs-pick-name" data-id="' + f.id + '"' + (ok ? '' : ' disabled') + '>' + fsEsc((f.d && f.d.icon) || '📁') + ' ' + fsEsc(fsName(f)) + '</button>' +
+            // build 6.95: вложенные папки свёрнуты — раскрываются по ▸, «добавить сюда» — нажатием на имя на любом уровне
+            var hasKids = fsChildren(f.id).some(function(x) { return x.k === 'folder' && !excl[x.id]; }), isOpen = !!openSet[f.id];
+            rows.push('<div class="fs-pick-row' + (ok ? '' : ' fs-dis') + '" style="padding-left:' + (depth * 16) + 'px">' +
+              (hasKids ? '<button type="button" class="fs-pick-tg" data-tg="' + f.id + '" aria-label="' + fsT('Раскрыть', 'Ашу') + '" aria-expanded="' + isOpen + '">' + (isOpen ? '▾' : '▸') + '</button>' : '<span class="fs-pick-tg fs-pick-tg0"></span>') +
+              '<button type="button" class="fs-pick-name" data-id="' + f.id + '"' + (ok ? '' : ' disabled') + '>' + fsEsc((f.d && f.d.icon) || '📁') + ' ' + fsEsc(fsName(f)) + '</button>' +
               (fsDepthOf(f.id) < FS_LIMITS.depth ? '<button type="button" class="fs-pick-add" data-add="' + f.id + '" title="' + fsT('Новая папка внутри', 'Ішіне жаңа қалта') + '">＋</button>' : '') + '</div>');
-            walk(f.id, depth + 1);
+            if (isOpen) walk(f.id, depth + 1);
           });
         })(null, 0);
         list.innerHTML = rows.join('');
       };
+      var openSet = {};
       draw();
       list.addEventListener('click', function(e) {
+        var tg = e.target.closest('[data-tg]');
+        if (tg) { var tid = tg.getAttribute('data-tg'); if (openSet[tid]) delete openSet[tid]; else openSet[tid] = 1; draw(); return; }
         var add = e.target.closest('[data-add]');
         if (add) {
           var parentId = add.getAttribute('data-add') || null;
           fsPrompt(fsT('Название новой папки', 'Жаңа қалта атауы'), '', function(v) {
             if (!v.trim()) return;
-            if (fsCreate({ k: 'folder', p: parentId, n: v.trim() })) draw();
+            if (fsCreate({ k: 'folder', p: parentId, n: v.trim() })) { if (parentId) openSet[parentId] = 1; draw(); }
           });
           return;
         }
@@ -48760,7 +48779,108 @@ c.addEventListener('click', () => {
       if (it.surah) return openDownloadSheet({ surah: it.surah, ayah: it.ayah, reciterId: it._recOverride || (state.settings && state.settings.reciter) });
       toast(dlT('Эту запись скачать нельзя', 'Бұл жазбаны жүктеуге болмайды'));
     }
+    // build 6.95: «Скачать» у дуа — окно выбора: только это / вся тема / весь раздел / несколько тем / всё
     function dlDua(key, title) {
+      if (String(key).indexOf('salah-') === 0) return dlDuaOne(key, title);
+      loadHisnData().then(function() { dlDuaSheet(key, title); }, function() { dlDuaOne(key, title); });
+    }
+    var DL_HISN_AVG = 115 * 1024; // средний размер записи (266 файлов ≈ 30 МБ)
+    function dlHisnName(o) { return dlKk() ? (o.kk || o.ru) : o.ru; }
+    function dlDuaSheet(key, title) {
+      var kk = dlKk(), it = HISN_ITEMS.find(function(x) { return String(x.a) === String(key); });
+      if (!it) return dlDuaOne(key, title);
+      var cat = HISN_CATS.find(function(c) { return c.id === it.c; }) || {}, grp = HISN_GROUPS.find(function(g) { return g.id === cat.g; }) || {};
+      var inCat = HISN_ITEMS.filter(function(x) { return x.c === cat.id && x.a; });
+      var catsOfGrp = HISN_CATS.filter(function(c) { return c.g === grp.id; });
+      var inGrp = HISN_ITEMS.filter(function(x) { return x.a && catsOfGrp.some(function(c) { return c.id === x.c; }); });
+      var nAll = HISN_ITEMS.filter(function(x) { return x.a; }).length;
+      var sz = function(n) { return ' · ≈' + dlMb(n * DL_HISN_AVG); };
+      var btn = function(k, label, n) { return '<button type="button" class="btn" data-dd="' + k + '" style="text-align:left;justify-content:flex-start">📥 ' + label + '<span style="display:block;width:100%;font-size:0.75rem;opacity:0.75">' + n + ' ' + dlT('дуа', 'дұға') + (n > 1 ? sz(n) + ' · .zip' : ' · mp3') + '</span></button>'; };
+      var h = '<b>📥 ' + dlT('Скачать дуа', 'Дұғаны жүктеу') + '</b>' +
+        '<div style="display:flex;flex-direction:column;gap:0.45rem;margin-top:0.7rem">' +
+          btn('one', dlT('Только это дуа', 'Тек осы дұға'), 1) +
+          (inCat.length > 1 ? btn('cat', dlT('Вся тема: ', 'Бүкіл тақырып: ') + '«' + dlHisnName(cat) + '»', inCat.length) : '') +
+          (catsOfGrp.length > 1 ? btn('grp', dlT('Весь раздел: ', 'Бүкіл бөлім: ') + '«' + dlHisnName(grp) + '»', inGrp.length) : '') +
+          '<button type="button" class="btn" data-dd="pick" style="text-align:left;justify-content:flex-start">☑️ ' + dlT('Выбрать разделы и темы…', 'Бөлімдер мен тақырыптарды таңдау…') + '</button>' +
+          btn('all', dlT('Все дуа и зикры', 'Барлық дұға мен зікір'), nAll) +
+        '</div><div data-dd-tree style="display:none;margin-top:0.6rem"></div>' +
+        '<button type="button" class="btn btn-sm" data-dd="close" style="margin-top:0.7rem">' + dlT('Закрыть', 'Жабу') + '</button>';
+      var ov = dlModal(h);
+      ov.addEventListener('click', function(e) {
+        if (e.target === ov) { ov.close(); return; }
+        var b = e.target.closest && e.target.closest('[data-dd]'); if (!b) return;
+        var k = b.getAttribute('data-dd');
+        if (k === 'close') { ov.close(); return; }
+        if (k === 'pick') { dlDuaTree(ov, grp.id, cat.id); return; }
+        if (k === 'go') { var ids = Array.prototype.map.call(ov.querySelectorAll('[data-dd-cat]:checked'), function(x) { return +x.getAttribute('data-dd-cat'); }); if (!ids.length) { toast(dlT('Ничего не выбрано', 'Ештеңе таңдалмаған')); return; } ov.close(); dlHisnZip(HISN_ITEMS.filter(function(x) { return x.a && ids.indexOf(x.c) >= 0; }), dlT('Дуа_выбранное', 'Дұға_таңдалған')); return; }
+        if (k === 'one') { ov.close(); dlDuaOne(key, title); return; }
+        if (k === 'cat') { ov.close(); dlHisnZip(inCat, dlT('Дуа_', 'Дұға_') + dlSafe(dlHisnName(cat))); return; }
+        if (k === 'grp') { ov.close(); dlHisnZip(inGrp, dlT('Дуа_', 'Дұға_') + dlSafe(dlHisnName(grp))); return; }
+        if (k === 'all') { ov.close(); dlHisnZip(HISN_ITEMS.filter(function(x) { return x.a; }), dlT('Дуа_и_зикры_все', 'Дұға_мен_зікір_барлығы')); return; }
+      });
+    }
+    // дерево «раздел ▸ темы» с галочками; раздел отмечает/снимает все свои темы
+    function dlDuaTree(ov, openG, curCat) {
+      var box = ov.querySelector('[data-dd-tree]'); if (!box) return;
+      if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+      var cnt = function(cid) { return HISN_ITEMS.filter(function(x) { return x.c === cid && x.a; }).length; };
+      var h = '<label style="display:flex;gap:0.45rem;align-items:center;font-weight:600;margin-bottom:0.3rem"><input type="checkbox" data-dd-allbox> ' + dlT('Отметить все', 'Барлығын белгілеу') + '</label>' +
+        '<div style="max-height:45vh;overflow:auto;border:1px solid var(--border);border-radius:0.5rem;padding:0.35rem 0.5rem">' +
+        HISN_GROUPS.map(function(g) {
+          var cats = HISN_CATS.filter(function(c) { return c.g === g.id && cnt(c.id); });
+          if (!cats.length) return '';
+          return '<details' + (g.id === openG ? ' open' : '') + ' style="margin:0.15rem 0"><summary style="cursor:pointer;display:flex;gap:0.45rem;align-items:center;padding:0.2rem 0"><input type="checkbox" data-dd-grp="' + g.id + '"><b style="font-size:0.9rem">' + dlHisnName(g) + '</b></summary>' +
+            cats.map(function(c) { return '<label style="display:flex;gap:0.45rem;align-items:center;padding:0.18rem 0 0.18rem 1.4rem;font-size:0.85rem"><input type="checkbox" data-dd-cat="' + c.id + '" data-g="' + g.id + '"' + (c.id === curCat ? ' checked' : '') + '> <span style="flex:1">' + dlHisnName(c) + '</span><span style="opacity:0.6;font-size:0.75rem">' + cnt(c.id) + '</span></label>'; }).join('') + '</details>';
+        }).join('') + '</div>' +
+        '<button type="button" class="btn btn-primary" data-dd="go" style="margin-top:0.5rem;width:100%">📥 <span data-dd-sum></span></button>';
+      box.innerHTML = h; box.style.display = '';
+      var sync = function() {
+        HISN_GROUPS.forEach(function(g) { var gb = box.querySelector('[data-dd-grp="' + g.id + '"]'); if (!gb) return; var cs = box.querySelectorAll('[data-dd-cat][data-g="' + g.id + '"]'), on = Array.prototype.filter.call(cs, function(x) { return x.checked; }).length; gb.checked = on === cs.length; gb.indeterminate = on > 0 && on < cs.length; });
+        var all = box.querySelectorAll('[data-dd-cat]'), sel = Array.prototype.filter.call(all, function(x) { return x.checked; });
+        var ab = box.querySelector('[data-dd-allbox]'); ab.checked = sel.length === all.length; ab.indeterminate = sel.length > 0 && sel.length < all.length;
+        var n = 0; sel.forEach(function(x) { n += cnt(+x.getAttribute('data-dd-cat')); });
+        box.querySelector('[data-dd-sum]').textContent = dlT('Скачать выбранное: ', 'Таңдалғанды жүктеу: ') + n + ' ' + dlT('дуа', 'дұға') + (n ? ' · ≈' + dlMb(n * DL_HISN_AVG) : '');
+      };
+      box.addEventListener('click', function(e) { if (e.target.matches && e.target.matches('summary input')) e.stopPropagation(); });
+      box.addEventListener('change', function(e) {
+        var t = e.target;
+        if (t.hasAttribute('data-dd-grp')) box.querySelectorAll('[data-dd-cat][data-g="' + t.getAttribute('data-dd-grp') + '"]').forEach(function(x) { x.checked = t.checked; });
+        if (t.hasAttribute('data-dd-allbox')) box.querySelectorAll('[data-dd-cat]').forEach(function(x) { x.checked = t.checked; });
+        sync();
+      });
+      sync();
+    }
+    // несколько дуа — один zip с папками «Раздел/Тема/01.mp3»
+    async function dlHisnZip(items, baseName) {
+      if (!items.length) return;
+      if (items.length === 1) return dlDuaOne(items[0].a, '');
+      var est = items.length * DL_HISN_AVG;
+      if (est > DL_WARN_BYTES && !(await dlAsk(dlT('Будет примерно ', 'Шамамен ') + '<b>' + dlMb(est) + '</b> (' + items.length + ' ' + dlT('файлов', 'файл') + '). ' + dlT('Скачать?', 'Жүктейміз бе?'), dlT('Скачать', 'Жүктеу')))) return;
+      var ctl = new AbortController(), cancelled = false, cnt = items.length;
+      var ov = dlModal('<b>📥 ' + dlT('Собираю архив…', 'Архив жинап жатыр…') + '</b><div data-p style="margin-top:0.4rem;font-variant-numeric:tabular-nums">0 / ' + cnt + '</div><button type="button" class="btn btn-sm" data-x style="margin-top:0.6rem">' + dlT('Отмена', 'Бас тарту') + '</button>');
+      ov.querySelector('[data-x]').addEventListener('click', function() { cancelled = true; try { ctl.abort(); } catch (e) {} ov.close(); });
+      var pe = ov.querySelector('[data-p]'), files = new Array(cnt), done = 0, failed = 0, next = 0;
+      var catBy = {}; HISN_CATS.forEach(function(c) { catBy[c.id] = c; });
+      var grpBy = {}; HISN_GROUPS.forEach(function(g) { grpBy[g.id] = g; });
+      var numIn = {};
+      var names = items.map(function(it) { var c = catBy[it.c] || {}, g = grpBy[c.g] || {}; numIn[it.c] = (numIn[it.c] || 0) + 1; return dlSafe(dlHisnName(g) || '-') + '/' + dlSafe(dlHisnName(c) || '-') + '/' + String(numIn[it.c]).padStart(2, '0') + '.mp3'; });
+      async function worker() {
+        while (!cancelled) {
+          var i = next++; if (i >= cnt) return;
+          try { var b = await dlFetchBlob('audio-hisn/' + items[i].a + '.mp3', null, ctl); files[i] = { name: names[i], data: new Uint8Array(await b.arrayBuffer()) }; }
+          catch (e) { if (cancelled) return; failed++; }
+          done++; pe.textContent = done + ' / ' + cnt;
+        }
+      }
+      await Promise.all([worker(), worker(), worker(), worker()]);
+      ov.close();
+      if (cancelled) return;
+      var ok = files.filter(Boolean);
+      if (!ok.length) { dlFail(null); return; }
+      dlSaveBlob(dlZip(ok), dlSafe(baseName) + '.zip');
+      toast(dlT('Архив сохранён: ', 'Архив сақталды: ') + ok.length + ' / ' + cnt + (failed ? dlT(' (не скачались: ', ' (жүктелмеді: ') + failed + ')' : ''));
+    }
+    function dlDuaOne(key, title) {
       var nm = title || '';
       try {
         if (!nm && typeof HISN_ITEMS !== 'undefined') {
@@ -59920,18 +60040,24 @@ function renderLibrary() {
       const mem = {}; let cur = 'dailyhub', userMoved = false;
       ['wheel', 'touchmove', 'keydown'].forEach(function (ev) { window.addEventListener(ev, function () { userMoved = true; }, { passive: true }); });
       const orig = showView;
+      // build 6.95: место ставится СРАЗУ (showView прокручивает к нему, а не сначала наверх) — раньше экран
+      // показывался вверху и потом в 4 приёма до 1,5 с «прыгал» вниз. Повторный тап по вкладке — всегда наверх.
       showView = function (name, isBack) {
-        const retap = !isBack && name === cur && MAIN_TABS.has(name);
-        try { if (cur) mem[cur] = retap ? 0 : (window.scrollY || 0); } catch (e) {}
+        const retap = !!window._navRetap || (!isBack && name === cur && MAIN_TABS.has(name));
+        window._navRetap = false;
+        try { if (cur) mem[cur] = retap && cur === name ? 0 : (window.scrollY || 0); if (retap) mem[name] = 0; } catch (e) {}
+        const y = (!retap && name !== 'reader' && (isBack || MAIN_TABS.has(name))) ? (mem[name] || 0) : 0;
+        window._viewScrollTarget = y > 40 ? y : 0;
+        window._viewNoAnim = retap;
         const r = orig.apply(this, arguments);
-        if (retap) { userMoved = true; [0, 60, 300].forEach(function (ms) { setTimeout(function () { try { window.scrollTo(0, 0); } catch (e) {} }, ms); }); }
+        window._viewNoAnim = false;
         try {
           const nm = (typeof viewStack !== 'undefined' && viewStack.length) ? viewStack[viewStack.length - 1] : name;
           cur = nm;
-          const y = mem[nm];
-          if (nm !== 'reader' && y > 40 && (isBack || MAIN_TABS.has(nm))) {
+          if (y > 40 && nm === name) {
             userMoved = false;
-            [60, 450, 900, 1500].forEach(function (ms) { setTimeout(function () { if (cur !== nm || userMoved) return; if (Math.abs((window.scrollY || 0) - y) > 30) window.scrollTo(0, y); }, ms); });
+            // тяжёлые разделы достраиваются чуть позже — догоняем, только пока страница была короче и пользователь не листал сам
+            [250, 600].forEach(function (ms) { setTimeout(function () { if (cur !== nm || userMoved) return; if (Math.abs((window.scrollY || 0) - y) > 30) window.scrollTo(0, y); }, ms); });
           }
         } catch (e) {}
         return r;
