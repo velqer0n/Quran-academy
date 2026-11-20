@@ -1634,6 +1634,9 @@
       <div class="pl-row"><span class="pl-lbl" data-pk="after">После суры</span>
         <div class="pl-seg"><button type="button" class="pl-chip" id="audio-after-stop"><span data-pk="stop">Остановиться</span></button><button type="button" class="pl-chip" id="audio-after-next"><span data-pk="next">Включить следующую суру</span></button></div>
       </div>
+      <div class="pl-row" id="audio-range-row"><span class="pl-lbl" data-pk="range">Аяты</span>
+        <div class="pl-seg" style="align-items:center;gap:0.3rem"><input type="number" inputmode="numeric" min="1" id="audio-range-from" value="1" aria-label="С аята" style="width:3.6rem;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.2rem 0.3rem"><span>–</span><input type="number" inputmode="numeric" min="1" id="audio-range-to" value="" aria-label="По аят" style="width:3.6rem;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.2rem 0.3rem"><button type="button" class="pl-chip" id="audio-range-play">▶ <span data-pk="rangePlay">Слушать</span></button></div>
+      </div>
       <div class="pl-row pl-tools">
         <button type="button" class="pl-chip" id="audio-pick-reciter" title="Выбрать чтеца">🎙 <span data-pk="rec">Чтец</span></button>
         <button type="button" class="pl-chip" id="audio-sleep-btn" title="Таймер сна и обрезка пауз">⏱ <span data-pk="timer">Таймер</span></button>

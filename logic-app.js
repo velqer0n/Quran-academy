@@ -4466,6 +4466,9 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           item.url = ayahAudioUrl(item.surah, item.ayah);
           item._recOverride = null;
         });
+        // build 6.94: сура уже доиграла — следующее ▶ начнёт её сначала, а не с последнего аята
+        if (audioEl && audioEl.ended) audioQueueIdx = 0;
+        audioQueue.forEach(function(item) { if (item && item.zero) item.url = zeroAyahUrl(item.surah); });
         try { window._lastPlayedUrl = window._lastPlayedUrl || ''; } catch(e) {}
       } catch(e) {}
     }
@@ -4586,6 +4589,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     }
 
     function paintQueueItemUi(item) {
+      try { paintRangeRow(); } catch(e) {}
       document.getElementById('audio-title').textContent = item.title;
       updateAudioSub();
       updateMediaSession(item.title);
@@ -4877,6 +4881,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         else window._audioCtx = 'surah';
       } catch(e) {}
       audioRepeatLeft = audioRepeatTotal;
+      if (item && item.zero) audioRepeatLeft = 1; // build 6.94: басмалу / а‘узу не повторяем
       // build 6.44: азан и дуа играют в этом же плеере (item.ext); обычное воспроизведение сбрасывает их очередь
       if (item.ext) { _playExtItem(item, idx); return; }
       try { _hisnResetState(); } catch(e) {}
@@ -4935,6 +4940,8 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           });
         }
         audioEl.onerror = function() {
+          // build 6.94: нет файла басмалы / а‘узу — тихо переходим к первому аяту
+          if (item && item.zero) { if (audioQueueIdx < audioQueue.length - 1) playQueueItem(audioQueueIdx + 1); return; }
           // build 6.27: раньше здесь плеер САМ подставлял запасного чтеца.
           // Теперь выбор за пользователем: показываем список чтецов.
           try {
@@ -5101,11 +5108,31 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         const t = audioQueue[i]; audioQueue[i] = audioQueue[j]; audioQueue[j] = t;
       }
     }
+    // build 6.94: «нулевой аят» перед сурой: перед аль-Фатихой — а‘узу биллях, перед остальными — басмала
+    // (её файл у everyayah — 001001, первый аят аль-Фатихи). У суры 9 (ат-Тауба) басмалы нет.
+    // Своя запись а‘узу есть на everyayah не у всех чтецов (проверено 2026-11-20) — у остальных звучит аль-Афаси.
+    const AUDHU_OWN = { 'ar.alafasy': 1, 'ar.shaatree': 1, 'ar.alijaber': 1, 'ar.shuraim': 1, 'ar.husary': 1 };
+    function zeroAyahUrl(surah, recId) {
+      var r = recId || (state.settings && state.settings.reciter) || '';
+      if (+surah === 1) {
+        var own = AUDHU_OWN[r] ? r : (r === 'ar.husarymuallim' ? 'ar.husary' : 'ar.alafasy');
+        return 'https://everyayah.com/data/' + everyayahFolder(own) + '/audhubillah.mp3';
+      }
+      return ayahAudioUrl(1, 1, r || undefined);
+    }
+    function zeroAyahItem(surah) {
+      if (+surah === 9) return null;
+      var kk = isKk();
+      return { url: zeroAyahUrl(surah), zero: true, ayah: 0, surah: +surah, _triedFallbackReciter: true,
+        title: (typeof surahTitle === 'function' ? surahTitle(+surah) : ((kk ? 'Сүре ' : 'Сура ') + surah)) + ' · ' + (+surah === 1 ? (kk ? 'Ағузу билләһ' : 'А‘узу биллях') : (kk ? 'Бісміллә' : 'Басмала')) };
+    }
     async function loadSurahQueue(surah, mode, startAyah, opts) {
       opts = opts || {};
+      var _zeroOn = (mode === 'surah' || mode === 'surah-loop') && !(+startAyah > 1) && !opts.endAyah && (!state.settings || state.settings.zeroAyah !== false);
+      try { if (readerReversed) _zeroOn = false; } catch(e) {}
       mode = mode || 'surah';
       // build 6.35: режим «Целиком» — вся сура одним файлом (mp3quran)
-      if (wholeModeOn() && (mode === 'surah' || mode === 'surah-loop')) { audioPlayMode = mode; return startWholeSurah(surah, startAyah, { noPlay: !!opts.noPlay }); }
+      if (wholeModeOn() && !opts.endAyah && (mode === 'surah' || mode === 'surah-loop')) { audioPlayMode = mode; return startWholeSurah(surah, startAyah, { noPlay: !!opts.noPlay }); }
       audioPlayMode = mode;
       try { updateAudioModeButtons(); } catch(e) {}
       // Сразу стартуем первый аят с everyayah — без ожидания API (убирает задержку в несколько секунд)
@@ -5114,8 +5141,9 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           var quickAyah = startAyah || 1;
           var _qk = (typeof getReciterAyahChoice === 'function') ? getReciterAyahChoice((state.settings && state.settings.reciter) || '', surah, quickAyah) : '';
           var quickUrl = _qk ? ayahAudioUrl(surah, quickAyah, _qk) : ayahAudioUrl(surah, quickAyah);
+          var _zq = _zeroOn ? zeroAyahItem(surah) : null;
           if (quickUrl && typeof audioEl !== 'undefined' && audioEl) {
-            audioQueue = [{
+            audioQueue = [_zq || {
               url: quickUrl,
               title: 'Сура ' + surah + ' · аят ' + quickAyah,
               ayah: +quickAyah,
@@ -5145,6 +5173,9 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         };
       });
       if (!queue.length) return false;
+      // build 6.94: диапазон «с–по»
+      if (opts.endAyah) { var _from = +startAyah || 1, _to = +opts.endAyah; queue = queue.filter(function(x) { return x.ayah >= _from && x.ayah <= _to; }); if (!queue.length) return false; }
+      if (_zeroOn && mode !== 'random') { var _z = zeroAyahItem(surah); if (_z) queue.unshift(_z); }
       var rev = false;
       try { rev = !!readerReversed; } catch(e) {}
       if (rev) queue = queue.slice().reverse();
@@ -5159,7 +5190,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (rev && mode !== 'random' && (startAyah == null || startAyah === 1)) {
         // с конца: начинаем с первого элемента обратной очереди (= последний аят)
         idx = 0;
-      } else if (startAyah && mode !== 'random') {
+      } else if (startAyah && mode !== 'random' && !(_zeroOn && +startAyah === 1)) {
         const found = queue.findIndex(x => x.ayah === +startAyah);
         if (found >= 0) idx = found;
       }
@@ -5352,8 +5383,28 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     // ===== build 6.35: целые суры (mp3quran), «после суры», «продолжить с места» =====
     const WHOLE_RECITERS = [
       { id: 'abkar', ru: 'Идрис Абкар', kk: 'Идрис Абкар', read: 12, timings: true, base: 'https://cdn.mp3quran.net/audio/idrees-abkar/r1/' },
-      { id: 'luhaidan', ru: 'Мухаммад аль-Лухайдан', kk: 'Мұхаммад әл-Лухайдан', read: 107, timings: false, base: 'https://cdn.mp3quran.net/audio/muhammad-luhaidan/r1/' }
+      { id: 'luhaidan', ru: 'Мухаммад аль-Лухайдан', kk: 'Мұхаммад әл-Лухайдан', read: 107, timings: false, base: 'https://cdn.mp3quran.net/audio/muhammad-luhaidan/r1/' },
+      // build 6.94: целые суры тех же чтецов, что и по аятам (папки и номера read сверены с mp3quran.net/api/v3/reciters
+      // и /ayat_timing/reads, 2026-11-20). ayah — id чтеца «по аятам»; timings — есть ли разметка аятов у mp3quran
+      { id: 'w-alafasy', ayah: 'ar.alafasy', ru: 'Мишари Рашид аль-Афаси', kk: 'Мишари Рашид әл-Афаси', read: 123, timings: true, base: 'https://cdn.mp3quran.net/audio/mishary-alafasy/r1/' },
+      { id: 'w-dosari', ayah: 'ar.dosari', ru: 'Ясир ад-Досари', kk: 'Яссир әд-Досари', read: 92, timings: true, base: 'https://cdn.mp3quran.net/audio/yasser-dosari/r1/' },
+      { id: 'w-shatri', ayah: 'ar.shaatree', ru: 'Абу Бакр аш-Шатри', kk: 'Әбу Бәкр әш-Шатри', read: 4, timings: true, base: 'https://cdn.mp3quran.net/audio/abubakr-shatri/r1/' },
+      { id: 'w-qatami', ayah: 'ar.qatami', ru: 'Насер аль-Катами', kk: 'Нәсір әл-Қатами', read: 86, timings: true, base: 'https://cdn.mp3quran.net/audio/nasser-qatami/r1/' },
+      { id: 'w-rifai', ayah: 'ar.hanirifai', ru: 'Хани ар-Рифаи', kk: 'Һани әр-Рифағи', read: 89, timings: true, base: 'https://cdn.mp3quran.net/audio/hani-rifai/r1/' },
+      { id: 'w-alijaber', ayah: 'ar.alijaber', ru: 'Али Джабер', kk: 'Әли Жәбір', read: 76, timings: true, base: 'https://cdn.mp3quran.net/audio/ali-jaber/r1/' },
+      { id: 'w-shuraim', ayah: 'ar.shuraim', ru: 'Сууд аш-Шурайм', kk: 'Сууд әш-Шурайм', read: 31, timings: true, base: 'https://cdn.mp3quran.net/audio/saud-shuraim/r1/' },
+      { id: 'w-sudais', ayah: 'ar.sudais', ru: 'Абдуррахман ас-Судайс', kk: 'Әбдірахман әс-Судайс', read: 54, timings: true, base: 'https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/' },
+      { id: 'w-budair', ayah: 'ar.budair', ru: 'Салах аль-Бударь', kk: 'Салах әл-Бударь', read: 43, timings: true, base: 'https://cdn.mp3quran.net/audio/salah-budair/r1/' },
+      { id: 'w-muaiqly', ayah: 'ar.muaiqly', ru: 'Махер аль-Муайкли', kk: 'Махер әл-Муайқли', read: 102, timings: false, base: 'https://cdn.mp3quran.net/audio/maher-muaiqly/r1/' },
+      { id: 'w-fares', ayah: 'ar.faresabbad', ru: 'Фарес Аббад', kk: 'Фарес Аббад', read: 81, timings: true, base: 'https://cdn.mp3quran.net/audio/fares-abbad/r1/' },
+      { id: 'w-husary', ayah: 'ar.husary', ru: 'Махмуд аль-Хусари (мураттал)', kk: 'Махмуд әл-Хусари (мураттал)', read: 118, timings: true, base: 'https://cdn.mp3quran.net/audio/mahmoud-husary/r1/' },
+      { id: 'w-minshawi', ayah: 'ar.minshawi', ru: 'Мухаммад Сыддык аль-Миншави (мураттал)', kk: 'Мұхаммад Сыддық әл-Миншауи (мураттал)', read: 112, timings: true, base: 'https://cdn.mp3quran.net/audio/muhammad-minshawi/r1/' },
+      { id: 'w-abdulbasit', ayah: 'ar.abdulsamad', ru: 'Абдуль-Басит Абдус-Самад (мураттал)', kk: 'Абдұлбасит Абдұссамад (мураттал)', read: 53, timings: true, base: 'https://cdn.mp3quran.net/audio/abdulbasit-abdulsamad/r3/' },
+      { id: 'w-minshawimuj', ayah: 'ar.minshawimujawwad', ru: 'Мухаммад Сыддык аль-Миншави (муджаввад)', kk: 'Мұхаммад Сыддық әл-Миншауи (мужәууад)', read: 113, timings: false, base: 'https://cdn.mp3quran.net/audio/muhammad-minshawi/r2/' },
+      { id: 'w-abdulbasitmuj', ayah: 'ar.abdulbasitmujawwad', ru: 'Абдуль-Басит Абдус-Самад (муджаввад)', kk: 'Абдұлбасит Абдұссамад (мужәууад)', read: 51, timings: true, base: 'https://cdn.mp3quran.net/audio/abdulbasit-abdulsamad/r1/' }
     ];
+    function wholeForAyah(recId) { return WHOLE_RECITERS.filter(function(r) { return r.ayah && r.ayah === recId; })[0] || null; }
+    function wholeOnly(r) { return !!(r && !r.ayah); }
     function _lsGet(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch(e) { return d; } }
     function _lsSet(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
     function wholeModeOn() { return _lsGet('quran_whole_mode_v1', '0') === '1'; }
@@ -5391,6 +5442,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var r = wholeReciter();
       audioPlayMode = (audioPlayMode === 'surah-loop') ? 'surah-loop' : 'surah';
       audioQueue = [buildWholeItem(surah, startAyah, r, opts.resumeT)];
+      if (opts.resumeFrac != null) audioQueue[0].resumeFrac = opts.resumeFrac;
       if (opts.hold) audioQueue[0].hold = true; // build 6.38: сменили чтеца на паузе — загрузить его запись, но не включать
       audioQueueIdx = 0; audioRepeatTotal = 1; audioRepeatLeft = 1;
       try { updateAudioModeButtons(); } catch(e) {}
@@ -5422,6 +5474,9 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         if (t != null && t > 0) {
           var onMeta = function() { audioEl.removeEventListener('loadedmetadata', onMeta); try { audioEl.currentTime = t; } catch(e) {} };
           audioEl.addEventListener('loadedmetadata', onMeta);
+        } else if (item.resumeFrac > 0) {
+          var onMetaF = function() { audioEl.removeEventListener('loadedmetadata', onMetaF); try { if (audioEl.duration > 0) audioEl.currentTime = item.resumeFrac * audioEl.duration; } catch(e) {} item.resumeFrac = null; };
+          audioEl.addEventListener('loadedmetadata', onMetaF);
         }
         if (item.hold) { item.hold = false; try { audioEl.pause(); } catch(e) {} return; }
         var pp = audioEl.play();
@@ -5512,7 +5567,16 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       else loadSurahQueue(s, 'surah', a);
     });
     // переключатель «По аятам / Целиком» (из панели «Ещё»)
-    function setWholeMode(on) {
+    function setWholeMode(on, keepWhole) {
+      // build 6.94: «Целиком» — целые суры ТОГО ЖЕ чтеца, что выбран по аятам (если у него они есть)
+      if (on && !keepWhole) {
+        var _cr = (state.settings && state.settings.reciter) || '', _m = wholeForAyah(_cr);
+        if (_m) _lsSet('quran_whole_reciter_v1', _m.id);
+        else {
+          toast(isKk() ? 'Бұл қаридің толық сүрелері жоқ — аятпен ойнатамын' : 'У этого чтеца нет целых сур — играю по аятам');
+          on = false;
+        }
+      }
       _lsSet('quran_whole_mode_v1', on ? '1' : '0');
       paintPlayerMore();
       try { fillReciterSelects(); } catch(e) {}
@@ -5538,28 +5602,43 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var r = wholeReciter();
       if (item.wholeId === r.id) return;
       var playing = !!(audioEl && !audioEl.paused && audioEl.src);
-      startWholeSurah(item.surah, item.ayah || 1, { hold: !playing });
+      // build 6.94: то же место у нового чтеца — по разметке аятов, а если её нет у одного из двух — по доле времени
+      if (audioEl && audioEl.ended) { startWholeSurah(item.surah, 1, { hold: true }); return; }
+      var frac = null;
+      try { if (!(item._tm && item._tm.length && r.timings) && audioEl.duration > 0) frac = audioEl.currentTime / audioEl.duration; } catch(e) {}
+      startWholeSurah(item.surah, frac != null ? 1 : (item.ayah || 1), { hold: !playing, resumeFrac: frac });
+    }
+    // выбрали чтеца «по аятам», когда играет «Целиком»: если у него есть целые суры — остаёмся в режиме «Целиком»
+    function _wholeSwitchToReciter(id) {
+      var m = wholeForAyah(id);
+      if (!m) return false;
+      _lsSet('quran_whole_reciter_v1', m.id);
+      try { paintPlayerMore(); } catch(e) {}
+      applyWholeReciterChange();
+      toast(isKk() ? 'Қари ауыстырылды (толық сүре)' : 'Чтец изменён (сура целиком)');
+      return true;
     }
     // выбор «целосурного» чтеца из общего списка чтецов: id вида whole:abkar
     function chooseWholeReciter(id) {
       var r = wholeById(id), kk = isKk();
       _lsSet('quran_whole_reciter_v1', r.id);
       var was = wholeModeOn();
-      if (!was) setWholeMode(true); else { try { paintPlayerMore(); } catch(e) {} applyWholeReciterChange(); }
+      if (!was) setWholeMode(true, true); else { try { paintPlayerMore(); } catch(e) {} applyWholeReciterChange(); }
       try { fillReciterSelects(); } catch(e) {}
       toast(kk
         ? r.kk + ': тек толық сүрелер (аят бойынша ауыстыру жоқ)' + (r.timings ? '' : ', аят белгіленбейді')
         : r.ru + ': только целые суры (без перехода по аятам)' + (r.timings ? '' : ' и без подсветки аята'));
     }
     var PLAYER_PK = {
-      ru: { dl: 'Скачать', prevs: 'Пред. сура', nexts: 'След. сура', mode: 'Режим', speed: 'Скорость', play: 'Воспроизведение', byayah: 'По аятам', whole: 'Целиком', after: 'После суры', stop: 'Остановиться', next: 'Включить следующую суру', rec: 'Чтец', timer: 'Таймер', miss: 'Не играет' },
-      kk: { dl: 'Жүктеу', prevs: 'Алдыңғы сүре', nexts: 'Келесі сүре', mode: 'Режим', speed: 'Жылдамдық', play: 'Ойнату', byayah: 'Аятпен', whole: 'Толық', after: 'Сүреден кейін', stop: 'Тоқтау', next: 'Келесі сүрені қосу', rec: 'Қари', timer: 'Таймер', miss: 'Ойнамайды' }
+      ru: { dl: 'Скачать', prevs: 'Пред. сура', nexts: 'След. сура', mode: 'Режим', speed: 'Скорость', play: 'Воспроизведение', byayah: 'По аятам', whole: 'Целиком', range: 'Аяты', rangePlay: 'Слушать', after: 'После суры', stop: 'Остановиться', next: 'Включить следующую суру', rec: 'Чтец', timer: 'Таймер', miss: 'Не играет' },
+      kk: { dl: 'Жүктеу', prevs: 'Алдыңғы сүре', nexts: 'Келесі сүре', mode: 'Режим', speed: 'Жылдамдық', play: 'Ойнату', byayah: 'Аятпен', whole: 'Толық', range: 'Аяттар', rangePlay: 'Тыңдау', after: 'Сүреден кейін', stop: 'Тоқтау', next: 'Келесі сүрені қосу', rec: 'Қари', timer: 'Таймер', miss: 'Ойнамайды' }
     };
     function _paintPK() { var T = PLAYER_PK[isKk() ? 'kk' : 'ru']; document.querySelectorAll('[data-pk]').forEach(function(el) { var v = T[el.getAttribute('data-pk')]; if (v) el.textContent = v; }); }
     // ===== build 6.35: панель «⋯ Ещё», кнопка режима и окно «Что значат кнопки» =====
     function paintPlayerMore() {
       var kk = isKk();
       try { _paintPK(); } catch(e) {}
+      try { paintRangeRow(); } catch(e) {}
       var more = document.getElementById('audio-more'), tg = document.getElementById('audio-more-toggle');
       var open = _lsGet('quran_player_more_v1', '0') === '1';
       if (more) more.style.display = open ? '' : 'none';
@@ -5578,6 +5657,25 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         cyc.textContent = (kk ? 'Режим: ' : 'Режим: ') + (L[audioPlayMode] || '—');
       }
     }
+    // build 6.94: «Аяты с … по …» в панели «⋯ Ещё» — играет выбранный кусок суры по аятам и останавливается
+    function _rangeSurah() { var it = audioQueue && audioQueue[audioQueueIdx]; return +((it && it.surah && !it.dua && !it.adhkar && !it.ext) ? it.surah : (state && state.currentSurah)) || 0; }
+    function paintRangeRow() {
+      var row = document.getElementById('audio-range-row'); if (!row) return;
+      var s = _rangeSurah(), cnt = 0; try { cnt = s ? surahAyahCount(s) : 0; } catch(e) {}
+      row.style.display = cnt > 1 ? '' : 'none';
+      var f = document.getElementById('audio-range-from'), to = document.getElementById('audio-range-to');
+      if (f) f.max = cnt; if (to) { to.max = cnt; if (!to.value || +to.value > cnt || row.dataset.s !== String(s)) to.value = cnt; }
+      if (f && (row.dataset.s !== String(s) || +f.value > cnt)) f.value = 1;
+      row.dataset.s = String(s);
+    }
+    document.getElementById('audio-range-play')?.addEventListener('click', function() {
+      var s = _rangeSurah(), kk = isKk(), cnt = 0; try { cnt = surahAyahCount(s); } catch(e) {}
+      var a = +document.getElementById('audio-range-from').value, b = +document.getElementById('audio-range-to').value;
+      if (!s || !cnt) return;
+      if (!(a >= 1 && b >= a && b <= cnt)) { toast(kk ? 'Аят нөмірлерін тексеріңіз: 1-ден ' + cnt + '-ке дейін' : 'Проверьте номера аятов: от 1 до ' + cnt); return; }
+      if (wholeModeOn()) toast(kk ? 'Аралық аятпен ойнатылады' : 'Диапазон играет по аятам');
+      loadSurahQueue(s, 'surah', a, { endAyah: b });
+    });
     function _cycleMode() {
       var cw = audioQueue[audioQueueIdx];
       var order = (cw && cw.whole) ? ['surah', 'surah-loop'] : ['surah', 'surah-loop', 'single', 'ayah-loop', 'random'];
@@ -5595,7 +5693,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         ['⋯ Тағы / ▴ Азырақ', 'Қалған түймелерді көрсетеді немесе жасырады.'],
         ['Жылдамдық', 'Ойнату жылдамдығы 0.25×–2×.'],
         ['Сүреден кейін', 'Сүре біткен соң: тоқтау немесе «Келесі сүрені қосу».'],
-        ['🎙 Қари', 'Қариді ауыстыру — бірден, аяттың басынан. Абкар мен Лухайдан сүрені бір файлмен ойнатады (Абкарда аят белгісі бар, Лухайданда жоқ — ⏮⏭ 15 секундқа айналдырады).'],
+        ['🎙 Қари', 'Қариді ауыстыру — сол жерден жалғасады. «Толық» режимінде сүре бір файлмен (кесусіз) ойнайды — көп қариде бар; Абкар мен Лухайданда тек толық сүре. Аят белгісі жоқ қариларда (Лухайдан, Муайқли, Миншауи мужәууад) ⏮⏭ 15 секундқа айналдырады.'],
         ['⏱ Таймер', 'Ұйқы таймері және аяттар арасындағы үзілістерді қысқарту.'],
         ['📥 Жүктеу', 'Қазіргі аятты, сүрені (аятпен .zip немесе толық бір файл) немесе дұғаны телефонға сақтайды.'],
         ['🚩 Ойнамайды', 'Бұл қаридің бұл аяты ойнамаса — белгілеңіз, келесі жолы басқа қари ұсынылады.'],
@@ -5609,7 +5707,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         ['⋯ Ещё / ▴ Меньше', 'Показать или скрыть остальные кнопки.'],
         ['Скорость', 'Скорость воспроизведения 0.25×–2×.'],
         ['После суры', 'Что делать, когда сура закончилась: остановиться или «Включить следующую суру».'],
-        ['🎙 Чтец', 'Сменить чтеца — сразу, с начала аята. Абкар и Лухайдан играют суру целиком одним файлом (у Абкара есть разметка аятов, у Лухайдана нет — там ⏮⏭ перематывают на 15 с).'],
+        ['🎙 Чтец', 'Сменить чтеца — продолжает с того же места. В режиме «Целиком» сура играет одним файлом без нарезки — есть почти у всех чтецов; у Абкара и Лухайдана только целые суры. Где нет разметки аятов (Лухайдан, Муайкли, Миншави муджаввад), ⏮⏭ перематывают на 15 с.'],
         ['⏱ Таймер', 'Таймер сна и сокращение пауз между аятами.'],
         ['📥 Скачать', 'Сохранить на телефон текущий аят, суру (по аятам в .zip или целым файлом) или дуа.'],
         ['🚩 Не играет', 'Если у этого чтеца аят не играет — отметьте, в следующий раз предложим другого чтеца.'],
@@ -5847,9 +5945,9 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     document.getElementById('audio-pick-reciter')?.addEventListener('click', function() {
       openReciterPicker({
         title: isKk() ? 'Қариды таңдаңыз' : 'Выберите чтеца',
-        current: wholeModeOn() ? '' : ((state.settings && state.settings.reciter) || ''),
-        wholeGroup: true, currentWhole: wholeModeOn() ? wholeReciter().id : '',
-        note: isKk() ? 'Абкар мен Лухайдан сүрені бір файлмен толық ойнатады — жеке аятқа ауыстыру жоқ.' : 'Абкар и Лухайдан играют суру целиком одним файлом — перехода по аятам у них нет.',
+        current: (wholeModeOn() && wholeOnly(wholeReciter())) ? '' : ((wholeModeOn() && wholeReciter().ayah) || (state.settings && state.settings.reciter) || ''),
+        wholeGroup: true, currentWhole: (wholeModeOn() && wholeOnly(wholeReciter())) ? wholeReciter().id : '',
+        note: isKk() ? '«Вся сура» белгісі бар қарилерде (Абкар, Лухайдан) тек толық сүре бар. Басқаларда «Толық» режимі сол қаридің кесусіз сүресін қосады.' : 'Чтецы с пометкой «вся сура» (Абкар, Лухайдан) — только целые суры. У остальных режим «Целиком» включает их же суру без нарезки.',
         onPick: function(id) { _applyPlayerReciter(id); }
       });
     });
@@ -6062,13 +6160,8 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       // build 6.39: в «Озвучке» и «Таджвиде» — только учебные чтецы (остальные там не нужны и сбивали с толку)
       if (learnOnly) return '<optgroup label="' + (kk ? '📚 Оқу үшін' : '📚 Учебные') + '">' + g[0].items.map(function (r) { return '<option value="' + r.id + '">' + (kk ? r.kk : r.ru) + (r.id === 'ar.husary' ? (kk ? ' · ✨ сөздер жарықтанады' : ' · ✨ подсветка слов') : '') + '</option>'; }).join('') + '</optgroup>';
       function opt(r) { return '<option value="' + r.id + '">' + (kk ? r.kk : r.ru) + '</option>'; }
-      var h = '<optgroup label="' + (kk ? '📚 Оқу үшін' : '📚 Учебные') + '">' + g[0].items.map(opt).join('') + '</optgroup>' +
-        '<option disabled value=""> </option>' +
-        '<optgroup label="' + (kk ? '🎧 Тыңдау үшін' : '🎧 Для слушания') + '">' + g[1].items.map(opt).join('') +
-        // build 6.44: Абкар и Лухайдан — в общем списке (только «Суры» и плеер); выбор сам включает «суру целиком»
-        (withWhole ? WHOLE_RECITERS.map(function(r) { return '<option value="whole:' + r.id + '">' + (kk ? r.kk : r.ru) + ' · ' + (kk ? 'толық сүре' : 'вся сура') + '</option>'; }).join('') : '') +
-        '</optgroup>';
-      return h;
+      // build 6.94: один общий список без деления на «учебные / для слушания» (порядок — RECITER_ORDER)
+      return reciterOrdered(!!withWhole).map(opt).join('');
     }
     function openReciterPicker(o) {
       o = o || {};
@@ -6083,13 +6176,11 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       if (o.note) h += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem">' + o.note + '</div>';
       var g = reciterGroups();
       function btn(r) {
-        var on = r.id === o.current;
+        var on = (r._on != null) ? r._on : r.id === o.current;
         return '<button type="button" data-rid="' + r.id + '" class="btn" style="display:block;width:100%;text-align:left;margin:0.2rem 0;' + (on ? 'border-color:var(--accent);' : '') + '">' + (on ? '✓ ' : '') + (kk ? r.kk : r.ru) + '</button>';
       }
-      h += '<div style="font-size:0.75rem;color:var(--text-muted);margin:0.4rem 0 0.1rem">' + (kk ? '📚 Оқу үшін' : '📚 Учебные') + '</div>' + g[0].items.map(btn).join('');
-      h += '<div style="height:0.9rem"></div><div style="font-size:0.75rem;color:var(--text-muted);margin:0 0 0.1rem">' + (kk ? '🎧 Тыңдау үшін' : '🎧 Для слушания') + '</div>' + g[1].items.map(btn).join('');
-      // build 6.44: Абкар и Лухайдан — в том же списке «Для слушания», без отдельного раздела
-      if (o.wholeGroup) h += WHOLE_RECITERS.map(function(r) { var on = (o.currentWhole === r.id); return '<button type="button" data-rid="whole:' + r.id + '" class="btn" style="display:block;width:100%;text-align:left;margin:0.2rem 0;' + (on ? 'border-color:var(--accent);' : '') + '">' + (on ? '✓ ' : '') + (kk ? r.kk : r.ru) + ' <span style="opacity:.7;font-size:.8rem">· ' + (kk ? 'толық сүре' : 'вся сура') + '</span></button>'; }).join('');
+      // build 6.94: один общий список в порядке RECITER_ORDER
+      h += reciterOrdered(!!o.wholeGroup).map(function(r) { return btn(r.whole ? { id: r.id, ru: r.ru, kk: r.kk, _on: o.currentWhole === r.whole } : r); }).join('');
       if (o.showWhole) h += '<label style="display:flex;gap:0.4rem;align-items:center;margin-top:0.7rem;font-size:0.85rem"><input type="checkbox" id="rp-whole"> ' + (kk ? 'Бүкіл сүре үшін' : 'Для всей суры') + '</label>';
       h += '<div style="display:flex;gap:0.4rem;margin-top:0.7rem">' +
         (o.onSkip ? '<button type="button" class="btn" id="rp-skip" style="flex:1">' + (kk ? 'Аятты өткізу' : 'Пропустить аят') + '</button>' : '') +
@@ -6111,6 +6202,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       try {
         if (String(id).indexOf('whole:') === 0) { chooseWholeReciter(String(id).slice(6)); return; }
         _reciterInit();
+        if (wholeModeOn() && _wholeSwitchToReciter(id)) { state.settings.reciterBy[_reciterCtx] = id; state.settings.reciter = id; saveState(); try { fillReciterSelects(); } catch(e) {} return; }
         if (wholeModeOn()) { state.settings.reciterBy[_reciterCtx] = id; state.settings.reciter = id; saveState(); setWholeMode(false); try { fillReciterSelects(); } catch(e) {} toast(isKk() ? 'Қари ауыстырылды' : 'Чтец изменён'); return; }
         state.settings.reciterBy[_reciterCtx] = id;
         state.settings.reciter = id;
@@ -6119,7 +6211,9 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         audioQueue.forEach(function(it) {
           if (it && it.surah && it.ayah) { it.url = ayahAudioUrl(it.surah, it.ayah); it._recOverride = null; it._pickerShown = false; }
         });
-        if (audioQueue[audioQueueIdx] && (!audioEl.paused || audioEl.src)) playQueueItem(audioQueueIdx);
+        // build 6.94: сура уже доиграла — не включаем заново последний аят новым чтецом
+        if (audioEl && audioEl.ended) { audioQueueIdx = 0; }
+        else if (audioQueue[audioQueueIdx] && (!audioEl.paused || audioEl.src)) playQueueItem(audioQueueIdx);
         toast(isKk() ? 'Қари ауыстырылды' : 'Чтец изменён');
       } catch(e) {}
     }
@@ -7025,28 +7119,39 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     // ===== build 6.09: свой чтец в каждой вкладке «Суры»: Суры, Озвучка, Таджвид =====
     // Хранится в state.settings.reciterBy; state.settings.reciter — чтец ТЕКУЩЕЙ вкладки
     // (его читают все проигрыватели), он меняется при переключении вкладки.
+    // build 6.94: порядок как попросил владелец сайта; Мухсин аль-Касим и Мухаммад ат-Таблави убраны
     const RECITER_LIST = [
+      { id: 'ar.alafasy', ru: 'Мишари Рашид аль-Афаси', kk: 'Мишари Рашид әл-Афаси' },
+      { id: 'ar.dosari', ru: 'Ясир ад-Досари', kk: 'Яссир әд-Досари' },
+      { id: 'ar.shaatree', ru: 'Абу Бакр аш-Шатри', kk: 'Әбу Бәкр әш-Шатри' },
+      { id: 'ar.qatami', ru: 'Насер аль-Катами', kk: 'Нәсір әл-Қатами' },
+      { id: 'ar.hanirifai', ru: 'Хани ар-Рифаи', kk: 'Һани әр-Рифағи' },
+      { id: 'ar.alijaber', ru: 'Али Джабер', kk: 'Әли Жәбір' },
+      { id: 'ar.aymansuwaid', ru: 'Айман Сувейд (нет подсветки слов — для него нет тайм-кодов)', kk: 'Айман Сууайд (сөз жарықтанбайды — уақыт белгілері жоқ)' },
+      { id: 'ar.shuraim', ru: 'Сууд аш-Шурайм', kk: 'Сууд әш-Шурайм' },
+      { id: 'ar.sudais', ru: 'Абдуррахман ас-Судайс', kk: 'Әбдірахман әс-Судайс' },
+      { id: 'ar.budair', ru: 'Салах аль-Бударь', kk: 'Салах әл-Бударь' },
+      { id: 'ar.muaiqly', ru: 'Махер аль-Муайкли', kk: 'Махер әл-Муайқли' },
+      { id: 'ar.faresabbad', ru: 'Фарес Аббад', kk: 'Фарес Аббад' },
       { id: 'ar.husary', ru: 'Махмуд аль-Хусари (мураттал)', kk: 'Махмуд әл-Хусари (мураттал)' },
       { id: 'ar.husarymuallim', ru: 'Махмуд аль-Хусари (муаллим — учебный, медленный)', kk: 'Махмуд әл-Хусари (муаллим — оқу үшін, баяу)' },
       { id: 'ar.minshawi', ru: 'Мухаммад Сыддык аль-Миншави (мураттал)', kk: 'Мұхаммад Сыддық әл-Миншауи (мураттал)' },
-      { id: 'ar.minshawimujawwad', ru: 'Мухаммад Сыддык аль-Миншави (муджаввад)', kk: 'Мұхаммад Сыддық әл-Миншауи (мужәууад)' },
       { id: 'ar.abdulsamad', ru: 'Абдуль-Басит Абдус-Самад (мураттал)', kk: 'Абдұлбасит Абдұссамад (мураттал)' },
-      { id: 'ar.abdulbasitmujawwad', ru: 'Абдуль-Басит Абдус-Самад (муджаввад)', kk: 'Абдұлбасит Абдұссамад (мужәууад)' },
-      { id: 'ar.alafasy', ru: 'Мишари Рашид аль-Афаси', kk: 'Мишари Рашид әл-Афаси' },
-      { id: 'ar.shaatree', ru: 'Абу Бакр аш-Шатри', kk: 'Әбу Бәкр әш-Шатри' },
-      { id: 'ar.hanirifai', ru: 'Хани ар-Рифаи', kk: 'Һани әр-Рифағи' },
-      { id: 'ar.tablawi', ru: 'Мухаммад ат-Таблави', kk: 'Мұхаммад әт-Таблауи' },
-      { id: 'ar.dosari', ru: 'Ясир ад-Досари', kk: 'Яссир әд-Досари' },
-      { id: 'ar.qatami', ru: 'Насер аль-Катами', kk: 'Нәсір әл-Қатами' },
-      { id: 'ar.muaiqly', ru: 'Махер аль-Муайкли', kk: 'Махер әл-Муайқли' },
-      { id: 'ar.budair', ru: 'Салах аль-Бударь', kk: 'Салах әл-Бударь' },
-      { id: 'ar.qasim', ru: 'Мухсин аль-Касим', kk: 'Мұхсин әл-Қасим' },
-      { id: 'ar.sudais', ru: 'Абдуррахман ас-Судайс', kk: 'Әбдірахман әс-Судайс' },
-      { id: 'ar.shuraim', ru: 'Сууд аш-Шурайм', kk: 'Сууд әш-Шурайм' },
-      { id: 'ar.alijaber', ru: 'Али Джабер', kk: 'Әли Жәбір' },
-      { id: 'ar.faresabbad', ru: 'Фарес Аббад', kk: 'Фарес Аббад' },
-      { id: 'ar.aymansuwaid', ru: 'Айман Сувейд (нет подсветки слов — для него нет тайм-кодов)', kk: 'Айман Сууайд (сөз жарықтанбайды — уақыт белгілері жоқ)' }
+      { id: 'ar.minshawimujawwad', ru: 'Мухаммад Сыддык аль-Миншави (муджаввад)', kk: 'Мұхаммад Сыддық әл-Миншауи (мужәууад)' },
+      { id: 'ar.abdulbasitmujawwad', ru: 'Абдуль-Басит Абдус-Самад (муджаввад)', kk: 'Абдұлбасит Абдұссамад (мужәууад)' }
     ];
+    // общий порядок в списках выбора: whole:… — чтецы, у которых есть только целые суры
+    const RECITER_ORDER = ['ar.alafasy', 'whole:abkar', 'ar.dosari', 'ar.shaatree', 'ar.qatami', 'whole:luhaidan', 'ar.hanirifai', 'ar.alijaber', 'ar.aymansuwaid', 'ar.shuraim', 'ar.sudais', 'ar.budair', 'ar.muaiqly', 'ar.faresabbad', 'ar.husary', 'ar.husarymuallim', 'ar.minshawi', 'ar.abdulsamad', 'ar.minshawimujawwad', 'ar.abdulbasitmujawwad'];
+    // список для показа: [{ id, ru, kk, whole }] в общем порядке
+    function reciterOrdered(withWhole) {
+      var byId = {}; RECITER_LIST.forEach(function(r) { byId[r.id] = r; });
+      var out = [];
+      RECITER_ORDER.forEach(function(id) {
+        if (id.indexOf('whole:') === 0) { if (withWhole) { var w = wholeById(id.slice(6)); out.push({ id: id, ru: w.ru + ' · вся сура', kk: w.kk + ' · толық сүре', whole: w.id }); } }
+        else if (byId[id]) out.push(byId[id]);
+      });
+      return out;
+    }
     const RECITER_TABS = ['surahs', 'study', 'tajweed'];
     const _RECITER_SELECTS = { surahs: ['setting-reciter', 'home-reciter-select'], study: ['setting-reciter-study', 'study-reciter-select'], tajweed: ['setting-reciter-tajweed', 'tajweed-reciter-select'] };
     let _reciterCtx = 'surahs';
@@ -7082,7 +7187,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
           const el = document.getElementById(id);
           if (!el) return;
           el.innerHTML = (t === 'surahs') ? optsW : optsL;
-          el.value = (t === 'surahs' && wholeModeOn()) ? ('whole:' + wholeReciter().id) : state.settings.reciterBy[t];
+          el.value = (t === 'surahs' && wholeModeOn()) ? (wholeOnly(wholeReciter()) ? ('whole:' + wholeReciter().id) : (wholeReciter().ayah || state.settings.reciterBy[t])) : state.settings.reciterBy[t];
         });
       });
       try { paintReciterNotes(); } catch(e) {}
@@ -7140,7 +7245,11 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         el.addEventListener('change', function(e) {
           _reciterInit();
           if (String(e.target.value).indexOf('whole:') === 0) { chooseWholeReciter(e.target.value.slice(6)); return; }
-          if (t === 'surahs' && wholeModeOn()) { state.settings.reciterBy[t] = e.target.value; state.settings.reciter = e.target.value; setWholeMode(false); }
+          if (t === 'surahs' && wholeModeOn()) {
+            state.settings.reciterBy[t] = e.target.value; state.settings.reciter = e.target.value;
+            if (_wholeSwitchToReciter(e.target.value)) { saveState(); _RECITER_SELECTS[t].forEach(function(id2) { const o = document.getElementById(id2); if (o && o !== el) o.value = e.target.value; }); return; }
+            setWholeMode(false);
+          }
           state.settings.reciterBy[t] = e.target.value;
           if (_reciterCtx === t) state.settings.reciter = e.target.value;
           state.cache = {};
@@ -48529,22 +48638,35 @@ c.addEventListener('click', () => {
       if (!sizes.length) return null;
       return Math.round(sizes.reduce(function(p, c) { return p + c; }, 0) / sizes.length * cnt);
     }
-    async function dlSurahZip(surah, recId) {
-      var cnt = 0; try { cnt = surahAyahCount(surah); } catch (e) {}
-      if (!cnt) { toast(dlT('Не удалось определить число аятов', 'Аят санын анықтау мүмкін болмады')); return; }
+    // build 6.94: срез ID3-тегов, чтобы склеенный mp3 играл без щелчков и «обрывов» на стыках
+    function dlMp3Frames(u8) {
+      var s = 0, e = u8.length;
+      if (e > 10 && u8[0] === 0x49 && u8[1] === 0x44 && u8[2] === 0x33) { s = 10 + (((u8[6] & 0x7f) << 21) | ((u8[7] & 0x7f) << 14) | ((u8[8] & 0x7f) << 7) | (u8[9] & 0x7f)); if (u8[5] & 0x10) s += 10; }
+      if (e - s > 128 && u8[e - 128] === 0x54 && u8[e - 127] === 0x41 && u8[e - 126] === 0x47) e -= 128;
+      return u8.subarray(Math.min(s, e), e);
+    }
+    // o: { from, to, one } — диапазон аятов; one: один mp3 (склеенный), иначе zip по аятам
+    async function dlSurahZip(surah, recId, o) {
+      o = o || {};
+      var total = 0; try { total = surahAyahCount(surah); } catch (e) {}
+      if (!total) { toast(dlT('Не удалось определить число аятов', 'Аят санын анықтау мүмкін болмады')); return; }
+      var from = Math.max(1, Math.min(total, +o.from || 1)), to = Math.max(from, Math.min(total, +o.to || total));
+      var cnt = to - from + 1, ranged = !(from === 1 && to === total);
+      var zeroUrl = (o.one && from === 1 && +surah !== 9) ? zeroAyahUrl(surah, recId) : '';
       var est = await dlZipEstimate(surah, recId);
+      if (est !== null) est = Math.round(est / total * cnt);
       if (est === null) { if (!(await dlAsk(dlT('Размер заранее узнать не удалось. Сура по аятам — это ' + cnt + ' файлов, для длинных сур это может быть больше 10 МБ. Скачать точно?', 'Өлшемін алдын ала білу мүмкін болмады. Аятпен сүре — ' + cnt + ' файл, ұзын сүрелер үшін 10 МБ-тан асуы мүмкін. Нақты жүктейміз бе?'), dlT('Скачать', 'Жүктеу')))) return; }
       else if (est > DL_WARN_BYTES) { if (!(await dlAsk(dlT('Сура по аятам (zip, ' + cnt + ' файлов): примерно ', 'Аятпен сүре (zip, ' + cnt + ' файл): шамамен ') + '<b>' + dlMb(est) + '</b>. ' + dlT('Скачать точно?', 'Нақты жүктейміз бе?'), dlT('Скачать', 'Жүктеу')))) return; }
       var ctl = new AbortController(), cancelled = false;
       var ov = dlModal('<b>📥 ' + dlT('Собираю архив…', 'Архив жинап жатыр…') + '</b><div data-p style="margin-top:0.4rem;font-variant-numeric:tabular-nums">0 / ' + cnt + '</div><button type="button" class="btn btn-sm" data-x style="margin-top:0.6rem">' + dlT('Отмена', 'Бас тарту') + '</button>');
       ov.querySelector('[data-x]').addEventListener('click', function() { cancelled = true; try { ctl.abort(); } catch (e) {} ov.close(); });
-      var pe = ov.querySelector('[data-p]'), files = new Array(cnt), done = 0, failed = [], next = 1, hardFail = 0;
+      var pe = ov.querySelector('[data-p]'), files = new Array(cnt), done = 0, failed = [], next = from, hardFail = 0;
       async function worker() {
         while (!cancelled) {
-          var a = next++; if (a > cnt) return;
+          var a = next++; if (a > to) return;
           try {
             var b = await dlFetchBlob(ayahAudioUrl(surah, a, recId), null, ctl);
-            files[a - 1] = { name: dlAyahFile(surah, a, recId), data: new Uint8Array(await b.arrayBuffer()) };
+            files[a - from] = { name: dlAyahFile(surah, a, recId), data: new Uint8Array(await b.arrayBuffer()) };
             hardFail = 0;
           } catch (e) { if (cancelled) return; failed.push(a); hardFail++; if (hardFail >= 4 && !done) { cancelled = true; try { ctl.abort(); } catch (e2) {} } }
           done++; pe.textContent = done + ' / ' + cnt;
@@ -48555,7 +48677,16 @@ c.addEventListener('click', () => {
       var ok = files.filter(Boolean);
       if (!ok.length) { if (!(cancelled && !failed.length)) dlFail(null); return; }
       if (cancelled) return;
-      dlSaveBlob(dlZip(ok), dlPad(surah) + '_' + dlSurahName(surah) + '_' + dlSafe(dlReciterName(recId)) + '.zip');
+      var base = dlPad(surah) + '_' + dlSurahName(surah) + (ranged ? '_' + from + '-' + to : '') + '_' + dlSafe(dlReciterName(recId));
+      if (o.one) {
+        var parts = [];
+        if (zeroUrl) { try { parts.push(dlMp3Frames(new Uint8Array(await (await dlFetchBlob(zeroUrl, null, ctl)).arrayBuffer()))); } catch (e) {} }
+        ok.forEach(function(f) { parts.push(dlMp3Frames(f.data)); });
+        dlSaveBlob(new Blob(parts, { type: 'audio/mpeg' }), base + '.mp3');
+        toast(dlT('Файл сохранён: ', 'Файл сақталды: ') + base + '.mp3' + (failed.length ? dlT(' (без аятов: ', ' (аяттарсыз: ') + failed.sort(function(x, y) { return x - y; }).join(', ') + ')' : ''));
+        return;
+      }
+      dlSaveBlob(dlZip(ok), base + '.zip');
       toast(dlT('Архив сохранён: ', 'Архив сақталды: ') + ok.length + ' / ' + cnt + (failed.length ? dlT(' (не скачались аяты: ', ' (жүктелмеген аяттар: ') + failed.sort(function(x, y) { return x - y; }).join(', ') + ')' : ''));
     }
     // окно «Скачать»: аят / сура (build 6.40: выбор чтеца; целые суры — только если выбран чтец с целыми сурами)
@@ -48586,7 +48717,16 @@ c.addEventListener('click', () => {
         }
         body.innerHTML = (an ? '<button type="button" class="btn" data-dl="ayah">📥 ' + dlT('Этот аят (mp3)', 'Осы аят (mp3)') + '</button>' : '') +
           '<button type="button" class="btn" data-dl="zip" style="flex-wrap:wrap;justify-content:center;text-align:center">📥 ' + dlT('Суру по аятам — архив .zip', 'Сүрені аятпен — .zip архив') + (cnt ? ' (' + cnt + ' ' + dlT('файлов', 'файл') + ')' : '') +
-          '<span data-dl-est style="display:block;width:100%;font-size:0.75rem;opacity:0.8">' + dlT('считаю размер…', 'өлшемін есептеп жатыр…') + '</span></button>';
+          '<span data-dl-est style="display:block;width:100%;font-size:0.75rem;opacity:0.8">' + dlT('считаю размер…', 'өлшемін есептеп жатыр…') + '</span></button>' +
+          // build 6.94: целая сура одним файлом — без нарезки (mp3quran), а если у чтеца её нет — склейка аятов в один mp3
+          (wholeForAyah(sel) ? '<button type="button" class="btn" data-dl="wholeA">📥 ' + dlT('Суру целиком — один файл (mp3, без нарезки)', 'Сүрені толық — бір файл (mp3, кесусіз)') + '</button>'
+            : '<button type="button" class="btn" data-dl="one">📥 ' + dlT('Суру одним файлом (mp3, склеено из аятов)', 'Сүрені бір файлмен (mp3, аяттардан құралған)') + '</button>') +
+          // диапазон «с–по»
+          (cnt > 1 ? '<div style="border-top:1px solid var(--border);padding-top:0.5rem;margin-top:0.1rem"><div class="ayah-translation" style="font-size:0.8rem">' + dlT('Аяты с … по …', 'Аяттар … бастап … дейін') + '</div>' +
+            '<div style="display:flex;gap:0.35rem;align-items:center;margin-top:0.3rem"><input type="number" inputmode="numeric" min="1" max="' + cnt + '" value="' + (an || 1) + '" data-dl-from class="select" style="width:4.6rem">' +
+            '<span>–</span><input type="number" inputmode="numeric" min="1" max="' + cnt + '" value="' + cnt + '" data-dl-to class="select" style="width:4.6rem"><span class="ayah-translation" style="font-size:0.75rem">/ ' + cnt + '</span></div>' +
+            '<div style="display:flex;gap:0.35rem;margin-top:0.4rem;flex-wrap:wrap"><button type="button" class="btn btn-sm" data-dl="rzip" style="flex:1">📦 ' + dlT('Архив .zip', '.zip архив') + '</button>' +
+            '<button type="button" class="btn btn-sm" data-dl="rone" style="flex:1">🎵 ' + dlT('Одним mp3', 'Бір mp3') + '</button></div></div>' : '');
         var est = body.querySelector('[data-dl-est]');
         dlZipEstimate(sn, sel).then(function(n) { if (my !== estToken) return; try { est.textContent = n ? (dlT('примерно ', 'шамамен ') + dlMb(n)) : dlT('размер заранее узнать не удалось', 'өлшемін алдын ала білу мүмкін болмады'); } catch (e) {} }).catch(function() {});
       }
@@ -48597,7 +48737,14 @@ c.addEventListener('click', () => {
         var b = e.target.closest && e.target.closest('[data-dl]'); if (!b) return;
         var k = b.getAttribute('data-dl');
         if (k === 'close') { ov.close(); return; }
+        var rf = ov.querySelector('[data-dl-from]'), rt = ov.querySelector('[data-dl-to]');
+        var rFrom = rf ? +rf.value : 1, rTo = rt ? +rt.value : cnt;
+        if ((k === 'rzip' || k === 'rone') && !(rFrom >= 1 && rTo >= rFrom && rTo <= cnt)) { toast(dlT('Проверьте номера аятов: от 1 до ', 'Аят нөмірлерін тексеріңіз: 1-ден ') + cnt + dlT('', '-ке дейін')); return; }
         ov.close();
+        if (k === 'wholeA') { var wa = wholeForAyah(sel); dlOneFile(wa.base + dlPad(sn) + '.mp3', dlWholeFile(sn, wa.id), { warn: true }); return; }
+        if (k === 'one') { dlSurahZip(sn, sel, { one: true }); return; }
+        if (k === 'rzip') { dlSurahZip(sn, sel, { from: rFrom, to: rTo }); return; }
+        if (k === 'rone') { dlSurahZip(sn, sel, { from: rFrom, to: rTo, one: true }); return; }
         if (k === 'ayah') dlOneFile(ayahAudioUrl(sn, an, sel), dlAyahFile(sn, an, sel), {});
         else if (k === 'zip') dlSurahZip(sn, sel);
         else if (k === 'whole') { var wr2 = wholeById(sel.slice(6)); dlOneFile(wr2.base + dlPad(sn) + '.mp3', dlWholeFile(sn, wr2.id), { warn: true }); }
