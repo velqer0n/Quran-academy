@@ -35,8 +35,12 @@ self.addEventListener('fetch', e => {
     })());
     return;
   }
+  // build 6.93: файлы самого сайта всегда сверяем с сервером (cache: 'no-cache' — короткий
+  // запрос «не изменился ли», 304 без перекачки), чтобы HTTP-кэш браузера не держал старую версию
+  const own = url.indexOf(self.location.origin + '/') === 0;
+  const net = own ? fetch(req.mode === 'navigate' ? req.url : req, { cache: 'no-cache', credentials: 'same-origin' }).catch(() => fetch(req)) : fetch(req);
   e.respondWith(
-    fetch(req).then(resp => {
+    net.then(resp => {
       if (resp && resp.ok) { // непрозрачные (opaque) ответы не храним — они раздувают квоту
         const clone = resp.clone();
         caches.open(CACHE).then(c => c.put(req, clone)).catch(() => {});

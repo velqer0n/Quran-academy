@@ -4241,7 +4241,6 @@ body[data-ui] .sr-btn:not(.btn-sm) { min-height: 3rem; }
 .ui-sample { pointer-events: none; }
 .ui-sample .btn { cursor: default; }
 .ui-sample-lab { font-size: 0.78rem; color: var(--text-muted); margin-right: 0.15rem; }
-#btn-header-theme { display: none !important; }
 #btn-header-fontsize svg { display: block; }
 
 /* build 6.73: «Суры» — компактный список, фильтры, панели читалки, режимы, мусхаф */
@@ -4377,3 +4376,17 @@ body.quiet-reading #reader-view-panel,body.quiet-reading #reader-more-panel,body
 .fp-status{text-align:center;min-height:1.8em;font-size:0.95rem;margin:0.2rem 0 0.5rem}
 .fp-ctrl{display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;justify-content:center}
 .fp-ctrl select{padding:0.2rem 0.3rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg-card);color:var(--text)}
+
+/* build 6.93: огласовка без буквы — на пунктирном кружке, крупнее */
+.hk-mark { font-family: Amiri, 'Noto Naskh Arabic', serif; font-size: 1.35em; line-height: 1; vertical-align: -0.1em; }
+/* build 6.93: разделы «Учёбы» видно как нажимаемые — карточка и стрелка ▸/▾ */
+.teacher-group > summary { list-style: none; padding: 0.55rem 0.75rem; border: 1px solid var(--border); border-radius: 0.6rem; background: var(--bg-card); transition: background 0.15s, border-color 0.15s; user-select: none; }
+.teacher-group > summary::-webkit-details-marker { display: none; }
+.teacher-group > summary > span:first-child { display: inline-flex; align-items: center; gap: 0.5rem; }
+.teacher-group > summary > span:first-child::before { content: '▸'; display: inline-block; font-size: 0.9em; color: var(--accent); transition: transform 0.2s; }
+.teacher-group[open] > summary > span:first-child::before { transform: rotate(90deg); }
+.teacher-group > summary:hover { border-color: var(--accent); }
+.teacher-group[open] > summary { margin-bottom: 0.45rem; }
+@media (prefers-reduced-motion: reduce) { .teacher-group > summary > span:first-child::before { transition: none; } }
+/* build 6.93: место под нижним плеером, чтобы он не закрывал конец страницы */
+main::after { content: ''; display: block; height: var(--player-h, 0px); pointer-events: none; }

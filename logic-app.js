@@ -7913,7 +7913,7 @@ function speakLetter(ch, name, ttsOnly) {
           '<div class="card" style="cursor:pointer" data-har="'+i+'">' +
           '<div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">' +
           '<span style="font-size:2rem;font-family:Amiri,serif;min-width:2.5rem;text-align:center" dir="rtl">ب'+h.symbol+'</span>' +
-          '<div style="flex:1"><b>'+(kkH ? (h.nameKk || h.name) : h.name)+'</b> <span style="color:var(--text-muted)">'+h.symbol+' · '+h.tr+'</span>' +
+          '<div style="flex:1"><b>'+(kkH ? (h.nameKk || h.name) : h.name)+'</b> <span style="color:var(--text-muted)"><span class="hk-mark" dir="rtl">◌'+h.symbol+'</span> · '+h.tr+'</span>' +
           '<div class="ayah-translation">'+(kkH ? (h.noteKk || h.note) : h.note)+'</div>' +
           '<div class="arabic" style="font-size:calc(1.4rem * var(--ar-scale, 1));margin-top:0.25rem" dir="rtl">'+h.example+' <span style="font-size:0.85rem;color:var(--text-muted);font-family:Inter,sans-serif">'+((kkH && h.exampleTrKk) ? h.exampleTrKk : h.exampleTr)+'</span></div>' +
           '</div></div></div>'
@@ -8377,7 +8377,7 @@ function speakLetter(ch, name, ttsOnly) {
     async function downloadEverythingOffline(onProgress, opts) {
       const shellFiles = ['./', 'styles.css', 'data-changelog.js', 'data-changelog-archive.js', 'data-legal.js', 'data-quran-learning.js',
         'data-reading-library.js', 'data-islamic-knowledge.js', 'data-hajj-and-names.js',
-        'data-daily-practice.js', 'data-app-settings.js', 'data-kk-extra.js', 'logic-app.js', 'quran-offline-data.js', 'three.module.min.js', 'data-hisn.js', 'data-letter-strokes.js', 'salah-model.bin'].concat((typeof ARABIC_LETTERS !== 'undefined' ? ARABIC_LETTERS : []).filter(function(L) { return L.audio; }).map(function(L) { return LETTER_AUDIO_BASE + L.audio; }));
+        'data-daily-practice.js', 'data-app-settings.js', 'data-kk-extra.js', 'logic-app.js', 'three.module.min.js', 'data-hisn.js', 'data-letter-strokes.js', 'salah-model.bin'].concat((typeof ARABIC_LETTERS !== 'undefined' ? ARABIC_LETTERS : []).filter(function(L) { return L.audio; }).map(function(L) { return LETTER_AUDIO_BASE + L.audio; }));
       let shellOk = 0;
       for (let i = 0; i < shellFiles.length; i++) {
         try { await fetch(shellFiles[i]); shellOk++; } catch(e) {}
@@ -8987,11 +8987,11 @@ function speakLetter(ch, name, ttsOnly) {
         theory: 'Каждая буква меняет начертание в зависимости от места в слове: отдельно, в начале, в середине или в конце слова. Это не другая буква — тот же самый звук, только другая «одежда». В этом навыке — узнавание одной и той же буквы в разных формах.' },
       { id: 'qaida_lines_1', title: 'Строки для чтения: первый шаг', group: 'letters', prereq: ['letter_forms'], kind: 'qaida-lines', lettersCount: 'few',
         theory: 'Как в настоящей Каиде: не отдельные слоги, а целые строки из коротких сочетаний подряд, составленные только из уже пройденных букв. Читайте вслух строка за строкой, в своём темпе — здесь нет проверки, только практика.' },
-      { id: 'harakat_fatha', title: 'Огласовка: фатха (َ)', group: 'basics', prereq: ['qaida_lines_1'], kind: 'syllables',
+      { id: 'harakat_fatha', title: 'Огласовка: фатха (◌َ)', group: 'basics', prereq: ['qaida_lines_1'], kind: 'syllables',
         theory: 'Фатха — короткая чёрточка над буквой, даёт короткий звук «а» сразу после согласной.' },
-      { id: 'harakat_kasra', title: 'Огласовка: кясра (ِ)', group: 'basics', prereq: ['harakat_fatha'], kind: 'syllables',
+      { id: 'harakat_kasra', title: 'Огласовка: кясра (◌ِ)', group: 'basics', prereq: ['harakat_fatha'], kind: 'syllables',
         theory: 'Кясра — чёрточка под буквой, даёт короткий звук «и» сразу после согласной.' },
-      { id: 'harakat_damma', title: 'Огласовка: дамма (ُ)', group: 'basics', prereq: ['harakat_kasra'], kind: 'syllables',
+      { id: 'harakat_damma', title: 'Огласовка: дамма (◌ُ)', group: 'basics', prereq: ['harakat_kasra'], kind: 'syllables',
         theory: 'Дамма — маленький завиток над буквой, даёт короткий звук «у» сразу после согласной.' },
       { id: 'syllables_mixed', title: 'Вставьте нужную огласовку', group: 'basics', prereq: ['harakat_damma'], kind: 'fillgap',
         theory: 'Теперь все три огласовки вместе, вразнобой — и не на отдельном слоге, а в настоящем слове: одна огласовка спрятана, нужно угадать, какая из трёх (фатха/кясра/дамма) там должна стоять.' },
@@ -9212,15 +9212,15 @@ function speakLetter(ch, name, ttsOnly) {
   "theory": "Нағыз Қаидадағыдай: жеке буындар емес, тек өтілген әріптерден құралған қысқа тіркестердің тұтас жолдары. Жолма-жол, өз қарқыныңызбен дауыстап оқыңыз — мұнда тексеру жоқ, тек жаттығу."
  },
  "harakat_fatha": {
-  "title": "Харакат: фатха (َ)",
+  "title": "Харакат: фатха (◌َ)",
   "theory": "Фатха — әріптің үстіндегі қысқа сызық, дауыссыздан кейін бірден қысқа «ә» (қатты әріптерде «о») дыбысын береді."
  },
  "harakat_kasra": {
-  "title": "Харакат: кясра (ِ)",
+  "title": "Харакат: кясра (◌ِ)",
   "theory": "Кясра — әріптің астындағы сызық, дауыссыздан кейін бірден қысқа «и» (қатты әріптерде «ы») дыбысын береді."
  },
  "harakat_damma": {
-  "title": "Харакат: дамма (ُ)",
+  "title": "Харакат: дамма (◌ُ)",
   "theory": "Дамма — әріптің үстіндегі кішкентай ілмек, дауыссыздан кейін бірден қысқа «ү» (қатты әріптерде «у») дыбысын береді."
  },
  "syllables_mixed": {
@@ -9661,7 +9661,7 @@ function speakLetter(ch, name, ttsOnly) {
           const name = (kkT && h.nameKk) ? h.nameKk : h.name;
           return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
             '<div class="arabic" style="font-size:calc(1.8rem * var(--ar-scale, 1));min-width:3rem;text-align:center">' + h.example + '</div>' +
-            '<div style="flex:1"><b>' + name + '</b> <span style="color:var(--text-muted)">(' + h.symbol + ')</span><div style="color:var(--text-muted);font-size:0.85rem">' + ((kkT && h.noteKk) ? h.noteKk : h.note) + '</div></div>' +
+            '<div style="flex:1"><b>' + name + '</b> <span style="color:var(--text-muted)">(<span class="hk-mark" dir="rtl">◌' + h.symbol + '</span>)</span><div style="color:var(--text-muted);font-size:0.85rem">' + ((kkT && h.noteKk) ? h.noteKk : h.note) + '</div></div>' +
             '<div style="font-weight:700;color:var(--accent)">' + ((kkT && h.exampleTrKk) ? h.exampleTrKk : h.exampleTr) + '</div>' +
             '</div>';
         }).join('');
@@ -12660,7 +12660,7 @@ function renderMistakes() {
         '<div class="sf-about">' + (kk ? 'Құран оқуды орыс және қазақ тілдерінде үйренуге арналған тегін сайт. Жарнамасыз.' : 'Бесплатный сайт для изучения чтения Корана на русском и казахском. Без рекламы.') + '</div>' +
         '<button type="button" class="btn btn-sm btn-primary sf-share" data-foot="share">📤 ' + (kk ? 'Сайтпен бөлісу' : 'Поделиться сайтом') + '</button>' +
         '<div class="sf-grid">' + L('appupdate', '🔄 Обновить сайт', '🔄 Сайтты жаңарту') + L('changelog', '🆕 Что нового', '🆕 Не жаңа') + L('sources', '📚 Источники', '📚 Дереккөздер') + L('legaldocs', '📄 Документы', '📄 Құжаттар') +
-          L('feedback', '💡 Идеи и баги', '💡 Идеялар мен қателер') + L('data', '💾 Мои данные', '💾 Менің деректерім') + L('onboard', '🧭 Как пользоваться', '🧭 Қалай пайдалану') + L('bigtext', '🔍 Крупный текст', '🔍 Ірі мәтін') + '</div>' +
+          L('feedback', '💡 Идеи и баги', '💡 Идеялар мен қателер') + L('data', '💾 Мои данные', '💾 Менің деректерім') + L('onboard', '🧭 Как пользоваться', '🧭 Қалай пайдалану') + '</div>' +
         '<div class="sf-ver">' + (kk ? 'Нұсқа ' : 'Версия ') + ver + '</div>' +
         '<div class="sf-credits">' + (kk ? 'Құран мәтіні мен аудармалар — alquran.cloud, quran.com; аудио — everyayah.com, mp3quran.net; тәжуид түстері — cpfair/quran-tajweed (CC BY 4.0); хадистер — sunnah.com бойынша тексеріледі.'
           : 'Текст Корана и переводы — alquran.cloud, quran.com; аудио — everyayah.com, mp3quran.net; цвета таджвида — cpfair/quran-tajweed (CC BY 4.0); хадисы сверяются по sunnah.com.') + '</div>' +
@@ -12676,8 +12676,10 @@ function renderMistakes() {
       if (id === 'share') {
         const url = 'https://velqer0n.github.io/Quran-academy/';
         const txt = isKk() ? 'Quran Academy — Құран оқуды үйренуге арналған тегін сайт' : 'Quran Academy — бесплатный сайт для изучения чтения Корана';
-        if (navigator.share) { navigator.share({ title: 'Quran Academy', text: txt, url: url }).catch(function () {}); }
-        else { try { navigator.clipboard.writeText(txt + ' ' + url).then(function () { toast(isKk() ? 'Сілтеме көшірілді' : 'Ссылка скопирована'); }); } catch (er) {} }
+        // build 6.93: на компьютере — своё окно (ссылка, «Копировать», QR), а не системное меню Windows
+        const desktop = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        if (navigator.share && !desktop) { navigator.share({ title: 'Quran Academy', text: txt, url: url }).catch(function () {}); return; }
+        qaShareSiteSheet(url, txt);
         return;
       }
       if (id === 'onboard') { qaOnboarding(true); return; }
@@ -12686,6 +12688,41 @@ function renderMistakes() {
       if (id === 'lang' || id === 'lang-ru' || id === 'lang-kk') { const b = document.getElementById('btn-lang-toggle'); if (b) b.click(); else { try { state.settings.lang = isKk() ? 'ru' : 'kk'; saveState(); applyLanguage(); renderMoreMenu(); } catch (er) {} } return; }
       showView(id);
     });
+    // build 6.93: окно «Поделиться сайтом» (компьютер или браузер без navigator.share)
+    function qaShareSiteSheet(url, txt) {
+      const kk = isKk();
+      const ov = dlModal('<b>📤 ' + (kk ? 'Сайтпен бөлісу' : 'Поделиться сайтом') + '</b>' +
+        '<input type="text" readonly value="' + url + '" data-sh-url style="width:100%;box-sizing:border-box;margin-top:0.6rem;padding:0.45rem 0.55rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
+        '<div style="display:flex;gap:0.4rem;margin-top:0.45rem;flex-wrap:wrap">' +
+          '<button type="button" class="btn btn-sm btn-primary" data-sh="copy" style="flex:1">📋 ' + (kk ? 'Сілтемені көшіру' : 'Копировать ссылку') + '</button>' +
+          '<button type="button" class="btn btn-sm" data-sh="copytxt" style="flex:1">📝 ' + (kk ? 'Мәтінмен көшіру' : 'С описанием') + '</button>' +
+        '</div>' +
+        '<div data-sh-qr style="margin:0.7rem auto 0;background:#fff;padding:0.6rem;border-radius:0.5rem;width:max-content;min-height:2rem;font-size:0.8rem;color:#475569">' + (kk ? 'QR-код жүктелуде…' : 'QR-код загружается…') + '</div>' +
+        '<div class="ayah-translation" style="font-size:0.75rem;margin-top:0.35rem;text-align:center">' + (kk ? 'Телефон камерасымен сканерлеңіз' : 'Наведите камеру телефона') + '</div>' +
+        '<div style="display:flex;gap:0.4rem;margin-top:0.6rem">' +
+          (navigator.share ? '<button type="button" class="btn btn-sm" data-sh="sys" style="flex:1">⋯ ' + (kk ? 'Жүйе мәзірі' : 'Системное меню') + '</button>' : '') +
+          '<button type="button" class="btn btn-sm" data-sh="close" style="flex:1">' + (kk ? 'Жабу' : 'Закрыть') + '</button>' +
+        '</div>');
+      const qr = ov.querySelector('[data-sh-qr]');
+      const build = function () { try { qr.innerHTML = ''; new QRCode(qr, { text: url, width: 168, height: 168, correctLevel: QRCode.CorrectLevel.M }); } catch (e) { qr.textContent = kk ? 'QR-кодты жасау мүмкін болмады' : 'Не удалось построить QR-код'; } };
+      if (typeof QRCode !== 'undefined') build();
+      else loadLib('qrcode').then(function (ok) { if (ok) build(); else qr.textContent = kk ? 'QR-код кітапханасы жүктелмеді (интернет қажет)' : 'Библиотека QR-кода не загрузилась (нужен интернет)'; });
+      const copy = function (s) {
+        const done = function () { toast(kk ? 'Көшірілді' : 'Скопировано'); };
+        try { navigator.clipboard.writeText(s).then(done, function () { const i = ov.querySelector('[data-sh-url]'); i.select(); try { document.execCommand('copy'); done(); } catch (e) {} }); }
+        catch (e) { const i = ov.querySelector('[data-sh-url]'); i.select(); try { document.execCommand('copy'); done(); } catch (e2) {} }
+      };
+      ov.addEventListener('click', function (e) {
+        if (e.target === ov) { ov.close(); return; }
+        const b = e.target.closest && e.target.closest('[data-sh]'); if (!b) return;
+        const k = b.getAttribute('data-sh');
+        if (k === 'close') ov.close();
+        else if (k === 'copy') copy(url);
+        else if (k === 'copytxt') copy(txt + ' ' + url);
+        else if (k === 'sys') navigator.share({ title: 'Quran Academy', text: txt, url: url }).catch(function () {});
+      });
+      const inp = ov.querySelector('[data-sh-url]'); inp.addEventListener('focus', function () { inp.select(); });
+    }
     // build 6.75: «⋯ Вид» в Онлайне — раскладка и порядок плиток спрятаны
     document.addEventListener('click', function (e) {
       const b = e.target && e.target.closest ? e.target.closest('#online-layout-toggle') : null;
@@ -14446,7 +14483,7 @@ function renderMistakes() {
         if (!positions.length) return null;
         const pos = positions[Math.floor(Math.random()*positions.length)];
         const mark = w.ar[pos];
-        const masked = w.ar.slice(0, pos) + '◌' + w.ar.slice(pos+1);
+        const masked = w.ar.slice(0, pos) + '' + w.ar.slice(pos+1);
         return { masked: masked, mark: mark, tr: pwTr(w), meaning: pwMean(w) };
       }).filter(Boolean);
       gameQueue = shuffle(pool).slice(0, Math.min(8, pool.length));
@@ -30095,7 +30132,7 @@ function renderDict() {
           try { location.reload(); } catch(e2) {}
         }
       }
-      setTimeout(go, 1200); // страховка: не зависать
+      setTimeout(go, 5000); // страховка: не зависать
       try {
         var tasks = [];
         if ('serviceWorker' in navigator) {
@@ -30111,6 +30148,16 @@ function renderDict() {
         await Promise.race([
           Promise.all(tasks).catch(function(){}),
           new Promise(function(res){ setTimeout(res, 800); })
+        ]);
+        // build 6.93: перезагрузка с ?v= обновляла только страницу, а logic-app.js и data-*.js
+        // браузер мог снова взять из своего HTTP-кэша — так один компьютер и остался на старой
+        // версии. Перед перезагрузкой перекачиваем все файлы сайта мимо кэша (cache: 'reload').
+        var files = Array.prototype.map.call(document.querySelectorAll('script[src], link[rel="stylesheet"][href]'), function(el) { return el.getAttribute('src') || el.getAttribute('href'); })
+          .filter(function(u) { return u && !/^(https?:)?\/\//.test(u); });
+        files.push('sw.js');
+        await Promise.race([
+          Promise.all(files.map(function(u) { return fetch(u, { cache: 'reload' }).catch(function(){}); })),
+          new Promise(function(res){ setTimeout(res, 4000); })
         ]);
       } catch(e) {}
       go();
@@ -57213,7 +57260,9 @@ c.addEventListener('click', () => {
       // build 6.76: «Часто открываете» — 4 раздела, куда вы заходите чаще всего (по счётчику посещений)
       let freqHtml = '';
       try {
-        if (!moreEditMode) {
+        // build 6.93: блок по умолчанию скрыт; включается галочкой в режиме правки «Ещё»
+        if (moreEditMode) freqHtml = '<label class="surah-meta" style="display:flex;gap:0.45rem;align-items:center;margin:0.2rem 0 0.5rem;cursor:pointer"><input type="checkbox" id="more-freq-toggle"' + (state.settings && state.settings.moreFreq ? ' checked' : '') + '> ' + (isKk() ? '⭐ «Жиі ашасыз» блогын көрсету' : '⭐ Показывать «Часто открываете»') + '</label>';
+        if (!moreEditMode && state.settings && state.settings.moreFreq) {
           const rs = ensureRichStats(), sv = rs.sectionVisits || {};
           const score = function (id) { const m = normalizeDayMap(sv[id] || {}); return Object.keys(m).reduce(function (a, k) { return a + (Number(m[k]) || 0); }, 0); };
           const top = items.map(function (it) { return { it: it, n: score(it.id) }; }).filter(function (x) { return x.n >= 2; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 4);
@@ -57223,6 +57272,8 @@ c.addEventListener('click', () => {
       } catch (e) {}
       el.innerHTML = '<div class="more-tip-wrap">' + moreTipHtml + '</div>' + freqHtml + html;
       el.querySelectorAll('.more-freq-btn').forEach(function (b) { b.addEventListener('click', function () { showView(b.getAttribute('data-goto')); }); });
+      const freqTg = el.querySelector('#more-freq-toggle');
+      if (freqTg) freqTg.addEventListener('change', function () { state.settings.moreFreq = freqTg.checked ? 1 : 0; saveState(); });
       try { renderMoreFooter(); } catch (e) {}
       // Перемещение целой группы
       el.querySelectorAll('[data-gup],[data-gdown]').forEach(btn => {
@@ -63252,6 +63303,22 @@ async function pushUnsub() {
   window.addEventListener('load', function () { sync(); setTimeout(sync, 800); setTimeout(sync, 3000); });
   document.addEventListener('DOMContentLoaded', sync);
   try { var nav0 = document.querySelector('.bottom-nav'); if (nav0 && typeof ResizeObserver === 'function') new ResizeObserver(sync).observe(nav0); } catch (e) {}
+  // build 6.93: место под плеером — последние аяты и дуа не прячутся под ним (--player-h = высота плеера или 0)
+  function syncPlayer() {
+    try {
+      var bar = document.getElementById('audio-bar'), h = 0;
+      if (bar && getComputedStyle(bar).display !== 'none') h = Math.round(bar.getBoundingClientRect().height);
+      document.documentElement.style.setProperty('--player-h', h + 'px');
+    } catch (e) {}
+  }
+  try {
+    var bar0 = document.getElementById('audio-bar');
+    if (bar0) {
+      if (typeof ResizeObserver === 'function') new ResizeObserver(syncPlayer).observe(bar0);
+      if (typeof MutationObserver === 'function') new MutationObserver(syncPlayer).observe(bar0, { attributes: true, attributeFilter: ['class', 'style'] });
+      syncPlayer();
+    }
+  } catch (e) {}
   try { new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ['class'] }); } catch (e) {}
   sync();
 })();
