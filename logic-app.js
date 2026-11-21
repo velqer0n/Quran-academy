@@ -15052,9 +15052,7 @@ function renderMistakes() {
           try { renderListenWriteDrill(area); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Қате: ' : 'Ошибка: ') + (e.message||e) + '</p>'; }
           return;
         }
-        area.innerHTML =
-          '<div class="empty-state"><p>' + (kkG ? 'Тест үшін «Бастау» басыңыз: ' : 'Нажмите «Начать» для теста: ') + '<b>'+btn.textContent+'</b></p>' +
-          '<button class="btn btn-primary" id="btn-start-game" style="margin-top:1rem">' + (kkG ? 'Бастау' : 'Начать') + '</button></div>';
+        area.innerHTML = qzStartCardHtml(currentGame, btn.textContent);
         document.getElementById('btn-start-game').addEventListener('click', startGame);
       });
     });
@@ -15155,9 +15153,91 @@ function renderMistakes() {
       return a;
     }
 
+    // ===== 6.107: тесты в «Тренировке» — экран старта, экран фокуса с прогрессом, крупные варианты, спокойный итог с разбором (без рекордов) =====
+    const QZ_INFO = {
+      letters: { ico: '🔤', ru: 'Название буквы → найдите её среди вариантов.', kk: 'Әріптің аты → оны нұсқалардан табыңыз.' },
+      names: { ico: '🏷', ru: 'Видите букву → выберите, как она называется.', kk: 'Әріпті көресіз → атын таңдаңыз.' },
+      speak: { ico: '🎤', ru: 'Произнесите букву вслух — сайт послушает и подскажет.', kk: 'Әріпті дауыстап айтыңыз — сайт тыңдап, кеңес береді.' },
+      'speak-ayah': { ico: '🎤', ru: 'Прочитайте аят вслух — сайт сравнит с текстом.', kk: 'Аятты дауыстап оқыңыз — сайт мәтінмен салыстырады.' },
+      ayah: { ico: '📖', ru: 'Аят → выберите его перевод или продолжение.', kk: 'Аят → аудармасын немесе жалғасын таңдаңыз.' },
+      noharakat: { ico: '✍️', ru: 'Чтение слов без огласовок.', kk: 'Сөздерді харакатсыз оқу.' },
+      speed: { ico: '⏱', ru: 'Читайте строки в своём темпе — без гонки.', kk: 'Жолдарды өз қарқыныңызбен оқыңыз — жарыссыз.' },
+      rules: { ico: '📘', ru: 'Описание правила → выберите его название.', kk: 'Ереженің сипаттамасы → атауын таңдаңыз.' },
+      findrule: { ico: '🎨', ru: 'Найдите в настоящем аяте слово с нужным правилом таджвида.', kk: 'Нақты аяттан керекті тәжуид ережесі бар сөзді табыңыз.' }
+    };
+    function qzStartCardHtml(game, title) {
+      var kk = isKk(), I = QZ_INFO[game] || { ico: '🎯', ru: 'Короткая тренировка: отвечайте в своём темпе.', kk: 'Қысқа жаттығу: өз қарқыныңызбен жауап беріңіз.' };
+      return '<div class="qz-start">' +
+        '<div class="qz-start-ico">' + I.ico + '</div>' +
+        '<div class="qz-start-title">' + String(title || '').replace(/</g, '&lt;') + '</div>' +
+        '<div class="qz-start-desc">' + (kk ? I.kk : I.ru) + '</div>' +
+        '<div class="qz-start-note">' + (kk ? 'Асықпаңыз: уақыт пен рекорд жоқ — тек жаттығу. Қате — үйренудің бөлігі.' : 'Без спешки: нет таймера и рекордов — только тренировка. Ошибка — часть учёбы.') + '</div>' +
+        '<button class="btn btn-primary qz-start-btn" id="btn-start-game">▶ ' + (kk ? 'Бастау' : 'Начать') + '</button></div>';
+    }
+    function qzResultHtml(pct, kk) {
+      var msg = pct >= 90 ? (kk ? 'Өте жақсы — материал жақсы меңгерілген.' : 'Очень хорошо — материал усвоен.')
+        : pct >= 60 ? (kk ? 'Жақсы. Қателерді қайталасаңыз, тіпті жақсырақ болады.' : 'Хорошо. Повторите ошибки — станет ещё увереннее.')
+        : (kk ? 'Бұл қалыпты — қайталау арқылы үйренеміз. Төмендегі қателерді қараңыз.' : 'Это нормально — учимся повторением. Посмотрите разбор ниже.');
+      var R = 34, C = 2 * Math.PI * R, off = C * (1 - pct / 100);
+      var wrongs = (!_activeTeacherSkill && _teacherSessionWrongs && _teacherSessionWrongs.length) ? _teacherSessionWrongs : [];
+      return '<div class="quiz-card qz-result">' +
+        '<svg class="qz-ring" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="' + R + '" class="qz-ring-bg"/><circle cx="40" cy="40" r="' + R + '" class="qz-ring-fg" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"/></svg>' +
+        '<div class="qz-result-num">' + gameScore + ' / ' + gameTotal + '</div>' +
+        '<div class="qz-result-msg">' + msg + '</div>' +
+        (wrongs.length ? '<div class="qz-wrongs"><b>' + (kk ? 'Қателерді талдау' : 'Разбор ошибок') + ' (' + wrongs.length + ')</b>' + wrongs.map(function(w) {
+          return '<div class="qz-wrong"><div class="qz-wrong-q">' + w.q + '</div><div><span class="qz-bad">✗ ' + w.your + '</span> <span class="qz-arrow">→</span> <span class="qz-good">✓ ' + w.correct + '</span></div></div>';
+        }).join('') + '</div>' : '') +
+        '<div class="qz-result-btns"><button class="btn btn-primary" id="btn-start-game">↻ ' + (kk ? 'Тағы бір рет' : 'Ещё раз') + '</button>' +
+        '<button type="button" class="btn" data-qz-mistakes="1">⚠️ ' + (kk ? 'Менің қателерім' : 'Мои ошибки') + '</button></div></div>';
+    }
+    // «улучшатель»: следит за областью теста и сам добавляет прогресс, «✕», крупные плитки и отклик — для всех тестов сразу
+    function qzEnhance() {
+      var area = document.getElementById('game-area'); if (!area) return;
+      var view = document.getElementById('view-games');
+      var card = area.querySelector('.quiz-card');
+      var running = !!(card && !card.classList.contains('qz-result') && (card.querySelector('.quiz-opts') || card.querySelector('#findrule-ayah')));
+      if (view) view.classList.toggle('qz-running', running);
+      if (!running) return;
+      var kk = isKk();
+      // счёт «0 / 1» — убираем (это не соревнование), вместо него — полоска «Вопрос N из M»
+      Array.prototype.forEach.call(card.children, function(ch) { if (/^(Счёт|Есеп):/.test((ch.textContent || '').trim())) ch.classList.add('qz-hide'); });
+      Array.prototype.forEach.call(card.querySelectorAll('div'), function(ch) { if (!ch.children.length && /^(Счёт|Есеп):/.test((ch.textContent || '').trim())) ch.classList.add('qz-hide'); });
+      if (!card.querySelector('.qz-top')) {
+        var total = (typeof gameQueue !== 'undefined' && gameQueue) ? gameTotal + gameQueue.length : 0;
+        var top = document.createElement('div');
+        top.className = 'qz-top';
+        top.innerHTML = '<button type="button" class="qz-close" data-qz-close="1" aria-label="' + (kk ? 'Аяқтау' : 'Завершить') + '">✕</button>' +
+          '<span class="qz-bar"><i style="width:' + (total ? Math.round((gameTotal - 1) / total * 100) : 0) + '%"></i></span>' +
+          '<span class="qz-count">' + (total ? gameTotal + ' / ' + total : '') + '</span>';
+        card.insertBefore(top, card.firstChild);
+        requestAnimationFrame(function() { var i = top.querySelector('.qz-bar i'); if (i && total) i.style.width = Math.round(gameTotal / total * 100) + '%'; });
+      }
+      var opts = card.querySelector('.quiz-opts');
+      if (opts && !opts.dataset.qz) {
+        opts.dataset.qz = '1';
+        var bs = opts.querySelectorAll('button');
+        var allAr = bs.length && Array.prototype.every.call(bs, function(b) { var s = (b.textContent || '').trim(); return s.length <= 6 && /^[؀-ۿ\s]+$/.test(s); });
+        if (allAr) opts.classList.add('qz-tiles');
+      }
+    }
+    (function() {
+      var area = document.getElementById('game-area'); if (!area || typeof MutationObserver !== 'function') return;
+      var pending = false;
+      new MutationObserver(function() { if (pending) return; pending = true; requestAnimationFrame(function() { pending = false; try { qzEnhance(); } catch(e) {} }); }).observe(area, { childList: true, subtree: true });
+    })();
+    document.addEventListener('click', function(e) {
+      var c = e.target && e.target.closest && e.target.closest('[data-qz-close]');
+      if (!c) return;
+      try { gameQueue = []; } catch(er) {}
+      // текущий вопрос без ответа в итог не считаем
+      try { var card = document.querySelector('#game-area .quiz-card'); var answered = card && card.querySelector('.quiz-opts button:disabled, .quiz-opts button.correct, #findrule-ayah span[style*="background"]'); if (!answered && gameTotal > 0) gameTotal--; } catch(er) {}
+      try { endGame(); } catch(er) {}
+    });
+
     function startGame() {
       gameScore = 0;
       gameTotal = 0;
+      try { if (!_activeTeacherSkill) _teacherSessionWrongs = []; } catch(e) {}
       if (currentGame === 'letters' || currentGame === 'names') {
         gameQueue = shuffle(ARABIC_LETTERS).slice(0, 10);
         nextLetterQuestion();
@@ -16570,14 +16650,10 @@ function renderMistakes() {
       const area = document.getElementById('game-area');
       const kkE = isKk();
       const pct = gameTotal ? Math.round(gameScore / gameTotal * 100) : 0;
-      area.innerHTML =
-        '<div class="quiz-card" style="text-align:center">' +
-        '<div class="quiz-score">'+gameScore+' / '+gameTotal+'</div>' +
-        '<p style="color:var(--text-muted)">' + (kkE ? 'Нәтиже: ' : 'Результат: ') + pct+'%</p>' +
-        '<button class="btn btn-primary" id="btn-start-game" style="margin-top:1rem">' + (kkE ? 'Қайта' : 'Ещё раз') + '</button>' +
-        '</div>';
+      area.innerHTML = qzResultHtml(pct, kkE);
       document.getElementById('btn-start-game').addEventListener('click', startGame);
-      toast(pct >= 80 ? (kkE ? 'Керемет! 🌟' : 'Отлично! 🌟') : pct >= 50 ? (kkE ? 'Жақсы, жалғастырыңыз!' : 'Хорошо, продолжайте!') : (kkE ? 'Материалды қайталаңыз' : 'Повторите материал'));
+      try { var qm = area.querySelector('[data-qz-mistakes]'); if (qm) qm.addEventListener('click', function() { var mb = document.getElementById('games-mistakes-box'); if (mb) { mb.open = true; try { renderMistakes(); } catch(e) {} mb.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }); } catch(e) {}
+      // 6.107: без всплывающих оценок — итог спокойно показан в карточке
       try {
         if (!state.stats) state.stats = {};
         state.stats.quizzes = (state.stats.quizzes || 0) + 1;
