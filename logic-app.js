@@ -9916,7 +9916,9 @@ function speakLetter(ch, name, ttsOnly) {
     const MADD_BAR_KINDS = [
       { n: 2, ru: 'Табии (естественный) — 2', kk: 'Табиғи — 2', ex: 'مَٰلِكِ', ref: [1, 4, 1], noteRu: 'алиф без хамзы и сукуна после', noteKk: 'әліптен кейін хамза да, сукун да жоқ' },
       { n: 4, opt: 5, ru: 'Муттасиль — 4–5', kk: 'Муттасил — 4–5', ex: 'جَآءَ', ref: [110, 1, 2], noteRu: 'после буквы мадда хамза в том же слове', noteKk: 'мадд әрпінен кейін сол сөзде хамза' },
-      { n: 6, ru: 'Лязим — 6', kk: 'Ләзим — 6', ex: 'ٱلضَّآلِّينَ', ref: [1, 7, 9], noteRu: 'после буквы мадда шадда/сукун', noteKk: 'мадд әрпінен кейін шадда/сукун' }
+      { n: 6, ru: 'Лязим — 6', kk: 'Ләзим — 6', ex: 'ٱلضَّآلِّينَ', ref: [1, 7, 9], noteRu: 'после буквы мадда шадда/сукун', noteKk: 'мадд әрпінен кейін шадда/сукун' },
+      { n: 4, opt: 5, ru: 'Мунфасиль — 4–5', kk: 'Мунфасил — 4–5', ex: 'إِنَّآ', ref: [108, 1, 1], noteRu: 'буква мадда в конце слова, хамза — в начале следующего', noteKk: 'мадд әрпі сөз соңында, хамза — келесі сөздің басында' },
+      { n: 2, opt: 6, ru: '‘Арид (на остановке) — 2/4/6', kk: '‘Арид (тоқтағанда) — 2/4/6', ex: 'ٱلرَّحِيمِ', ref: [1, 3, 2], noteRu: 'остановка на слове: перед последней буквой мадд, сукун появляется из-за остановки', noteKk: 'сөзде тоқтау: соңғы әріптің алдында мадд, сукун тоқтаудан пайда болады', capRu: '2, 4 или 6 счётов — по выбору, но одинаково во всём чтении', capKk: '2, 4 немесе 6 санақ — таңдау бойынша, бірақ бүкіл оқуда бірдей' }
     ];
     function maddBarHtml() {
       const kk = isKk();
@@ -9964,7 +9966,7 @@ function speakLetter(ch, name, ttsOnly) {
       let i = 0;
       const next = function() {
         if (box._mdRun !== run || !box.isConnected) return;
-        if (i >= total) { cap.innerHTML = '<b style="color:var(--accent)">' + (K.opt ? (kk ? K.n + ' немесе ' + K.opt + ' санақ' : K.n + ' или ' + K.opt + ' счёта') : (K.n + (kk ? ' санақ' : (K.n === 2 ? ' счёта' : ' счётов')))) + '</b>'; return; }
+        if (i >= total) { cap.innerHTML = '<b style="color:var(--accent)">' + (K.capRu ? (kk ? K.capKk : K.capRu) : K.opt ? (kk ? K.n + ' немесе ' + K.opt + ' санақ' : K.n + ' или ' + K.opt + ' счёта') : (K.n + (kk ? ' санақ' : (K.n === 2 ? ' счёта' : ' счётов')))) + '</b>'; return; }
         const f = fills[i];
         f.style.transition = reduce ? 'none' : 'transform ' + beat + 'ms linear';
         void f.offsetWidth; f.style.transform = 'scaleX(1)';
@@ -10677,10 +10679,14 @@ function speakLetter(ch, name, ttsOnly) {
       });
       const matchingAnn = item.anns.find(function(a) { return tags.indexOf(a[0]) >= 0; });
       const targetWord = words.find(function(w) { return matchingAnn && matchingAnn[1] >= w.start && matchingAnn[1] < w.end; });
+      // 6.97: верным считается любое слово, где есть это правило (в аяте их бывает несколько), и название правила видно в вопросе
+      const okWords = words.filter(function(w) { return item.anns.some(function(a) { return a[0] === (matchingAnn && matchingAnn[0]) && a[1] < w.end && a[2] > w.start; }); });
+      const ruleLab = matchingAnn && TAJWEED_RULE_LABELS[matchingAnn[0]];
       const area = document.getElementById('game-area');
       area.innerHTML =
         '<div class="quiz-card" style="text-align:center">' +
         '<div class="quiz-q">' + (kkF ? 'Аятта осы ережені тауып, сөзге басыңыз' : 'Найдите это правило в аяте — нажмите на нужное слово') + '</div>' +
+        (ruleLab ? '<div style="margin-top:0.3rem"><span class="tw-chip tw-' + matchingAnn[0] + '">● ' + (kkF ? ruleLab.kk : ruleLab.ru) + '</span></div>' : '') +
         '<div class="arabic" dir="rtl" id="findrule-ayah" style="font-size:calc(1.6rem * var(--ar-scale, 1));line-height:2.3;margin:0.75rem 0"></div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem">' + item.surah + ':' + item.ayah + '</div>' +
         '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkF ? 'Есеп: ' : 'Счёт: ') + gameScore + ' / ' + gameTotal + '</div></div>';
@@ -10691,7 +10697,7 @@ function speakLetter(ch, name, ttsOnly) {
         span.style.cssText = 'cursor:pointer;padding:0.1rem 0.15rem;border-radius:0.3rem;margin:0 0.1rem';
         span.addEventListener('click', function() {
           ayahEl.querySelectorAll('span').forEach(function(s){ s.style.pointerEvents = 'none'; });
-          const isRight = (w === targetWord);
+          const isRight = (w === targetWord) || okWords.indexOf(w) >= 0;
           if (isRight) { span.style.background = 'var(--accent)'; span.style.color = '#04120c'; gameScore++; toast(kkF ? 'Дұрыс!' : 'Верно!'); }
           else {
             span.style.background = '#ef4444';
@@ -13553,11 +13559,11 @@ function renderMistakes() {
       'إدغام · Идгам': ['idghaam_ghunnah','idghaam_no_ghunnah'],
       'إقلاب · Иклаб': ['iqlab'],
       'قلقلة · Калькаля': ['qalqalah'],
-      'مد · Мадд': ['madd_2'],
+      'مد · Мадд': ['madd_2','madd_246'],
       'غنة · Гунна': ['ghunnah'],
       'أحكام الميم الساكنة · Мим сакин': ['idghaam_shafawi','ikhfa_shafawi'],
       'إدغام المتماثلين والمتجانسين والمتقاربين · Идгам сходных букв': ['idghaam_mutajanisayn'],
-      'أنواع المد · Виды мадда': ['madd_muttasil','madd_munfasil','madd_6'],
+      'أنواع المد · Виды мадда': ['madd_muttasil','madd_munfasil','madd_246','madd_6'],
       'الحروف الشمسية والقمرية · Солнечные и лунные буквы': ['lam_shamsiyyah']
     };
     function getTajweedExampleForRuleTitle(title) {
@@ -13576,6 +13582,177 @@ function renderMistakes() {
         '<div class="arabic" dir="rtl" style="font-size:calc(1.3rem * var(--ar-scale, 1));margin-top:0.3rem;line-height:1.8">' + colored + '</div>' +
         '</div>';
     }
+    // ===== 6.97: Справочник → Таджвид: схемы нун/мим сакин, примеры со звуком, шкала мадда, тренировка =====
+    // Примеры — только из 26 сур с пословной записью (Фатиха + 90–114) и проверенной разметкой
+    // cpfair/quran-tajweed: каждое слово можно послушать (audio.qurancdn.com/wbw), аят — у выбранного чтеца.
+    const TW_TREE_NUN = [
+      { tag: 'izhar', ru: 'Изхар — читается ясно', kk: 'Изһар — анық оқылады', letters: 'ء ه ع ح غ خ', rule: 'إظهار · Изхар' },
+      { tag: 'idghaam_ghunnah', ru: 'Идгам с гунной — вливается', kk: 'Ғуннамен идғам — кірігеді', letters: 'ي ن م و', rule: 'إدغام · Идгам' },
+      { tag: 'idghaam_no_ghunnah', ru: 'Идгам без гунны', kk: 'Ғуннасыз идғам', letters: 'ل ر', rule: 'إدغام · Идгам' },
+      { tag: 'iqlab', ru: 'Иклаб — переходит в «м»', kk: 'Иқлаб — «м»-ге ауысады', letters: 'ب', rule: 'إقلاب · Иклаб' },
+      { tag: 'ikhfa', ru: 'Ихфа — скрыто, с гунной', kk: 'Ихфа — жасырын, ғуннамен', letters: 'ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك', rule: 'إخفاء · Ихфа' }
+    ];
+    const TW_TREE_MIM = [
+      { tag: 'ikhfa_shafawi', ru: 'Ихфа шафави — скрыто, с гунной', kk: 'Ихфа шафауи — жасырын, ғуннамен', letters: 'ب', rule: 'أحكام الميم الساكنة · Мим сакин' },
+      { tag: 'idghaam_shafawi', ru: 'Идгам шафави — сливается', kk: 'Идғам шафауи — кірігеді', letters: 'م', rule: 'أحكام الميم الساكنة · Мим сакин' },
+      { tag: 'izhar', ru: 'Изхар шафави — ясно (особенно перед <bdi>و</bdi> и <bdi>ف</bdi>)', kk: 'Изһар шафауи — анық (әсіресе <bdi>و</bdi> және <bdi>ف</bdi> алдында)', letters: '', rule: 'أحكام الميم الساكنة · Мим сакин' }
+    ];
+    function _twTreeHtml(kk, list, titleRu, titleKk, rules) {
+      return '<div class="card tw-tree"><b>🌳 ' + (kk ? titleKk : titleRu) + '</b>' +
+        '<div class="ayah-translation" style="font-size:0.8rem;margin:0.15rem 0 0.4rem">' + (kk ? 'Келесі әріпке қараңыз. Тармақты басыңыз — ереже мен мысалдар ашылады.' : 'Смотрите на следующую букву. Нажмите ветку — откроется правило с примерами.') + '</div>' +
+        '<div class="tw-tree-list">' + list.map(function(b) {
+          var ri = -1;
+          rules.forEach(function(r, i) { if (r.title === b.rule) ri = i; });
+          return '<button type="button" class="tw-branch' + (b.tag !== 'izhar' ? ' tw-' + b.tag : '') + '"' + (ri >= 0 ? ' data-tw-goto="' + ri + '"' : '') + '>' +
+            '<span class="tw-branch-name">' + (kk ? b.kk : b.ru) + '</span>' +
+            (b.letters ? '<span class="tw-branch-letters" dir="rtl" lang="ar">' + b.letters + '</span>' : '<span class="tw-branch-letters" style="font-size:0.8rem">' + (kk ? 'басқа әріптер' : 'остальные буквы') + '</span>') +
+            '</button>';
+        }).join('') + '</div></div>';
+    }
+    function _twSplitWords(text) {
+      var words = [], pos = 0, num = 0;
+      Array.from(String(text)).join('').split(' ').forEach(function(w) {
+        var len = Array.from(w).length;
+        var mark = isWaqfMarkToken(w);
+        if (!mark) num++;
+        words.push({ text: w, start: pos, end: pos + len, num: mark ? 0 : num });
+        pos += len + 1;
+      });
+      return words;
+    }
+    // слова, которых касается аннотация с одним из тегов (правило может идти через границу слов: нун + следующее слово)
+    function _twHitWords(words, anns, tags) {
+      var hit = {}, first = null;
+      anns.forEach(function(a) {
+        if (tags.indexOf(a[0]) < 0) return;
+        if (!first) first = a;
+        words.forEach(function(w, i) { if (a[1] < w.end && a[2] > w.start) hit[i] = a[0]; });
+      });
+      return { hit: hit, first: first };
+    }
+    function _twWordHtml(w, anns) {
+      var sub = [];
+      anns.forEach(function(a) {
+        var s = Math.max(a[1], w.start), e = Math.min(a[2], w.end);
+        if (s < e) sub.push([a[0], s - w.start, e - w.start]);
+      });
+      // огласовка/значок не должен отрываться от своей буквы (иначе буква в отдельном куске может не нарисоваться)
+      var ch = Array.from(w.text);
+      sub.forEach(function(x) { var mk = /[\u064B-\u065F\u0670\u06D6-\u06ED]/; while (x[1] > 0 && mk.test(ch[x[1]] || '')) x[1]--; while (x[2] < ch.length && mk.test(ch[x[2]] || '')) x[2]++; });
+      return renderTajweedText(w.text, sub);
+    }
+    function _twPickExamples(tags, n) {
+      var pool = shuffle(getCuratedAyahsWithRuleTag(tags).slice());
+      var out = [], used = {};
+      // сначала по одному примеру на каждый тег (идгам с гунной и без, разные мадды)
+      tags.forEach(function(tg) {
+        var it = pool.find(function(p) { return !used[p.surah + ':' + p.ayah] && p.anns.some(function(a) { return a[0] === tg; }); });
+        if (it && out.length < n) { used[it.surah + ':' + it.ayah] = 1; out.push({ ex: it, tag: tg }); }
+      });
+      pool.forEach(function(p) {
+        if (out.length >= n || used[p.surah + ':' + p.ayah]) return;
+        used[p.surah + ':' + p.ayah] = 1;
+        var a = p.anns.find(function(x) { return tags.indexOf(x[0]) >= 0; });
+        out.push({ ex: p, tag: a ? a[0] : tags[0] });
+      });
+      return out;
+    }
+    function _twExampleHtml(item, kk) {
+      var ex = item.ex, tg = item.tag;
+      var words = _twSplitWords(ex.text);
+      var h = _twHitWords(words, ex.anns, [tg]);
+      var hitNums = [];
+      var ayah = words.map(function(w, i) {
+        var inner = _twWordHtml(w, ex.anns);
+        if (!w.num) return inner;
+        if (h.hit[i]) hitNums.push(w.num);
+        return '<span class="tw-w' + (h.hit[i] ? ' tw-hit' : '') + '" data-tw-w="' + w.num + '">' + inner + '</span>';
+      }).join(' ');
+      var lab = TAJWEED_RULE_LABELS[tg] || {};
+      return '<div class="tw-ex" data-s="' + ex.surah + '" data-a="' + ex.ayah + '">' +
+        '<div class="tw-ex-top" dir="ltr"><span class="tw-chip tw-' + tg + '">● ' + (kk ? (lab.kk || tg) : (lab.ru || tg)) + '</span><span style="color:var(--text-muted);font-size:0.75rem">' + ex.surah + ':' + ex.ayah + '</span></div>' +
+        '<div class="arabic tw-ex-ayah" dir="rtl">' + ayah + '</div>' +
+        '<div class="tw-ex-btns" dir="ltr">' +
+          (hitNums.length ? '<button type="button" class="btn btn-sm" data-tw-play-words="' + hitNums.join(',') + '">🔊 ' + (kk ? 'Ереже бар сөз' : 'Слово с правилом') + '</button>' : '') +
+          '<button type="button" class="btn btn-sm" data-tw-play-ayah="1">▶ ' + (kk ? 'Бүкіл аят' : 'Весь аят') + '</button>' +
+        '</div></div>';
+    }
+    function twRuleExamplesHtml(tags, kk) {
+      if (!_twCache) return '<div class="ayah-translation" style="font-size:0.8rem;color:var(--text-muted)">' + (kk ? 'Мысалдар жүктелуде…' : 'Загружаю примеры…') + '</div>';
+      var list = _twPickExamples(tags, 3);
+      if (!list.length) return '';
+      return list.map(function(it) { return _twExampleHtml(it, kk); }).join('');
+    }
+    function _twPlayWords(s, a, nums, box) {
+      var i = 0;
+      function one() {
+        var n = nums[i++];
+        var span = box && box.querySelector('[data-tw-w="' + n + '"]');
+        var txt = span ? span.textContent : '';
+        if (box) box.querySelectorAll('.tw-w').forEach(function(x) { x.classList.toggle('tw-playing', x === span); });
+        try { playWbwWordAudio(s, a, n, txt); } catch(e) { try { speakArText(txt, 0.65); } catch(e2) {} }
+        var el = _wbwAudioEl;
+        if (!el) return;
+        el.onended = function() {
+          el.onended = null;
+          if (i < nums.length) one();
+          else if (box) box.querySelectorAll('.tw-playing').forEach(function(x) { x.classList.remove('tw-playing'); });
+        };
+      }
+      if (nums.length) one();
+    }
+    // тренировка «Найди правило» только по тегам выбранного правила
+    function startFindRuleFor(tags) {
+      var kkF = isKk();
+      loadTajweedData().then(function() {
+        var pool = getCuratedAyahsWithRuleTag(tags).map(function(it) { return Object.assign({}, it, { _tags: tags }); });
+        if (!pool.length) { toast(kkF ? 'Бұл ережеге мысал табылмады' : 'Для этого правила нет примеров'); return; }
+        _activeTeacherSkill = null; _activeTeacherReview = false; _activeTeacherFree = false;
+        showView('games');
+        gamesSyncStageSoon();
+        document.querySelectorAll('#games-tabs button').forEach(function(b) { b.style.display = ''; b.classList.toggle('active', b.dataset.game === 'findrule'); });
+        currentGame = 'findrule';
+        try { _updateDifficultyPanelVisibility(); } catch(e) {}
+        gameScore = 0; gameTotal = 0;
+        gameQueue = shuffle(pool).slice(0, Math.min(6, pool.length));
+        nextFindRuleQuestion();
+      });
+    }
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null;
+      if (!t) return;
+      var g = t.closest('[data-tw-goto]');
+      if (g) {
+        var card = document.querySelector('#learn-tajweed .rule-card[data-rule-i="' + g.getAttribute('data-tw-goto') + '"]');
+        if (card) {
+          card.scrollIntoView({ behavior: _lwReduce() ? 'auto' : 'smooth', block: 'start' });
+          card.classList.remove('tw-flash'); void card.offsetWidth; card.classList.add('tw-flash');
+        }
+        return;
+      }
+      var box = t.closest('.tw-ex');
+      if (box) {
+        var s = +box.getAttribute('data-s'), a = +box.getAttribute('data-a');
+        var pw = t.closest('[data-tw-play-words]');
+        if (pw) { _twPlayWords(s, a, pw.getAttribute('data-tw-play-words').split(',').map(Number), box); return; }
+        if (t.closest('[data-tw-play-ayah]')) {
+          try { playExtTrack({ kind: 'tw', key: 'tw:' + s + ':' + a, urls: [ayahAudioUrl(s, a)], title: (isKk() ? 'Тәжуид мысалы · ' : 'Пример таджвида · ') + s + ':' + a }); } catch(err) {}
+          return;
+        }
+        var w = t.closest('[data-tw-w]');
+        if (w) { _twPlayWords(s, a, [+w.getAttribute('data-tw-w')], box); return; }
+      }
+      var more = t.closest('[data-tw-more]');
+      if (more) {
+        var rc = more.closest('.rule-card'), wrap = rc && rc.querySelector('.tw-exs');
+        var tags = (more.getAttribute('data-tw-more') || '').split(',');
+        if (wrap) wrap.innerHTML = twRuleExamplesHtml(tags, isKk());
+        return;
+      }
+      var tr = t.closest('[data-tw-train]');
+      if (tr) { startFindRuleFor((tr.getAttribute('data-tw-train') || '').split(',')); }
+    });
+
     function renderRules() {
       let el = document.getElementById('learn-rules');
       const parent = document.getElementById('acad-rules');
@@ -13629,15 +13806,26 @@ function renderMistakes() {
         el.innerHTML = '<div class="empty-state">'+(kkT2 ? 'Тәжуид ережелері жоқ' : 'Нет правил таджвида')+'</div>';
         return;
       }
-      el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">'+(kkT2 ? 'Бастаушыларға арналған тәжуид ережелері. Қысқаша → «Толығырақ».' : 'Правила таджвида для начинающих. Кратко → «Подробнее».')+'</p>' +
+      el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">'+(kkT2 ? 'Бастаушыларға арналған тәжуид ережелері. Жоғарыда — «нун мен мимнен кейін не келеді» сызбалары, әр ереженің астында — Құраннан дыбысы бар мысалдар және жаттығу.' : 'Правила таджвида для начинающих. Сверху — схемы «что идёт после нун и мим», под каждым правилом — примеры из Корана со звуком и тренировка.')+'</p>' +
+        _twTreeHtml(kkT2, TW_TREE_NUN, 'Нун сакин (نْ) и танвин (ـً ـٍ ـٌ) — что идёт после?', 'Сукунды нун (نْ) және тәнуин (ـً ـٍ ـٌ) — одан кейін не келеді?', rules) +
+        _twTreeHtml(kkT2, TW_TREE_MIM, 'Мим сакин (مْ) — что идёт после?', 'Сукунды мим (مْ) — одан кейін не келеді?', rules) +
         rules.map(function(r, ri) {
           var title = kkT2 ? (r.titleKk || r.title) : r.title;
           var short = kkT2 ? (r.shortKk || r.short) : (r.short || (r.ru || '').slice(0, 100));
           var full = kkT2 ? (r.detailKk || r.detail) : (r.detail || r.ru || '');
           if (r.example) full += (kkT2 ? '\n\nМысал: ' : '\n\nПример: ') + r.example;
           if (r.letters) full += (kkT2 ? '\n\nӘріптер: ' : '\n\nБуквы: ') + r.letters;
-          var example2 = '';
-          try { example2 = tajweedExampleHtml(getTajweedExampleForRuleTitle(r.title)); } catch(e) {}
+          var tags = RULE_TITLE_TO_TAGS[r.title] || null;
+          var exBlock = '';
+          if (tags) {
+            exBlock = '<div class="tw-exs-head" dir="ltr">' + (kkT2 ? '📖 Құраннан мысалдар — сөзді басып тыңдаңыз' : '📖 Примеры из Корана — нажмите слово, чтобы послушать') + '</div>' +
+              '<div class="tw-exs">' + twRuleExamplesHtml(tags, kkT2) + '</div>' +
+              '<div class="tw-ex-btns" dir="ltr">' +
+                '<button type="button" class="btn btn-sm" data-tw-more="' + tags.join(',') + '">↻ ' + (kkT2 ? 'Басқа мысалдар' : 'Другие примеры') + '</button>' +
+                '<button type="button" class="btn btn-sm btn-primary" data-tw-train="' + tags.join(',') + '">🎯 ' + (kkT2 ? 'Аяттан табу' : 'Найти в аяте') + '</button>' +
+              '</div>';
+          }
+          var isMadd = /المد|^مد /.test(r.title);
           return '<div class="rule-card" style="margin-bottom:0.65rem" data-rule-i="'+ri+'">' +
             '<h3 dir="ltr">'+title+'</h3>' +
             (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.1rem;margin:0.35rem 0">'+r.ar+'</div>' : '') +
@@ -13645,7 +13833,8 @@ function renderMistakes() {
             '<div class="les-short ayah-translation" dir="ltr">'+short+'</div>' +
             '<button type="button" class="btn btn-sm les-more-btn" data-les-toggle="1" style="margin:0.35rem 0;direction:ltr">'+(kkT2 ? '📖 Толығырақ' : '📖 Подробнее')+'</button>' +
             '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55">'+String(full).replace(/</g,'&lt;')+'</div>' +
-            example2 + '</div>';
+            (isMadd ? maddBarHtml() : '') +
+            exBlock + '</div>';
         }).join('');
       try { loadTajweedData().then(function(d) { if (d && !el.dataset.twLoaded) { el.dataset.twLoaded = '1'; renderTajweed(); } }); } catch(e) {}
       try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
