@@ -1159,10 +1159,10 @@ function applySettings() {
       document.querySelectorAll('.arabic, .ayah-text, .arabic-q, .detail-ar, .fchar').forEach(el => {
         el.style.fontFamily = arFont + ', Amiri, serif';
       });
-      document.body.style.fontFamily = trFont + ', Inter, system-ui, sans-serif';
-      document.querySelectorAll('.ayah-translation').forEach(el => {
-        el.style.fontFamily = trFont + ', Inter, sans-serif';
-      });
+      // 6.105: интерфейс — всегда шрифт без засечек (Inter); «Шрифт перевода» действует только на перевод Корана в читалке
+      document.body.style.fontFamily = '';
+      document.documentElement.style.setProperty('--tr-font', trFont + ', Inter, sans-serif');
+      document.querySelectorAll('.ayah-translation').forEach(el => { el.style.fontFamily = ''; });
       const tr = document.getElementById('setting-translation');
       const rec = document.getElementById('setting-reciter');
       const size = document.getElementById('setting-arabic-size');
@@ -3121,7 +3121,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         const bar = document.createElement('div');
         bar.className = 'view-back-bar';
         bar.style.cssText = 'margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem';
-        bar.innerHTML = '<button type="button" class="btn btn-sm btn-primary" id="btn-view-back" style="font-weight:600">← '+tLabel('Назад')+'</button>';
+        bar.innerHTML = '<button type="button" class="btn btn-sm btn-quiet" id="btn-view-back">← '+tLabel('Назад')+'</button>';
         el.insertBefore(bar, el.firstChild);
         bar.querySelector('button').addEventListener('click', function(e){ e.preventDefault(); goBack(); });
       }

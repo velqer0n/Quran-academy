@@ -4542,3 +4542,34 @@ main::after { content: ''; display: block; height: var(--player-h, 0px); pointer
       body.cheat-printing #ref-cheat .cheat-box { max-width: none; border-radius: 0; padding: 0; }
       .cheat-t { font-size: 9.5pt; } .cheat-t tr { break-inside: avoid; }
     }
+
+    /* ===== 6.105: основа дизайна — один шрифт интерфейса, три вида кнопок, единые карточки и заголовки ===== */
+    :root {
+      --font-ui: Inter, Amiri, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; /* Amiri — для арабских букв внутри текста */
+      --sp-1: 0.25rem; --sp-2: 0.5rem; --sp-3: 0.75rem; --sp-4: 1rem; --sp-5: 1.5rem;
+      --btn-h: 40px; --btn-h-sm: 36px;
+    }
+    body, button, input, select, textarea { font-family: var(--font-ui); }
+    /* засечки — только для перевода Корана в читалке (выбор «Шрифт перевода» в настройках) */
+    .ayah .ayah-translation { font-family: var(--tr-font, var(--font-ui)); }
+    /* заголовки */
+    .section-title { font-family: var(--font-ui); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; margin: 0 0 var(--sp-4); }
+    .card h3, .rule-card h3, .tw-rc-title { font-family: var(--font-ui); letter-spacing: -0.005em; }
+    /* кнопки: главная (.btn-primary), обычная (.btn), тихая (.btn-quiet) */
+    .btn { min-height: var(--btn-h); font-family: var(--font-ui); font-weight: 600; line-height: 1.2; justify-content: center; }
+    .btn-sm { min-height: var(--btn-h-sm); }
+    .btn:active { transform: scale(0.97); }
+    .btn-quiet, .btn.btn-quiet { background: transparent; border-color: transparent; color: var(--accent); box-shadow: none; padding-left: 0.4rem; padding-right: 0.6rem; }
+    @media (hover: hover) { .btn-quiet:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); border-color: transparent; } }
+    /* все кнопки «Назад» — одного вида (тихая) */
+    #btn-back, #h-back, #qd-back, #tw-back, #tw-back2, #ss-back, #swp-back, #qz-back, #ptd-back, #teacher-lesson-back, #vkb-back, #mic-back {
+      background: transparent; border-color: transparent; color: var(--accent); box-shadow: none; padding-left: 0.4rem; font-weight: 600;
+    }
+    /* карточки: один вид — фон, тонкая граница, мягкая тень, одинаковое скругление */
+    .card, .rule-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+    @media (hover: hover) { .card:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); } }
+    .rule-card { padding: 1rem 1.15rem; margin-bottom: var(--sp-3); }
+    .rule-card.tw-rc { padding: 0; }
+    /* поля ввода — единый вид */
+    input[type="search"], input[type="text"], select { border-radius: var(--r-md); }
+    .study-switch-btn { white-space: nowrap; padding-left: 0.4rem !important; padding-right: 0.4rem !important; font-size: 0.82rem; min-width: 0; }
