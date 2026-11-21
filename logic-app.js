@@ -915,7 +915,7 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
         'Список': 'Тізім', 'Сетка 2': 'Тор 2', 'Сетка 3': 'Тор 3',
         'Изменить порядок': 'Ретін өзгерту', 'Готово': 'Дайын',
         'Путь': 'Жол', 'Буквы': 'Әріптер', 'Огласовки': 'Дауыстылар',
-        'Слоги': 'Буындар', 'Правила': 'Ережелер', 'Таджвид': 'Тәжуид', 'Махаридж': 'Махаридж',
+        'Слоги': 'Буындар', 'Правила': 'Ережелер', 'Таджвид': 'Тәжуид', 'Махаридж': 'Махаридж', 'Сифат': 'Сипат',
         'Суры': 'Сүрелер', 'Аяты': 'Аяттар', 'Ошибки': 'Қателер', '🎨 Цвета таджвида': '🎨 Тәжуид түстері',
         'Скачать хадисы': 'Хадис жүктеу', 'Скачанные': 'Жүктелгендер',
         'Зикр': 'Зікір', 'Моё чтение': 'Менің оқуым', 'Планы': 'Жоспарлар', 'Хатм': 'Хатым',
@@ -7897,7 +7897,7 @@ function speakLetter(ch, name, ttsOnly) {
         const on = b.dataset.acadTab === tab;
         b.classList.toggle('btn-primary', on);
       });
-      ['path','alphabet','harakat','syllables','rules','tajweed','makharij','practice','surahs','ayahs','twcolor','srs','mistakes'].forEach(t => {
+      ['path','alphabet','harakat','syllables','rules','tajweed','makharij','sifat','practice','surahs','ayahs','twcolor','srs','mistakes'].forEach(t => {
         const el = document.getElementById('acad-' + t);
         if (el) el.style.display = (t === tab) ? '' : 'none';
       });
@@ -7908,6 +7908,7 @@ function speakLetter(ch, name, ttsOnly) {
       if (tab === 'rules') try { if (typeof renderRules === 'function') renderRules(); } catch(e) {}
       if (tab === 'tajweed') try { if (typeof renderTajweed === 'function') renderTajweed(); } catch(e) {}
       if (tab === 'makharij') try { if (typeof renderMakharij === 'function') renderMakharij(); } catch(e) {}
+      if (tab === 'sifat') try { renderSifat(); } catch(e) {}
       if (tab === 'practice') try { renderPractice(); } catch(e) {}
       if (tab === 'twcolor') try { renderTajweedColorView(document.getElementById('learn-twcolor')); } catch(e) {}
       if (tab === 'surahs') {
@@ -13530,10 +13531,21 @@ function renderMistakes() {
             '<div style="text-align:center;margin:0.5rem 0" dir="ltr"><b>'+(kkD ? (l.nameKk||l.name) : l.name)+'</b></div>' +
             (letterTr(l) ? '<div style="text-align:center;color:var(--accent);font-size:1.15rem;margin-bottom:0.35rem" dir="ltr">'+letterTr(l)+'</div>' : '') +
             '<button type="button" class="btn btn-primary btn-sm" dir="ltr" style="margin:0.1rem auto 0.4rem;display:block;min-width:60%;direction:ltr;unicode-bidi:isolate" id="btn-speak-letter">'+(kkD ? '🔊 Тыңдау' : '🔊 Послушать')+'</button>' +
-            '<div style="text-align:center">'+(typeof letterMouthSvg==='function'?letterMouthSvg(l.ch):'')+'</div>' + letterWriteBlockHtml(l.ch) +
-            '<div class="ayah-translation" dir="ltr" style="text-align:center;unicode-bidi:isolate">'+((kkD ? (l.noteKk||l.note) : l.note)||'')+'</div>' +
-            ((typeof ARTICULATION !== 'undefined' && ARTICULATION[l.ch]) ? '<div style="margin-top:0.4rem;font-size:0.85rem;color:var(--accent);text-align:center;unicode-bidi:isolate" dir="ltr">🗣️ '+ARTICULATION[l.ch]+'</div>' : '') +
-            (l.forms ? '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.5rem;font-size:1.5rem;font-family:Amiri,serif" dir="rtl" lang="ar">'+l.forms.map(f=>'<span dir="rtl">'+f+'</span>').join(' ')+'</div>' : '') +
+            // 6.103: карточка буквы — вкладки вместо длинного столбца; «где и как звучит» больше не повторяется трижды
+            '<div class="lt-tabs" dir="ltr">' +
+              '<button type="button" class="lt-tab on" data-lt-tab="mouth">👄 ' + (kkD ? 'Сызба' : 'Схема') + '</button>' +
+              '<button type="button" class="lt-tab" data-lt-tab="write">✍️ ' + (kkD ? 'Жазу' : 'Письмо') + '</button>' +
+              '<button type="button" class="lt-tab" data-lt-tab="about">📖 ' + (kkD ? 'Сипаттама' : 'Описание') + '</button>' +
+              '<button type="button" class="lt-tab" data-lt-tab="try">🎯 ' + (kkD ? 'Байқап көру' : 'Попробовать') + '</button></div>' +
+            '<div class="lt-panel" data-lt-panel="mouth"><div style="text-align:center">'+(typeof letterMouthSvg==='function'?letterMouthSvg(l.ch):'')+'</div></div>' +
+            '<div class="lt-panel" data-lt-panel="write" hidden>' + letterWriteBlockHtml(l.ch) +
+              (l.forms ? '<div class="lt-forms" dir="ltr">' + [[0, kkD ? 'жеке' : 'отдельно'], [1, kkD ? 'басында' : 'в начале'], [2, kkD ? 'ортасында' : 'в середине'], [3, kkD ? 'соңында' : 'в конце']].map(function(f) { var gl = l.forms[f[0]]; return gl ? '<span><b dir="rtl" lang="ar">' + gl + '</b><i>' + f[1] + '</i></span>' : ''; }).join('') + '</div>' : '') +
+            '</div>' +
+            '<div class="lt-panel" data-lt-panel="about" hidden>' +
+              '<div class="lt-mk" dir="ltr"><b>' + (kkD ? 'Шығу орны: ' : 'Место выхода: ') + '</b>' + makhrajOf(l.ch) + '</div>' + sifChipsHtml(l.ch) +
+              '<div class="ayah-translation" dir="ltr" style="text-align:left;unicode-bidi:isolate;margin-top:0.5rem">'+((kkD ? (l.noteKk||l.note) : l.note)||'')+'</div>' +
+            '</div>' +
+            '<div class="lt-panel" data-lt-panel="try" hidden>' +
             '<div dir="ltr" style="direction:ltr;unicode-bidi:isolate;font-family:system-ui,-apple-system,\'Segoe UI\',Roboto,sans-serif;margin-top:0.75rem;padding:0.6rem;border:1px solid var(--border);border-radius:0.8rem;background:var(--bg-hover)">' +
             '<div style="font-weight:700;font-size:0.9rem;margin-bottom:0.4rem;text-align:center">'+(kkD ? '🎯 Өзіңіз байқап көріңіз' : '🎯 Попробуйте сами')+'</div>' +
             '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">' +
@@ -13543,6 +13555,7 @@ function renderMistakes() {
             '<div style="font-size:0.74rem;color:var(--text-muted);margin-top:0.35rem;text-align:center">'+(kkD ? 'Жазып алып, өз дауысыңызды үлгімен салыстырыңыз. Жазба құрылғыдан шықпайды.' : 'Запишите себя и сравните со своим образцом на слух. Запись не покидает устройство.')+'</div>' +
             '<button type="button" class="btn btn-sm" id="btn-mic-letter" style="width:100%;margin-top:0.45rem">'+(kkD ? '🎤 Айтылымымды автоматты тексеру' : '🎤 Автопроверка произношения')+'</button></div>' +
             '<div class="ayah-translation" id="mic-letter-result" style="margin-top:0.4rem"></div>' +
+            '</div>' +
             ''; // build 6.69: устаревшая приписка про «ракурсы в следующих версиях» убрана — ракурсы уже есть
           (function(){
             var base = (typeof LETTER_AUDIO_BASE !== 'undefined') ? LETTER_AUDIO_BASE : 'https://cdn.jsdelivr.net/gh/adnan/Arabic-Alphabet@master/sounds/';
@@ -13803,6 +13816,50 @@ function renderMistakes() {
           '<button type="button" class="btn btn-sm" data-tw-play-ayah="1">▶ ' + (kk ? 'Бүкіл аят' : 'Весь аят') + '</button>' +
         '</div></div>';
     }
+    // 6.103: правила без меток в разметке — проверенные вручную примеры из тех же 26 сур (слова можно послушать)
+    const TW_MANUAL_EX = {
+      'إظهار · Изхар': [
+        { s: 106, a: 4, w: [6, 7], ru: 'ن с сукуном + خ — нун читается ясно', kk: 'сукунды ن + خ — нун анық оқылады' },
+        { s: 101, a: 11, w: [1, 2], ru: 'танвин + ح — «н» ясно', kk: 'тәнуин + ح — «н» анық' },
+        { s: 112, a: 4, w: [4, 5], ru: 'танвин + ء — «н» ясно', kk: 'тәнуин + ء — «н» анық' }
+      ],
+      'شدة · Шадда': [
+        { s: 1, a: 2, w: [3], ru: 'رَبِّ — ب удвоена: «раб-би»', kk: 'رَبِّ — ب қосарланған: «раб-би»' },
+        { s: 108, a: 1, w: [1], ru: 'إِنَّآ — ن с шаддой и гунной', kk: 'إِنَّآ — шәддалы ن, ғуннамен' },
+        { s: 114, a: 1, w: [3, 4], ru: 'بِرَبِّ، ٱلنَّاسِ — шадда на ب и ن', kk: 'بِرَبِّ، ٱلنَّاسِ — ب мен ن-да шәдда' }
+      ],
+      'الوقف · Вакф (знаки остановки)': [
+        { s: 110, a: 3, mark: 1, ru: 'маленькая ج над строкой (джаиз) — можно остановиться, можно продолжить', kk: 'жол үстіндегі кішкентай ج (жәиз) — тоқтауға да, жалғастыруға да болады' },
+        { s: 112, a: 1, w: [4], ru: 'конец аята: на остановке «ахад» — танвин не читается', kk: 'аят соңы: тоқтағанда «ахад» — тәнуин оқылмайды' }
+      ]
+    };
+    function _twCuratedAyah(s, a) {
+      var arr = s === 1 ? (typeof FATIHA_LESSON !== 'undefined' ? FATIHA_LESSON : []) : ((WBW_STUDY_SURAHS || {})[s] || []);
+      var x = arr.find(function(y) { return y.ayah === a; });
+      return x ? (x.full || (x.words || []).map(function(w) { return w.ar; }).join(' ')) : '';
+    }
+    function twManualExamplesHtml(title, kk) {
+      var list = TW_MANUAL_EX[title]; if (!list) return '';
+      return list.map(function(ex) {
+        var text = _twCuratedAyah(ex.s, ex.a); if (!text) return '';
+        var anns = (_twCache && _twCache[ex.s + ':' + ex.a]) || [];
+        var words = _twSplitWords(text), hitNums = [];
+        var ayah = words.map(function(w) {
+          var inner = _twWordHtml(w, anns);
+          if (!w.num) return ex.mark ? '<span class="tw-w tw-hit tw-mark">' + inner + '</span>' : inner;
+          var hit = ex.w && ex.w.indexOf(w.num) >= 0;
+          if (hit) hitNums.push(w.num);
+          return '<span class="tw-w' + (hit ? ' tw-hit' : '') + '" data-tw-w="' + w.num + '">' + inner + '</span>';
+        }).join(' ');
+        return '<div class="tw-ex" data-s="' + ex.s + '" data-a="' + ex.a + '">' +
+          '<div class="tw-ex-top" dir="ltr"><span class="tw-chip">● ' + (kk ? ex.kk : ex.ru) + '</span><span style="color:var(--text-muted);font-size:0.75rem">' + ex.s + ':' + ex.a + '</span></div>' +
+          '<div class="arabic tw-ex-ayah" dir="rtl">' + ayah + '</div>' +
+          '<div class="tw-ex-btns" dir="ltr">' +
+            (hitNums.length ? '<button type="button" class="btn btn-sm" data-tw-play-words="' + hitNums.join(',') + '">🔊 ' + (kk ? 'Мысал сөз' : 'Слово-пример') + (_twWordReciter().own ? '' : ' (Хусари)') + '</button>' : '') +
+            '<button type="button" class="btn btn-sm" data-tw-play-ayah="1">▶ ' + (kk ? 'Бүкіл аят' : 'Весь аят') + '</button>' +
+          '</div></div>';
+      }).join('');
+    }
     function twRuleExamplesHtml(tags, kk) {
       if (!_twCache) return '<div class="ayah-translation" style="font-size:0.8rem;color:var(--text-muted)">' + (kk ? 'Мысалдар жүктелуде…' : 'Загружаю примеры…') + '</div>';
       var list = _twPickExamples(tags, 3);
@@ -13967,8 +14024,153 @@ function renderMistakes() {
       if (tr) { startFindRuleFor((tr.getAttribute('data-tw-train') || '').split(',')); }
     });
 
+    // ===== 6.103: Сифат (качества букв), места выхода по буквам, шпаргалка =====
+    // Классические перечни «аль-Джазарийи» Ибн аль-Джазари: пары противоположных качеств и качества без пары.
+    const SIF_ALL = 'ءابتثجحخدذرزسشصضطظعغفقكلمنهوي';
+    const SIF_PAIRS = [
+      { a: { id: 'hams', ru: 'Хамс — глухая', kk: 'Хамс — дауыссыз', L: 'فحثهشخصسكت', dRu: 'Голос не включается, идёт поток воздуха (10 букв: «фахассаху шахсун сакат»).', dKk: 'Дауыс қосылмайды, ауа ағыны шығады (10 әріп: «фахассаху шахсун сакат»).' },
+        b: { id: 'jahr', ru: 'Джахр — звонкая', kk: 'Жәһр — дауысты', dRu: 'Голосовые связки дрожат, поток воздуха удерживается.', dKk: 'Дауыс шымылдығы дірілдейді, ауа ағыны ұсталады.' } },
+      { a: { id: 'shidda', ru: 'Шидда — смычная', kk: 'Шидда — тұйық', L: 'ءجدقطبكت', dRu: 'Звук полностью перекрыт и «взрывается» (8 букв: «аджид кат бакат»).', dKk: 'Дыбыс толық бөгеліп, «жарылады» (8 әріп: «аджид қат бакат»).' },
+        m: { id: 'tawassut', ru: 'Тавассут — средняя', kk: 'Тауассут — аралық', L: 'لنعمر', dRu: 'Между смычной и щелевой: звук частично течёт (5 букв: «лин ‘умар»).', dKk: 'Тұйық пен үздіксіздің арасы: дыбыс ішінара ағады (5 әріп: «лин ‘умар»).' },
+        b: { id: 'rakhawa', ru: 'Ракава — щелевая', kk: 'Ракава — үздіксіз', dRu: 'Звук течёт свободно, его можно тянуть.', dKk: 'Дыбыс еркін ағады, оны созуға болады.' } },
+      { a: { id: 'istila', ru: 'Исти‘ля — тяжёлая', kk: 'Исти‘ла — ауыр', L: 'خصضغطقظ', dRu: 'Задняя часть языка поднимается к нёбу, звук «полный» (7 букв: «хусса дагтын киз»).', dKk: 'Тілдің арты таңдайға көтеріледі, дыбыс «толық» (7 әріп: «хусса дағтын қиз»).' },
+        b: { id: 'istifal', ru: 'Истифаль — лёгкая', kk: 'Истифал — жеңіл', dRu: 'Язык внизу, звук «тонкий». (ر, ل в слове Аллах и ا бывают тяжёлыми по отдельным правилам.)', dKk: 'Тіл төменде, дыбыс «жіңішке». (ر, Аллаһ сөзіндегі ل және ا жеке ережелер бойынша ауыр болуы мүмкін.)' } },
+      { a: { id: 'itbaq', ru: 'Итбак — прижатая', kk: 'Итбақ — жабысқан', L: 'صضطظ', dRu: 'Язык прижимается к нёбу широкой частью — самые тяжёлые буквы (4).', dKk: 'Тіл таңдайға кең бөлігімен жабысады — ең ауыр әріптер (4).' },
+        b: { id: 'infitah', ru: 'Инфитах — открытая', kk: 'Инфитах — ашық', dRu: 'Между языком и нёбом остаётся промежуток.', dKk: 'Тіл мен таңдайдың арасында саңылау қалады.' } },
+      { a: { id: 'idhlaq', ru: 'Изляк — беглая', kk: 'Изләқ — жылдам', L: 'فرمنلب', dRu: 'Легко и быстро произносятся кончиком языка или губами (6 букв: «фирра мин лубб»).', dKk: 'Тіл ұшымен немесе ерінмен жеңіл әрі жылдам айтылады (6 әріп: «фирра мин лубб»).' },
+        b: { id: 'ismat', ru: 'Исмат — сдержанная', kk: 'Исмат — ұстамды', dRu: 'Остальные буквы: произносятся с большей опорой.', dKk: 'Қалған әріптер: көбірек тірекпен айтылады.' } }
+    ];
+    const SIF_SINGLE = [
+      { id: 'safir', ru: 'Сафир — свист', kk: 'Сафир — ысқырық', L: 'صزس', dRu: 'Свистящий призвук при выходе воздуха.', dKk: 'Ауа шыққанда ысқырық естіледі.' },
+      { id: 'qalqala', ru: 'Калькаля — отскок', kk: 'Қалқала — серпіліс', L: 'قطبجد', dRu: 'С сукуном звук слегка «отскакивает» (5 букв: «кутбу джад»).', dKk: 'Сукунмен дыбыс сәл «серпіледі» (5 әріп: «қутбу жад»).' },
+      { id: 'lin', ru: 'Лин — мягкость', kk: 'Лин — жұмсақтық', L: 'وي', dRu: 'و и ي с сукуном после фатхи звучат мягко: قَوْل، بَيْت.', dKk: 'Фатхадан кейінгі сукунды و мен ي жұмсақ естіледі: قَوْل، بَيْت.' },
+      { id: 'inhiraf', ru: 'Инхираф — отклонение', kk: 'Инхираф — ауытқу', L: 'لر', dRu: 'Звук отклоняется от своего места к соседнему (ل — к краям, ر — к спинке языка).', dKk: 'Дыбыс өз орнынан көршісіне ауытқиды (ل — жиекке, ر — тіл арқасына).' },
+      { id: 'takrir', ru: 'Такрир — дрожание', kk: 'Тәкрир — діріл', L: 'ر', dRu: 'Склонность ر к дрожанию; в чтении дрожание удерживают — одно касание.', dKk: 'ر дірілдеуге бейім; оқуда діріл тежеледі — бір рет тию.' },
+      { id: 'tafashshi', ru: 'Тафашши — растекание', kk: 'Тафашши — таралу', L: 'ش', dRu: 'Воздух растекается по всей ширине рта.', dKk: 'Ауа ауыздың бүкіл енімен таралады.' },
+      { id: 'istitala', ru: 'Иститаля — протяжённость', kk: 'Иститала — созылу', L: 'ض', dRu: 'Звук тянется вдоль всего бокового края языка.', dKk: 'Дыбыс тілдің бүкіл бүйір жиегі бойымен созылады.' }
+    ];
+    // 17 мест выхода — по Ибн аль-Джазари (و и ي как буквы мадда — из джауфа)
+    const SIF_MAKHRAJ = [
+      { L: 'ا', ru: 'Полость рта и горла (джауф)', kk: 'Ауыз бен тамақ қуысы (джауф)' },
+      { L: 'ءه', ru: 'Низ горла', kk: 'Көмейдің түбі' },
+      { L: 'عح', ru: 'Середина горла', kk: 'Көмейдің ортасы' },
+      { L: 'غخ', ru: 'Верх горла (ближе ко рту)', kk: 'Көмейдің жоғарғы жағы (ауызға жақын)' },
+      { L: 'ق', ru: 'Корень языка + мягкое нёбо, глубже, чем у ك', kk: 'Тіл түбі + жұмсақ таңдай, ك-дан тереңірек' },
+      { L: 'ك', ru: 'Корень языка + нёбо, ближе ко рту, чем у ق', kk: 'Тіл түбі + таңдай, ق-дан ауызға жақын' },
+      { L: 'جشي', ru: 'Середина языка + твёрдое нёбо', kk: 'Тіл ортасы + қатты таңдай' },
+      { L: 'ض', ru: 'Боковой край языка + верхние коренные зубы', kk: 'Тілдің бүйір жиегі + жоғарғы азу тістер' },
+      { L: 'ل', ru: 'Передняя часть края языка + дёсны верхних передних зубов', kk: 'Тіл жиегінің алдыңғы бөлігі + жоғарғы алдыңғы тістердің қызыл иегі' },
+      { L: 'ن', ru: 'Кончик языка + дёсны, чуть ниже, чем у ل', kk: 'Тіл ұшы + қызыл иек, ل-дан сәл төмен' },
+      { L: 'ر', ru: 'Кончик языка с частью спинки + дёсны, рядом с местом ن', kk: 'Тіл ұшы мен арқасының бір бөлігі + қызыл иек, ن-ға жақын' },
+      { L: 'طدت', ru: 'Кончик языка + основание верхних резцов', kk: 'Тіл ұшы + жоғарғы күрек тістердің түбі' },
+      { L: 'صسز', ru: 'Кончик языка у нижних резцов, узкая щель', kk: 'Тіл ұшы төменгі күрек тістер маңында, тар саңылау' },
+      { L: 'ظذث', ru: 'Кончик языка + края верхних резцов', kk: 'Тіл ұшы + жоғарғы күрек тістердің ұшы' },
+      { L: 'ف', ru: 'Внутренняя часть нижней губы + кончики верхних резцов', kk: 'Төменгі еріннің ішкі жағы + жоғарғы күрек тістердің ұшы' },
+      { L: 'بمو', ru: 'Губы: у ب и م смыкаются, у و округляются, не смыкаясь', kk: 'Еріндер: ب мен م-да жабылады, و-да дөңгеленеді, жабылмайды' }
+    ];
+    function sifOf(ch) {
+      var out = [];
+      SIF_PAIRS.forEach(function(p) {
+        if (p.a.L.indexOf(ch) >= 0) out.push(p.a);
+        else if (p.m && p.m.L.indexOf(ch) >= 0) out.push(p.m);
+        else out.push(p.b);
+      });
+      SIF_SINGLE.forEach(function(s) { if (s.L.indexOf(ch) >= 0) out.push(s); });
+      return out;
+    }
+    function makhrajOf(ch) {
+      var m = SIF_MAKHRAJ.find(function(x) { return x.L.indexOf(ch) >= 0; });
+      if (!m) return '';
+      var kk = isKk(), s = kk ? m.kk : m.ru;
+      if (ch === 'و' || ch === 'ي') s += kk ? '; мадд әрпі ретінде — джауф' : '; как буква мадда — джауф';
+      return s;
+    }
+    function sifChipsHtml(ch) {
+      var kk = isKk();
+      return '<div class="sif-chips" dir="ltr">' + sifOf(ch).map(function(s) { return '<span class="sif-chip sif-' + s.id + '">' + (kk ? s.kk : s.ru).split(' — ')[1] + '</span>'; }).join('') + '</div>';
+    }
+    function _sifLetBtns(L) { return '<div class="mk-letters">' + L.split('').map(function(ch) { return '<button type="button" class="mk-let" data-sif-say="' + ch + '" lang="ar">' + ch + '</button>'; }).join('') + '</div>'; }
+    function _sifRest(p) { var ex = p.a.L + (p.m ? p.m.L : ''); return SIF_ALL.split('').filter(function(c) { return ex.indexOf(c) < 0; }).join(''); }
+    function renderSifat() {
+      var el = document.getElementById('learn-sifat'); if (!el) return;
+      var kk = isKk();
+      var card = function(id, title, short, body) {
+        return '<div class="rule-card tw-rc" data-rule-i="sf' + id + '" data-ref-key="sf:' + id + '">' +
+          '<button type="button" class="tw-rc-head" data-tw-toggle="sf' + id + '" dir="ltr" aria-expanded="false"><span class="tw-rc-text"><span class="tw-rc-title">' + title + '</span><span class="tw-rc-short">' + short + '</span></span><span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
+          '<div class="tw-rc-body" hidden>' + body + '</div></div>';
+      };
+      var html = '<p class="ayah-translation" style="margin-bottom:0.6rem;text-align:left" dir="ltr">' + (kk ? 'Сифат — әріптің сипаты: шығу орны бірдей әріптерді осылар ажыратады. Әріпті басыңыз — дыбысы естіледі.' : 'Сифат — качества буквы: именно они различают буквы с одним местом выхода. Нажмите букву — прозвучит.') + '</p>' +
+        '<button type="button" class="btn btn-sm" data-ref-cheat="1" style="margin-bottom:0.7rem">📄 ' + (kk ? 'Шпаргалка: барлық әріптер бір парақта' : 'Шпаргалка: все буквы на одном листе') + '</button>' +
+        '<h3 class="tw-group-title" dir="ltr">' + (kk ? 'Қарама-қарсы жұптар (әр әріпте әр жұптан біреуі)' : 'Противоположные пары (у каждой буквы — одно из пары)') + '</h3>';
+      SIF_PAIRS.forEach(function(p) {
+        var parts = [p.a].concat(p.m ? [p.m] : []).concat([p.b]);
+        var body = parts.map(function(q) {
+          var L = q.L || _sifRest(p);
+          return '<div class="sif-part"><b class="sif-chip sif-' + q.id + '">' + (kk ? q.kk : q.ru) + '</b><div class="ayah-translation" style="font-size:0.84rem;margin:0.25rem 0;text-align:left" dir="ltr">' + (kk ? q.dKk : q.dRu) + '</div>' + _sifLetBtns(L) + '</div>';
+        }).join('');
+        html += card(p.a.id, parts.map(function(q) { return (kk ? q.kk : q.ru).split(' — ')[0]; }).join(' / '), parts.map(function(q) { return (kk ? q.kk : q.ru).split(' — ')[1]; }).join(' / '), body);
+      });
+      html += '<h3 class="tw-group-title" dir="ltr">' + (kk ? 'Жұбы жоқ сипаттар' : 'Качества без пары') + '</h3>';
+      SIF_SINGLE.forEach(function(s) {
+        html += card(s.id, (kk ? s.kk : s.ru), (kk ? s.dKk : s.dRu), '<div class="ayah-translation" style="font-size:0.84rem;margin-bottom:0.3rem;text-align:left" dir="ltr">' + (kk ? s.dKk : s.dRu) + '</div>' + _sifLetBtns(s.L));
+      });
+      el.innerHTML = html;
+      try { refDecorate('sifat'); } catch(e) {}
+    }
+    // шпаргалка — окно с печатью
+    function refCheatHtml() {
+      var kk = isKk(), T = function(r, k) { return kk ? k : r; };
+      var names = {}; (typeof ARABIC_LETTERS !== 'undefined' ? ARABIC_LETTERS : []).forEach(function(l) { names[l.ch] = kk ? (l.nameKk || l.name) : l.name; });
+      names['ء'] = T('Хамза', 'Хамза');
+      var rows = SIF_ALL.split('').map(function(ch) {
+        return '<tr><td class="ch" lang="ar">' + ch + '</td><td>' + (names[ch] || '') + '</td><td>' + makhrajOf(ch) + '</td><td>' + sifOf(ch).map(function(s) { return (kk ? s.kk : s.ru).split(' — ')[1]; }).join(', ') + '</td></tr>';
+      }).join('');
+      return '<h2>' + T('Шпаргалка: буквы и таджвид', 'Шпаргалка: әріптер мен тәжуид') + '</h2>' +
+        '<table class="cheat-t"><thead><tr><th></th><th>' + T('Буква', 'Әріп') + '</th><th>' + T('Место выхода', 'Шығу орны') + '</th><th>' + T('Качества', 'Сипаттары') + '</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+        '<h3>' + T('Нун сакин и танвин — что после', 'Сукунды нун мен тәнуин — одан кейін') + '</h3>' +
+        '<table class="cheat-t"><tbody>' +
+          '<tr><td>' + T('Изхар — ясно', 'Изһар — анық') + '</td><td class="ch" lang="ar">ء ه ع ح غ خ</td></tr>' +
+          '<tr><td>' + T('Идгам с гунной', 'Ғуннамен идғам') + '</td><td class="ch" lang="ar">ي ن م و</td></tr>' +
+          '<tr><td>' + T('Идгам без гунны', 'Ғуннасыз идғам') + '</td><td class="ch" lang="ar">ل ر</td></tr>' +
+          '<tr><td>' + T('Иклаб — в «м»', 'Иқлаб — «м»-ге') + '</td><td class="ch" lang="ar">ب</td></tr>' +
+          '<tr><td>' + T('Ихфа — скрыто, с гунной', 'Ихфа — жасырын, ғуннамен') + '</td><td class="ch" lang="ar">ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك</td></tr>' +
+        '</tbody></table>' +
+        '<h3>' + T('Мим сакин', 'Сукунды мим') + '</h3>' +
+        '<table class="cheat-t"><tbody>' +
+          '<tr><td>' + T('Ихфа шафави (с гунной)', 'Ихфа шафауи (ғуннамен)') + '</td><td class="ch" lang="ar">ب</td></tr>' +
+          '<tr><td>' + T('Идгам шафави (с гунной)', 'Идғам шафауи (ғуннамен)') + '</td><td class="ch" lang="ar">م</td></tr>' +
+          '<tr><td>' + T('Изхар шафави — остальные (особенно و ف)', 'Изһар шафауи — қалғандары (әсіресе و ف)') + '</td><td></td></tr>' +
+        '</tbody></table>' +
+        '<h3>' + T('Мадд — длина (Хафс через аш-Шатибийю)', 'Мадд — ұзындығы (Хафс, аш-Шатиби жолы)') + '</h3>' +
+        '<table class="cheat-t"><tbody>' +
+          '<tr><td>' + T('Таби‘и (естественный)', 'Табиғи') + '</td><td>2</td></tr>' +
+          '<tr><td>' + T('Муттасиль (хамза в том же слове)', 'Муттасил (хамза сол сөзде)') + '</td><td>4–5</td></tr>' +
+          '<tr><td>' + T('Мунфасиль (хамза в следующем слове)', 'Мунфасил (хамза келесі сөзде)') + '</td><td>4–5</td></tr>' +
+          '<tr><td>' + T('‘Арид (на остановке), лин', '‘Арид (тоқтағанда), лин') + '</td><td>2 / 4 / 6</td></tr>' +
+          '<tr><td>' + T('Лязим (сукун/шадда после мадда)', 'Ләзим (маддтан кейін сукун/шәдда)') + '</td><td>6</td></tr>' +
+          '<tr><td>' + T('Бадаль (хамза перед маддом)', 'Бадал (хамза маддтың алдында)') + '</td><td>2</td></tr>' +
+        '</tbody></table>' +
+        '<p class="cheat-src">' + T('Источники: «аль-Мукаддима аль-Джазарийя» Ибн аль-Джазари, «Тухфат аль-атфаль» аль-Джамзури. Quran Academy.', 'Дереккөздер: Ибн әл-Жәзәридің «әл-Мұқаддима әл-Жәзарийя», әл-Жәмзуридің «Тұхфат әл-атфал». Quran Academy.') + '</p>';
+    }
+    function refOpenCheat() {
+      var kk = isKk(), ov = document.getElementById('ref-cheat');
+      if (!ov) { ov = document.createElement('div'); ov.id = 'ref-cheat'; document.body.appendChild(ov); }
+      ov.innerHTML = '<div class="cheat-box" dir="ltr"><div class="cheat-tools"><button type="button" class="btn btn-sm btn-primary" data-cheat-print="1">🖨 ' + (kk ? 'Басып шығару / PDF' : 'Печать / PDF') + '</button><button type="button" class="btn btn-sm" data-cheat-close="1">✕ ' + (kk ? 'Жабу' : 'Закрыть') + '</button></div>' + refCheatHtml() + '</div>';
+      ov.hidden = false;
+      document.body.classList.add('cheat-open');
+    }
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null;
+      if (!t) return;
+      if (t.closest('[data-ref-cheat]')) { refOpenCheat(); return; }
+      if (t.closest('[data-cheat-close]') || t.id === 'ref-cheat') { var ov = document.getElementById('ref-cheat'); if (ov) ov.hidden = true; document.body.classList.remove('cheat-open'); return; }
+      if (t.closest('[data-cheat-print]')) { document.body.classList.add('cheat-printing'); setTimeout(function() { try { window.print(); } catch(er) {} setTimeout(function() { document.body.classList.remove('cheat-printing'); }, 500); }, 50); return; }
+      var sb = t.closest('[data-sif-say]');
+      if (sb) { try { _mkSay(sb.getAttribute('data-sif-say')); } catch(er) {} }
+    });
+
     // ===== 6.102: Справочник — общие удобства: поиск, «изучено» и прогресс, «Потренировать», источники внизу, память открытых карточек =====
-    const REF_ROOTS = { alphabet: 'learn-alphabet', harakat: 'learn-harakat', rules: 'learn-rules', tajweed: 'learn-tajweed', makharij: 'learn-makharij' };
+    const REF_ROOTS = { alphabet: 'learn-alphabet', harakat: 'learn-harakat', rules: 'learn-rules', tajweed: 'learn-tajweed', makharij: 'learn-makharij', sifat: 'learn-sifat' };
     // источники — только то, на чём действительно основаны тексты; показываются мелко в самом низу темы
     const REF_SOURCES = {
       alphabet: {
@@ -13987,12 +14189,16 @@ function renderMistakes() {
         ru: 'Нун и мим сакин, мадд, артикль — по «Тухфат аль-атфаль» Сулеймана аль-Джамзури (XII в. х.); калькаля, гунна, места букв — по «аль-Мукаддима аль-Джазарийя» Ибн аль-Джазари. Риваят Хафса от Асыма по пути аш-Шатибийи (мадд мунфасиль 4–5 счётов). Знаки вакфа — по мединскому мусхафу. Цветная разметка — quran-tajweed (cpfair, CC BY 4.0); звук слов — отметки слов quran.com, аяты — everyayah.com.',
         kk: 'Сукунды нун мен мим, мадд, артикль — Сүлейман әл-Жәмзуридің (һижраның XII ғ.) «Тұхфат әл-атфал» еңбегі бойынша; қалқала, ғунна, әріптердің шығу орны — Ибн әл-Жәзәридің «әл-Мұқаддима әл-Жәзарийя» бойынша. Асымнан Хафс риуаяты, аш-Шатиби жолымен (мунфасил мадд 4–5 санақ). Уақф белгілері — Мәдина мұсхафы бойынша. Түсті белгі — quran-tajweed (cpfair, CC BY 4.0); сөз дыбысы — quran.com сөз белгілері, аяттар — everyayah.com.'
       },
+      sifat: {
+        ru: 'Пары качеств и качества без пары — по «аль-Мукаддима аль-Джазарийя» Ибн аль-Джазари (ум. 833 г. х. / 1429 г.); буквы каждой группы — по классическим запоминалкам (فحثه شخص سكت، أجد قط بكت، لن عمر، خص ضغط قظ، فر من لب). Звук — живые записи букв сайта.',
+        kk: 'Сипат жұптары мен жұбы жоқ сипаттар — Ибн әл-Жәзәридің (1429 ж. қайтыс болған) «әл-Мұқаддима әл-Жәзарийя» бойынша; әр топтың әріптері — классикалық есте сақтау сөздері бойынша (فحثه شخص سكت، أجد قط بكت، لن عمر، خص ضغط قظ، فر من لب). Дыбыс — сайттағы әріптердің жазбалары.'
+      },
       makharij: {
         ru: '5 зон и 17 махраджей — по «аль-Мукаддима аль-Джазарийя» Ибн аль-Джазари (мнение аль-Халиля ибн Ахмада, принятое большинством чтецов).',
         kk: '5 аймақ және 17 махрадж — Ибн әл-Жәзәридің «әл-Мұқаддима әл-Жәзарийя» еңбегі бойынша (әл-Халил ибн Ахмадтың көзқарасы, қарилердің көпшілігі қабылдаған).'
       }
     };
-    const REF_TRAIN = { alphabet: ['st-letters', 'letters'], harakat: ['st-syl', 'syllables'], rules: ['st-syl', 'join'], tajweed: ['st-tajweed', 'findrule'], makharij: ['st-letters', 'minimal-pairs'] };
+    const REF_TRAIN = { sifat: ['st-letters', 'minimal-pairs'], alphabet: ['st-letters', 'letters'], harakat: ['st-syl', 'syllables'], rules: ['st-syl', 'join'], tajweed: ['st-tajweed', 'findrule'], makharij: ['st-letters', 'minimal-pairs'] };
     function _refLS(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e) { return def; } }
     function _refLSset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
     function refOpenObj() { var a = _refLS('quran_ref_open', []), o = {}; a.forEach(function(x) { o[x] = 1; }); return o; }
@@ -14092,6 +14298,9 @@ function renderMistakes() {
        ['mk4', 'Аль-Хайшум — нос', 'Әл-Хайшум — мұрын', 'хайшум нос гунна мұрын ғунна']].forEach(function(z) {
         out.push({ tab: 'makharij', card: z[0], ico: '👄', label: kk ? z[2] : z[1], hay: z.join(' ') + ' махрадж махаридж мақаридж' });
       });
+      SIF_PAIRS.forEach(function(p) { [p.a].concat(p.m ? [p.m] : []).concat([p.b]).forEach(function(q) { out.push({ tab: 'sifat', card: 'sf' + p.a.id, ico: '🎚', label: kk ? q.kk : q.ru, hay: [q.ru, q.kk, q.dRu, q.dKk, 'сифат сипат качество'].join(' ') }); }); });
+      SIF_SINGLE.forEach(function(s) { out.push({ tab: 'sifat', card: 'sf' + s.id, ico: '🎚', label: kk ? s.kk : s.ru, hay: [s.ru, s.kk, s.dRu, s.dKk, s.L, 'сифат сипат качество'].join(' ') }); });
+      out.push({ tab: 'sifat', cheat: 1, ico: '📄', label: kk ? 'Шпаргалка: барлық әріптер бір парақта' : 'Шпаргалка: все буквы на одном листе', hay: 'шпаргалка таблица печать pdf кесте басып шығару' });
       out.forEach(function(x) { x.n = _refNorm(x.hay); });
       return out;
     }
@@ -14119,6 +14328,7 @@ function renderMistakes() {
       });
     }
     function refOpenHit(x) {
+      if (x.cheat) { refOpenCheat(); return; }
       switchAcademyTab(x.tab);
       setTimeout(function() {
         if (x.letter != null) { var lc = document.querySelector('#letter-grid .letter-card[data-i="' + x.letter + '"]'); if (lc) lc.click(); return; }
@@ -14145,7 +14355,14 @@ function renderMistakes() {
         return;
       }
       var tr = t.closest('[data-ref-train]');
-      if (tr) { refTrain(tr.getAttribute('data-ref-train')); }
+      if (tr) { refTrain(tr.getAttribute('data-ref-train')); return; }
+      var lt = t.closest('[data-lt-tab]');
+      if (lt) {
+        var det = lt.closest('.letter-detail') || document;
+        var k = lt.getAttribute('data-lt-tab');
+        det.querySelectorAll('[data-lt-tab]').forEach(function(b) { b.classList.toggle('on', b === lt); });
+        det.querySelectorAll('[data-lt-panel]').forEach(function(pn) { if (pn.getAttribute('data-lt-panel') === k) pn.removeAttribute('hidden'); else pn.setAttribute('hidden', ''); });
+      }
     });
 
     // ===== 6.100: Письмо — соединение букв по шагам =====
@@ -14300,6 +14517,10 @@ function renderMistakes() {
             '<button type="button" class="btn btn-sm" data-tw-more="' + tags.join(',') + '">↻ ' + (kk ? 'Басқа мысалдар' : 'Другие примеры') + '</button>' +
             '<button type="button" class="btn btn-sm btn-primary" data-tw-train="' + tags.join(',') + '">🎯 ' + (kk ? 'Аяттан табу' : 'Найти в аяте') + '</button>' +
           '</div>';
+      }
+      if (!tags && TW_MANUAL_EX[r.title]) {
+        exBlock = '<div class="tw-exs-head" dir="ltr">' + (kk ? '📖 Құраннан мысалдар — сөзді басып тыңдаңыз' : '📖 Примеры из Корана — нажмите слово, чтобы послушать') + '</div>' +
+          '<div class="tw-exs-manual">' + twManualExamplesHtml(r.title, kk) + '</div>';
       }
       var isMadd = /المد|^مد /.test(r.title);
       return '<div class="rule-card tw-rc' + (open ? ' open' : '') + '" data-rule-i="' + ri + '" data-ref-key="tj:' + String(r.title).replace(/"/g, '') + '">' +
