@@ -8075,43 +8075,123 @@ function speakLetter(ch, name, ttsOnly) {
       if (!b) return;
       const box = b.closest('.hk-box'); if (box) harakatDemoPlay(box);
     });
+    // 6.100: Огласовки — таблица «буква × огласовка» со звуком, короткая/долгая гласная, карточки свёрнуты, тренажёр с вариантами
+    const HK_LETTERS = 'بتثجحخدذرزسشصضطظعغفقكلمنهوي';
+    function _hkCells(L) {
+      return [
+        { t: L + 'َ', ty: 'a', ru: 'фатха', kk: 'фатха' }, { t: L + 'ِ', ty: 'i', ru: 'касра', kk: 'касра' }, { t: L + 'ُ', ty: 'u', ru: 'дамма', kk: 'дамма' },
+        { t: 'أَ' + L + 'ْ', ty: 'suk', ru: 'сукун', kk: 'сукун' }, { t: L + 'َّ', ty: 'sh', ru: 'шадда', kk: 'шәдда' },
+        { t: L + 'ً', ty: 'an', ru: 'танвин', kk: 'тәнуин' }, { t: L + 'ٍ', ty: 'in', ru: 'танвин', kk: 'тәнуин' }, { t: L + 'ٌ', ty: 'un', ru: 'танвин', kk: 'тәнуин' },
+        { t: L + 'َا', ty: 'aa', ru: 'долгое а', kk: 'ұзын а', long: 1 }, { t: L + 'ِي', ty: 'ii', ru: 'долгое и', kk: 'ұзын и', long: 1 }, { t: L + 'ُو', ty: 'uu', ru: 'долгое у', kk: 'ұзын у', long: 1 }
+      ];
+    }
+    // транскрипция слога по тем же правилам, что в тренажёре слогов (sylTr: ru — а/и/у, kk — ә/о, и/ы, ү/у)
+    function _hkSyl(L, ty) {
+      try {
+        var M = { a: { k: 'a', v: 'а' }, i: { k: 'i', v: 'и' }, u: { k: 'u', v: 'у' } };
+        var base = ty.charAt(0), s = sylTr(L, M[base] || M.a), vow = s.slice(consSound(L).length);
+        if (ty === 'suk') { var hard = isKk() && KK_HARD_LETTERS.indexOf(L) >= 0; return (isKk() ? (hard ? 'о' : 'ә') : 'а') + consSound(L); }
+        if (ty === 'sh') return consSound(L) + s;
+        if (ty === 'an' || ty === 'in' || ty === 'un') return s + 'н';
+        if (ty.length === 2) return s + vow;
+        return s;
+      } catch(e) { return ''; }
+    }
+    function _hkTr(txt) {
+      var L = txt.replace(/^أَ/, '').charAt(0), m = txt.slice(txt.indexOf(L) + 1);
+      var ty = /^أَ/.test(txt) ? 'suk' : m === 'َّ' ? 'sh' : m === 'ً' ? 'an' : m === 'ٍ' ? 'in' : m === 'ٌ' ? 'un' : m === 'َا' ? 'aa' : m === 'ِي' ? 'ii' : m === 'ُو' ? 'uu' : m === 'ِ' ? 'i' : m === 'ُ' ? 'u' : 'a';
+      return _hkSyl(L, ty);
+    }
+    function _hkGridHtml(L) {
+      return _hkCells(L).map(function(c) {
+        return '<button type="button" class="hk-cell' + (c.long ? ' hk-long' : '') + '" data-hk-say="' + c.t + '"><span class="hk-cell-ar" dir="rtl" lang="ar">' + c.t + '</span><span class="hk-cell-tr">' + _hkTr(c.t) + '</span><span class="hk-cell-nm">' + (isKk() ? c.kk : c.ru) + '</span></button>';
+      }).join('');
+    }
+    function _hkQuizNext(box) {
+      const kk = isKk();
+      const L = HK_LETTERS[Math.floor(Math.random() * HK_LETTERS.length)];
+      const pool = [L + 'َ', L + 'ِ', L + 'ُ', L + 'َا', L + 'ِي', L + 'ُو'];
+      const ans = pool[Math.floor(Math.random() * pool.length)];
+      const opts = shuffle(pool.slice()).filter(function(x) { return x !== ans; }).slice(0, 2).concat([ans]);
+      box._hkAns = ans;
+      box.querySelector('.hkq-q').textContent = ans;
+      box.querySelector('.hkq-opts').innerHTML = shuffle(opts).map(function(o) { return '<button type="button" class="btn btn-sm hkq-opt" data-hkq="' + o + '">' + _hkTr(o) + '</button>'; }).join('');
+      box.querySelector('.hkq-res').textContent = '';
+    }
     function renderHarakat() {
       const el = document.getElementById('learn-harakat');
       if (!el) return;
-      const kkH = (typeof isKk === 'function') ? isKk() : (state.settings && state.settings.lang === 'kk');
+      const kkH = isKk();
+      const L0 = el._hkL || 'ب';
       el.innerHTML =
-        '<p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:0.75rem">'+(kkH ? 'Харакаттар — оқудың кілті. Мысалды басыңыз — тыңдай аласыз (дыбыстау қолжетімді болса).' : 'Огласовки — ключ к чтению. Нажмите пример, чтобы услышать (если доступна озвучка).')+'</p>' +
+        '<p class="ayah-translation" style="margin-bottom:0.6rem;text-align:left" dir="ltr">' + (kkH ? 'Харакаттар — оқудың кілті. Кестедегі буынды басыңыз — тыңдаңыз; әріпті жоғарыдан ауыстырыңыз.' : 'Огласовки — ключ к чтению. Нажмите слог в таблице — прозвучит; букву можно сменить сверху.') + '</p>' +
         harakatDemoHtml() +
-        HARAKAT.map((h,i) =>
-          '<div class="card" style="cursor:pointer" data-har="'+i+'">' +
-          '<div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">' +
-          '<span style="font-size:2rem;font-family:Amiri,serif;min-width:2.5rem;text-align:center" dir="rtl">ب'+h.symbol+'</span>' +
-          '<div style="flex:1"><b>'+(kkH ? (h.nameKk || h.name) : h.name)+'</b> <span style="color:var(--text-muted)"><span class="hk-mark" dir="rtl">◌'+h.symbol+'</span> · '+letterTr(h)+'</span>' +
-          '<div class="ayah-translation">'+(kkH ? (h.noteKk || h.note) : h.note)+'</div>' +
-          '<div class="arabic" style="font-size:calc(1.4rem * var(--ar-scale, 1));margin-top:0.25rem" dir="rtl">'+h.example+' <span style="font-size:0.85rem;color:var(--text-muted);font-family:Inter,sans-serif">'+((kkH && h.exampleTrKk) ? h.exampleTrKk : h.exampleTr)+'</span></div>' +
-          '</div></div></div>'
-        ).join('') +
-        '<div class="card"><b>'+(kkH ? 'Шағын жаттықтырғыш' : 'Мини-тренажёр')+'</b><div class="ayah-translation" style="margin:0.5rem 0">'+(kkH ? 'Дауыстап оқыңыз: ' : 'Прочитайте вслух: ')+'بَ بِ بُ · تَ تِ تُ · مَ مِ مُ · نَ نِ نُ · قَ قِ قُ</div>' +
-        '<button type="button" class="btn btn-primary btn-sm" id="btn-harakat-drill">'+(kkH ? 'Кездейсоқ буын' : 'Случайный слог')+'</button>' +
-        '<div id="harakat-drill-out" class="arabic" style="font-size:calc(2.2rem * var(--ar-scale, 1));text-align:center;margin-top:0.75rem" dir="rtl"></div></div>';
-      // build 5.99: подсказка сверху давно обещала «нажмите пример, чтобы
-      // услышать», карточки уже были кликабельны (cursor:pointer), но
-      // обработчик клика не был написан вообще — звук никогда не играл.
-      el.querySelectorAll('[data-har]').forEach(function(card) {
-        card.addEventListener('click', function() {
-          const h = HARAKAT[+card.dataset.har];
-          if (h && h.example) { try { speakArText(h.example, 0.7); } catch(e) {} }
-        });
-      });
-      const letters = 'بتثجحخدذرزسشصضطظعغفقكلمنهوي';
-      document.getElementById('btn-harakat-drill')?.addEventListener('click', () => {
-        const L = letters[Math.floor(Math.random()*letters.length)];
-        const marks = ['َ','ِ','ُ'];
-        const m = marks[Math.floor(Math.random()*marks.length)];
-        const out = document.getElementById('harakat-drill-out');
-        if (out) out.textContent = L + m;
-      });
+        // таблица
+        '<div class="card hk-table"><b>🔤 ' + (kkH ? 'Әріп × харакат' : 'Буква × огласовка') + '</b>' +
+          '<div class="hk-letpick" dir="rtl">' + HK_LETTERS.split('').map(function(ch) { return '<button type="button" class="hk-let' + (ch === L0 ? ' on' : '') + '" data-hk-let="' + ch + '" lang="ar">' + ch + '</button>'; }).join('') + '</div>' +
+          '<div class="hk-grid">' + _hkGridHtml(L0) + '</div>' +
+          '<div class="ayah-translation" style="font-size:0.75rem;margin-top:0.35rem;text-align:left" dir="ltr">' + (kkH ? 'Дыбыс — құрылғының араб дауыс синтезі (жазба емес). Әріптің жазбасы — «Әріптер» бөлімінде.' : 'Звук — арабский синтез речи устройства (не запись). Живая запись буквы — в разделе «Буквы».') + '</div></div>' +
+        // короткая/долгая
+        '<div class="card"><b>📏 ' + (kkH ? 'Қысқа және ұзын дауысты' : 'Краткая и долгая гласная') + '</b>' +
+          '<div class="ayah-translation" style="font-size:0.82rem;margin:0.2rem 0 0.4rem;text-align:left" dir="ltr">' + (kkH ? 'Харакат — 1 санақ. Мадд әрпі (ا و ي) қосылса — 2 санақ, екі есе ұзын.' : 'Огласовка — 1 счёт. С буквой мадда (ا و ي) — 2 счёта, вдвое дольше.') + '</div>' +
+          [['بَ', 'بَا'], ['بِ', 'بِي'], ['بُ', 'بُو']].map(function(pr) {
+            return '<div class="hk-len">' + pr.map(function(x, i) {
+              return '<button type="button" class="hk-len-btn" data-hk-say="' + x + '" data-hk-slow="1"><span class="hk-cell-ar" dir="rtl" lang="ar">' + x + '</span><span class="hk-bar"><i style="width:' + (i ? 100 : 50) + '%"></i></span><span class="hk-cell-tr">' + _hkTr(x) + ' · ' + (i ? (kkH ? '2 санақ' : '2 счёта') : (kkH ? '1 санақ' : '1 счёт')) + '</span></button>';
+            }).join('') + '</div>';
+          }).join('') + '</div>' +
+        // карточки знаков — свёрнуты
+        '<h3 class="tw-group-title" dir="ltr">' + (kkH ? 'Белгілер' : 'Знаки') + '</h3>' +
+        HARAKAT.map(function(h, i) {
+          return '<div class="rule-card tw-rc" data-rule-i="hk' + i + '">' +
+            '<button type="button" class="tw-rc-head" data-tw-toggle="hk' + i + '" dir="ltr" aria-expanded="false">' +
+              '<span class="hk-sym" dir="rtl" lang="ar">ب' + h.symbol + '</span>' +
+              '<span class="tw-rc-text"><span class="tw-rc-title">' + (kkH ? (h.nameKk || h.name) : h.name) + '</span><span class="tw-rc-short">' + (kkH ? (h.noteKk || h.note) : h.note) + '</span></span>' +
+              '<span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
+            '<div class="tw-rc-body" hidden>' +
+              '<button type="button" class="hk-ex" data-hk-say="' + h.example + '"><span class="arabic" dir="rtl" lang="ar">' + h.example + '</span> <span class="hk-cell-tr">' + ((kkH && h.exampleTrKk) ? h.exampleTrKk : (h.exampleTr || '')) + '</span> 🔊</button>' +
+            '</div></div>';
+        }).join('') +
+        // тренажёр
+        '<div class="card hkq"><b>🎯 ' + (kkH ? 'Буынды оқы' : 'Прочитай слог') + '</b>' +
+          '<div class="ayah-translation" style="font-size:0.82rem;margin-top:0.2rem;text-align:left" dir="ltr">' + (kkH ? 'Қалай оқылады? Дұрыс нұсқаны таңдаңыз.' : 'Как читается? Выберите верный вариант.') + '</div>' +
+          '<div class="arabic hkq-q" dir="rtl" style="font-size:calc(2.6rem * var(--ar-scale, 1));text-align:center;margin:0.3rem 0"></div>' +
+          '<div class="hkq-opts" style="display:flex;gap:0.4rem;justify-content:center;flex-wrap:wrap"></div>' +
+          '<div class="hkq-res" style="text-align:center;min-height:1.4em;margin-top:0.35rem;font-weight:600"></div>' +
+          '<div style="text-align:center"><button type="button" class="btn btn-sm" data-hkq-next="1">↻ ' + (kkH ? 'Келесі' : 'Следующий') + '</button></div></div>';
+      _hkQuizNext(el.querySelector('.hkq'));
     }
+    document.addEventListener('click', function(e) {
+      const t = e.target && e.target.closest ? e.target : null;
+      if (!t || !t.closest('#learn-harakat')) return;
+      const root = document.getElementById('learn-harakat');
+      const lb = t.closest('[data-hk-let]');
+      if (lb) {
+        root._hkL = lb.getAttribute('data-hk-let');
+        root.querySelectorAll('.hk-let').forEach(function(b) { b.classList.toggle('on', b === lb); });
+        const g = root.querySelector('.hk-grid'); if (g) g.innerHTML = _hkGridHtml(root._hkL);
+        try { if (!playLetterRec(root._hkL, function() {})) speakArText(root._hkL, 0.7); } catch(err) {}
+        return;
+      }
+      const sb = t.closest('[data-hk-say]');
+      if (sb) {
+        root.querySelectorAll('.hk-cell.on,.hk-len-btn.on').forEach(function(x) { x.classList.remove('on'); });
+        sb.classList.add('on');
+        try { speakArText(sb.getAttribute('data-hk-say'), sb.hasAttribute('data-hk-slow') ? 0.55 : 0.7); } catch(err) {}
+        return;
+      }
+      const qo = t.closest('[data-hkq]');
+      if (qo) {
+        const box = qo.closest('.hkq'), ok = qo.getAttribute('data-hkq') === box._hkAns, kk = isKk();
+        box.querySelectorAll('.hkq-opt').forEach(function(b) { b.disabled = true; if (b.getAttribute('data-hkq') === box._hkAns) b.classList.add('btn-primary'); });
+        if (!ok) qo.style.borderColor = '#ef4444';
+        const res = box.querySelector('.hkq-res');
+        res.textContent = ok ? (kk ? '✓ Дұрыс!' : '✓ Верно!') : (kk ? '✗ Дұрысы белгіленді' : '✗ Верный вариант подсвечен');
+        res.style.color = ok ? 'var(--accent)' : '#ef4444';
+        try { speakArText(box._hkAns, 0.7); } catch(err) {}
+        return;
+      }
+      if (t.closest('[data-hkq-next]')) { _hkQuizNext(t.closest('.hkq')); }
+    });
 
     function renderSyllables(rootEl) {
       const el = rootEl || document.getElementById('learn-syllables') || document.querySelector('#game-area #learn-syllables');
@@ -13881,6 +13961,91 @@ function renderMistakes() {
       if (tr) { startFindRuleFor((tr.getAttribute('data-tw-train') || '').split(',')); }
     });
 
+    // ===== 6.100: Письмо — соединение букв по шагам =====
+    const WR_NOJOIN = 'اأإآدذرزوؤءة';
+    const WR_WORDS = [
+      { ar: 'كِتَاب', ru: 'книга', kk: 'кітап' }, { ar: 'قَلَم', ru: 'перо', kk: 'қалам' }, { ar: 'بَيْت', ru: 'дом', kk: 'үй' },
+      { ar: 'مَسْجِد', ru: 'мечеть', kk: 'мешіт' }, { ar: 'رَحْمَة', ru: 'милость', kk: 'мейірім' }, { ar: 'سَلَام', ru: 'мир', kk: 'амандық' },
+      { ar: 'نُور', ru: 'свет', kk: 'нұр' }, { ar: 'دَرْس', ru: 'урок', kk: 'сабақ' }
+    ];
+    function _wrClusters(w) {
+      var out = [];
+      Array.from(w).forEach(function(c) { if (/[ً-ٰٟ]/.test(c) && out.length) out[out.length - 1] += c; else out.push(c); });
+      return out;
+    }
+    function _wrForm(cl, i) {
+      var base = function(k) { return cl[k] ? cl[k][0] : ''; };
+      var prev = i > 0 && WR_NOJOIN.indexOf(base(i - 1)) < 0;
+      var next = i < cl.length - 1 && WR_NOJOIN.indexOf(base(i)) < 0;
+      return prev && next ? 'mid' : prev ? 'fin' : next ? 'ini' : 'iso';
+    }
+    const WR_FORM_NAMES = { iso: ['отдельная', 'жеке'], ini: ['начальная', 'бастапқы'], mid: ['срединная', 'ортаңғы'], fin: ['конечная', 'соңғы'] };
+    function _wrLetterName(ch) {
+      var L = (typeof ARABIC_LETTERS !== 'undefined') ? ARABIC_LETTERS.find(function(x) { return x.ch === ch; }) : null;
+      if (ch === 'ة') return isKk() ? 'Тә марбута' : 'Та марбута';
+      return L ? (isKk() ? (L.nameKk || L.name) : L.name) : ch;
+    }
+    function wrJoinHtml() {
+      var kk = isKk();
+      return '<div class="card wr-join"><b>🔗 ' + (kk ? 'Әріптер қалай қосылады — қадаммен' : 'Как буквы соединяются — по шагам') + '</b>' +
+        '<div class="mk-letters wr-words" style="margin-top:0.4rem">' + WR_WORDS.map(function(w, i) { return '<button type="button" class="mk-let wr-w' + (i ? '' : ' on') + '" data-wr-word="' + i + '" lang="ar">' + w.ar + '</button>'; }).join('') + '</div>' +
+        '<div class="wr-sep" dir="rtl" lang="ar"></div>' +
+        '<div class="wr-big arabic" dir="rtl" lang="ar"></div>' +
+        '<div class="wr-cap" dir="ltr"></div>' +
+        '<div class="tw-ex-btns" dir="ltr" style="justify-content:center">' +
+          '<button type="button" class="btn btn-sm" data-wr-step="-1">‹ ' + (kk ? 'Артқа' : 'Назад') + '</button>' +
+          '<button type="button" class="btn btn-sm btn-primary" data-wr-step="1">' + (kk ? 'Келесі әріп' : 'Следующая буква') + ' ›</button>' +
+          '<button type="button" class="btn btn-sm" data-wr-say="1">🔊</button></div></div>';
+    }
+    function wrJoinShow(box, wi, k) {
+      if (!box) return;
+      var kk = isKk(), w = WR_WORDS[wi], cl = _wrClusters(w.ar);
+      k = Math.max(0, Math.min(cl.length - 1, k));
+      box._wr = { wi: wi, k: k };
+      var part = cl.slice(0, k + 1);
+      // раздельно: каждая буква в отдельной форме; сверху — слово целиком по шагам (новая буква выделена)
+      box.querySelector('.wr-sep').innerHTML = cl.map(function(c, i) { return '<span class="' + (i === k ? 'on' : i < k ? 'done' : '') + '">' + c[0] + '</span>'; }).join('');
+      box.querySelector('.wr-big').innerHTML = part.slice(0, k).join('') + '<span class="wr-new">' + part[k] + '</span>';
+      var f = _wrForm(part, k), fFull = _wrForm(cl, k), nm = _wrLetterName(cl[k][0]);
+      var cap = '<b>' + (k + 1) + '/' + cl.length + ' · ' + nm + '</b> — ' + (kk ? 'пішіні: ' : 'форма: ') + WR_FORM_NAMES[f][kk ? 1 : 0];
+      if (k < cl.length - 1 && f !== fFull) cap += (kk ? ' (келесі әріп қосылғанда — ' : ' (когда добавится следующая — ') + WR_FORM_NAMES[fFull][kk ? 1 : 0] + ')';
+      if (WR_NOJOIN.indexOf(cl[k][0]) >= 0 && k < cl.length - 1) cap += kk ? '. Бұл әріп келесімен қосылмайды — үзіліс.' : '. Эта буква не соединяется со следующей — разрыв.';
+      if (k === cl.length - 1) cap += ' · <span style="color:var(--accent)">' + w.ar + ' — ' + (kk ? w.kk : w.ru) + '</span>';
+      box.querySelector('.wr-cap').innerHTML = cap;
+      box.querySelectorAll('.wr-w').forEach(function(b) { b.classList.toggle('on', +b.getAttribute('data-wr-word') === wi); });
+    }
+    function wrNonJoinHtml() {
+      var kk = isKk();
+      var ex = [['ا', 'بَاب'], ['د', 'وَلَد'], ['ذ', 'هَٰذَا'], ['ر', 'دَار'], ['ز', 'زَيْت'], ['و', 'نُور']];
+      return '<div class="card"><b>✋ ' + (kk ? 'Келесі әріппен қосылмайтын 6 әріп' : '6 букв, которые не соединяются со следующей') + '</b>' +
+        '<div class="ayah-translation" style="font-size:0.82rem;margin:0.2rem 0 0.4rem;text-align:left" dir="ltr">' + (kk ? 'Олардан кейін сөз ішінде үзіліс болады, келесі әріп бастапқы пішінде жазылады.' : 'После них внутри слова разрыв, следующая буква пишется в начальной форме.') + '</div>' +
+        '<div class="wr-nj">' + ex.map(function(p) {
+          var cl = _wrClusters(p[1]);
+          var w = cl.map(function(c) { return c[0] === p[0] ? '<span class="wr-hl">' + c + '</span>' : c; }).join('');
+          return '<button type="button" class="hk-cell" data-hk-say="' + p[1] + '"><span class="hk-cell-ar" dir="rtl" lang="ar">' + p[0] + '</span><span class="arabic" dir="rtl" lang="ar" style="font-size:1.25rem">' + w + '</span><span class="hk-cell-nm">' + _wrLetterName(p[0]) + '</span></button>';
+        }).join('') + '</div></div>';
+    }
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null;
+      if (!t) return;
+      var box = t.closest('.wr-join');
+      if (box) {
+        var st = box._wr || { wi: 0, k: 0 };
+        var wb = t.closest('[data-wr-word]');
+        if (wb) { wrJoinShow(box, +wb.getAttribute('data-wr-word'), 0); return; }
+        var sb = t.closest('[data-wr-step]');
+        if (sb) {
+          var n = _wrClusters(WR_WORDS[st.wi].ar).length, d = +sb.getAttribute('data-wr-step');
+          var k = st.k + d;
+          if (k >= n) k = 0;
+          wrJoinShow(box, st.wi, k); return;
+        }
+        if (t.closest('[data-wr-say]')) { try { speakArText(WR_WORDS[st.wi].ar, 0.7); } catch(err) {} return; }
+      }
+      var nj = t.closest('.wr-nj [data-hk-say]');
+      if (nj) { try { speakArText(nj.getAttribute('data-hk-say'), 0.7); } catch(err) {} }
+    });
+
     function renderRules() {
       let el = document.getElementById('learn-rules');
       const parent = document.getElementById('acad-rules');
@@ -13898,24 +14063,26 @@ function renderMistakes() {
         return;
       }
       try { loadTajweedData().then(function(d) { if (d && !el.dataset.twLoaded) { el.dataset.twLoaded = '1'; renderRules(); } }); } catch(e) {}
-      el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">'+(kkR ? 'Жазудың негізгі ережелері. Қысқаша → «Толығырақ».' : 'Базовые правила письма. Кратко → «Подробнее».')+'</p>' +
+      // 6.100: Письмо — «как буквы соединяются» по шагам, 6 несоединяющихся букв, правила свёрнуты
+      el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.6rem;text-align:left" dir="ltr">' + (kkR ? 'Араб жазуы: әріптер сөзде қалай қосылады және пішінін өзгертеді. Ережені басыңыз — түсіндірме ашылады.' : 'Арабское письмо: как буквы соединяются в слове и меняют форму. Нажмите правило — откроется объяснение.') + '</p>' +
+        wrJoinHtml() + wrNonJoinHtml() +
+        '<h3 class="tw-group-title" dir="ltr">' + (kkR ? 'Ережелер' : 'Правила') + '</h3>' +
         rules.map(function(r, ri) {
           var title = kkR ? (r.titleKk || r.title) : r.title;
           var short = kkR ? (r.shortKk || r.short) : (r.short || (r.ru || r.body || '').slice(0, 100));
           var body = kkR ? (r.detailKk || r.detail) : (r.detail || r.ru || r.body || '');
-          // build 5.96: настоящий пример из Корана (подкрашенный по уже
-          // проверенным данным) под объяснением — там, где для правила есть
-          // прямое сопоставление с тегом разметки.
           var example = '';
           try { example = tajweedExampleHtml(getTajweedExampleForRuleTitle(r.title)); } catch(e) {}
-          return '<div class="rule-card" style="margin-bottom:0.65rem" data-rule-i="'+ri+'">' +
-            '<h3 dir="ltr">'+title+'</h3>' +
-            (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.15rem;margin:0.35rem 0">'+r.ar+'</div>' : '') +
-            '<div class="les-short ayah-translation" dir="ltr">'+short+'</div>' +
-            '<button type="button" class="btn btn-sm les-more-btn" data-les-toggle="1" style="margin:0.35rem 0;direction:ltr">'+(kkR ? '📖 Толығырақ' : '📖 Подробнее')+'</button>' +
-            '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55">'+String(body).replace(/</g,'&lt;')+'</div>' +
-            example + '</div>';
+          return '<div class="rule-card tw-rc" data-rule-i="wr' + ri + '">' +
+            '<button type="button" class="tw-rc-head" data-tw-toggle="wr' + ri + '" dir="ltr" aria-expanded="false">' +
+              '<span class="tw-rc-text"><span class="tw-rc-title">' + title + '</span><span class="tw-rc-short">' + short + '</span></span>' +
+              '<span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
+            '<div class="tw-rc-body" hidden>' +
+              (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.15rem;margin:0.35rem 0">' + r.ar + '</div>' : '') +
+              '<div class="ayah-translation" dir="ltr" style="white-space:pre-wrap;line-height:1.55;text-align:left">' + String(body).replace(/</g, '&lt;') + '</div>' +
+              example + '</div></div>';
         }).join('');
+      try { wrJoinShow(el.querySelector('.wr-join'), 0, 0); } catch(e) {}
       try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
     }
     // 6.98: Таджвид — правила по группам и свёрнуты (заголовок + одна строка), открываются по нажатию;
