@@ -6113,6 +6113,14 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       if (m === 'latin' || m === 'ru' || m === 'kk' || m === 'off') return m;
       return s.showTranslit === false ? 'off' : 'latin';
     }
+    // 6.104: одна точка для транскрипции во всех разделах — по выбору в настройках (латиница / рус / каз / выкл);
+    // ручная русская транскрипция из данных важнее вычисленной, но только в русском режиме
+    function trAuto(ar, handRu) {
+      var md = translitModeNow();
+      if (md === 'off' || !ar) return '';
+      if (md === 'ru' && handRu) return handRu;
+      try { return window.arTrans ? window.arTrans(ar) : transliterateArabic(ar); } catch(e) { return ''; }
+    }
     var _qtl = {}, _qtlBusy = {};
     function _qtlLoad(num) {
       if (_qtl[num]) return _qtl[num];
@@ -8725,7 +8733,7 @@ function speakLetter(ch, name, ttsOnly) {
         if (parts.length > 1) {
           units = parts.map((w, wi) => ({
             ar: w,
-            tr: (typeof transliterateArabic === 'function') ? transliterateArabic(w) : (only.tr || ''),
+            tr: trAuto(w, parts.length === 1 ? only.tr : ''),
             translation: wi === 0 ? (only.translation || only.meaning || '') : '',
             meaning: wi === 0 ? (only.meaning || '') : '',
             number: only.number,
@@ -8760,7 +8768,7 @@ function speakLetter(ch, name, ttsOnly) {
             if (!prev || prev.number !== u.number) ayahTr = u.translation;
           } else ayahTr = u.translation;
         }
-        const autoTr = u.tr || ((typeof transliterateArabic === 'function' && (u.ar || u.text)) ? transliterateArabic(u.ar || u.text) : '');
+        const autoTr = trAuto(u.ar || u.text || '', u.tr);
         const head = container.querySelector('[data-ws="head"]');
         const body = container.querySelector('[data-ws="body"]');
         if (!head || !body) return;
@@ -8871,7 +8879,7 @@ function speakLetter(ch, name, ttsOnly) {
             '<b style="font-size:0.85rem;color:var(--text-muted)">Аят '+ay.ayah+'</b>' +
             '<div class="wbw-all-row" dir="rtl" style="margin-top:0.55rem">' +
             ay.words.map((w, wi) => {
-              const lat = (typeof transliterateArabic === 'function') ? transliterateArabic(w.ar) : (w.tr || '');
+              const lat = trAuto(w.ar, w.tr);
               return '<div class="wbw-all-cell'+(tapReveal?' wbw-tap-hide':'')+'" data-wbw-a="'+ay.ayah+'" data-wbw-w="'+(wi + 1)+'" data-wbw-ar="'+encodeURIComponent(w.ar)+'">' +
                 '<div class="arabic wbw-all-ar">'+w.ar+'</div>' +
                 '<div class="wbw-all-info">' +
@@ -9193,7 +9201,7 @@ function speakLetter(ch, name, ttsOnly) {
       { id: 'join_4', title: 'Читаем с соединением: خ د', group: 'letters', prereq: ['letters_4'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د'], focus: ['خ','د'],
         theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово. Буквы د соединяются только с предыдущей буквой, а со следующей — нет: после них слово «разрывается», и следующая буква пишется отдельно.' },
       { id: 'letters_5', title: 'Буквы: ذ ر', group: 'letters', prereq: ['join_4'], kind: 'letters', letters: ['ذ','ر'], syllableGroup: 1,
-        theory: 'ذ (заль) — как ث, но звонкая (язык между зубами, только с голосом). ر (ра) — лёгкая вибрация кончика языка, похоже на русское «р».' },
+        theory: 'ذ (заль) — как ث, но звонкая (язык между зубами, только с голосом). ر (ра) — одно лёгкое касание кончика языка, похоже на русское «р», но без раската.' },
       { id: 'join_5', title: 'Читаем с соединением: ذ ر', group: 'letters', prereq: ['letters_5'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر'], focus: ['ذ','ر'],
         theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово. Буквы ذ ر соединяются только с предыдущей буквой, а со следующей — нет: после них слово «разрывается», и следующая буква пишется отдельно.' },
       { id: 'blend_2', title: 'Слоги: + ج ح خ د ذ ر', group: 'letters', prereq: ['join_5'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر'],
@@ -9859,7 +9867,7 @@ function speakLetter(ch, name, ttsOnly) {
       'гунна': 'носовой призвук, сопровождает буквы ن и م',
       'сафир': 'свист/шипение — особое качество буквы при произношении',
       'тафашши': 'рассеивание — воздух расходится по всей полости рта',
-      'текрар': 'повторяемость — лёгкая вибрация/дрожание звука'
+      'текрар': 'повторяемость — склонность ر к дрожанию; в чтении её удерживают: одно касание'
     };
     function wrapGlossaryTerms(text) {
       let out = String(text);
@@ -11019,7 +11027,7 @@ function speakLetter(ch, name, ttsOnly) {
                   // пропускаем отдельно стоящие знаки остановки — они не считаются словом
                   if (isWaqfMarkToken(w)) return;
                   wpos++;
-                  const tr = (typeof transliterateArabic === 'function') ? transliterateArabic(w) : '';
+                  const tr = trAuto(w);
                   units.push({ ar: w, tr: tr, translation: (wpos === 1 ? (a.translation || '') : ''), number: a.number, ayahText: a.text, surah: n, word: wpos });
                 });
               });
@@ -11148,7 +11156,7 @@ function speakLetter(ch, name, ttsOnly) {
         if (listIdx < 0 || listIdx >= STUDY_AYAHS.length) return;
         const ay = STUDY_AYAHS[listIdx];
         const title = (ay.s + ':' + ay.a) + (ay.name ? (' ' + ((isKk() && ay.nameKk) || ay.name)) : '');
-        const trFull = (typeof transliterateArabic === 'function') ? transliterateArabic(ay.ar || '') : '';
+        const trFull = trAuto(ay.ar || '');
         const fullAr = String(ay.ar || '').trim();
         let wordUnits;
         if (ay.words && ay.words.length) {
@@ -11157,7 +11165,7 @@ function speakLetter(ch, name, ttsOnly) {
           if (coverage >= 0.7 && joined.length > 10) {
             wordUnits = ay.words.map((w, wi) => ({
               ar: w.ar || w.text || '',
-              tr: w.tr || ((typeof transliterateArabic === 'function') ? transliterateArabic(w.ar || w.text || '') : ''),
+              tr: trAuto(w.ar || w.text || '', w.tr),
               meaning: w.meaning || w.mean || '',
               translation: wi === 0 ? (ay.ru || '') : '',
               number: ay.a,
@@ -11664,8 +11672,8 @@ function renderMistakes() {
         ru: { how: 'Середина языка + твёрдое нёбо', steps: '1) Середина языка поднимается к твёрдому нёбу  2) ج — смычка с резким отпусканием («дж»); ش — шипение; ي — плавный «й»' },
         kk: { how: 'Тілдің ортасы + қатты таңдай', steps: '1) Тілдің ортасы қатты таңдайға көтеріледі  2) ج — тұйықталып, кенет ашылады («дж»); ش — ысқырық; ي — жұмсақ «й»' } },
       dad:    { cat: 'tongue', tongue: { T: [38,50], H: [67,35], R: [103,62], F: [100,95] }, lips: 'open', contact: [68,30.5],
-        ru: { how: 'Боковой край языка + верхние коренные зубы', steps: '1) Бок языка прижимается к верхним коренным зубам, корень языка отведён назад  2) Воздух идёт вдоль боковых краёв — «тяжёлый» д/з' },
-        kk: { how: 'Тілдің бүйір жиегі + жоғарғы азу тістер', steps: '1) Тілдің бүйірі жоғарғы азу тістерге тиеді, тіл түбі артқа тартылған  2) Ауа тілдің бүйір жиегі бойымен өтеді — «ауыр» д/з' } },
+        ru: { how: 'Боковой край языка + верхние коренные зубы', steps: '1) Бок языка прижимается к верхним коренным зубам, корень языка отведён назад  2) Воздух идёт вдоль боковых краёв — «тяжёлый» звук, похожий на «д», но краем языка' },
+        kk: { how: 'Тілдің бүйір жиегі + жоғарғы азу тістер', steps: '1) Тілдің бүйірі жоғарғы азу тістерге тиеді, тіл түбі артқа тартылған  2) Ауа тілдің бүйір жиегі бойымен өтеді — «ауыр», «д»-ға ұқсас, бірақ тіл жиегімен айтылады' } },
       lam:    { cat: 'tongue', tongue: { T: [37,42], H: [62,52], R: [101,62], F: [98,95] }, lips: 'open', contact: [38,39.5],
         ru: { how: 'Кончик языка + дёсны (края языка опущены)', steps: '1) Кончик языка упирается в дёсны за верхними зубами  2) Воздух идёт по бокам языка — ясное «л»' },
         kk: { how: 'Тіл ұшы + қызылиек (тіл жиектері төмен)', steps: '1) Тіл ұшы жоғарғы тістердің артындағы қызылиекке тиеді  2) Ауа тілдің бүйірлерімен өтеді — анық «л»' } },
@@ -11673,8 +11681,8 @@ function renderMistakes() {
         ru: { how: 'Кончик языка + дёсны (чуть ниже ل)', steps: '1) Кончик языка у дёсен верхних резцов, мягкое нёбо опущено  2) Звук идёт через нос — «н»' },
         kk: { how: 'Тіл ұшы + қызылиек (ل-ден сәл төмен)', steps: '1) Тіл ұшы жоғарғы тістердің қызылиегіне тиеді, жұмсақ таңдай төмен  2) Дыбыс мұрын арқылы шығады — «н»' } },
       ra:     { cat: 'tongue', tongue: { T: [39,43], H: [62,50], R: [101,62], F: [98,95] }, lips: 'open', contact: [40,40.5],
-        ru: { how: 'Кончик языка (чуть глубже ن), вибрация', steps: '1) Кончик языка у дёсен, чуть глубже, чем для ن  2) Лёгкая вибрация кончика — «р»' },
-        kk: { how: 'Тіл ұшы (ن-нан сәл тереңірек), діріл', steps: '1) Тіл ұшы қызылиекке, ن-нан сәл артта тұрады  2) Тіл ұшы жеңіл дірілдейді — «р»' } },
+        ru: { how: 'Кончик языка (чуть глубже ن), одно касание', steps: '1) Кончик языка у дёсен, чуть глубже, чем для ن  2) Одно лёгкое касание кончика, без раската — «р»' },
+        kk: { how: 'Тіл ұшы (ن-нан сәл тереңірек), бір рет тию', steps: '1) Тіл ұшы қызылиекке, ن-нан сәл артта тұрады  2) Тіл ұшы бір рет жеңіл тиеді, дірілсіз — «р»' } },
       tdt:    { cat: 'teeth', tongue: { T: [32.5,47], H: [62,50], R: [101,62], F: [98,95] }, lips: 'open', contact: [32.5,45],
         ru: { how: 'Кончик языка + основание верхних резцов', steps: '1) Кончик языка упирается в основание верхних резцов  2) Резко отпустите: ت — лёгкий, د — с голосом, ط — «тяжёлый»' },
         kk: { how: 'Тіл ұшы + жоғарғы тістердің түбі', steps: '1) Тіл ұшы жоғарғы тістердің түбіне тіреледі  2) Кенет босатыңыз: ت — жеңіл, د — дауыспен, ط — «ауыр»' } },
@@ -11691,7 +11699,7 @@ function renderMistakes() {
         ru: { how: 'Обе губы', steps: '1) Сомкните губы  2) ب — резко разомкните с голосом; م — звук идёт через нос' },
         kk: { how: 'Екі ерін', steps: '1) Ерініңізді жабыңыз  2) ب — дауыспен кенет ашыңыз; م — дыбыс мұрыннан шығады' } },
       waw:    { cat: 'lips', tongue: { T: [36,62], H: [88,40], R: [104,60], F: [98,95] }, lips: 'round', contact: [4.5,53],
-        ru: { how: 'Губы округлены и вытянуты', steps: '1) Округлите губы и слегка вытяните вперёд, спинка языка поднимается назад  2) Плавный звук без смычки — «у/в»' },
+        ru: { how: 'Губы округлены и вытянуты', steps: '1) Округлите губы и слегка вытяните вперёд, спинка языка поднимается назад  2) Плавный звук без смычки — «у», как английское w' },
         kk: { how: 'Ерін дөңгеленіп алға созылады', steps: '1) Ерінді дөңгелетіп, алға созыңыз, тіл арты көтеріледі  2) Тұйықталусыз жұмсақ дыбыс — «у»' } }
     };
     const MOUTH_LETTERS = {
@@ -11814,7 +11822,7 @@ function renderMistakes() {
         : (kk ? 'Тіл орнына барады' : 'Язык идёт к месту');
       const s2 = info.gid === 'jawf' ? (kk ? 'Ауа еркін, дауыс созылады' : 'Воздух свободно, голос тянется')
         : info.nasal ? (kk ? 'Дыбыс мұрын арқылы шығады' : 'Звук идёт через нос')
-        : info.trill ? (kk ? 'Тілдің ұшы дірілдейді' : 'Кончик языка дрожит')
+        : info.trill ? (kk ? 'Тіл ұшы бір рет тиеді (дірілсіз)' : 'Кончик языка касается один раз (без дрожания)')
         : info.flow === 'stop' ? (kk ? 'Тұйықталды: ауа бөгелді' : 'Смычка: воздух заперт')
         : info.flow === 'fric' ? (kk ? 'Тар саңылау: ауа сыбдырлайды' : 'Узкая щель: воздух шумит')
         : (kk ? 'Ауа өтеді, дауыс шығады' : 'Воздух проходит, голос звучит');
@@ -12335,11 +12343,11 @@ function renderMistakes() {
       'خ': ['как русское «х» в «хор», чуть глубже', 'қазақтың «х»-сы («хат»), сәл тереңірек'],
       'د': ['как русское «д»', 'қазақтың «д»-сы'],
       'ذ': ['как английское th в «this» — звонкий, язык между зубами', 'ағылшынның «this» сөзіндегі th — үнді, тіл тіс арасында'],
-      'ر': ['как «р», один-два удара кончиком', '«р», тіл ұшымен бір-екі соғу'],
+      'ر': ['как «р», но одним касанием кончика — без раската', '«р», тіл ұшымен бір рет тию — дірілсіз'],
       'ز': ['как русское «з»', 'қазақтың «з»-сы'],
       'س': ['как русское «с»', 'қазақтың «с»-сы'],
       'ش': ['как русское «ш», но мягче', 'қазақтың «ш»-сы'],
-      'ص': ['«толстое» с: губы и рот как при «о»', 'жуан «с»: ауыз «о» айтқандай'],
+      'ص': ['«толстое» с: спинка языка поднята к нёбу, звук глубокий (губы не округлять)', 'жуан «с»: тіл арқасы таңдайға көтеріледі, дыбыс терең (ерінді дөңгелетпеңіз)'],
       'ض': ['«толстое» д, краем языка', 'жуан «д», тілдің шетімен'],
       'ط': ['«толстое» т, без придыхания', 'жуан «т», демсіз'],
       'ظ': ['«толстое» th как в «this»', 'жуан, «this»-тегі th сияқты'],
@@ -12369,9 +12377,9 @@ function renderMistakes() {
       'ذ': ['не как «з» — кончик языка между зубами', '«з» емес — тіл ұшы тіс арасында'],
       'ث': ['не как «с» — кончик языка между зубами', '«с» емес — тіл ұшы тіс арасында'],
       'غ': ['не как русское «г» — нет смычки, звук тянется', 'орыстың «г»-сы емес — тұйықталмайды, созылады'],
-      'ر': ['не раскатывайте долго — один-два удара', 'ұзақ дірілдетпеңіз — бір-екі соғу'],
+      'ر': ['не раскатывайте — одно касание (дрожание ر в чтении удерживают)', 'дірілдетпеңіз — бір рет тию (оқуда ر-ның дірілі тежеледі)'],
       'و': ['не как русское «в» — зубы не касаются губы', 'орыстың «в»-сы емес — тіс ерінге тимейді'],
-      'ت': ['без придыхания, мягко', 'демсіз, жұмсақ']
+      'ت': ['без придыхания и не смягчая (не «ть»)', 'демсіз және жіңішкертпей']
     };
     function mouthStepsHtml(info, kk) {
       const st = mouthStepTexts(info, kk);
@@ -14366,15 +14374,21 @@ function renderMistakes() {
     });
 
     // ===== 6.100: Письмо — соединение букв по шагам =====
-    const WR_NOJOIN = 'اأإآدذرزوؤءة';
+    const WR_NOJOIN = 'اأإآٱدذرزوؤءة';
+    // 6.104: слова — точные формы из Корана (26 сур с пословной разметкой); звук — запись выбранного чтеца, а не синтез речи
     const WR_WORDS = [
-      { ar: 'كِتَاب', ru: 'книга', kk: 'кітап' }, { ar: 'قَلَم', ru: 'перо', kk: 'қалам' }, { ar: 'بَيْت', ru: 'дом', kk: 'үй' },
-      { ar: 'مَسْجِد', ru: 'мечеть', kk: 'мешіт' }, { ar: 'رَحْمَة', ru: 'милость', kk: 'мейірім' }, { ar: 'سَلَام', ru: 'мир', kk: 'амандық' },
-      { ar: 'نُور', ru: 'свет', kk: 'нұр' }, { ar: 'دَرْس', ru: 'урок', kk: 'сабақ' }
+      { ar: 'قُرَيْشٍ', s: 106, a: 1, w: 2, ru: 'курайшиты', kk: 'құрайыштар' },
+      { ar: 'ٱلْبَيْتِ', s: 106, a: 3, w: 4, ru: 'Дом (Кааба)', kk: 'Үй (Қағба)' },
+      { ar: 'نَارٌ', s: 101, a: 11, w: 1, ru: 'огонь', kk: 'от' },
+      { ar: 'ٱلنَّاسِ', s: 114, a: 1, w: 4, ru: 'люди', kk: 'адамдар' },
+      { ar: 'ٱلْفَلَقِ', s: 113, a: 1, w: 4, ru: 'рассвет', kk: 'таң' },
+      { ar: 'ٱلْكَوْثَرَ', s: 108, a: 1, w: 3, ru: 'аль-Каусар (обильное благо)', kk: 'әл-Кәусар (мол игілік)' },
+      { ar: 'دِينِ', s: 109, a: 6, w: 4, ru: 'моя религия', kk: 'менің дінім' },
+      { ar: 'ٱلرَّحِيمِ', s: 1, a: 3, w: 2, ru: 'Милосердный', kk: 'Аса Мейірімді' }
     ];
     function _wrClusters(w) {
       var out = [];
-      Array.from(w).forEach(function(c) { if (/[ً-ٰٟ]/.test(c) && out.length) out[out.length - 1] += c; else out.push(c); });
+      Array.from(w).forEach(function(c) { if (/[\u064B-\u065F\u0670\u06D6-\u06ED]/.test(c) && out.length) out[out.length - 1] += c; else out.push(c); });
       return out;
     }
     function _wrForm(cl, i) {
@@ -14399,7 +14413,8 @@ function renderMistakes() {
         '<div class="tw-ex-btns" dir="ltr" style="justify-content:center">' +
           '<button type="button" class="btn btn-sm" data-wr-step="-1">‹ ' + (kk ? 'Артқа' : 'Назад') + '</button>' +
           '<button type="button" class="btn btn-sm btn-primary" data-wr-step="1">' + (kk ? 'Келесі әріп' : 'Следующая буква') + ' ›</button>' +
-          '<button type="button" class="btn btn-sm" data-wr-say="1">🔊</button></div></div>';
+          '<button type="button" class="btn btn-sm" data-wr-say="1">🔊 ' + (kk ? 'Қари' : 'Чтец') + '</button></div>' +
+        '<div class="ayah-translation" style="font-size:0.72rem;text-align:center;margin-top:0.3rem" dir="ltr">' + (kk ? 'Сөздер — Құраннан; дыбыс — таңдалған қаридың аят жазбасынан.' : 'Слова — из Корана; звук — из записи аята у выбранного чтеца.') + '</div></div>';
     }
     function wrJoinShow(box, wi, k) {
       if (!box) return;
@@ -14414,19 +14429,19 @@ function renderMistakes() {
       var cap = '<b>' + (k + 1) + '/' + cl.length + ' · ' + nm + '</b> — ' + (kk ? 'пішіні: ' : 'форма: ') + WR_FORM_NAMES[f][kk ? 1 : 0];
       if (k < cl.length - 1 && f !== fFull) cap += (kk ? ' (келесі әріп қосылғанда — ' : ' (когда добавится следующая — ') + WR_FORM_NAMES[fFull][kk ? 1 : 0] + ')';
       if (WR_NOJOIN.indexOf(cl[k][0]) >= 0 && k < cl.length - 1) cap += kk ? '. Бұл әріп келесімен қосылмайды — үзіліс.' : '. Эта буква не соединяется со следующей — разрыв.';
-      if (k === cl.length - 1) cap += ' · <span style="color:var(--accent)">' + w.ar + ' — ' + (kk ? w.kk : w.ru) + '</span>';
+      if (k === cl.length - 1) cap += ' · <span style="color:var(--accent)">' + w.ar + ' — ' + (kk ? w.kk : w.ru) + ' (' + w.s + ':' + w.a + ')</span>';
       box.querySelector('.wr-cap').innerHTML = cap;
       box.querySelectorAll('.wr-w').forEach(function(b) { b.classList.toggle('on', +b.getAttribute('data-wr-word') === wi); });
     }
     function wrNonJoinHtml() {
       var kk = isKk();
-      var ex = [['ا', 'بَاب'], ['د', 'وَلَد'], ['ذ', 'هَٰذَا'], ['ر', 'دَار'], ['ز', 'زَيْت'], ['و', 'نُور']];
+      var ex = [['ا', 'نَارٌ', 101, 11, 1], ['د', 'يَدَآ', 111, 1, 2], ['ذ', 'هَٰذَا', 106, 3, 3], ['ر', 'قُرَيْشٍ', 106, 1, 2], ['ز', 'زُرْتُمُ', 102, 2, 2], ['و', 'يُولَدْ', 112, 3, 4]];
       return '<div class="card"><b>✋ ' + (kk ? 'Келесі әріппен қосылмайтын 6 әріп' : '6 букв, которые не соединяются со следующей') + '</b>' +
         '<div class="ayah-translation" style="font-size:0.82rem;margin:0.2rem 0 0.4rem;text-align:left" dir="ltr">' + (kk ? 'Олардан кейін сөз ішінде үзіліс болады, келесі әріп бастапқы пішінде жазылады.' : 'После них внутри слова разрыв, следующая буква пишется в начальной форме.') + '</div>' +
         '<div class="wr-nj">' + ex.map(function(p) {
           var cl = _wrClusters(p[1]);
-          var w = cl.map(function(c) { return c[0] === p[0] ? '<span class="wr-hl">' + c + '</span>' : c; }).join('');
-          return '<button type="button" class="hk-cell" data-hk-say="' + p[1] + '"><span class="hk-cell-ar" dir="rtl" lang="ar">' + p[0] + '</span><span class="arabic" dir="rtl" lang="ar" style="font-size:1.25rem">' + w + '</span><span class="hk-cell-nm">' + _wrLetterName(p[0]) + '</span></button>';
+          var hl = false, w = cl.map(function(c) { if (!hl && c[0] === p[0]) { hl = true; return '<span class="wr-hl">' + c + '</span>'; } return c; }).join('');
+          return '<button type="button" class="hk-cell" data-wr-q="' + p[2] + ',' + p[3] + ',' + p[4] + '"><span class="hk-cell-ar" dir="rtl" lang="ar">' + p[0] + '</span><span class="arabic" dir="rtl" lang="ar" style="font-size:1.25rem">' + w + '</span><span class="hk-cell-nm">' + _wrLetterName(p[0]) + '</span></button>';
         }).join('') + '</div></div>';
     }
     document.addEventListener('click', function(e) {
@@ -14444,10 +14459,10 @@ function renderMistakes() {
           if (k >= n) k = 0;
           wrJoinShow(box, st.wi, k); return;
         }
-        if (t.closest('[data-wr-say]')) { try { speakArText(WR_WORDS[st.wi].ar, 0.7); } catch(err) {} return; }
+        if (t.closest('[data-wr-say]')) { var W = WR_WORDS[st.wi]; try { _twPlayWords(W.s, W.a, [W.w], null); } catch(err) {} return; }
       }
-      var nj = t.closest('.wr-nj [data-hk-say]');
-      if (nj) { try { speakArText(nj.getAttribute('data-hk-say'), 0.7); } catch(err) {} }
+      var nj = t.closest('[data-wr-q]');
+      if (nj) { var q = nj.getAttribute('data-wr-q').split(',').map(Number); try { _twPlayWords(q[0], q[1], [q[2]], null); } catch(err) {} }
     });
 
     function renderRules() {
@@ -15521,8 +15536,23 @@ function renderMistakes() {
       const v = { a: hard ? 'о' : 'ә', i: hard ? 'ы' : 'и', u: hard ? 'у' : 'ү' }[mk.k] || mk.v;
       return cs + v;
     }
-    function letterTr(l) { return (l && typeof isKk === 'function' && isKk() && l.trKk) ? l.trKk : (l ? l.tr : ''); }
-    function pwTr(w) { return (typeof isKk === 'function' && isKk() && w.trKk) ? w.trKk : w.tr; }
+    // 6.104: у букв — по языку интерфейса; у дуа и слов (есть поле ar) — по выбору транскрипции в настройках
+    function trPick(o, offFallback) {
+      if (!o) return '';
+      var chosen = (typeof state !== 'undefined' && state.settings && state.settings.translitMode && typeof translitModeNow === 'function');
+      // язык транскрипции ещё не выбирали — как раньше: ручная транскрипция по языку интерфейса
+      if (!chosen) return (typeof isKk === 'function' && isKk() && o.trKk) ? o.trKk : (o.tr || '');
+      var md = translitModeNow();
+      if (md === 'off') return offFallback ? ((isKk() && o.trKk) ? o.trKk : (o.tr || '')) : '';
+      if (md === 'kk') return o.trKk || (o.ar && window.arTrans ? window.arTrans(o.ar, true) : (o.tr || ''));
+      if (md === 'ru') return o.tr || (o.ar && window.arTrans ? window.arTrans(o.ar, false) : '');
+      return (o.ar && window.arabicToLatin) ? window.arabicToLatin(o.ar) : (o.tr || '');
+    }
+    function letterTr(l) {
+      if (l && l.ar && !l.ch) return trPick(l);
+      return (l && typeof isKk === 'function' && isKk() && l.trKk) ? l.trKk : (l ? l.tr : '');
+    }
+    function pwTr(w) { return w && w.ar ? trPick(w, true) : ((typeof isKk === 'function' && isKk() && w.trKk) ? w.trKk : w.tr); }
     function pwMean(w) { return (typeof isKk === 'function' && isKk() && w.meaningKk) ? w.meaningKk : w.meaning; }
     // build 5.91: «вставьте нужную огласовку» — применение харакатов на
     // настоящих словах, а не узнавание изолированного слога. Берём готовое
@@ -20647,7 +20677,7 @@ function renderDictation(area) {
             const i = i0 + _off;
             return '<div style="margin-top:0.35rem;border-left:2px solid var(--border);padding-left:0.5rem">' +
               '<div class="arabic" dir="rtl" style="font-size:calc(1.3rem * var(--ar-scale, 1));line-height:2">' + esc(a.ar) + ' <span style="font-size:0.8rem;color:var(--text-muted)">(' + (i + 1) + ')</span></div>' +
-              (trs[i] ? '<div style="color:var(--accent);font-weight:600;line-height:1.45">' + esc(trs[i][kk ? 1 : 0]) + '</div>' : '') +
+              (function () { var tx = trs[i] ? trPick({ tr: trs[i][0], trKk: trs[i][1], ar: a.ar }) : ''; return tx ? '<div style="color:var(--accent);font-weight:600;line-height:1.45">' + esc(tx) + '</div>' : ''; })() +
               (a.tr ? '<div class="ayah-translation" style="line-height:1.45">' + esc(a.tr) + '</div>' : '') + '</div>';
           }).join('') + '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.25rem">' + (kk ? 'Мағынасы: Х. Алтай аудармасы.' : 'Смысл: перевод Э. Кулиева.') + '</div>';
         });
