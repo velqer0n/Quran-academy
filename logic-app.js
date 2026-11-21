@@ -15329,7 +15329,7 @@ function renderMistakes() {
         ['letters', '🔤', 'Узнай букву', 'Әріпті таны', 'название → буква', 'атауы → әріп'],
         ['names', '🏷', 'Назови букву', 'Әріпті ата', 'буква → название', 'әріп → атауы'],
         ['minimal-pairs', '👂', 'Услышь разницу', 'Айырмасын есті', 'похожие звуки на слух', 'ұқсас дыбыстар'],
-        ['speak', '🎤', 'Произнеси', 'Айтып көр', 'микрофон — подсказка', 'микрофон — кеңес'],
+        ['speak', '🎤', 'Произнеси букву', 'Әріпті айт', 'запись и сравнение', 'жазу және салыстыру'],
         ['write', '✍️', 'Напиши букву', 'Әріпті жаз', 'пальцем по экрану', 'саусақпен'],
         ['listenwrite', '🎧', 'Послушай и напиши', 'Тыңдап жаз', 'звук → буква', 'дыбыс → әріп'] ] },
       { id: 'inword', ru: 'Буква в слове', kk: 'Сөздегі әріп', score: 'inword', items: [
@@ -15338,18 +15338,17 @@ function renderMistakes() {
         ['blend', '🧩', 'Слог из букв', 'Әріптерден буын', 'буква + огласовка', 'әріп + харакат'],
         ['fillgap', '◌', 'Вставь огласовку', 'Харакат қой', 'какой знак пропущен', 'қай белгі жоқ'],
         ['construct', '🧱', 'Собери слог', 'Буын құра', 'по звучанию', 'дыбысына қарап'],
-        ['syllables', '📖', 'Прочитай слоги', 'Буындарды оқы', 'самопроверка', 'өзін-өзі тексеру'],
+        ['sr-syl', '📖', 'Прочитай слоги', 'Буындарды оқы', 'сам → проверь по образцу', 'өзің → үлгімен тексер'],
         ['qaida', '📜', 'Строки для чтения', 'Оқу жолдары', 'как в Каиде', 'Қайдадағыдай'] ] },
       { id: 'words', ru: 'Слова', kk: 'Сөздер', score: null, items: [
         ['join', '🔗', 'Читай с соединением', 'Жалғап оқы', 'слова из букв', 'әріптерден сөздер'],
-        ['practice', '📝', 'Слова', 'Сөздер', 'чтение слов', 'сөздерді оқу'],
-        ['noharakat', '✨', 'Без огласовок', 'Харакатсыз', 'следующий уровень', 'келесі деңгей'],
+        ['sr-word', '📝', 'Прочитай слова', 'Сөздерді оқы', 'слова из Корана, сам → чтец', 'Құран сөздері, өзің → қари'],
         ['dictation', '⌨️', 'Диктовка', 'Диктант', 'услышал — набери', 'естідің — тер'],
-        ['joinmic', '🎙', 'Соединение голосом', 'Дауыспен жалғау', 'микрофон — подсказка', 'микрофон — кеңес'],
-        ['speed', '⏱', 'В своём темпе', 'Өз қарқыныңмен', 'чтение строк, без гонки', 'жолдарды оқу, жарыссыз'] ] },
+        ['joinmic', '🎙', 'Произнеси слово', 'Сөзді айт', 'запись и сравнение', 'жазу және салыстыру'] ] },
       { id: 'ayah', ru: 'Аят', kk: 'Аят', score: 'ayah', items: [
+        ['sr-ayah', '📜', 'Прочитай аят', 'Аятты оқы', 'с огласовками или без', 'харакатпен не харакатсыз'],
         ['ayah', '📖', 'Узнай аят', 'Аятты таны', 'перевод или продолжение', 'аудармасы не жалғасы'],
-        ['speak-ayah', '🎤', 'Прочитай аят вслух', 'Аятты дауыстап оқы', 'микрофон — подсказка', 'микрофон — кеңес'] ] }
+        ['speak-ayah', '🎤', 'Запиши аят', 'Аятты жаз', 'запись и сравнение с чтецом', 'жазу және қаримен салыстыру'] ] }
     ];
     const QZ_HUB_EXTRA = [
       { id: 'tajweed', ru: 'Таджвид', kk: 'Тәжуид', items: [
@@ -15522,6 +15521,75 @@ function renderMistakes() {
       }
     });
 
+    // ===== 7.14: «Прочитай сам» — читаете → «Показать» (чтец и транскрипция) → сами отмечаете 👍/👎; отметка идёт в память повторения =====
+    function qzSelfRowHtml() {
+      var kk = isKk();
+      return '<div class="qz-self"><button type="button" class="btn qz-self-ok" data-qz-self="1">👍 ' + (kk ? 'Шықты' : 'Получилось') + '</button><button type="button" class="btn qz-self-no" data-qz-self="0">👎 ' + (kk ? 'Әзірге жоқ' : 'Ещё нет') + '</button></div>';
+    }
+    function _srSylLine() {
+      var L = 'بتثجحخدذرزسشصضطظعغفقكلمنهوي', M = ['َ', 'ِ', 'ُ'], out = [];
+      for (var i = 0; i < 4; i++) { var r = Math.random(); out.push(L[Math.floor(Math.random() * L.length)] + (r < 0.7 ? M[Math.floor(Math.random() * 3)] : (r < 0.85 ? 'َا' : 'ُو'))); }
+      return out;
+    }
+    function startSelfRead(mode) {
+      currentGame = 'sr-' + mode; gameScore = 0; gameTotal = 0; _teacherSessionWrongs = []; window._qzReqN = 0;
+      var items = [];
+      if (mode === 'syl') { for (var i = 0; i < 6; i++) items.push({ syl: _srSylLine() }); }
+      else {
+        var add = function(s, arr) { (arr || []).forEach(function(ay) {
+          if (mode === 'ayah') { var tx = ay.full || (ay.words || []).map(function(w) { return w.ar; }).join(' '); if (tx && tx.split(' ').length <= 9) items.push({ s: s, a: ay.ayah, ar: tx }); }
+          else (ay.words || []).forEach(function(w, wi) { if (w.ar && _wrClusters(w.ar).length >= 3) items.push({ s: s, a: ay.ayah, w: wi + 1, ar: w.ar, tr: w.tr }); });
+        }); };
+        try { add(1, typeof FATIHA_LESSON !== 'undefined' ? FATIHA_LESSON : []); Object.keys(WBW_STUDY_SURAHS || {}).forEach(function(n) { add(+n, WBW_STUDY_SURAHS[n]); }); } catch(e) {}
+        items = qzPickItems(mode === 'ayah' ? 'read' : 'readw', items, function(x) { return x.s + ':' + x.a + (x.w ? ':' + x.w : ''); }, mode === 'ayah' ? 5 : 8);
+      }
+      if (!items.length) { toast(isKk() ? 'Деректер жоқ' : 'Нет данных'); return; }
+      gameQueue = items;
+      nextSelfRead();
+    }
+    function nextSelfRead() {
+      if (!gameQueue.length) return endGame();
+      gameTotal++;
+      var it = gameQueue.shift(), kk = isKk(), mode = currentGame.slice(3);
+      var noH = mode === 'ayah' && !!(state.settings && state.settings.srNoHarakat);
+      var shown = it.syl ? it.syl.join('  ') : (noH ? it.ar.replace(/[ً-ْٰ]/g, '') : it.ar);
+      var area = document.getElementById('game-area');
+      area.innerHTML = '<div class="quiz-card qz-selfcard"><div class="quiz-q">' + (mode === 'syl' ? (kk ? 'Буындарды дауыстап оқыңыз (оңнан солға)' : 'Прочитайте слоги вслух (справа налево)') : mode === 'word' ? (kk ? 'Сөзді дауыстап оқыңыз' : 'Прочитайте слово вслух') : (kk ? 'Аятты дауыстап оқыңыз' : 'Прочитайте аят вслух')) + '</div>' +
+        (mode === 'ayah' ? '<label class="sr-opt"><input type="checkbox" id="sr-noh"' + (noH ? ' checked' : '') + '> ' + (kk ? 'Харакатсыз (келесі деңгей)' : 'Без огласовок (следующий уровень)') + '</label>' : '') +
+        '<div class="sr-text arabic" dir="rtl" lang="ar">' + shown + '</div>' +
+        (it.s ? '<div class="iw-ref">' + (kk ? 'Аят ' : 'Аят ') + it.s + ':' + it.a + '</div>' : '') +
+        '<div class="sr-reveal" hidden></div>' +
+        '<button type="button" class="btn btn-primary sr-show">👁 ' + (kk ? 'Көрсету және тыңдау' : 'Показать и послушать') + '</button></div>';
+      var card = area.querySelector('.quiz-card');
+      var noBox = area.querySelector('#sr-noh');
+      if (noBox) noBox.addEventListener('change', function() { state.settings.srNoHarakat = noBox.checked; saveState(); card.querySelector('.sr-text').textContent = noBox.checked ? it.ar.replace(/[ً-ْٰ]/g, '') : it.ar; });
+      card.querySelector('.sr-show').addEventListener('click', function(ev) {
+        ev.currentTarget.remove();
+        var rv = card.querySelector('.sr-reveal'); rv.hidden = false;
+        var tr = it.syl ? it.syl.map(function(s) { return _hkTr(s); }).join(' · ') : trAuto(it.ar, it.tr);
+        var noNow = noBox ? noBox.checked : noH;
+        rv.innerHTML = (noNow ? '<div class="sr-full arabic" dir="rtl" lang="ar">' + it.ar + '</div>' : '') + (tr ? '<div class="sr-tr">' + tr + '</div>' : '') +
+          '<button type="button" class="btn btn-sm sr-again">🔊 ' + (kk ? 'Тағы тыңдау' : 'Послушать ещё') + '</button>' +
+          '<div class="sr-ask">' + (kk ? 'Сіздің оқуыңыз сәйкес келді ме?' : 'Ваше чтение совпало?') + '</div>' + qzSelfRowHtml();
+        var play = function() {
+          if (it.syl) { try { speakArText(it.syl.join(' '), 0.6); } catch(e) {} }
+          else if (it.w) { try { _twPlayWords(it.s, it.a, [it.w], null, it.ar); } catch(e) {} }
+          else { try { playExtTrack({ kind: 'sr', key: 'sr:' + it.s + ':' + it.a, urls: [ayahAudioUrl(it.s, it.a)], title: (kk ? 'Аят ' : 'Аят ') + it.s + ':' + it.a, restart: true }); } catch(e) {} }
+        };
+        play();
+        rv.querySelector('.sr-again').addEventListener('click', play);
+        rv.querySelectorAll('[data-qz-self]').forEach(function(b) { b.addEventListener('click', function() {
+          var ok = b.getAttribute('data-qz-self') === '1';
+          var cat = it.syl ? 'syl' : (it.w ? 'readw' : 'read'), key = it.syl ? it.syl.join('') : (it.s + ':' + it.a + (it.w ? ':' + it.w : ''));
+          try { recordMistake(cat, key, ok); } catch(e) {}
+          if (ok) gameScore++; else { try { _teacherSessionWrongs.push({ q: it.syl ? it.syl.join(' ') : it.ar, your: kk ? 'әзірге жоқ' : 'не получилось', correct: tr || '' }); } catch(e) {} if (!it.syl) qzRequeue(it); }
+          rv.querySelectorAll('[data-qz-self]').forEach(function(x) { x.disabled = true; });
+          b.classList.add(ok ? 'on' : 'on-no');
+          setTimeout(nextSelfRead, 500);
+        }); });
+      });
+    }
+
     // ===== 6.107: тесты в «Тренировке» — экран старта, экран фокуса с прогрессом, крупные варианты, спокойный итог с разбором (без рекордов) =====
     const QZ_INFO = {
       letters: { ico: '🔤', ru: 'Название буквы → найдите её среди вариантов.', kk: 'Әріптің аты → оны нұсқалардан табыңыз.' },
@@ -15532,6 +15600,9 @@ function renderMistakes() {
       noharakat: { ico: '✍️', ru: 'Чтение слов без огласовок.', kk: 'Сөздерді харакатсыз оқу.' },
       speed: { ico: '⏱', ru: 'Читайте строки в своём темпе — без гонки.', kk: 'Жолдарды өз қарқыныңызбен оқыңыз — жарыссыз.' },
       rules: { ico: '📘', ru: 'Описание правила → выберите его название.', kk: 'Ереженің сипаттамасы → атауын таңдаңыз.' },
+      'sr-syl': { ico: '📖', ru: 'Прочитайте строку слогов вслух, затем «Показать» — транскрипция и звук; отметьте, совпало ли.', kk: 'Буындар жолын дауыстап оқып, «Көрсету» басыңыз — транскрипция мен дыбыс; сәйкес келді ме, белгілеңіз.' },
+      'sr-word': { ico: '📝', ru: 'Слово из Корана: прочитайте сами, затем послушайте чтеца и отметьте 👍 или 👎.', kk: 'Құраннан сөз: өзіңіз оқып, қариды тыңдап, 👍 немесе 👎 белгілеңіз.' },
+      'sr-ayah': { ico: '📜', ru: 'Короткий аят: прочитайте сами (можно без огласовок), затем послушайте чтеца и отметьте 👍 или 👎.', kk: 'Қысқа аят: өзіңіз оқып (харакатсыз да болады), қариды тыңдап, 👍 немесе 👎 белгілеңіз.' },
       inword: { ico: '🔍', ru: 'Слово из Корана → нажмите на нужную букву и посмотрите, какую форму она принимает в слове.', kk: 'Құраннан сөз → керекті әріпті басып, оның сөздегі пішінін көріңіз.' },
       findrule: { ico: '🎨', ru: 'Найдите в настоящем аяте слово с нужным правилом таджвида.', kk: 'Нақты аяттан керекті тәжуид ережесі бар сөзді табыңыз.' }
     };
@@ -15566,13 +15637,13 @@ function renderMistakes() {
       var area = document.getElementById('game-area'); if (!area) return;
       var view = document.getElementById('view-games');
       var card = area.querySelector('.quiz-card');
-      var running = !!(card && !card.classList.contains('qz-result') && (card.querySelector('.quiz-opts') || card.querySelector('#findrule-ayah') || card.querySelector('.iw-word')));
+      var running = !!(card && !card.classList.contains('qz-result') && (card.querySelector('.quiz-opts') || card.querySelector('#findrule-ayah') || card.querySelector('.iw-word') || card.querySelector('.qz-self') || card.classList.contains('qz-selfcard')));
       if (view) view.classList.toggle('qz-running', running);
       if (!running) return;
       var kk = isKk();
       // счёт «0 / 1» — убираем (это не соревнование), вместо него — полоска «Вопрос N из M»
       Array.prototype.forEach.call(card.children, function(ch) { if (/^(Счёт|Есеп):/.test((ch.textContent || '').trim())) ch.classList.add('qz-hide'); });
-      Array.prototype.forEach.call(card.querySelectorAll('div'), function(ch) { if (!ch.children.length && /^(Счёт|Есеп):/.test((ch.textContent || '').trim())) ch.classList.add('qz-hide'); });
+      Array.prototype.forEach.call(card.querySelectorAll('div'), function(ch) { if (!ch.children.length && /^(Счёт|Есеп):|^(Аят\/буква|Аят\/әріп|Аят) \d+ · /.test((ch.textContent || '').trim())) ch.classList.add('qz-hide'); });
       if (!card.querySelector('.qz-top')) {
         var total = (typeof gameQueue !== 'undefined' && gameQueue) ? gameTotal + gameQueue.length + (_qzDaily ? _qzDaily.queue.length : 0) : 0;
         var top = document.createElement('div');
@@ -15633,6 +15704,8 @@ function renderMistakes() {
         startFindRuleQuizStandalone();
       } else if (currentGame === 'inword') {
         startInwordGame();
+      } else if (/^sr-/.test(currentGame)) {
+        startSelfRead(currentGame.slice(3));
       } else if (currentGame === 'speak' || currentGame === 'speak-ayah') {
         startSpeakGame(currentGame === 'speak-ayah');
       } else if (currentGame === 'fillgap') {
@@ -15760,20 +15833,23 @@ function renderMistakes() {
           '<button class="btn btn-primary" id="btn-rec">⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя') + '</button>' +
           '<button class="btn btn-sm" id="btn-play-me" disabled style="opacity:0.5">▶ ' + (kkQ ? 'Менің жазбам' : 'Моя запись') + '</button>' +
           '<button class="btn btn-sm" id="btn-asr">🎙 ' + (kkQ ? 'Тексеру' : 'Проверить') + '</button>' +
-          '<button class="btn btn-sm" id="btn-next-speak">' + (kkQ ? 'Келесі →' : 'Далее →') + '</button>' +
+
         '</div>' +
         '<div id="asr-result" style="text-align:center;margin-bottom:0.5rem"></div>' +
+        '<div class="sr-ask">' + (kkQ ? 'Үлгімен салыстырыңыз — шықты ма?' : 'Сравните с образцом — получилось?') + '</div>' + qzSelfRowHtml() +
         '<div id="listen-status" style="text-align:center;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? '1) Мысалды тыңдаңыз → 2) Өзіңізді жазыңыз → 3) Салыстырыңыз' : '1) Слушайте пример → 2) Запишите себя → 3) Сравните') + '</div>' +
         '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Аят/әріп ' + gameTotal + ' · кезекте қалды: ' + gameQueue.length : 'Аят/буква '+gameTotal+' · осталось в очереди: '+gameQueue.length) + '</div>' +
         '</div>';
 
       document.getElementById('btn-hear').addEventListener('click', () => speakLetter(letter.ch, letter.name));
       document.getElementById('btn-play-me').addEventListener('click', playMyRecording);
-      document.getElementById('btn-next-speak').addEventListener('click', () => {
+      area.querySelectorAll('[data-qz-self]').forEach(function(b) { b.addEventListener('click', function() {
         stopRecording();
-        gameScore++;
+        var ok = b.getAttribute('data-qz-self') === '1';
+        try { recordMistake('speak', letter.ch, ok); } catch(e) {}
+        if (ok) gameScore++; else { try { _teacherSessionWrongs.push({ q: letter.ch, your: kkQ ? 'әзірге жоқ' : 'не получилось', correct: (kkQ && letter.nameKk ? letter.nameKk : letter.name) }); } catch(e) {} }
         nextSpeakQuestion();
-      });
+      }); });
 
       const recBtn = document.getElementById('btn-rec');
       recBtn.addEventListener('click', async () => {
@@ -15880,8 +15956,9 @@ function renderMistakes() {
           '<button class="btn btn-sm" id="btn-hear">🔊 ' + (kkQ ? 'Дұрысы' : 'Как надо') + '</button>' +
           '<button class="btn btn-primary" id="btn-rec">⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя') + '</button>' +
           '<button class="btn btn-sm" id="btn-play-me" disabled style="opacity:0.5">▶ ' + (kkQ ? 'Менің жазбам' : 'Моя запись') + '</button>' +
-          '<button class="btn btn-sm" id="btn-next-speak">' + (kkQ ? 'Келесі →' : 'Далее →') + '</button>' +
+
         '</div>' +
+        '<div class="sr-ask">' + (kkQ ? 'Қаримен салыстырыңыз — шықты ма?' : 'Сравните с чтецом — получилось?') + '</div>' + qzSelfRowHtml() +
         '<div id="listen-status" style="text-align:center;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Қарини тыңдаңыз → қайталаңыз → жазбаңызды салыстырыңыз' : 'Слушайте чтеца → повторите → сравните свою запись') + '</div>' +
         '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Аят ' + gameTotal + ' · қалды: ' + gameQueue.length : 'Аят '+gameTotal+' · осталось: '+gameQueue.length) + '</div>' +
         '</div>';
@@ -15891,11 +15968,13 @@ function renderMistakes() {
         else toast(kkQ ? 'Аят аудиосы қолжетімсіз' : 'Аудио аята недоступно');
       });
       document.getElementById('btn-play-me').addEventListener('click', playMyRecording);
-      document.getElementById('btn-next-speak').addEventListener('click', () => {
+      area.querySelectorAll('[data-qz-self]').forEach(function(b) { b.addEventListener('click', function() {
         stopRecording();
-        gameScore++;
+        var ok = b.getAttribute('data-qz-self') === '1';
+        try { recordMistake('speakayah', ayah.surah + ':' + ayah.number, ok); } catch(e) {}
+        if (ok) gameScore++; else { try { _teacherSessionWrongs.push({ q: ayah.surah + ':' + ayah.number, your: kkQ ? 'әзірге жоқ' : 'не получилось', correct: kkQ ? 'қаримен салыстыру' : 'сравнить с чтецом' }); } catch(e) {} }
         nextSpeakAyahQuestion();
-      });
+      }); });
 
       const recBtn = document.getElementById('btn-rec');
       recBtn.addEventListener('click', async () => {
@@ -64541,7 +64620,7 @@ function startApp() {
         tokens = tokens.map(function (tk) {
           if (!/^[\u0621-\u0655\u0670\u0671\u06E5\u06E6]+$/.test(tk) || tk === 'الله') return tk;
           var bareT = tk.replace(/[\u064B-\u0655\u0670\u06E5\u06E6\u0640]/g, '');
-          var cons = bareT.replace(/[اوىيٱ]/g, '').length;
+          var cons = bareT.replace(/[اوىيٱآ]/g, '').length; // 7.14: آ — долгий «а», не согласная (иначе «لَآ» выпадало из транскрипции)
           var vm = (tk.match(/[\u064B-\u0652\u0670]/g) || []).length;
           var unvoc = bareT.length >= 2 && (vm === 0 || vm < 0.6 * cons);
           if (bareT.length === 1) return tk;
@@ -64689,6 +64768,7 @@ function startApp() {
               var hasA = pv && pv.v === 'a' && !pv.sh ? true : false;
               var hm = (i === 0) ? '' : ((pv && pv.v === 'a') ? '' : '’');
               if (i > 0 && pv && (pv.c === 'و' || pv.c === 'ف' || pv.c === 'ب' || pv.c === 'ل' || pv.c === 'ك') && i === 1) hm = '’';
+              if (i === 1 && pv && pv.c === 'ل' && i === u.length - 1) hm = ''; // 7.14: «لَآ» — это «лаа» (частица), а не приставка + хамза
               res += hm + (hasA && !hm ? 'а' : 'аа'); prevVow = 'a'; continue;
             }
             if (c === 'ء' || c === 'أ' || c === 'إ' || c === 'ؤ' || c === 'ئ') {

@@ -4724,3 +4724,19 @@ main::after { content: ''; display: block; height: var(--player-h, 0px); pointer
     #qz-pickbar { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.6rem; }
     #qz-pickbar b { font-size: 0.95rem; }
     #view-games.qz-running #qz-pickbar { display: none; }
+
+    /* ===== 7.14: «Прочитай сам» и самопроверка ===== */
+    .sr-text { text-align: center; font-size: calc(2.2rem * var(--ar-scale, 1)); line-height: 2; margin: 0.4rem 0; word-spacing: 0.15em; }
+    .sr-full { text-align: center; font-size: calc(1.6rem * var(--ar-scale, 1)); line-height: 1.9; opacity: 0.9; }
+    .sr-tr { text-align: center; color: var(--accent); font-size: 1rem; margin: 0.3rem 0 0.5rem; line-height: 1.5; }
+    .sr-reveal { text-align: center; }
+    .sr-show { display: block; width: 100%; margin-top: 0.8rem; min-height: 48px; border-radius: 999px; }
+    .sr-opt { display: flex; justify-content: center; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text-muted); }
+    .sr-opt input { accent-color: var(--accent); width: 1.05rem; height: 1.05rem; }
+    .sr-ask { text-align: center; font-size: 0.88rem; color: var(--text-muted); margin: 0.7rem 0 0.35rem; }
+    .qz-self { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .qz-self .btn { min-height: 50px; border-radius: var(--r-md); font-size: 1rem; }
+    .qz-self-ok { border-color: color-mix(in srgb, var(--success, #22c55e) 55%, var(--border)); }
+    .qz-self-no { border-color: color-mix(in srgb, var(--danger, #ef4444) 45%, var(--border)); }
+    .qz-self .on { background: color-mix(in srgb, var(--success, #22c55e) 22%, transparent); }
+    .qz-self .on-no { background: color-mix(in srgb, var(--danger, #ef4444) 18%, transparent); }
