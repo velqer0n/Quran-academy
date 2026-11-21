@@ -10568,6 +10568,8 @@ function speakLetter(ch, name, ttsOnly) {
       );
       // build 6.71: «Курс» — сначала то, что делать сейчас (первый вход / следующий урок), потом прогресс и список
       let startAsked = false; try { startAsked = !!localStorage.getItem('qa_course_start'); } catch (e) { startAsked = true; }
+      // 6.101: вопрос «С чего начнём?» — только при первом входе (раньше висел при каждом заходе, пока не нажата кнопка); уровень можно проверить и позже кнопкой теста
+      if (!startAsked && !window._courseAskSession) { try { if (localStorage.getItem('qa_course_ask_seen')) startAsked = true; else { localStorage.setItem('qa_course_ask_seen', '1'); window._courseAskSession = true; } } catch (e) {} }
       if (!masteredCount && !startAsked) {
         html += '<div class="card" style="border-color:var(--accent);margin-bottom:0.75rem;text-align:center">' +
           '<div style="font-weight:800;font-size:1.05rem">' + (kk ? 'Неден бастаймыз?' : 'С чего начнём?') + '</div>' +
@@ -13923,6 +13925,7 @@ function renderMistakes() {
       if (mkl) {
         var zone = mkl.closest('.tw-rc-body'), stage = zone && zone.querySelector('.mk-stage');
         var ch = mkl.getAttribute('data-mk-let');
+        if (mkl.classList.contains('on')) { mkl.classList.remove('on'); if (stage) stage.innerHTML = ''; return; } // повторное нажатие — свернуть
         zone.querySelectorAll('.mk-let').forEach(function(b) { b.classList.toggle('on', b === mkl); });
         if (stage) { stage.innerHTML = _mkLetterBlock(ch); }
         _mkSay(ch);
@@ -13932,6 +13935,7 @@ function renderMistakes() {
       if (mkp) {
         var root = document.getElementById('learn-makharij'), pr = root && root._mkPairs && root._mkPairs[+mkp.getAttribute('data-mk-pair')];
         var body = mkp.closest('.tw-rc-body'), cs = body && body.querySelector('.mk-cmp-stage');
+        if (mkp.classList.contains('on')) { mkp.classList.remove('on'); if (cs) cs.innerHTML = ''; return; }
         body.querySelectorAll('.mk-let').forEach(function(b) { b.classList.toggle('on', b === mkp); });
         if (pr && cs) cs.innerHTML = '<div class="mk-cmp">' + _mkLetterBlock(pr[0]) + _mkLetterBlock(pr[1]) + '</div>';
         return;
@@ -14235,7 +14239,7 @@ function renderMistakes() {
           id: 'shafatan',
           title: '4. Әш-Шафатан (ерін)',
           icon: '👄',
-          short: 'Б — екі ерін; م — екі ерін + ғунна; ف — төменгі ерін + жоғарғы тістер; و — ерінді дөңгелету.',
+          short: 'ب — екі ерін; م — екі ерін + ғунна; ف — төменгі ерін + жоғарғы тістер; و — ерінді дөңгелету.',
           detail: '• ب (ба) — екі ерінді жабу, содан кейін ашу.\n• م (мим) — ерінді жабу + мұрын арқылы ғунна.\n• ف (фа) — төменгі еріннің ішкі жағы жоғарғы күрек тістердің жиегіне тиеді.\n• و (дауыссыз уау) — ерін дөңгеленген, кішкене саңылау.\n\nҒунна (мұрын резонансы) ن мен م-де әл-хайшумнан (мұрын қуысынан) шығады.',
           videos: []
         },
@@ -14276,7 +14280,7 @@ function renderMistakes() {
           id: 'shafatan',
           title: '4. Аш-Шафатан (губы)',
           icon: '👄',
-          short: 'Б — обе губы; م — обе губы + гунна; ف — нижняя губа + верхние зубы; و — округление губ.',
+          short: 'ب — обе губы; م — обе губы + гунна; ف — нижняя губа + верхние зубы; و — округление губ.',
           detail: '• ب (ба) — смыкание обеих губ, затем размыкание.\n• م (мим) — смыкание губ + гунна через нос.\n• ف (фа) — внутренняя сторона нижней губы касается краёв верхних резцов.\n• و (вав согласный) — губы округлены, небольшое отверстие.\n\nГунна (носовой резонанс) у ن и م идёт из аль-хайшум (носовая полость).',
           videos: []
         },
@@ -14313,7 +14317,7 @@ function renderMistakes() {
             '<span class="tw-rc-text"><span class="tw-rc-title">' + z.icon + ' ' + z.title + '</span><span class="tw-rc-short">' + z.short + '</span></span>' +
             '<span class="mk-head-letters" dir="rtl" lang="ar">' + lets.join(' ') + '</span><span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
           '<div class="tw-rc-body" hidden>' +
-            (lets.length ? '<div class="mk-hint" dir="ltr">' + (kkM ? 'Әріпті басыңыз — ауыз сызбасы мен дыбысы:' : 'Нажмите букву — схема рта и звук:') + '</div>' +
+            (lets.length ? '<div class="mk-hint" dir="ltr">' + (kkM ? 'Әріпті басыңыз — ауыз сызбасы мен дыбысы (қайта басу — жабу):' : 'Нажмите букву — схема рта и звук (ещё раз — свернуть):') + '</div>' +
               '<div class="mk-letters">' + lets.map(function(ch) { return '<button type="button" class="mk-let" data-mk-let="' + ch + '" lang="ar">' + ch + '</button>'; }).join('') + '</div>' +
               '<div class="mk-stage"></div>' : '') +
             '<button type="button" class="btn btn-sm les-more-btn" data-les-toggle="1" style="margin:0.35rem 0;direction:ltr">' + (kkM ? '📖 Толығырақ' : '📖 Подробнее') + '</button>' +
