@@ -15204,7 +15204,9 @@ function renderMistakes() {
     // перепутанное возвращается через 2 вопроса — один раз за занятие
     function qzRequeue(item) {
       if (!item || item._qzAgain || typeof gameQueue === 'undefined' || !Array.isArray(gameQueue)) return;
+      if ((window._qzReqN = (window._qzReqN || 0) + 1) > 5) return; // не больше 5 повторов за занятие, чтобы оно не растягивалось
       var copy = Object.assign({}, item, { _qzAgain: true });
+      if (_qzDaily) { _qzDaily.queue.splice(Math.min(2, _qzDaily.queue.length), 0, { type: currentGame, item: copy }); return; }
       gameQueue.splice(Math.min(2, gameQueue.length), 0, copy);
     }
     // пауза после ответа: верно — 1,6 с, ошибка — 3,2 с (чтобы прочитать «почему»); «Далее ›» — сразу
@@ -15372,7 +15374,10 @@ function renderMistakes() {
         var ok = s.score && last[s.score] >= 80;
         return '<details class="qz-hstep' + (ok ? ' ok' : '') + (i === nextIx ? ' next' : '') + '"' + (i === nextIx ? ' open' : '') + '><summary><i>' + (numbered ? (ok ? '✓' : (i + 1)) : '•') + '</i><b>' + (kk ? s.kk : s.ru) + '</b>' + (i === nextIx ? '<span class="qz-hnext">' + (kk ? 'келесі' : 'дальше') + '</span>' : '') + '</summary><div class="qz-trs">' + s.items.map(btn).join('') + '</div></details>';
       };
-      return '<div class="qz-hub" id="qz-hub"><div class="qz-ladder-h">🪜 ' + (kk ? 'Оқу сатылары' : 'Ступени чтения') + '<span>' + (kk ? 'келесісіне — 80% және жоғары болғанда' : 'дальше — когда результат 80% и выше') + '</span></div>' +
+      var nMist = qzMistakesCount();
+      return '<div class="qz-mix"><button type="button" class="btn btn-primary qz-daily" data-qz-daily="1">▶ ' + (kk ? 'Бүгінгі жаттығу' : 'Тренировка дня') + '<small>' + (kk ? '10 тапсырма: қайталау + жаңа' : '10 заданий: повтор + новое') + '</small></button>' +
+        (nMist ? '<button type="button" class="btn qz-mixmist" data-qz-mixmist="1">⚠️ ' + (kk ? 'Қателер' : 'Ошибки') + ' <b>' + nMist + '</b></button>' : '') + '</div>' +
+        '<div class="qz-hub" id="qz-hub"><div class="qz-ladder-h">🪜 ' + (kk ? 'Оқу сатылары' : 'Ступени чтения') + '<span>' + (kk ? 'келесісіне — 80% және жоғары болғанда' : 'дальше — когда результат 80% и выше') + '</span></div>' +
         QZ_HUB.map(function(s, i) { return stepHtml(s, i, true); }).join('') +
         QZ_HUB_EXTRA.map(function(s, i) { return stepHtml(s, -1 - i, false); }).join('') + '</div>';
     }
@@ -15400,10 +15405,10 @@ function renderMistakes() {
     }
     function qzHubRefresh() {
       var grp = document.getElementById('games-group-switch'); if (!grp) return;
-      var old = document.getElementById('qz-hub'), oldL = document.getElementById('qz-ladder');
-      if (oldL) oldL.remove();
+      ['qz-hub', 'qz-ladder'].forEach(function(id) { var x = document.getElementById(id); if (x) x.remove(); });
+      document.querySelectorAll('#view-games .qz-mix').forEach(function(x) { x.remove(); });
       var tmp = document.createElement('div'); tmp.innerHTML = qzHubHtml();
-      if (old) old.replaceWith(tmp.firstChild); else grp.parentNode.insertBefore(tmp.firstChild, grp);
+      while (tmp.firstChild) grp.parentNode.insertBefore(tmp.firstChild, grp);
     }
     document.addEventListener('click', function(e) {
       var b = e.target && e.target.closest && e.target.closest('[data-qz-game]');
@@ -15415,6 +15420,7 @@ function renderMistakes() {
         tab = document.querySelector('#games-tabs [data-game="' + g + '"]');
         if (tab) tab.click();
         document.querySelectorAll('.qz-tr').forEach(function(x) { x.classList.toggle('on', x === b); });
+        _qzDaily = null; qzSetPicked(g);
         var ga = document.getElementById('game-area'); if (ga) setTimeout(function() { ga.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
         return;
       }
@@ -15423,6 +15429,96 @@ function renderMistakes() {
         var v = d.getAttribute('data-qz-diff'), db = document.querySelector('#games-difficulty [data-diff="' + v + '"]');
         if (db) db.click(); else { state.settings.quizDifficulty = v; saveState(); }
         document.querySelectorAll('[data-qz-diff]').forEach(function(x) { x.classList.toggle('on', x === d); });
+      }
+    });
+
+    // ===== 7.13: «Тренировка дня» и «Повторить ошибки» — смешанное занятие из разных тренажёров на общей памяти =====
+    var _qzDaily = null;
+    function qzRuleItem(r) {
+      var kkG = isKk(), pool = ARABIC_RULES.concat(TAJWEED_RULES), otherN = Math.max(1, quizOptionCount() - 1);
+      var others = qzRuleDistractors(r, pool, otherN);
+      var txt = (kkG && r.shortKk) ? r.shortKk : (r.short || r.ru || r.body || r.ar || r.title || '');
+      var ans = (kkG && r.titleKk) ? r.titleKk : r.title;
+      return { q: String(txt).replace(/<[^>]+>/g, '').slice(0, 140), answer: ans, id: r.title, opts: shuffle([ans].concat(others.map(function(o) { return (kkG && o.titleKk) ? o.titleKk : o.title; }))) };
+    }
+    function _qzInwordFor(letterCh) {
+      var res = null, all = [];
+      var add = function(s, arr) { (arr || []).forEach(function(ay) { (ay.words || []).forEach(function(w, wi) { var cl = _wrClusters(w.ar || ''); if (cl.length >= 3 && cl.length <= 7 && (!letterCh || cl.map(_iwBase).indexOf(letterCh) >= 0)) all.push({ s: s, a: ay.ayah, w: wi + 1, ar: w.ar, _t: letterCh || undefined }); }); }); };
+      try { add(1, typeof FATIHA_LESSON !== 'undefined' ? FATIHA_LESSON : []); Object.keys(WBW_STUDY_SURAHS || {}).forEach(function(n) { add(+n, WBW_STUDY_SURAHS[n]); }); } catch(e) {}
+      if (all.length) res = all[Math.floor(Math.random() * all.length)];
+      return res;
+    }
+    // задание из ключа памяти: «letters:ب», «names:ب», «rules:<название>», «inword:ب»
+    function _qzTaskFromKey(cat, key) {
+      if (cat === 'letters' || cat === 'names') { var L = ARABIC_LETTERS.find(function(l) { return l.ch === key; }); return L ? { type: cat, item: L } : null; }
+      if (cat === 'rules') { var r = ARABIC_RULES.concat(TAJWEED_RULES).find(function(x) { return x.title === key; }); return r ? { type: 'rules', item: qzRuleItem(r) } : null; }
+      if (cat === 'inword') { var it = _qzInwordFor(key); return it ? { type: 'inword', item: it } : null; }
+      return null;
+    }
+    function qzBuildDaily() {
+      var mem = (state.academyProgress && state.academyProgress._mem) || {}, now = Date.now(), tasks = [];
+      Object.keys(mem).filter(function(k) { return mem[k].due <= now; }).sort(function(a, b) { return mem[a].b - mem[b].b; }).slice(0, 6).forEach(function(k) {
+        var i = k.indexOf(':'), t = _qzTaskFromKey(k.slice(0, i), k.slice(i + 1)); if (t) tasks.push(t);
+      });
+      // новое — с текущей ступени и рядом
+      var fresh = [];
+      shuffle(ARABIC_LETTERS).slice(0, 3).forEach(function(l) { if (!mem['letters:' + l.ch]) fresh.push({ type: 'letters', item: l }); else if (!mem['names:' + l.ch]) fresh.push({ type: 'names', item: l }); });
+      var iw = _qzInwordFor(null); if (iw) fresh.push({ type: 'inword', item: iw });
+      var r = shuffle(ARABIC_RULES.concat(TAJWEED_RULES))[0]; if (r) fresh.push({ type: 'rules', item: qzRuleItem(r) });
+      tasks = tasks.concat(shuffle(fresh));
+      while (tasks.length < 10) { var l2 = ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)]; tasks.push({ type: Math.random() < 0.5 ? 'letters' : 'names', item: l2 }); }
+      return tasks.slice(0, 10);
+    }
+    function qzBuildMistakes() {
+      var mk = (state.academyProgress && state.academyProgress._mistakes) || {}, list = [];
+      ['letters', 'names', 'rules', 'inword'].forEach(function(cat) { Object.keys(mk[cat] || {}).forEach(function(k) { var m = mk[cat][k]; if (m.wrong > 0) list.push({ cat: cat, key: k, r: m.wrong / Math.max(1, m.total) }); }); });
+      list.sort(function(a, b) { return b.r - a.r; });
+      var tasks = []; list.slice(0, 10).forEach(function(x) { var t = _qzTaskFromKey(x.cat, x.key); if (t) tasks.push(t); });
+      return tasks;
+    }
+    function qzMistakesCount() { try { return qzBuildMistakes().length; } catch(e) { return 0; } }
+    function _qzRunTask(t) {
+      currentGame = t.type; gameQueue = [t.item];
+      if (t.type === 'letters' || t.type === 'names') nextLetterQuestion();
+      else if (t.type === 'rules') nextRulesQuestion();
+      else if (t.type === 'inword') nextInwordQuestion();
+    }
+    function qzStartMixed(kind) {
+      var tasks = kind === 'mistakes' ? qzBuildMistakes() : qzBuildDaily(), kk = isKk();
+      if (!tasks.length) { toast(kind === 'mistakes' ? (kk ? 'Қате жоқ — керемет!' : 'Ошибок для повтора нет') : (kk ? 'Деректер жоқ' : 'Нет данных')); return; }
+      _activeTeacherSkill = null; _teacherSessionWrongs = []; window._qzReqN = 0;
+      gameScore = 0; gameTotal = 0;
+      _qzDaily = { kind: kind, queue: tasks.slice(1) };
+      var ga = document.getElementById('game-area'); if (ga) ga.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      _qzRunTask(tasks[0]);
+    }
+    // вызывается из endGame: если в смешанном занятии остались задания — продолжаем
+    function qzDailyContinue() {
+      if (!_qzDaily) return false;
+      if (_qzDaily.queue.length) { _qzRunTask(_qzDaily.queue.shift()); return true; }
+      return false; // занятие закончено — endGame покажет итог и сбросит _qzDaily
+    }
+    // режим «выбран тренажёр»: ступени сворачиваются в строку «‹ Все тренажёры · название»
+    function qzSetPicked(g) {
+      var view = document.getElementById('view-games'); if (!view) return;
+      view.classList.toggle('qz-picked', !!g);
+      var bar = document.getElementById('qz-pickbar');
+      if (!g) { if (bar) bar.remove(); return; }
+      var kk = isKk(), name = g === '_daily' ? (kk ? 'Бүгінгі жаттығу' : 'Тренировка дня') : g === '_mistakes' ? (kk ? 'Қателерді қайталау' : 'Повторить ошибки') : (qzGameName(g) || '');
+      if (!bar) { bar = document.createElement('div'); bar.id = 'qz-pickbar'; var ga = document.getElementById('game-area'); ga.parentNode.insertBefore(bar, ga); }
+      bar.innerHTML = '<button type="button" class="btn btn-quiet" data-qz-back="1">‹ ' + (kk ? 'Барлық жаттықтырғыштар' : 'Все тренажёры') + '</button><b>' + name + '</b>';
+    }
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      if (t.closest('[data-qz-daily]')) { qzSetPicked('_daily'); qzStartMixed('daily'); return; }
+      if (t.closest('[data-qz-mixmist]')) { qzSetPicked('_mistakes'); qzStartMixed('mistakes'); return; }
+      if (t.closest('[data-qz-back]')) {
+        _qzDaily = null; try { gameQueue = []; } catch(er) {}
+        qzSetPicked(null);
+        var ga = document.getElementById('game-area');
+        if (ga) ga.innerHTML = '<div class="empty-state"><p>' + (isKk() ? 'Жоғарыдан жаттықтырғышты таңдаңыз.' : 'Выберите тренажёр в ступенях выше.') + '</p></div>';
+        try { qzHubRefresh(); } catch(er) {}
+        var hub = document.getElementById('qz-hub'); if (hub) hub.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
 
@@ -15478,7 +15574,7 @@ function renderMistakes() {
       Array.prototype.forEach.call(card.children, function(ch) { if (/^(Счёт|Есеп):/.test((ch.textContent || '').trim())) ch.classList.add('qz-hide'); });
       Array.prototype.forEach.call(card.querySelectorAll('div'), function(ch) { if (!ch.children.length && /^(Счёт|Есеп):/.test((ch.textContent || '').trim())) ch.classList.add('qz-hide'); });
       if (!card.querySelector('.qz-top')) {
-        var total = (typeof gameQueue !== 'undefined' && gameQueue) ? gameTotal + gameQueue.length : 0;
+        var total = (typeof gameQueue !== 'undefined' && gameQueue) ? gameTotal + gameQueue.length + (_qzDaily ? _qzDaily.queue.length : 0) : 0;
         var top = document.createElement('div');
         top.className = 'qz-top';
         top.innerHTML = '<button type="button" class="qz-close" data-qz-close="1" aria-label="' + (kk ? 'Аяқтау' : 'Завершить') + '">✕</button>' +
@@ -15503,7 +15599,7 @@ function renderMistakes() {
     document.addEventListener('click', function(e) {
       var c = e.target && e.target.closest && e.target.closest('[data-qz-close]');
       if (!c) return;
-      try { gameQueue = []; } catch(er) {}
+      try { gameQueue = []; if (_qzDaily) _qzDaily.queue = []; } catch(er) {}
       // текущий вопрос без ответа в итог не считаем
       try { var card = document.querySelector('#game-area .quiz-card'); var answered = card && card.querySelector('.quiz-opts button:disabled, .quiz-opts button.correct, #findrule-ayah span[style*="background"], .iw-word.iw-done'); if (!answered && gameTotal > 0) gameTotal--; } catch(er) {}
       try { endGame(); } catch(er) {}
@@ -15513,6 +15609,7 @@ function renderMistakes() {
       gameScore = 0;
       gameTotal = 0;
       try { if (!_activeTeacherSkill) _teacherSessionWrongs = []; } catch(e) {}
+      window._qzReqN = 0;
       if (currentGame === 'letters' || currentGame === 'names') {
         gameQueue = qzPickItems(currentGame === 'names' ? 'names' : 'letters', ARABIC_LETTERS, function(l) { return l.ch; }, 10);
         nextLetterQuestion();
@@ -16932,12 +17029,14 @@ function renderMistakes() {
     }
 
     function endGame() {
+      try { if (qzDailyContinue()) return; } catch(e) {}
       const area = document.getElementById('game-area');
       const kkE = isKk();
       const pct = gameTotal ? Math.round(gameScore / gameTotal * 100) : 0;
       area.innerHTML = qzResultHtml(pct, kkE);
-      try { if (!_activeTeacherSkill && currentGame && gameTotal >= 5) { var ql = JSON.parse(localStorage.getItem('qz_last') || '{}'); ql[currentGame] = pct; localStorage.setItem('qz_last', JSON.stringify(ql)); } } catch(e) {}
+      try { if (!_activeTeacherSkill && !_qzDaily && currentGame && gameTotal >= 5) { var ql = JSON.parse(localStorage.getItem('qz_last') || '{}'); ql[currentGame] = pct; localStorage.setItem('qz_last', JSON.stringify(ql)); } } catch(e) {}
       try { if (typeof renderMistakes === 'function') renderMistakes(); } catch(e) {}
+      if (_qzDaily) { var _mk = _qzDaily.kind; _qzDaily = null; try { var rb = area.querySelector('#btn-start-game'); if (rb) { var nb = rb.cloneNode(true); rb.replaceWith(nb); nb.addEventListener('click', function() { qzStartMixed(_mk); }); } } catch(e) {} }
       try { qzHubRefresh(); } catch(e) {}
       document.getElementById('btn-start-game').addEventListener('click', startGame);
       try { var qm = area.querySelector('[data-qz-mistakes]'); if (qm) qm.addEventListener('click', function() { var mb = document.getElementById('games-mistakes-box'); if (mb) { mb.open = true; try { renderMistakes(); } catch(e) {} mb.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }); } catch(e) {}

@@ -4712,3 +4712,15 @@ main::after { content: ''; display: block; height: var(--player-h, 0px); pointer
     .qz-diff-b { border: 0; background: transparent; color: var(--text); font: inherit; font-size: 0.85rem; padding: 0.35rem 0.8rem; border-radius: 999px; cursor: pointer; min-height: 34px; }
     .qz-diff-b.on { background: var(--accent); color: var(--on-accent, #04120c); font-weight: 600; }
     .qz-diff-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem; }
+
+    /* ===== 7.13: Тренировка дня, ошибки, режим «выбран тренажёр» ===== */
+    .qz-mix { display: flex; gap: 0.5rem; margin: 0 0 0.7rem; }
+    .qz-daily { flex: 1; flex-direction: column; align-items: flex-start; min-height: 58px; border-radius: var(--r-lg); font-size: 1.02rem; padding: 0.55rem 0.9rem; }
+    .qz-daily small { font-weight: 400; font-size: 0.75rem; opacity: 0.85; }
+    .qz-mixmist { flex: none; flex-direction: column; min-height: 58px; border-radius: var(--r-lg); font-size: 0.85rem; padding: 0.4rem 0.8rem; border-color: color-mix(in srgb, var(--danger, #ef4444) 50%, var(--border)); }
+    .qz-mixmist b { font-size: 1.1rem; }
+    #view-games.qz-picked .qz-hub, #view-games.qz-picked .qz-mix, #view-games.qz-picked #games-mistakes-box, #view-games.qz-picked #games-tip { display: none !important; }
+    #view-games.qz-running .qz-mix { display: none !important; }
+    #qz-pickbar { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.6rem; }
+    #qz-pickbar b { font-size: 0.95rem; }
+    #view-games.qz-running #qz-pickbar { display: none; }
