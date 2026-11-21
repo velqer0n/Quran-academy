@@ -4740,3 +4740,10 @@ main::after { content: ''; display: block; height: var(--player-h, 0px); pointer
     .qz-self-no { border-color: color-mix(in srgb, var(--danger, #ef4444) 45%, var(--border)); }
     .qz-self .on { background: color-mix(in srgb, var(--success, #22c55e) 22%, transparent); }
     .qz-self .on-no { background: color-mix(in srgb, var(--danger, #ef4444) 18%, transparent); }
+
+    /* ===== 7.17: Курс — слова из Корана, переход в Справочник ===== */
+    .tq-links { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; margin: 0.2rem 0 0.6rem; }
+    .tq-wlist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; }
+    .tq-w { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.4rem; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-hover, rgba(127,127,127,.08)); color: var(--text); font: inherit; cursor: pointer; }
+    .tq-w .arabic { font-size: calc(1.6rem * var(--ar-scale, 1)); line-height: 1.6; }
+    .tq-w small { font-size: 0.68rem; color: var(--text-muted); text-align: center; }

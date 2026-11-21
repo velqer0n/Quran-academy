@@ -9227,7 +9227,9 @@ function speakLetter(ch, name, ttsOnly) {
         theory: 'ش (шин) — как русское «ш», но мягче. ص (сад) — «тяжёлая», эмфатическая версия س: корень языка приподнимается к нёбу, звук массивнее.' },
       { id: 'join_7', title: 'Читаем с соединением: ش ص', group: 'letters', prereq: ['letters_7'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص'], focus: ['ش','ص'],
         theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово.' },
-      { id: 'letters_8', title: 'Буквы: ض ط', group: 'letters', prereq: ['join_7'], kind: 'letters', letters: ['ض','ط'], syllableGroup: 3,
+      { id: 'check_letters_1', title: 'Контрольная: буквы ا … ص', group: 'letters', prereq: ['join_7'], kind: 'letters', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص'], checkpoint: true,
+        theory: 'Проверка всех 14 пройденных букв вперемешку. Ошибки не страшны: перепутанные буквы вернутся в этом же занятии и потом — в повторении.' },
+      { id: 'letters_8', title: 'Буквы: ض ط', group: 'letters', prereq: ['check_letters_1'], kind: 'letters', letters: ['ض','ط'], syllableGroup: 3,
         theory: 'ض (дад) — «тяжёлая» версия د, боковые края языка касаются коренных зубов; считается одним из самых сложных звуков арабского. ط (та) — «тяжёлая» версия ت.' },
       { id: 'join_8', title: 'Читаем с соединением: ض ط', group: 'letters', prereq: ['letters_8'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط'], focus: ['ض','ط'],
         theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово.' },
@@ -9257,18 +9259,20 @@ function speakLetter(ch, name, ttsOnly) {
         theory: 'و (уау) — губы округлены и слегка вытянуты, как «у» на выдохе; также используется как знак долготы. ي (я) — средняя часть языка приподнята к нёбу, как «й»; тоже бывает знаком долготы.' },
       { id: 'join_14', title: 'Читаем с соединением: و ي', group: 'letters', prereq: ['letters_14'], kind: 'join', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'], focus: ['و','ي'],
         theory: 'Теперь читаем не отдельные буквы, а слова: слоги идут подряд, буквы соединяются между собой. Читайте справа налево; у каждой буквы своя огласовка — фатха «а», кясра «и» или дамма «у». Буква с огласовкой — готовый слог, два-три слога подряд — уже слово. Буквы و соединяются только с предыдущей буквой, а со следующей — нет: после них слово «разрывается», и следующая буква пишется отдельно.' },
-      { id: 'blend_4', title: 'Слоги: все буквы вместе', group: 'letters', prereq: ['join_14'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'],
+      { id: 'check_letters_2', title: 'Контрольная: все 28 букв', group: 'letters', prereq: ['join_14'], kind: 'letters', letters: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'], checkpoint: true,
+        theory: 'Итоговая проверка алфавита: все 28 букв вперемешку, похожие по форме и звуку — рядом. Перепутанное вернётся в повторении.' },
+      { id: 'blend_4', title: 'Слоги: все буквы вместе', group: 'letters', prereq: ['check_letters_2'], kind: 'blend', letters: ['ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'],
         theory: 'Финальная тренировка слогов — уже из всех 27 согласных букв вперемешку, случайным образом.' },
       { id: 'letter_forms', title: 'Формы букв (начало/середина/конец)', group: 'letters', prereq: ['blend_4'], kind: 'forms',
         theory: 'Каждая буква меняет начертание в зависимости от места в слове: отдельно, в начале, в середине или в конце слова. Это не другая буква — тот же самый звук, только другая «одежда». В этом навыке — узнавание одной и той же буквы в разных формах.' },
       { id: 'qaida_lines_1', title: 'Строки для чтения: первый шаг', group: 'letters', prereq: ['letter_forms'], kind: 'qaida-lines', lettersCount: 'few',
         theory: 'Как в настоящей Каиде: не отдельные слоги, а целые строки из коротких сочетаний подряд, составленные только из уже пройденных букв. Читайте вслух строка за строкой, в своём темпе — здесь нет проверки, только практика.' },
-      { id: 'harakat_fatha', title: 'Огласовка: фатха (◌َ)', group: 'basics', prereq: ['qaida_lines_1'], kind: 'syllables',
-        theory: 'Фатха — короткая чёрточка над буквой, даёт короткий звук «а» сразу после согласной.' },
-      { id: 'harakat_kasra', title: 'Огласовка: кясра (◌ِ)', group: 'basics', prereq: ['harakat_fatha'], kind: 'syllables',
-        theory: 'Кясра — чёрточка под буквой, даёт короткий звук «и» сразу после согласной.' },
-      { id: 'harakat_damma', title: 'Огласовка: дамма (◌ُ)', group: 'basics', prereq: ['harakat_kasra'], kind: 'syllables',
-        theory: 'Дамма — маленький завиток над буквой, даёт короткий звук «у» сразу после согласной.' },
+      { id: 'harakat_fatha', title: 'Повторение: фатха (◌َ) со всеми буквами', group: 'basics', prereq: ['qaida_lines_1'], kind: 'syllables',
+        theory: 'Фатху вы знаете с 3-го урока. Здесь — читаем её со всеми 28 буквами: короткое «а» сразу после согласной.' },
+      { id: 'harakat_kasra', title: 'Повторение: кясра (◌ِ) со всеми буквами', group: 'basics', prereq: ['harakat_fatha'], kind: 'syllables',
+        theory: 'Кясру вы знаете с 3-го урока. Здесь — читаем её со всеми 28 буквами: короткое «и» сразу после согласной.' },
+      { id: 'harakat_damma', title: 'Повторение: дамма (◌ُ) со всеми буквами', group: 'basics', prereq: ['harakat_kasra'], kind: 'syllables',
+        theory: 'Дамму вы знаете с 3-го урока. Здесь — читаем её со всеми 28 буквами: короткое «у» сразу после согласной.' },
       { id: 'syllables_mixed', title: 'Вставьте нужную огласовку', group: 'basics', prereq: ['harakat_damma'], kind: 'fillgap',
         theory: 'Теперь все три огласовки вместе, вразнобой — и не на отдельном слоге, а в настоящем слове: одна огласовка спрятана, нужно угадать, какая из трёх (фатха/кясра/дамма) там должна стоять.' },
       { id: 'standing_vowels', title: 'Стоячие фатха/кясра/дамма', group: 'basics', prereq: ['syllables_mixed'], kind: 'info',
@@ -9299,7 +9303,7 @@ function speakLetter(ch, name, ttsOnly) {
         theory: 'Написание слов в мусхафе иногда отличается от привычных правил современной орфографии — это называется «расм ‘усмани», письмо по образцу свитков времён халифа Усмана. Например, где-то алиф долготы не пишется на письме, хотя произносится (رَحْمَٰن), а где-то, наоборот, пишется лишняя буква, которая не произносится (أُو۟لَٰئِكَ). Это не ошибки и не опечатки — так текст передавался и сохранялся веками, и в напечатанном мусхафе эти места специально помечены дополнительными значками сверху.' },
       { id: 'qiraat_info', title: 'Что такое кыраат (варианты чтения)', group: 'special', prereq: ['rasm_usmani'], kind: 'info',
         theory: 'Весь этот курс учит чтению по риваяту Хафс от имама Асыма — это самый распространённый в мире вариант, тот, что напечатан в подавляющем большинстве изданий Корана. Но исторически признано 10 канонических кыраатов (способов чтения), восходящих к самому Пророку через разных передатчиков — отличия между ними в основном в отдельных словах и некоторых огласовках, а не в смысле аятов. Достаточно знать, что Хафс — не единственный вариант, а один из признанных.' },
-      { id: 'sifaat', title: 'Сифат аль-хуруф (характеристики звуков)', group: 'tajweed', prereq: ['qiraat_info'], kind: 'info',
+      { id: 'sifaat', title: 'Сифат аль-хуруф (характеристики звуков)', group: 'tajweed', prereq: ['minimal_pairs'], kind: 'info',
         theory: 'У каждой арабской буквы, помимо места образования (махрадж), есть набор характеристик: звонкая/глухая, «тяжёлая»/«лёгкая» (муфаххам/мурраккак), с придыханием или без, с гунной или без. Понимание этих характеристик объясняет, ПОЧЕМУ вообще существуют дальнейшие правила таджвида — они почти все вытекают из сифат.' },
       { id: 'qalqalah', title: 'Калькаля', group: 'tajweed', prereq: ['sifaat'], kind: 'rules', ruleTitles: ['قلقلة · Калькаля'],
         theory: 'Калькаля — лёгкий отскок/эхо звука на пяти буквах (ق ط ب ج د), когда они стоят с сукуном. Собраны в фразу «قُطْبُ جَدٍ» для запоминания.' },
@@ -9319,7 +9323,9 @@ function speakLetter(ch, name, ttsOnly) {
         theory: 'Если после ن сакин или танвина идёт буква ب — нун/танвин превращается в звук «м» с лёгкой гунной, перед тем как произнести ب. Всего одна буква-триггер — самое простое из четырёх правил нун сакин.' },
       { id: 'ikhfa', title: 'Ихфа (скрытие)', group: 'tajweed', prereq: ['iqlab'], kind: 'rules', ruleTitles: ['إخفاء · Ихфа'],
         theory: 'Если после ن сакин или танвина идёт одна из оставшихся 15 букв — нун/танвин произносится приглушённо, «между» ясным изхаром и полным идгамом, с лёгкой гунной через нос.' },
-      { id: 'meem_sakinah', title: 'Правила мим сакин', group: 'tajweed', prereq: ['ikhfa'], kind: 'rules', ruleTitles: ['أحكام الميم الساكنة · Мим сакин'],
+      { id: 'check_noon', title: 'Контрольная: 4 правила нун сакин', group: 'tajweed', prereq: ['ikhfa'], kind: 'rules', ruleTitles: ['إظهار · Изхар', 'إدغام · Идгам', 'إقلاب · Иклаб', 'إخفاء · Ихфа'], checkpoint: true,
+        theory: 'Изхар, идгам, иклаб и ихфа вперемешку: по описанию узнайте правило. Главное — смотреть на букву после нун сакин или танвина.' },
+      { id: 'meem_sakinah', title: 'Правила мим сакин', group: 'tajweed', prereq: ['check_noon'], kind: 'rules', ruleTitles: ['أحكام الميم الساكنة · Мим сакин'],
         theory: 'У буквы م с сукуном — свои три правила, по тому же принципу, что и у нун сакин: идгам шафави (перед другой م — слияние с гунной), ихфа шафави (перед ب — приглушённо через нос), изхар шафави (перед всеми остальными буквами — ясно).' },
       { id: 'idgham_similar', title: 'Идгам сходных и близких букв', group: 'tajweed', prereq: ['meem_sakinah'], kind: 'rules', ruleTitles: ['إدغام المتماثلين والمتجانسين والمتقاربين · Идгам сходных букв'],
         theory: 'Отдельно от правил нун/мим сакин — есть случаи, когда две ОДИНАКОВЫЕ, СХОЖИЕ по месту образования или БЛИЗКИЕ буквы стоят рядом (первая с сукуном) — тогда они тоже сливаются в одну.' },
@@ -9331,7 +9337,7 @@ function speakLetter(ch, name, ttsOnly) {
         theory: 'В тексте Корана расставлены специальные значки, подсказывающие, где можно, нужно или нельзя останавливаться: م (обязательная остановка), لا (запрещена остановка), ج (остановка допустима) и другие.' },
       { id: 'common_mistakes', title: 'Разбор частых ошибок новичков', group: 'tajweed', prereq: ['waqf'], kind: 'info',
         theory: 'Итоговый обзор: смешение похожих букв, «зажимание» горла на алифе, недостаточная долгота мадда, забывание гунны, чтение сукуна отдельным слогом. Полезно вернуться к этому навыку через время, когда уже читаете бегло — старые привычки возвращаются незаметно.' },
-      { id: 'reading_easy', title: 'Чтение: короткие лёгкие аяты', group: 'reading', prereq: ['common_mistakes'], kind: 'reading', readDiff: 'easy',
+      { id: 'reading_easy', title: 'Чтение: короткие лёгкие аяты', group: 'reading', prereq: ['common_mistakes', 'qiraat_info'], kind: 'reading', readDiff: 'easy',
         theory: 'Применяем всё выученное на реальных, но коротких и простых аятах — по одному за раз.' },
       { id: 'dictation', title: 'Диктовка на слух', group: 'reading', prereq: ['reading_easy'], kind: 'dictation',
         theory: 'Слушаете и записываете арабский текст на слух — проверка того, что вы различаете звуки, а не просто узнаёте буквы глазами.' },
@@ -9343,8 +9349,8 @@ function speakLetter(ch, name, ttsOnly) {
         theory: 'Самые длинные и насыщенные правилами аяты из доступного набора.' },
       { id: 'reading_no_harakat', title: 'Чтение без огласовок', group: 'reading', prereq: ['reading_hard'], kind: 'reading-no-harakat',
         theory: 'Продвинутый навык: огласовки убраны, как в некоторых печатных изданиях и надписях — нужно угадывать нужный гласный по контексту и знанию грамматики.' },
-      { id: 'reading_speed', title: 'Скорость чтения', group: 'reading', prereq: ['reading_hard'], kind: 'speed',
-        theory: 'Засекаем время на чтение одного аята вслух и считаем примерную скорость (слов в минуту) — не ради спешки, а чтобы видеть рост беглости со временем.' },
+      { id: 'reading_speed', title: 'Прочитай аят сам', group: 'reading', prereq: ['reading_hard'], kind: 'reading-self',
+        theory: 'Читаете аят сами, затем слушаете чтеца и честно отмечаете: совпало или нет. Можно включить «без огласовок». Без секундомера: важна точность, а не скорость.' },
       { id: 'full_juz_amma_surah', title: 'Веха: сура Аль-Аляк целиком', group: 'reading', prereq: ['reading_no_harakat', 'reading_speed'], kind: 'reading-surah', wholeSurah: 96,
         theory: 'Финальная веха этого курса: сура Аль-Аляк (19 аятов, одна из самых длинных в изученном наборе), прочитанная от начала до конца.' }
     ];
@@ -9353,6 +9359,18 @@ function speakLetter(ch, name, ttsOnly) {
     // и так берутся из двуязычных данных «Теории», а вот собственные
     // названия навыков и вводные пояснения — нет).
     const PERSONAL_TEACHER_KK = {
+ "check_noon": {
+  "title": "Бақылау: сукунды нунның 4 ережесі",
+  "theory": "Изһар, идғам, иқлаб және ихфа аралас: сипаттамасы бойынша ережені табыңыз. Бастысы — сукунды нун немесе тәнуиннен кейінгі әріпке қарау."
+ },
+ "check_letters_2": {
+  "title": "Бақылау: барлық 28 әріп",
+  "theory": "Әліпбидің қорытынды тексеруі: 28 әріп аралас, пішіні мен дыбысы ұқсастары қатар. Шатастырылғаны қайталауда қайта келеді."
+ },
+ "check_letters_1": {
+  "title": "Бақылау: ا … ص әріптері",
+  "theory": "Өтілген 14 әріптің бәрін аралас тексеру. Қателер қорқынышты емес: шатастырылған әріптер осы сабақта және кейін қайталауда қайта келеді."
+ },
  "join_1": {
   "title": "Қосып оқимыз: ا ب",
   "theory": "Енді жеке әріптерді емес, сөздерді оқимыз: буындар қатарынан келеді, әріптер бір-бірімен жалғасады. Оңнан солға қарай оқыңыз; әр әріптің өз харакаты бар — фатха «ә», кясра «и» немесе дамма «ү/у». Харакаты бар әріп — дайын буын, қатар келген екі-үш буын — сөз. Фатхалы әріптен кейінгі әліф дыбысты ұзартады: بَا ұзақ оқылады — «бәә». ا әріптері тек алдыңғы әріппен жалғасады, келесімен жалғаспайды: олардан кейін сөз «үзіліп», келесі әріп бөлек жазылады."
@@ -9502,16 +9520,16 @@ function speakLetter(ch, name, ttsOnly) {
   "theory": "Нағыз Қаидадағыдай: жеке буындар емес, тек өтілген әріптерден құралған қысқа тіркестердің тұтас жолдары. Жолма-жол, өз қарқыныңызбен дауыстап оқыңыз — мұнда тексеру жоқ, тек жаттығу."
  },
  "harakat_fatha": {
-  "title": "Харакат: фатха (◌َ)",
-  "theory": "Фатха — әріптің үстіндегі қысқа сызық, дауыссыздан кейін бірден қысқа «ә» (қатты әріптерде «о») дыбысын береді."
+  "title": "Қайталау: фатха (◌َ) барлық әріптермен",
+  "theory": "Фатханы 3-сабақтан білесіз. Мұнда оны барлық 28 әріппен оқимыз: дауыссыздан кейін бірден қысқа «ә» (жуан әріптерде «о»)."
  },
  "harakat_kasra": {
-  "title": "Харакат: кясра (◌ِ)",
-  "theory": "Кясра — әріптің астындағы сызық, дауыссыздан кейін бірден қысқа «и» (қатты әріптерде «ы») дыбысын береді."
+  "title": "Қайталау: кясра (◌ِ) барлық әріптермен",
+  "theory": "Кясраны 3-сабақтан білесіз. Мұнда оны барлық 28 әріппен оқимыз: дауыссыздан кейін бірден қысқа «и» (жуан әріптерде «ы»)."
  },
  "harakat_damma": {
-  "title": "Харакат: дамма (◌ُ)",
-  "theory": "Дамма — әріптің үстіндегі кішкентай ілмек, дауыссыздан кейін бірден қысқа «ү» (қатты әріптерде «у») дыбысын береді."
+  "title": "Қайталау: дамма (◌ُ) барлық әріптермен",
+  "theory": "Дамманы 3-сабақтан білесіз. Мұнда оны барлық 28 әріппен оқимыз: дауыссыздан кейін бірден қысқа «ү» (жуан әріптерде «у»)."
  },
  "syllables_mixed": {
   "title": "Керекті харакатты қой",
@@ -9662,8 +9680,8 @@ function speakLetter(ch, name, ttsOnly) {
   "theory": "Алдыңғы қатарлы дағды: харакаттар алынып тасталған, кейбір басылымдар мен жазбалардағыдай — қажетті дауыстыны контекст пен грамматиканы білу арқылы табу керек."
  },
  "reading_speed": {
-  "title": "Оқу жылдамдығы",
-  "theory": "Бір аятты дауыстап оқуға кететін уақытты өлшеп, шамамен жылдамдықты (минутына сөз) санаймыз — асығу үшін емес, уақыт өте келе еркін оқудың өскенін көру үшін."
+  "title": "Аятты өзің оқы",
+  "theory": "Аятты өзіңіз оқып, қариды тыңдайсыз да, шын сәйкес келді ме — белгілейсіз. «Харакатсыз» режимін қосуға болады. Секундомерсіз: жылдамдық емес, дәлдік маңызды."
  },
  "full_juz_amma_surah": {
   "title": "Бетбелгі: Алақ сүресі толығымен",
@@ -9731,6 +9749,11 @@ function speakLetter(ch, name, ttsOnly) {
         // хороший результат — и достаточно, а вспомнить это понадобится
         // позже уже через интервальное повторение (оно уже встроено отдельно).
         if (ratio >= 0.8) { // 7.16: урок осваивается от 80% (было 70%)
+                    try { // 7.17: одна память — освоенные в Курсе буквы и правила отмечаются «изученными» в Справочнике
+                      var _sk = PERSONAL_TEACHER_SKILLS.find(function(s) { return s.id === skillId; });
+                      if (_sk && _sk.kind === 'letters' && !_sk.checkpoint) (_sk.letters || []).forEach(function(ch) { refSetDone('L:' + ch, true); });
+                      if (_sk && _sk.ruleTitles) _sk.ruleTitles.forEach(function(rt) { var isW = (typeof ARABIC_RULES !== 'undefined') && ARABIC_RULES.some(function(r) { return r.title === rt; }); refSetDone((isW ? 'wr:' : 'tj:') + String(rt).replace(/"/g, ''), true); });
+                    } catch(e) {}
           m.goodStreak = (m.goodStreak || 0) + 1;
           const wasMastered = m.status === 'mastered';
           m.status = 'mastered';
@@ -9927,7 +9950,51 @@ function speakLetter(ch, name, ttsOnly) {
         return '<span class="tw-ar-speak" dir="rtl" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px" data-ar="' + m.replace(/"/g,'&quot;') + '">' + m + '</span>';
       });
     }
+    // 7.17: к теории урока добавляются слова из Корана (уроки соединения) и переход в Справочник (уроки букв и правил)
     function buildTeacherSkillTheoryHtml(skill) {
+      var html = _buildTeacherSkillTheoryHtmlBase(skill), kk = isKk();
+      try {
+        if (skill.kind === 'join' && skill.letters) html += teacherQuranWordsHtml(skill.letters, kk);
+        if (skill.kind === 'letters' && skill.letters && !skill.checkpoint) html += '<div class="tq-links" dir="ltr">' + skill.letters.map(function(ch) { return '<button type="button" class="btn btn-sm btn-quiet" data-tq-ref="L:' + ch + '">📚 ' + ch + ' — ' + (kk ? 'Анықтамалықта толығырақ' : 'подробнее в Справочнике') + '</button>'; }).join('') + '</div>';
+        if (skill.kind === 'rules' && skill.ruleTitles && !skill.checkpoint) html += '<div class="tq-links" dir="ltr"><button type="button" class="btn btn-sm btn-quiet" data-tq-ref="R:' + String(skill.ruleTitles[0]).replace(/"/g, '') + '">📚 ' + (kk ? 'Анықтамалықта толығырақ' : 'Подробнее в Справочнике') + '</button></div>';
+      } catch(e) {}
+      return html;
+    }
+    function teacherQuranWordsHtml(letters, kk) {
+      var set = {}; letters.forEach(function(c) { set[c] = 1; });
+      var norm = { 'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ٱ': 'ا', 'ؤ': 'و', 'ئ': 'ي', 'ى': 'ي' };
+      var out = [], seen = {};
+      var add = function(s, arr) { (arr || []).forEach(function(ay) { (ay.words || []).forEach(function(w, wi) {
+        if (out.length >= 6 || !w.ar || seen[w.ar]) return;
+        var cl = _wrClusters(w.ar); if (cl.length < 2) return;
+        var ok = cl.every(function(c) { var b = norm[c[0]] || c[0]; return !!set[b]; });
+        if (ok) { seen[w.ar] = 1; out.push({ s: s, a: ay.ayah, w: wi + 1, ar: w.ar, m: w.meaning || '' }); }
+      }); }); };
+      try { add(1, typeof FATIHA_LESSON !== 'undefined' ? FATIHA_LESSON : []); Object.keys(WBW_STUDY_SURAHS || {}).forEach(function(n) { add(+n, WBW_STUDY_SURAHS[n]); }); } catch(e) {}
+      if (!out.length) return '';
+      return '<div class="card tq-words"><b>📖 ' + (kk ? 'Құраннан сөздер — тек өтілген әріптерден' : 'Слова из Корана — только из пройденных букв') + '</b>' +
+        '<div class="ayah-translation" style="font-size:0.8rem;margin:0.2rem 0 0.4rem">' + (kk ? 'Өзіңіз оқып, басыңыз — қари оқиды.' : 'Прочитайте сами и нажмите — прочитает чтец.') + '</div>' +
+        '<div class="tq-wlist">' + out.map(function(x) { return '<button type="button" class="tq-w" data-tqw="' + x.s + ',' + x.a + ',' + x.w + '"><span class="arabic" dir="rtl" lang="ar">' + x.ar + '</span><small>' + x.s + ':' + x.a + (x.m && !kk ? ' · ' + x.m : '') + '</small></button>'; }).join('') + '</div></div>';
+    }
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      var w = t.closest('[data-tqw]');
+      if (w) { var q = w.getAttribute('data-tqw').split(',').map(Number); try { _twPlayWords(q[0], q[1], [q[2]], null, (w.querySelector('.arabic') || {}).textContent); } catch(er) {} return; }
+      var r = t.closest('[data-tq-ref]');
+      if (r) {
+        var v = r.getAttribute('data-tq-ref');
+        showView('learn');
+        setTimeout(function() {
+          if (v.indexOf('L:') === 0) { var i = ARABIC_LETTERS.findIndex(function(l) { return l.ch === v.slice(2); }); refOpenHit({ tab: 'alphabet', letter: i }); }
+          else {
+            var title = v.slice(2), ti = (typeof TAJWEED_RULES !== 'undefined') ? TAJWEED_RULES.findIndex(function(x) { return x.title === title; }) : -1;
+            if (ti >= 0) refOpenHit({ tab: 'tajweed', card: String(ti) });
+            else { var wi2 = ARABIC_RULES.findIndex(function(x) { return x.title === title; }); refOpenHit({ tab: 'rules', card: 'wr' + Math.max(0, wi2) }); }
+          }
+        }, 120);
+      }
+    });
+    function _buildTeacherSkillTheoryHtmlBase(skill) {
       const kkT = isKk();
       if (skill.kind === 'overview-table') {
         // build 5.95: сравнительная таблица 4 правил нун сакин/танвина рядом
@@ -10378,6 +10445,13 @@ function speakLetter(ch, name, ttsOnly) {
     function _launchTeacherSkillActivity(skill) {
       _teacherLessonCtx = null;
       const kkT = isKk();
+      if (skill.kind === 'reading-self') {
+        showView('games');
+        try { gamesSyncStageSoon(); } catch(e) {}
+        _activeTeacherSkill = skill.id;
+        startSelfRead('ayah');
+        return;
+      }
       if (skill.kind === 'info' || skill.kind === 'harakat-intro' || skill.kind === 'overview-table') {
         // Темы без готового теста в данных (сифат, ляфзуль-джаляля, правила
         // «ра», маддо-лин, мукатта'ат, вводная про огласовки/сукун и т.п.) —
