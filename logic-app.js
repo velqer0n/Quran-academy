@@ -13839,6 +13839,25 @@ function renderMistakes() {
       }
       var tg = t.closest('[data-tw-toggle]');
       if (tg) { _twToggleCard(tg.closest('.tw-rc')); return; }
+      var mkl = t.closest('[data-mk-let]');
+      if (mkl) {
+        var zone = mkl.closest('.tw-rc-body'), stage = zone && zone.querySelector('.mk-stage');
+        var ch = mkl.getAttribute('data-mk-let');
+        zone.querySelectorAll('.mk-let').forEach(function(b) { b.classList.toggle('on', b === mkl); });
+        if (stage) { stage.innerHTML = _mkLetterBlock(ch); }
+        _mkSay(ch);
+        return;
+      }
+      var mkp = t.closest('[data-mk-pair]');
+      if (mkp) {
+        var root = document.getElementById('learn-makharij'), pr = root && root._mkPairs && root._mkPairs[+mkp.getAttribute('data-mk-pair')];
+        var body = mkp.closest('.tw-rc-body'), cs = body && body.querySelector('.mk-cmp-stage');
+        body.querySelectorAll('.mk-let').forEach(function(b) { b.classList.toggle('on', b === mkp); });
+        if (pr && cs) cs.innerHTML = '<div class="mk-cmp">' + _mkLetterBlock(pr[0]) + _mkLetterBlock(pr[1]) + '</div>';
+        return;
+      }
+      var mks = t.closest('[data-mk-say]');
+      if (mks) { _mkSay(mks.getAttribute('data-mk-say')); return; }
       var box = t.closest('.tw-ex');
       if (box) {
         var s = +box.getAttribute('data-s'), a = +box.getAttribute('data-a');
@@ -13990,6 +14009,23 @@ function renderMistakes() {
     }
 
 
+    function _mkLetterBlock(ch) {
+      var kk = isKk();
+      var L = (typeof ARABIC_LETTERS !== 'undefined') ? ARABIC_LETTERS.find(function(x) { return x.ch === ch; }) : null;
+      var nm = ch === 'ء' ? (kk ? 'Хамза' : 'Хамза') : L ? (kk ? (L.nameKk || L.name) : L.name) : ch;
+      var svg = '';
+      try { svg = letterMouthSvg(ch); } catch(e) {}
+      return '<div class="mk-block">' +
+        '<div class="mk-block-top" dir="ltr"><span class="mk-big" dir="rtl" lang="ar">' + ch + '</span><b>' + nm + '</b>' +
+        '<button type="button" class="btn btn-sm" data-mk-say="' + ch + '">🔊 ' + (kk ? 'Дыбыс' : 'Звук') + '</button></div>' +
+        (svg ? '<div class="mk-svg">' + svg + '</div>' : '') + '</div>';
+    }
+    function _mkSay(ch) {
+      try {
+        if (typeof playLetterRec === 'function' && playLetterRec(ch, function() { speakLetter(ch, null, true); })) return;
+        speakLetter(ch, null, true);
+      } catch(e) {}
+    }
     function renderMakharij() {
       var el = document.getElementById('learn-makharij');
       var parent = document.getElementById('acad-makharij');
@@ -14097,31 +14133,38 @@ function renderMistakes() {
 
       var html = kkM ? ('<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">' +
         'Мақаридж (مخارج الحروف) — дыбыс шығу нүктелері. 5 үлкен аймақ, әдетте 17 нақты мақаридж. ' +
-        'Әр әріптің карточкасында ауыз сызбасы бар — айнаның алдында қайталаңыз.</p>') : ('<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">' +
+        'Аймақты, содан кейін әріпті басыңыз — дыбысы бар ауыз сызбасы шығады. Төменде — ұқсас әріптерді салыстыру.</p>') : ('<p class="ayah-translation" style="margin-bottom:0.75rem" dir="ltr">' +
         'Махаридж (مخارج الحروف) — точки выхода звука. 5 больших зон, обычно 17 точных махраджей. ' +
-        'Схема рта есть в карточке каждой буквы — повторяйте перед зеркалом.</p>');
+        'Нажмите зону, затем букву — появится схема рта со звуком. Внизу — сравнение похожих букв.</p>');
 
+      // 6.99: зоны свёрнуты; внутри — буквы зоны, по нажатию — схема рта со звуком (та же, что в «Буквах»)
+      var MK_LETTERS = { jawf: 'ا و ي', halq: 'ء ه ع ح غ خ', lisan: 'ق ك ج ش ي ض ل ن ر ط د ت ص س ز ظ ذ ث', shafatan: 'ف و ب م', khayshum: 'ن م' };
       zones.forEach(function(z, zi) {
-        html += '<div class="rule-card" style="margin-bottom:0.65rem" data-mk="'+z.id+'">' +
-          '<h3 dir="ltr">'+z.icon+' '+z.title+'</h3>' +
-          '<div class="les-short ayah-translation" dir="ltr">'+z.short+'</div>' +
-          '<button type="button" class="btn btn-sm les-more-btn" data-les-toggle="1" style="margin:0.35rem 0;direction:ltr">'+(kkM ? '📖 Толығырақ' : '📖 Подробнее')+'</button>' +
-          '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55">'+z.detail.replace(/</g,'&lt;')+'</div>' +
-          videoBlock(z.videos) +
-          '</div>';
+        var lets = (MK_LETTERS[z.id] || '').split(' ').filter(Boolean);
+        html += '<div class="rule-card tw-rc mk-zone" data-mk="' + z.id + '" data-rule-i="mk' + zi + '">' +
+          '<button type="button" class="tw-rc-head" data-tw-toggle="mk' + zi + '" dir="ltr" aria-expanded="false">' +
+            '<span class="tw-rc-text"><span class="tw-rc-title">' + z.icon + ' ' + z.title + '</span><span class="tw-rc-short">' + z.short + '</span></span>' +
+            '<span class="mk-head-letters" dir="rtl" lang="ar">' + lets.join(' ') + '</span><span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
+          '<div class="tw-rc-body" hidden>' +
+            (lets.length ? '<div class="mk-hint" dir="ltr">' + (kkM ? 'Әріпті басыңыз — ауыз сызбасы мен дыбысы:' : 'Нажмите букву — схема рта и звук:') + '</div>' +
+              '<div class="mk-letters">' + lets.map(function(ch) { return '<button type="button" class="mk-let" data-mk-let="' + ch + '" lang="ar">' + ch + '</button>'; }).join('') + '</div>' +
+              '<div class="mk-stage"></div>' : '') +
+            '<button type="button" class="btn btn-sm les-more-btn" data-les-toggle="1" style="margin:0.35rem 0;direction:ltr">' + (kkM ? '📖 Толығырақ' : '📖 Подробнее') + '</button>' +
+            '<div class="les-full ayah-translation" dir="ltr" hidden style="white-space:pre-wrap;margin-top:0.35rem;line-height:1.55;text-align:left">' + z.detail.replace(/</g, '&lt;') + '</div>' +
+            videoBlock(z.videos) +
+          '</div></div>';
       });
-
-      html += kkM ? ('<div class="card" style="margin-top:0.5rem">' +
-        '<b>💡 Қалай жаттығу керек</b>' +
-        '<div class="ayah-translation" style="margin-top:0.4rem">1) Айна + баяу أَ + сукунды әріп (أَقْ، أَعْ، أَضْ).<br>' +
-        '2) Халық әріптері үшін қол тамаққа қойылады.<br>' +
-        '3) Ұқсастарын салыстырыңыз: ق/ك، س/ص، ت/ط، د/ض، ه/ح، ع/ء.<br>' +
-        '4) Қарини тыңдап қайталаңыз. Ең жақсы нәтиже — ұстазбен бірге.</div></div>') : ('<div class="card" style="margin-top:0.5rem">' +
-        '<b>💡 Как тренироваться</b>' +
-        '<div class="ayah-translation" style="margin-top:0.4rem">1) Зеркало + медленное أَ + буква с сукуном (أَقْ، أَعْ، أَضْ).<br>' +
-        '2) Рука на горле для букв халк.<br>' +
-        '3) Сравните похожие: ق/ك، س/ص، ت/ط، د/ض، ه/ح، ع/ء.<br>' +
-        '4) Слушайте чтеца и повторяйте. Лучший результат — с учителем.</div></div>');
+      // похожие буквы — две схемы рядом
+      var MK_PAIRS = [['ق', 'ك'], ['س', 'ص'], ['ت', 'ط'], ['د', 'ض'], ['ه', 'ح'], ['ح', 'خ'], ['ع', 'ء'], ['ذ', 'ز'], ['ذ', 'ظ'], ['ث', 'س']];
+      html += '<div class="rule-card tw-rc" data-rule-i="mkcmp">' +
+        '<button type="button" class="tw-rc-head" data-tw-toggle="mkcmp" dir="ltr" aria-expanded="false">' +
+          '<span class="tw-rc-text"><span class="tw-rc-title">⚖️ ' + (kkM ? 'Ұқсас әріптерді салыстыру' : 'Сравнить похожие буквы') + '</span><span class="tw-rc-short">' + (kkM ? 'Жиі шатастырылатын жұптар: екі сызба қатар, әрқайсысының дыбысы.' : 'Пары, которые часто путают: две схемы рядом, у каждой свой звук.') + '</span></span>' +
+          '<span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
+        '<div class="tw-rc-body" hidden>' +
+          '<div class="mk-letters">' + MK_PAIRS.map(function(pr, i) { return '<button type="button" class="mk-let mk-pair" data-mk-pair="' + i + '" lang="ar">' + pr[0] + ' / ' + pr[1] + '</button>'; }).join('') + '</div>' +
+          '<div class="mk-cmp-stage"></div>' +
+        '</div></div>';
+      el._mkPairs = MK_PAIRS;
 
       el.innerHTML = html;
       try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
@@ -41657,7 +41700,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         '<div class="dh-carousel" data-no-swipe="1" style="display:flex;gap:0.6rem;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding-bottom:0.3rem;scrollbar-width:none;align-items:flex-start">' +
         carIds.map(function (id) { return '<div data-dh-widget="' + id + '" style="flex:0 0 88%;max-width:88%;scroll-snap-align:center;min-width:0"><div data-dh-inner="' + id + '">' + widgetHtml[id] + '</div></div>'; }).join('') +
         '</div></div>') : '';
-      const footHtml = '<div style="display:flex;justify-content:center;margin:0.4rem 0 0.8rem"><button type="button" class="btn btn-sm" id="dh-customize">⚙️ ' + (isKk ? 'Лентаны баптау' : 'Настроить ленту') + '</button></div>' + tipCard;
+      const footHtml = '<div style="display:flex;justify-content:center;margin:0.4rem 0 0.8rem"><button type="button" class="btn btn-sm" id="dh-customize">⚙️ ' + (isKk ? 'Лентаны баптау' : 'Настроить ленту') + '</button></div>' + (function() { try { (window._tipByView = window._tipByView || {}).dailyhub = tipCard; } catch(e) {} return ''; })(); // 6.99: подсказка — в «?», не карточкой
       el.innerHTML =
         greetingBar +
         widgets +
@@ -41715,7 +41758,26 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         const w = car.firstElementChild ? car.firstElementChild.getBoundingClientRect().width + 10 : 1;
         const ix = Math.round(car.scrollLeft / w);
         el.querySelectorAll('#dh-car-dots i b').forEach(function (d, k) { d.style.background = k === ix ? 'var(--accent)' : 'var(--border)'; });
+        dhCarFit();
       }, { passive: true });
+      // 6.99: высота карусели — по видимой карточке, а не по самой высокой (иначе под короткой карточкой пустое место)
+      function dhCarFit() {
+        if (!car || car._fitRaf) return;
+        car._fitRaf = requestAnimationFrame(function () {
+          car._fitRaf = 0;
+          const w = car.firstElementChild ? car.firstElementChild.getBoundingClientRect().width + 10 : 1;
+          const ch = car.children[Math.max(0, Math.min(car.children.length - 1, Math.round(car.scrollLeft / w)))];
+          if (!ch) return;
+          const h = ch.offsetHeight;
+          if (h > 20) car.style.height = (h + 8) + 'px';
+        });
+      }
+      if (car) {
+        car.style.overflowY = 'hidden';
+        if (!_lwReduce()) car.style.transition = 'height 0.25s ease';
+        dhCarFit(); setTimeout(dhCarFit, 400); setTimeout(dhCarFit, 2000);
+        try { if (typeof ResizeObserver === 'function') { const ro = new ResizeObserver(dhCarFit); Array.prototype.forEach.call(car.children, function (c) { ro.observe(c); }); } } catch (e) {}
+      }
       // build 6.79: на компьютере свайпа нет — стрелки, точки и перетаскивание мышью
       if (car) {
         const carW = function () { return car.firstElementChild ? car.firstElementChild.getBoundingClientRect().width + 10 : car.clientWidth; };
@@ -42341,7 +42403,7 @@ function renderStories(openOpts) {
         });
       }
       el.innerHTML =
-        '<div class="card" style="border-color:var(--accent);cursor:pointer;margin-bottom:0.6rem" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">'+(kk?'Санатты таңдаңыз. Атын басыңыз — толық мәтін. ★ — таңдаулы. 🔊 — тыңдау.':'Что можно сделать:<br>• Категории сверху — пророки, сподвижники и др.<br>• Нажмите имя/карточку — полный рассказ.<br>• ★ — в избранное; 🔊 — озвучка (если доступна).<br>• Поиск (если есть) — по имени.')+'</div></div>' +
+        tipCard((kk?'Санатты таңдаңыз. Атын басыңыз — толық мәтін. ★ — таңдаулы. 🔊 — тыңдау.':'Что можно сделать:<br>• Категории сверху — пророки, сподвижники и др.<br>• Нажмите имя/карточку — полный рассказ.<br>• ★ — в избранное; 🔊 — озвучка (если доступна).<br>• Поиск (если есть) — по имени.')) +
         '<div class="tabs-row" style="margin-bottom:0.75rem;flex-wrap:wrap;gap:0.35rem">' +
         cats.map(function(c){ return '<button type="button" class="btn btn-sm '+(c.id===tab?'btn-primary':'')+'" data-stcat="'+c.id+'" style="flex:0 0 auto;min-width:5.5rem;text-align:center">'+c.name+'</button>'; }).join('') +
         '</div>' +
@@ -58836,7 +58898,7 @@ function getMyVocab() {
 
 
     function renderTipCard(html) {
-      return '<div class="card" style="border-color:var(--accent);cursor:pointer" data-tip-toggle="1"><b>💡 '+tLabel('Подсказка')+'</b><div class="tip-body ayah-translation" style="margin-top:0.35rem">'+html+'</div></div>';
+      return tipCard(html); // 6.99: как и остальные — текст уходит в «?» → «Подробнее»
     }
     function bindTipToggles(root, tipKey) {
       if (!window._tipOpen) window._tipOpen = {};
