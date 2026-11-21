@@ -8372,9 +8372,19 @@ function speakLetter(ch, name, ttsOnly) {
       }
 
       var rateN = (typeof rate === 'number' ? rate : 0.75);
+      // 6.106: короткие звуки (слог, буква, слово) — тихо, без нижнего плеера «Дуа» (раньше он выезжал на каждый слог)
+      var quiet = text.length <= 24;
+      var _ran = false;
+      function noVoiceMsg() {
+        if (window._ttsWarned) return; window._ttsWarned = true;
+        var kk = (typeof isKk === 'function') && isKk();
+        toast(kk ? 'Браузерде араб дауысы жоқ — буындар естілмейді. Android: Баптаулар → Сөз синтезі → араб тілін орнату. Brave дауыстарды жасыруы мүмкін — Chrome-да көріңіз.'
+                 : 'В браузере нет арабского голоса — слоги не прозвучат. Android: Настройки → Синтез речи → установить арабский. Brave может скрывать голоса — попробуйте Chrome.', 6000);
+      }
 
       // Как в Academy.html — всегда speechSynthesis ar (это то, что у вас работало)
       function goSynth() {
+        if (_ran) return; _ran = true;
         if (typeof window.speechSynthesis === 'undefined') {
           goGoogle();
           return;
@@ -8390,9 +8400,11 @@ function speakLetter(ch, name, ttsOnly) {
             || voices.find(function(v){ return /ar[-_]?EG/i.test(v.lang); })
             || voices.find(function(v){ return /ar[-_]?AE/i.test(v.lang); })
             || voices.find(function(v){ return /^ar\b/i.test(v.lang) || /arabic/i.test(v.name || ''); });
-          if (ar) u.voice = ar;
-          showTtsBar('Дуа', ar ? (ar.name || 'ar-SA') : 'ar-SA');
-          u.onstart = function() { try { toast('▶ Дуа'); } catch(e) {} };
+          if (ar) u.voice = ar; else noVoiceMsg();
+          if (!quiet) {
+            showTtsBar('Дуа', ar ? (ar.name || 'ar-SA') : 'ar-SA');
+            u.onstart = function() { try { toast('▶ Дуа'); } catch(e) {} };
+          }
           u.onend = function() {
             window._ttsPlaying = false;
             try { var ap = document.getElementById('audio-play-pause'); if (ap) ap.textContent = '▶'; } catch(e) {}
@@ -8410,7 +8422,7 @@ function speakLetter(ch, name, ttsOnly) {
 
       function goGoogle() {
         // build 6.53: запасной путь через Google убран
-        toast('Нужен арабский голос в системе');
+        noVoiceMsg();
       }
 
       // голоса могут подгрузиться с задержкой — как в Academy
@@ -32291,6 +32303,7 @@ function renderDict() {
     function fsName(it) {
       if (!it) return '';
       if (it.k === 'folder' && !it.n && it.d && it.d.sys) return fsSysName(it);
+      if (it.k === 'folder' && it.n === 'default') return fsT('Без папки', 'Қалтасыз'); // 6.106: служебное имя из старых закладок
       if (FS_LINK_KINDS.indexOf(it.k) >= 0) return it.n || fsRefTitle(it) || fsT('Без названия', 'Атаусыз');
       return it.n || fsT('Без названия', 'Атаусыз');
     }
@@ -33322,8 +33335,12 @@ function renderDict() {
     function fsPinsHtml() {
       var pins = fsPinned();
       if (!pins.length) return '';
+      // 6.106: одинаковые имена в избранном различаем по папке, где они лежат
+      var cnt = {}; pins.forEach(function(it) { var n = fsName(it); cnt[n] = (cnt[n] || 0) + 1; });
       return '<div class="fs-pins">' + pins.map(function(it) {
-        return '<button type="button" class="fs-chip" data-act="goto" data-id="' + it.id + '">' + (it.k === 'folder' ? '⭐ ' : fsKindIcon(it) + ' ') + fsEsc(fsName(it)) + '</button>';
+        var nm = fsName(it), extra = '';
+        if (cnt[nm] > 1) { var par = it.p ? FS.items.get(it.p) : null; extra = ' · ' + (par ? fsName(par) : fsT('в корне', 'түбірде')); }
+        return '<button type="button" class="fs-chip" data-act="goto" data-id="' + it.id + '">' + (it.k === 'folder' ? '⭐ ' : fsKindIcon(it) + ' ') + fsEsc(nm) + '<span class="fs-chip-sub">' + fsEsc(extra) + '</span></button>';
       }).join('') + '</div>';
     }
     function fsListHtml() {
