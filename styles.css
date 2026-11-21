@@ -4485,3 +4485,23 @@ main::after { content: ''; display: block; height: var(--player-h, 0px); pointer
     .wr-new, .wr-hl { color: var(--accent); }
     .wr-cap { text-align: center; font-size: 0.86rem; min-height: 2.6em; color: var(--text-muted); }
     .wr-nj { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; }
+    /* 6.102: Справочник — вкладки в одну строку, поиск, прогресс, источники */
+    #view-learn #academy-main-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+    #view-learn #academy-main-tabs::-webkit-scrollbar { display: none; }
+    #view-learn #academy-main-tabs > button { flex: none; }
+    #ref-search { position: relative; margin: -0.4rem 0 0.7rem; }
+    .ref-search-inp { width: 100%; box-sizing: border-box; padding: 0.55rem 0.75rem; border-radius: 0.7rem; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font: inherit; font-size: 0.92rem; }
+    .ref-search-res { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin-top: 0.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 0.7rem; box-shadow: 0 8px 20px rgba(0,0,0,.25); overflow: hidden; }
+    .ref-hit { display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.55rem 0.75rem; background: none; border: 0; border-bottom: 1px solid var(--border); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+    .ref-hit:last-child { border-bottom: 0; }
+    .ref-hit-none { padding: 0.6rem 0.75rem; color: var(--text-muted); font-size: 0.88rem; }
+    .ref-bar { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.7rem; }
+    .ref-prog { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: var(--text-muted); }
+    .ref-prog-line { display: block; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+    .ref-prog-fill { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
+    .ref-done-row { margin-top: 0.5rem; }
+    .ref-done-btn.on { border-color: var(--accent); color: var(--accent); }
+    .tw-rc.ref-is-done .tw-rc-title::after { content: ' ✓'; color: var(--accent); }
+    .letter-card.ref-is-done { position: relative; }
+    .letter-card.ref-is-done::after { content: '✓'; position: absolute; top: 3px; right: 6px; font-size: 0.75rem; color: var(--accent); font-weight: 700; }
+    .ref-foot { margin: 1.4rem 0 0.4rem; padding-top: 0.6rem; border-top: 1px solid var(--border); font-size: 0.72rem; line-height: 1.5; color: var(--text-muted); text-align: left; opacity: 0.9; }

@@ -901,7 +901,7 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
         'Теория': 'Теория', 'Практика': 'Тәжірибе', 'Практика и тесты': 'Тәжірибе және тесттер',
         '⋯ Вид': '⋯ Түрі', 'Проверь себя': 'Өзіңді тексер', 'Сайт': 'Сайт', '📈 Мой прогресс': '📈 Менің прогресім',
         'Все': 'Барлығы', '🕘 Недавние': '🕘 Соңғы', 'Короткие': 'Қысқа', 'Джуз…': 'Жүз…', '📄 Обычный': '📄 Әдеттегі', '📖 Мусхаф': '📖 Мұсхаф', '🎧 По словам': '🎧 Сөзбе-сөз',
-        '👨‍🏫 Курс': '👨‍🏫 Курс', '🎯 Тренировка': '🎯 Жаттығу', '📚 Справочник': '📚 Анықтамалық', 'Справочник': 'Анықтамалық', 'Тренировка': 'Жаттығу', 'Письмо': 'Жазу',
+        '👨‍🏫 Курс': '👨‍🏫 Курс', '🎯 Тренировка': '🎯 Жаттығу', '📚 Справочник': '📚 Анықтамалық', '👄 Фатиха: как произносить (схема за чтецом)': '👄 Фатиха: қалай айтылады (қаридың артынан сызба)', 'Справочник': 'Анықтамалық', 'Тренировка': 'Жаттығу', 'Письмо': 'Жазу',
         '🔤 Буквы': '🔤 Әріптер', '🧩 Слоги': '🧩 Буындар', '📖 Чтение': '📖 Оқу', '🎨 Таджвид': '🎨 Тәжуид',
         '⭐ Избранные аяты по словам': '⭐ Таңдаулы аяттар сөзбе-сөз', '⚠️ Мои ошибки — повторить слабые места': '⚠️ Менің қателерім — әлсіз тұстарды қайталау',
         '📥 Подготовить сайт к офлайну': '📥 Сайтты офлайнға дайындау', '⬇ Скачать всё для офлайна': '⬇ Офлайн үшін бәрін жүктеу',
@@ -3179,7 +3179,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       }
       if (name === 'learn') {
         let tab = 'alphabet';
-        try { tab = sessionStorage.getItem('quran_acad_tab') || 'alphabet'; } catch(e) {}
+        try { tab = sessionStorage.getItem('quran_acad_tab') || localStorage.getItem('quran_acad_tab') || 'alphabet'; } catch(e) {} // 6.102: тема запоминается и после закрытия браузера
         if (tab === 'courses') tab = 'alphabet';
         if (typeof switchAcademyTab === 'function') switchAcademyTab(tab);
         else {
@@ -7892,7 +7892,7 @@ function speakLetter(ch, name, ttsOnly) {
       if (tab === 'surahs' || tab === 'ayahs') { showView('home'); try { showSurahHomeTab('study'); if (tab === 'ayahs') { const d = document.getElementById('home-fav-ayahs'); if (d) d.open = true; } } catch (e) {} return; }
       if (tab === 'twcolor') { showView('home'); try { showSurahHomeTab('tajweed'); } catch (e) {} return; }
       if (tab === 'mistakes') { showView('games'); const mb = document.getElementById('games-mistakes-box'); if (mb) mb.open = true; try { renderMistakes(); } catch (e) {} return; }
-      try { sessionStorage.setItem('quran_acad_tab', tab); } catch(e) {}
+      try { sessionStorage.setItem('quran_acad_tab', tab); localStorage.setItem('quran_acad_tab', tab); } catch(e) {}
       document.querySelectorAll('#academy-main-tabs button').forEach(b => {
         const on = b.dataset.acadTab === tab;
         b.classList.toggle('btn-primary', on);
@@ -7902,7 +7902,7 @@ function speakLetter(ch, name, ttsOnly) {
         if (el) el.style.display = (t === tab) ? '' : 'none';
       });
       if (tab === 'path') try { renderAcademy(); } catch(e) {}
-      if (tab === 'alphabet') try { renderAlphabet(); } catch(e) {}
+      if (tab === 'alphabet') try { renderAlphabet(); refDecorate('alphabet'); } catch(e) {}
       if (tab === 'harakat') try { renderHarakat(); } catch(e) {}
       if (tab === 'syllables') try { renderSyllables(); } catch(e) {}
       if (tab === 'rules') try { if (typeof renderRules === 'function') renderRules(); } catch(e) {}
@@ -8142,7 +8142,7 @@ function speakLetter(ch, name, ttsOnly) {
         // карточки знаков — свёрнуты
         '<h3 class="tw-group-title" dir="ltr">' + (kkH ? 'Белгілер' : 'Знаки') + '</h3>' +
         HARAKAT.map(function(h, i) {
-          return '<div class="rule-card tw-rc" data-rule-i="hk' + i + '">' +
+          return '<div class="rule-card tw-rc" data-rule-i="hk' + i + '" data-ref-key="hk:' + h.name + '">' +
             '<button type="button" class="tw-rc-head" data-tw-toggle="hk' + i + '" dir="ltr" aria-expanded="false">' +
               '<span class="hk-sym" dir="rtl" lang="ar">ب' + h.symbol + '</span>' +
               '<span class="tw-rc-text"><span class="tw-rc-title">' + (kkH ? (h.nameKk || h.name) : h.name) + '</span><span class="tw-rc-short">' + (kkH ? (h.noteKk || h.note) : h.note) + '</span></span>' +
@@ -8159,6 +8159,7 @@ function speakLetter(ch, name, ttsOnly) {
           '<div class="hkq-res" style="text-align:center;min-height:1.4em;margin-top:0.35rem;font-weight:600"></div>' +
           '<div style="text-align:center"><button type="button" class="btn btn-sm" data-hkq-next="1">↻ ' + (kkH ? 'Келесі' : 'Следующий') + '</button></div></div>';
       _hkQuizNext(el.querySelector('.hkq'));
+      try { refDecorate('harakat'); } catch(e) {}
     }
     document.addEventListener('click', function(e) {
       const t = e.target && e.target.closest ? e.target : null;
@@ -13506,7 +13507,7 @@ function renderMistakes() {
       }
       var alphaWrap = document.getElementById('learn-alphabet') || grid.parentNode;
       grid.innerHTML = ARABIC_LETTERS.map((l, i) =>
-        '<div class="letter-card" data-i="'+i+'"><div class="char" dir="rtl">'+l.ch+'</div><div class="name">'+(kkA ? (l.nameKk||l.name) : l.name)+'</div><div style="font-size:0.75rem;color:var(--text-muted)">'+(letterTr(l)||'')+'</div></div>'
+        '<div class="letter-card" data-i="'+i+'" data-ref-key="L:'+l.ch+'"><div class="char" dir="rtl">'+l.ch+'</div><div class="name">'+(kkA ? (l.nameKk||l.name) : l.name)+'</div><div style="font-size:0.75rem;color:var(--text-muted)">'+(letterTr(l)||'')+'</div></div>'
       ).join('');
       grid.querySelectorAll('.letter-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -13553,6 +13554,7 @@ function renderMistakes() {
               det.appendChild(au);
             }
           })();
+          try { refLetterDetailHook(det, l); } catch(e) {}
           document.getElementById('btn-speak-letter')?.addEventListener('click', function() {
             if (typeof playLetterRec === 'function' && playLetterRec(l.ch, function() { speakLetter(l, null, true); })) return;
             var elA = document.getElementById('letter-audio-el');
@@ -13965,6 +13967,187 @@ function renderMistakes() {
       if (tr) { startFindRuleFor((tr.getAttribute('data-tw-train') || '').split(',')); }
     });
 
+    // ===== 6.102: Справочник — общие удобства: поиск, «изучено» и прогресс, «Потренировать», источники внизу, память открытых карточек =====
+    const REF_ROOTS = { alphabet: 'learn-alphabet', harakat: 'learn-harakat', rules: 'learn-rules', tajweed: 'learn-tajweed', makharij: 'learn-makharij' };
+    // источники — только то, на чём действительно основаны тексты; показываются мелко в самом низу темы
+    const REF_SOURCES = {
+      alphabet: {
+        ru: 'Места выхода и качества букв — по «аль-Мукаддима аль-Джазарийя» Ибн аль-Джазари (ум. 833 г. х. / 1429 г.). Схема рта учебная: место — по 17 махраджам Ибн аль-Джазари, положение языка — по фонетическим описаниям.',
+        kk: 'Әріптердің шығу орны мен сипаттары — Ибн әл-Жәзәридің (1429 ж. қайтыс болған) «әл-Мұқаддима әл-Жәзарийя» еңбегі бойынша. Ауыз сызбасы оқу үшін: орны — Ибн әл-Жәзәридің 17 махраджы бойынша, тілдің қалпы — фонетикалық сипаттамалар бойынша.'
+      },
+      harakat: {
+        ru: 'Знаки огласовки — как в мусхафах риваята Хафса (например, мединский мусхаф комплекса короля Фахда); система знаков восходит к аль-Халилю ибн Ахмаду (ум. 170 г. х. / 786 г.). Звук слогов — синтез речи устройства, не запись чтеца.',
+        kk: 'Харакат белгілері — Хафс риуаятындағы мұсхафтардағыдай (мысалы, Фәһд патша кешенінің Мәдина мұсхафы); белгілер жүйесі әл-Халил ибн Ахмадқа (786 ж. қайтыс болған) барып тіреледі. Буындардың дыбысы — құрылғының сөз синтезі, қари жазбасы емес.'
+      },
+      rules: {
+        ru: 'Соединение букв, четыре формы, хамза, та марбута, артикль — стандартная арабская орфография, как в мусхафе риваята Хафса. Цветная разметка примеров — проект quran-tajweed (cpfair, лицензия CC BY 4.0).',
+        kk: 'Әріптердің қосылуы, төрт пішін, хамза, тә марбута, артикль — Хафс риуаятындағы мұсхафтағыдай стандартты араб емлесі. Мысалдардың түрлі түсті белгісі — quran-tajweed жобасы (cpfair, CC BY 4.0 лицензиясы).'
+      },
+      tajweed: {
+        ru: 'Нун и мим сакин, мадд, артикль — по «Тухфат аль-атфаль» Сулеймана аль-Джамзури (XII в. х.); калькаля, гунна, места букв — по «аль-Мукаддима аль-Джазарийя» Ибн аль-Джазари. Риваят Хафса от Асыма по пути аш-Шатибийи (мадд мунфасиль 4–5 счётов). Знаки вакфа — по мединскому мусхафу. Цветная разметка — quran-tajweed (cpfair, CC BY 4.0); звук слов — отметки слов quran.com, аяты — everyayah.com.',
+        kk: 'Сукунды нун мен мим, мадд, артикль — Сүлейман әл-Жәмзуридің (һижраның XII ғ.) «Тұхфат әл-атфал» еңбегі бойынша; қалқала, ғунна, әріптердің шығу орны — Ибн әл-Жәзәридің «әл-Мұқаддима әл-Жәзарийя» бойынша. Асымнан Хафс риуаяты, аш-Шатиби жолымен (мунфасил мадд 4–5 санақ). Уақф белгілері — Мәдина мұсхафы бойынша. Түсті белгі — quran-tajweed (cpfair, CC BY 4.0); сөз дыбысы — quran.com сөз белгілері, аяттар — everyayah.com.'
+      },
+      makharij: {
+        ru: '5 зон и 17 махраджей — по «аль-Мукаддима аль-Джазарийя» Ибн аль-Джазари (мнение аль-Халиля ибн Ахмада, принятое большинством чтецов).',
+        kk: '5 аймақ және 17 махрадж — Ибн әл-Жәзәридің «әл-Мұқаддима әл-Жәзарийя» еңбегі бойынша (әл-Халил ибн Ахмадтың көзқарасы, қарилердің көпшілігі қабылдаған).'
+      }
+    };
+    const REF_TRAIN = { alphabet: ['st-letters', 'letters'], harakat: ['st-syl', 'syllables'], rules: ['st-syl', 'join'], tajweed: ['st-tajweed', 'findrule'], makharij: ['st-letters', 'minimal-pairs'] };
+    function _refLS(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e) { return def; } }
+    function _refLSset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+    function refOpenObj() { var a = _refLS('quran_ref_open', []), o = {}; a.forEach(function(x) { o[x] = 1; }); return o; }
+    function refOpenSave(id, open) {
+      if (id == null) return;
+      var a = _refLS('quran_ref_open', []).filter(function(x) { return x !== id; });
+      if (open) a.push(id);
+      _refLSset('quran_ref_open', a.slice(-30));
+    }
+    function refIsDone(key) { return _refLS('quran_ref_done', []).indexOf(key) >= 0; }
+    function refSetDone(key, on) {
+      var a = _refLS('quran_ref_done', []).filter(function(x) { return x !== key; });
+      if (on) a.push(key);
+      _refLSset('quran_ref_done', a);
+    }
+    function _refDoneBtn(key) {
+      var kk = isKk(), on = refIsDone(key);
+      return '<button type="button" class="btn btn-sm ref-done-btn' + (on ? ' on' : '') + '" data-ref-done="' + key.replace(/"/g, '') + '" dir="ltr">' + (on ? (kk ? '✓ Үйренілді' : '✓ Изучено') : (kk ? '○ Үйренілді деп белгілеу' : '○ Отметить изученным')) + '</button>';
+    }
+    function refUpdateProgress(tab) {
+      var root = document.getElementById(REF_ROOTS[tab]); if (!root) return;
+      var keys = Array.prototype.map.call(root.querySelectorAll('[data-ref-key]'), function(x) { return x.getAttribute('data-ref-key'); });
+      var done = keys.filter(refIsDone).length, kk = isKk();
+      root.querySelectorAll('[data-ref-key]').forEach(function(x) { x.classList.toggle('ref-is-done', refIsDone(x.getAttribute('data-ref-key'))); });
+      var p = document.querySelector('.ref-bar[data-ref-tab="' + tab + '"]');
+      if (p) {
+        p.querySelector('.ref-prog-txt').textContent = (kk ? 'Үйренілді: ' : 'Изучено: ') + done + (kk ? ' / ' : ' из ') + keys.length;
+        p.querySelector('.ref-prog-fill').style.width = (keys.length ? Math.round(done * 100 / keys.length) : 0) + '%';
+      }
+    }
+    // вызывается в конце каждой render-функции темы
+    function refDecorate(tab) {
+      var root = document.getElementById(REF_ROOTS[tab]); if (!root) return;
+      var kk = isKk();
+      refEnsureSearch();
+      // верхняя полоска: прогресс + «Потренировать»
+      var box = tab === 'alphabet' ? root.parentNode : root;
+      var old = box.querySelector(':scope > .ref-bar'); if (old) old.remove();
+      var bar = document.createElement('div');
+      bar.className = 'ref-bar'; bar.setAttribute('data-ref-tab', tab); bar.dir = 'ltr';
+      bar.innerHTML = '<div class="ref-prog"><span class="ref-prog-txt"></span><span class="ref-prog-line"><i class="ref-prog-fill"></i></span></div>' +
+        '<button type="button" class="btn btn-sm btn-primary" data-ref-train="' + tab + '">🎯 ' + (kk ? 'Жаттығу' : 'Потренировать') + '</button>';
+      box.insertBefore(bar, tab === 'alphabet' ? root : box.firstChild);
+      // кнопки «изучено» в телах карточек
+      root.querySelectorAll('.tw-rc[data-ref-key]').forEach(function(card) {
+        var body = card.querySelector('.tw-rc-body');
+        if (body && !body.querySelector('.ref-done-btn')) body.insertAdjacentHTML('beforeend', '<div class="ref-done-row">' + _refDoneBtn(card.getAttribute('data-ref-key')) + '</div>');
+      });
+      // открытые раньше карточки
+      var openO = refOpenObj();
+      root.querySelectorAll('.tw-rc[data-rule-i]').forEach(function(card) { if (openO[card.getAttribute('data-rule-i')] && !card.classList.contains('open')) _twToggleCard(card, true); });
+      // источники — самый низ темы
+      var oldF = box.querySelector(':scope > .ref-foot'); if (oldF) oldF.remove();
+      var src = REF_SOURCES[tab];
+      if (src) {
+        var f = document.createElement('div');
+        f.className = 'ref-foot'; f.dir = 'ltr';
+        f.innerHTML = '<b>📚 ' + (kk ? 'Дереккөздер' : 'Источники') + '.</b> ' + (kk ? src.kk : src.ru) + ' ' + (kk ? 'Мәтіндер сайт үшін дайындалып, тексерілді; күмән болса — ұстаздан сұраңыз.' : 'Тексты подготовлены для сайта и сверены; при сомнении — уточняйте у учителя.');
+        box.appendChild(f);
+      }
+      refUpdateProgress(tab);
+    }
+    function refLetterDetailHook(det, l) {
+      if (!det || !l) return;
+      det.insertAdjacentHTML('afterbegin', '<div class="ref-done-row" style="text-align:right">' + _refDoneBtn('L:' + l.ch) + '</div>');
+    }
+    function refTrain(tab) {
+      var g = REF_TRAIN[tab]; if (!g) return;
+      try { _activeTeacherSkill = null; } catch(e) {}
+      showView('games');
+      setTimeout(function() {
+        document.querySelectorAll('#games-tabs button').forEach(function(b) { if (b.style.display === 'none' && !b.dataset.group) b.style.display = ''; });
+        var gb = document.querySelector('[data-gamegroup="' + g[0] + '"]'); if (gb) gb.click();
+        setTimeout(function() { var b = document.querySelector('#games-tabs [data-game="' + g[1] + '"]'); if (b) b.click(); }, 60);
+      }, 120);
+    }
+    // ----- поиск внутри Справочника -----
+    function _refNorm(s) { return String(s || '').toLowerCase().replace(/[ً-ٰٟـ]/g, '').replace(/ё/g, 'е').replace(/[ʼʾʿ‘’'`]/g, ''); }
+    function refSearchIndex() {
+      var kk = isKk(), out = [];
+      (typeof ARABIC_LETTERS !== 'undefined' ? ARABIC_LETTERS : []).forEach(function(l, i) {
+        out.push({ tab: 'alphabet', letter: i, ico: '🔤', label: l.ch + ' · ' + (kk ? (l.nameKk || l.name) : l.name), hay: [l.ch, l.name, l.nameKk, l.tr].join(' ') });
+      });
+      (typeof HARAKAT !== 'undefined' ? HARAKAT : []).forEach(function(h, i) {
+        out.push({ tab: 'harakat', card: 'hk' + i, ico: '◌', label: 'ب' + h.symbol + ' · ' + (kk ? (h.nameKk || h.name) : h.name), hay: [h.name, h.nameKk, h.symbol, h.note, h.noteKk].join(' ') });
+      });
+      (typeof ARABIC_RULES !== 'undefined' ? ARABIC_RULES : []).forEach(function(r, i) {
+        out.push({ tab: 'rules', card: 'wr' + i, ico: '✍️', label: kk ? (r.titleKk || r.title) : r.title, hay: [r.title, r.titleKk, r.short, r.shortKk].join(' ') });
+      });
+      (typeof TAJWEED_RULES !== 'undefined' ? TAJWEED_RULES : []).forEach(function(r, i) {
+        out.push({ tab: 'tajweed', card: String(i), ico: '🎨', label: kk ? (r.titleKk || r.title) : r.title, hay: [r.title, r.titleKk, r.short, r.shortKk, r.ar].join(' ') });
+      });
+      [['mk0', 'Аль-Джауф — полость рта и горла', 'Әл-Джауф — ауыз бен тамақ қуысы', 'джауф жауф полость пустота'],
+       ['mk1', 'Аль-Халк — горло', 'Әл-Халық — тамақ', 'халк халық горло горловые тамақ көмей'],
+       ['mk2', 'Аль-Лисан — язык', 'Әл-Лисан — тіл', 'лисан язык тіл'],
+       ['mk3', 'Аш-Шафатан — губы', 'Әш-Шафатан — ерін', 'шафатан губы ерін'],
+       ['mk4', 'Аль-Хайшум — нос', 'Әл-Хайшум — мұрын', 'хайшум нос гунна мұрын ғунна']].forEach(function(z) {
+        out.push({ tab: 'makharij', card: z[0], ico: '👄', label: kk ? z[2] : z[1], hay: z.join(' ') + ' махрадж махаридж мақаридж' });
+      });
+      out.forEach(function(x) { x.n = _refNorm(x.hay); });
+      return out;
+    }
+    function refEnsureSearch() {
+      var view = document.getElementById('view-learn'), tabs = document.getElementById('academy-main-tabs');
+      if (!view || !tabs) return;
+      var kk = isKk(), w = document.getElementById('ref-search');
+      var ph = kk ? '🔎 Анықтамалықтан іздеу: әріп, белгі, ереже…' : '🔎 Поиск в Справочнике: буква, знак, правило…';
+      if (w) { var inp0 = w.querySelector('input'); if (inp0) inp0.placeholder = ph; return; }
+      w = document.createElement('div'); w.id = 'ref-search'; w.dir = 'ltr';
+      w.innerHTML = '<input type="search" class="ref-search-inp" autocomplete="off" placeholder="' + ph + '"><div class="ref-search-res" hidden></div>';
+      tabs.parentNode.insertBefore(w, tabs.nextSibling);
+      var inp = w.querySelector('input'), res = w.querySelector('.ref-search-res');
+      inp.addEventListener('input', function() {
+        var q = _refNorm(inp.value.trim());
+        if (!q) { res.hidden = true; res.innerHTML = ''; return; }
+        var words = q.split(/\s+/).filter(Boolean);
+        var idx = refSearchIndex(), hits = idx.filter(function(x) { return words.every(function(wd) { return x.n.indexOf(wd) >= 0; }); });
+        // точное совпадение буквы — первым
+        hits.sort(function(a, b) { return (_refNorm(b.label).indexOf(q) === 0) - (_refNorm(a.label).indexOf(q) === 0); });
+        w._hits = hits.slice(0, 8);
+        res.hidden = false;
+        res.innerHTML = w._hits.length ? w._hits.map(function(x, i) { return '<button type="button" class="ref-hit" data-ref-hit="' + i + '"><span>' + x.ico + '</span> ' + x.label + '</button>'; }).join('')
+          : '<div class="ref-hit-none">' + (isKk() ? 'Ештеңе табылмады' : 'Ничего не найдено') + '</div>';
+      });
+    }
+    function refOpenHit(x) {
+      switchAcademyTab(x.tab);
+      setTimeout(function() {
+        if (x.letter != null) { var lc = document.querySelector('#letter-grid .letter-card[data-i="' + x.letter + '"]'); if (lc) lc.click(); return; }
+        var root = document.getElementById(REF_ROOTS[x.tab]);
+        var card = root && root.querySelector('.tw-rc[data-rule-i="' + x.card + '"]');
+        if (card) { _twToggleCard(card, true); card.scrollIntoView({ behavior: _lwReduce() ? 'auto' : 'smooth', block: 'start' }); card.classList.remove('tw-flash'); void card.offsetWidth; card.classList.add('tw-flash'); }
+      }, 180);
+    }
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null;
+      if (!t) return;
+      var h = t.closest('[data-ref-hit]');
+      if (h) {
+        var w = document.getElementById('ref-search'), x = w && w._hits && w._hits[+h.getAttribute('data-ref-hit')];
+        if (x) { w.querySelector('input').value = ''; var r = w.querySelector('.ref-search-res'); r.hidden = true; r.innerHTML = ''; refOpenHit(x); }
+        return;
+      }
+      var d = t.closest('[data-ref-done]');
+      if (d) {
+        var key = d.getAttribute('data-ref-done'), on = !refIsDone(key);
+        refSetDone(key, on);
+        document.querySelectorAll('[data-ref-done="' + key.replace(/"/g, '\\"') + '"]').forEach(function(b) { b.outerHTML = _refDoneBtn(key); });
+        Object.keys(REF_ROOTS).forEach(refUpdateProgress);
+        return;
+      }
+      var tr = t.closest('[data-ref-train]');
+      if (tr) { refTrain(tr.getAttribute('data-ref-train')); }
+    });
+
     // ===== 6.100: Письмо — соединение букв по шагам =====
     const WR_NOJOIN = 'اأإآدذرزوؤءة';
     const WR_WORDS = [
@@ -14077,7 +14260,7 @@ function renderMistakes() {
           var body = kkR ? (r.detailKk || r.detail) : (r.detail || r.ru || r.body || '');
           var example = '';
           try { example = tajweedExampleHtml(getTajweedExampleForRuleTitle(r.title)); } catch(e) {}
-          return '<div class="rule-card tw-rc" data-rule-i="wr' + ri + '">' +
+          return '<div class="rule-card tw-rc" data-rule-i="wr' + ri + '" data-ref-key="wr:' + String(r.title).replace(/"/g, '') + '">' +
             '<button type="button" class="tw-rc-head" data-tw-toggle="wr' + ri + '" dir="ltr" aria-expanded="false">' +
               '<span class="tw-rc-text"><span class="tw-rc-title">' + title + '</span><span class="tw-rc-short">' + short + '</span></span>' +
               '<span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
@@ -14087,6 +14270,7 @@ function renderMistakes() {
               example + '</div></div>';
         }).join('');
       try { wrJoinShow(el.querySelector('.wr-join'), 0, 0); } catch(e) {}
+      try { refDecorate('rules'); } catch(e) {}
       try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
     }
     // 6.98: Таджвид — правила по группам и свёрнуты (заголовок + одна строка), открываются по нажатию;
@@ -14118,7 +14302,7 @@ function renderMistakes() {
           '</div>';
       }
       var isMadd = /المد|^مد /.test(r.title);
-      return '<div class="rule-card tw-rc' + (open ? ' open' : '') + '" data-rule-i="' + ri + '">' +
+      return '<div class="rule-card tw-rc' + (open ? ' open' : '') + '" data-rule-i="' + ri + '" data-ref-key="tj:' + String(r.title).replace(/"/g, '') + '">' +
         '<button type="button" class="tw-rc-head" data-tw-toggle="' + ri + '" dir="ltr" aria-expanded="' + (open ? 'true' : 'false') + '">' +
           '<span class="tw-rc-text"><span class="tw-rc-title">' + title + '</span><span class="tw-rc-short">' + short + '</span></span>' +
           '<span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
@@ -14146,7 +14330,7 @@ function renderMistakes() {
         el.innerHTML = '<div class="empty-state">'+(kkT2 ? 'Тәжуид ережелері жоқ' : 'Нет правил таджвида')+'</div>';
         return;
       }
-      var openSet = el._twOpen || (el._twOpen = {});
+      var openSet = refOpenObj();
       var used = {};
       var groupHtml = function(g) {
         var cards = '';
@@ -14165,6 +14349,7 @@ function renderMistakes() {
       el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.6rem;text-align:left" dir="ltr">' + (kkT2 ? 'Ережені басыңыз — түсіндірме, Құраннан дыбысы бар мысалдар және жаттығу ашылады.' : 'Нажмите правило — откроются объяснение, примеры из Корана со звуком и тренировка.') + '</p>' + html;
       try { loadTajweedData().then(function(d) { if (d && !el.dataset.twLoaded) { el.dataset.twLoaded = '1'; renderTajweed(); } }); } catch(e) {}
       try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
+      try { refDecorate('tajweed'); } catch(e) {}
     }
     function _twToggleCard(card, forceOpen) {
       if (!card) return;
@@ -14173,8 +14358,7 @@ function renderMistakes() {
       card.classList.toggle('open', open);
       if (body) { if (open) body.removeAttribute('hidden'); else body.setAttribute('hidden', ''); }
       if (head) head.setAttribute('aria-expanded', open ? 'true' : 'false');
-      var root = document.getElementById('learn-tajweed');
-      if (root) { root._twOpen = root._twOpen || {}; if (open) root._twOpen[card.getAttribute('data-rule-i')] = 1; else delete root._twOpen[card.getAttribute('data-rule-i')]; }
+      refOpenSave(card.getAttribute('data-rule-i'), open);
       var ex = card.querySelector('.tw-exs');
       if (open && ex && !ex.children.length && ex.getAttribute('data-tags')) ex.innerHTML = twRuleExamplesHtml(ex.getAttribute('data-tags').split(','), isKk());
     }
@@ -14312,7 +14496,7 @@ function renderMistakes() {
       var MK_LETTERS = { jawf: 'ا و ي', halq: 'ء ه ع ح غ خ', lisan: 'ق ك ج ش ي ض ل ن ر ط د ت ص س ز ظ ذ ث', shafatan: 'ف و ب م', khayshum: 'ن م' };
       zones.forEach(function(z, zi) {
         var lets = (MK_LETTERS[z.id] || '').split(' ').filter(Boolean);
-        html += '<div class="rule-card tw-rc mk-zone" data-mk="' + z.id + '" data-rule-i="mk' + zi + '">' +
+        html += '<div class="rule-card tw-rc mk-zone" data-mk="' + z.id + '" data-rule-i="mk' + zi + '" data-ref-key="mk:' + z.id + '">' +
           '<button type="button" class="tw-rc-head" data-tw-toggle="mk' + zi + '" dir="ltr" aria-expanded="false">' +
             '<span class="tw-rc-text"><span class="tw-rc-title">' + z.icon + ' ' + z.title + '</span><span class="tw-rc-short">' + z.short + '</span></span>' +
             '<span class="mk-head-letters" dir="rtl" lang="ar">' + lets.join(' ') + '</span><span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
@@ -14339,6 +14523,7 @@ function renderMistakes() {
 
       el.innerHTML = html;
       try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
+      try { refDecorate('makharij'); } catch(e) {}
     }
 
     function renderRulesList(containerId, items) {
