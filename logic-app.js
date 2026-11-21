@@ -3194,7 +3194,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       } catch(e) {}
       if (name === 'dailyhub') try { renderDailyHub(); } catch(e) {}
       if (name === 'games') try { renderGamesTip(); } catch(e) {}
-      if (name === 'games') try { qzLadderRefresh(); } catch(e) {}
+      if (name === 'games') try { qzHubRefresh(); } catch(e) {}
       if (name === 'teacher') try { renderPersonalTeacher({ resume: !!isBack }); } catch(e) {}
       if (name === 'qurandua') try { renderQuranDua(); } catch(e) {}
       if (name === 'howsalah') try { renderHowSalah(); } catch(e) {}
@@ -14935,6 +14935,7 @@ function renderMistakes() {
       m.total++;
       if (!correct) m.wrong++;
       state.academyProgress._mistakes[cat][key] = m;
+      qzMemUpdate(cat, key, correct);
       saveState();
       // 6.108: «Мои ошибки» обновляются сразу, а не после перезагрузки
       try { var mb = document.getElementById('games-mistakes-box'); if (mb && mb.open && typeof renderMistakes === 'function') renderMistakes(); } catch(e) {}
@@ -15057,7 +15058,7 @@ function renderMistakes() {
           try { renderListenWriteDrill(area); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Қате: ' : 'Ошибка: ') + (e.message||e) + '</p>'; }
           return;
         }
-        area.innerHTML = qzStartCardHtml(currentGame, btn.textContent);
+        area.innerHTML = qzStartCardHtml(currentGame, qzGameName(currentGame) || btn.textContent);
         document.getElementById('btn-start-game').addEventListener('click', startGame);
       });
     });
@@ -15320,6 +15321,111 @@ function renderMistakes() {
       setTimeout(function() { var b = document.querySelector('#games-tabs [data-game="' + s.game + '"]'); if (b) b.click(); var ga = document.getElementById('game-area'); if (ga) ga.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
     });
 
+    // ===== 7.12: навигация Тренировки — ступени с тренажёрами внутри, названия по действию; общая память повторения =====
+    const QZ_HUB = [
+      { id: 'letters', ru: 'Буквы', kk: 'Әріптер', score: 'letters', items: [
+        ['letters', '🔤', 'Узнай букву', 'Әріпті таны', 'название → буква', 'атауы → әріп'],
+        ['names', '🏷', 'Назови букву', 'Әріпті ата', 'буква → название', 'әріп → атауы'],
+        ['minimal-pairs', '👂', 'Услышь разницу', 'Айырмасын есті', 'похожие звуки на слух', 'ұқсас дыбыстар'],
+        ['speak', '🎤', 'Произнеси', 'Айтып көр', 'микрофон — подсказка', 'микрофон — кеңес'],
+        ['write', '✍️', 'Напиши букву', 'Әріпті жаз', 'пальцем по экрану', 'саусақпен'],
+        ['listenwrite', '🎧', 'Послушай и напиши', 'Тыңдап жаз', 'звук → буква', 'дыбыс → әріп'] ] },
+      { id: 'inword', ru: 'Буква в слове', kk: 'Сөздегі әріп', score: 'inword', items: [
+        ['inword', '🔍', 'Найди в слове', 'Сөзден тап', 'и посмотри её форму', 'және пішінін көр'] ] },
+      { id: 'syl', ru: 'Слоги', kk: 'Буындар', score: 'blend', items: [
+        ['blend', '🧩', 'Слог из букв', 'Әріптерден буын', 'буква + огласовка', 'әріп + харакат'],
+        ['fillgap', '◌', 'Вставь огласовку', 'Харакат қой', 'какой знак пропущен', 'қай белгі жоқ'],
+        ['construct', '🧱', 'Собери слог', 'Буын құра', 'по звучанию', 'дыбысына қарап'],
+        ['syllables', '📖', 'Прочитай слоги', 'Буындарды оқы', 'самопроверка', 'өзін-өзі тексеру'],
+        ['qaida', '📜', 'Строки для чтения', 'Оқу жолдары', 'как в Каиде', 'Қайдадағыдай'] ] },
+      { id: 'words', ru: 'Слова', kk: 'Сөздер', score: null, items: [
+        ['join', '🔗', 'Читай с соединением', 'Жалғап оқы', 'слова из букв', 'әріптерден сөздер'],
+        ['practice', '📝', 'Слова', 'Сөздер', 'чтение слов', 'сөздерді оқу'],
+        ['noharakat', '✨', 'Без огласовок', 'Харакатсыз', 'следующий уровень', 'келесі деңгей'],
+        ['dictation', '⌨️', 'Диктовка', 'Диктант', 'услышал — набери', 'естідің — тер'],
+        ['joinmic', '🎙', 'Соединение голосом', 'Дауыспен жалғау', 'микрофон — подсказка', 'микрофон — кеңес'],
+        ['speed', '⏱', 'В своём темпе', 'Өз қарқыныңмен', 'чтение строк, без гонки', 'жолдарды оқу, жарыссыз'] ] },
+      { id: 'ayah', ru: 'Аят', kk: 'Аят', score: 'ayah', items: [
+        ['ayah', '📖', 'Узнай аят', 'Аятты таны', 'перевод или продолжение', 'аудармасы не жалғасы'],
+        ['speak-ayah', '🎤', 'Прочитай аят вслух', 'Аятты дауыстап оқы', 'микрофон — подсказка', 'микрофон — кеңес'] ] }
+    ];
+    const QZ_HUB_EXTRA = [
+      { id: 'tajweed', ru: 'Таджвид', kk: 'Тәжуид', items: [
+        ['rules', '📘', 'Назови правило', 'Ережені ата', 'описание → название', 'сипаттама → атауы'],
+        ['findrule', '🎨', 'Найди правило в аяте', 'Аяттан ережені тап', 'в настоящем аяте', 'нақты аятта'] ] },
+      { id: 'srs', ru: 'Повторение', kk: 'Қайталау', items: [
+        ['srs', '🗂', 'Карточки', 'Карточкалар', 'интервальное повторение', 'аралықпен қайталау'] ] }
+    ];
+    function qzGameName(g) {
+      var kk = isKk(), all = QZ_HUB.concat(QZ_HUB_EXTRA), r = null;
+      all.forEach(function(s) { s.items.forEach(function(it) { if (it[0] === g) r = kk ? it[3] : it[2]; }); });
+      return r;
+    }
+    function qzHubHtml() {
+      var kk = isKk(), last = {}; try { last = JSON.parse(localStorage.getItem('qz_last') || '{}'); } catch(e) {}
+      var nextIx = QZ_HUB.findIndex(function(s) { return s.score && !(last[s.score] >= 80); });
+      var btn = function(it) {
+        var pct = last[it[0]];
+        return '<button type="button" class="qz-tr' + (currentGame === it[0] ? ' on' : '') + '" data-qz-game="' + it[0] + '"><span class="qz-tr-ico">' + it[1] + '</span><span class="qz-tr-t"><b>' + (kk ? it[3] : it[2]) + '</b><small>' + (kk ? it[5] : it[4]) + '</small></span>' + (pct != null ? '<span class="qz-tr-pct">' + pct + '%</span>' : '') + '</button>';
+      };
+      var stepHtml = function(s, i, numbered) {
+        var ok = s.score && last[s.score] >= 80;
+        return '<details class="qz-hstep' + (ok ? ' ok' : '') + (i === nextIx ? ' next' : '') + '"' + (i === nextIx ? ' open' : '') + '><summary><i>' + (numbered ? (ok ? '✓' : (i + 1)) : '•') + '</i><b>' + (kk ? s.kk : s.ru) + '</b>' + (i === nextIx ? '<span class="qz-hnext">' + (kk ? 'келесі' : 'дальше') + '</span>' : '') + '</summary><div class="qz-trs">' + s.items.map(btn).join('') + '</div></details>';
+      };
+      return '<div class="qz-hub" id="qz-hub"><div class="qz-ladder-h">🪜 ' + (kk ? 'Оқу сатылары' : 'Ступени чтения') + '<span>' + (kk ? 'келесісіне — 80% және жоғары болғанда' : 'дальше — когда результат 80% и выше') + '</span></div>' +
+        QZ_HUB.map(function(s, i) { return stepHtml(s, i, true); }).join('') +
+        QZ_HUB_EXTRA.map(function(s, i) { return stepHtml(s, -1 - i, false); }).join('') + '</div>';
+    }
+    // память повторения: у каждого задания свой «ящик» 1–5; верно — реже, ошибка — снова в ящик 1
+    const QZ_BOX_DAYS = [0, 0, 1, 3, 7, 16];
+    function qzMemUpdate(cat, key, correct) {
+      try {
+        var ap = state.academyProgress || (state.academyProgress = {});
+        var mem = ap._mem || (ap._mem = {});
+        var k = cat + ':' + key, m = mem[k] || { b: 1, due: 0 };
+        m.b = correct ? Math.min(5, (m.b || 1) + 1) : 1;
+        m.due = Date.now() + QZ_BOX_DAYS[m.b] * 86400000;
+        mem[k] = m;
+      } catch(e) {}
+    }
+    // подбор заданий: сначала то, что пора повторить (и слабое), потом новое
+    function qzPickItems(cat, arr, keyFn, n) {
+      var mem = (state.academyProgress && state.academyProgress._mem) || {}, now = Date.now();
+      var scored = shuffle(arr.slice()).map(function(x) { var m = mem[cat + ':' + keyFn(x)]; return { x: x, due: m ? m.due <= now : false, b: m ? m.b : 0, seen: !!m }; });
+      var due = scored.filter(function(s) { return s.due; }).sort(function(a, b) { return a.b - b.b; });
+      var fresh = scored.filter(function(s) { return !s.seen; });
+      var rest = scored.filter(function(s) { return s.seen && !s.due; });
+      var take = due.slice(0, Math.ceil(n * 0.6)).concat(fresh).concat(rest).concat(due.slice(Math.ceil(n * 0.6)));
+      return shuffle(take.slice(0, n).map(function(s) { return s.x; }));
+    }
+    function qzHubRefresh() {
+      var grp = document.getElementById('games-group-switch'); if (!grp) return;
+      var old = document.getElementById('qz-hub'), oldL = document.getElementById('qz-ladder');
+      if (oldL) oldL.remove();
+      var tmp = document.createElement('div'); tmp.innerHTML = qzHubHtml();
+      if (old) old.replaceWith(tmp.firstChild); else grp.parentNode.insertBefore(tmp.firstChild, grp);
+    }
+    document.addEventListener('click', function(e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-qz-game]');
+      if (b) {
+        var g = b.getAttribute('data-qz-game');
+        var all = QZ_HUB.concat(QZ_HUB_EXTRA), grpId = null;
+        var tab = document.querySelector('#games-tabs [data-game="' + g + '"]');
+        if (tab && tab.dataset.group) { var gb = document.querySelector('[data-gamegroup="' + tab.dataset.group + '"]'); if (gb) gb.click(); }
+        tab = document.querySelector('#games-tabs [data-game="' + g + '"]');
+        if (tab) tab.click();
+        document.querySelectorAll('.qz-tr').forEach(function(x) { x.classList.toggle('on', x === b); });
+        var ga = document.getElementById('game-area'); if (ga) setTimeout(function() { ga.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+        return;
+      }
+      var d = e.target && e.target.closest && e.target.closest('[data-qz-diff]');
+      if (d) {
+        var v = d.getAttribute('data-qz-diff'), db = document.querySelector('#games-difficulty [data-diff="' + v + '"]');
+        if (db) db.click(); else { state.settings.quizDifficulty = v; saveState(); }
+        document.querySelectorAll('[data-qz-diff]').forEach(function(x) { x.classList.toggle('on', x === d); });
+      }
+    });
+
     // ===== 6.107: тесты в «Тренировке» — экран старта, экран фокуса с прогрессом, крупные варианты, спокойный итог с разбором (без рекордов) =====
     const QZ_INFO = {
       letters: { ico: '🔤', ru: 'Название буквы → найдите её среди вариантов.', kk: 'Әріптің аты → оны нұсқалардан табыңыз.' },
@@ -15339,6 +15445,7 @@ function renderMistakes() {
         '<div class="qz-start-ico">' + I.ico + '</div>' +
         '<div class="qz-start-title">' + String(title || '').replace(/</g, '&lt;') + '</div>' +
         '<div class="qz-start-desc">' + (kk ? I.kk : I.ru) + '</div>' +
+        (['letters', 'names', 'rules', 'minimal-pairs', 'ayah'].indexOf(game) >= 0 ? '<div class="qz-diff" role="group">' + [['easy', 'Лёгкий', 'Жеңіл'], ['medium', 'Средний', 'Орташа'], ['hard', 'Сложный', 'Күрделі']].map(function(d) { return '<button type="button" class="qz-diff-b' + (getQuizDifficulty() === d[0] ? ' on' : '') + '" data-qz-diff="' + d[0] + '">' + (kk ? d[2] : d[1]) + '</button>'; }).join('') + '</div><div class="qz-diff-note">' + (kk ? 'Жеңіл — ұқсамайтын нұсқалар, күрделі — ұқсастары ғана' : 'Лёгкий — непохожие варианты, сложный — только похожие') + '</div>' : '') +
         '<div class="qz-start-note">' + (kk ? 'Асықпаңыз: уақыт пен рекорд жоқ — тек жаттығу. Қате — үйренудің бөлігі.' : 'Без спешки: нет таймера и рекордов — только тренировка. Ошибка — часть учёбы.') + '</div>' +
         '<button class="btn btn-primary qz-start-btn" id="btn-start-game">▶ ' + (kk ? 'Бастау' : 'Начать') + '</button></div>';
     }
@@ -15407,13 +15514,13 @@ function renderMistakes() {
       gameTotal = 0;
       try { if (!_activeTeacherSkill) _teacherSessionWrongs = []; } catch(e) {}
       if (currentGame === 'letters' || currentGame === 'names') {
-        gameQueue = shuffle(ARABIC_LETTERS).slice(0, 10);
+        gameQueue = qzPickItems(currentGame === 'names' ? 'names' : 'letters', ARABIC_LETTERS, function(l) { return l.ch; }, 10);
         nextLetterQuestion();
       } else if (currentGame === 'rules') {
         const kkG = isKk();
         const pool = ARABIC_RULES.concat(TAJWEED_RULES);
         const otherN = Math.max(1, quizOptionCount() - 1);
-        gameQueue = shuffle(pool).slice(0, 8).map(r => {
+        gameQueue = qzPickItems('rules', pool, function(r) { return r.title; }, 8).map(r => {
           const others = qzRuleDistractors(r, pool, otherN);
           const txt = (kkG && r.shortKk) ? r.shortKk : (r.short || r.ru || r.body || r.ar || r.title || '');
           const ans = (kkG && r.titleKk) ? r.titleKk : r.title;
@@ -16831,7 +16938,7 @@ function renderMistakes() {
       area.innerHTML = qzResultHtml(pct, kkE);
       try { if (!_activeTeacherSkill && currentGame && gameTotal >= 5) { var ql = JSON.parse(localStorage.getItem('qz_last') || '{}'); ql[currentGame] = pct; localStorage.setItem('qz_last', JSON.stringify(ql)); } } catch(e) {}
       try { if (typeof renderMistakes === 'function') renderMistakes(); } catch(e) {}
-      try { qzLadderRefresh(); } catch(e) {}
+      try { qzHubRefresh(); } catch(e) {}
       document.getElementById('btn-start-game').addEventListener('click', startGame);
       try { var qm = area.querySelector('[data-qz-mistakes]'); if (qm) qm.addEventListener('click', function() { var mb = document.getElementById('games-mistakes-box'); if (mb) { mb.open = true; try { renderMistakes(); } catch(e) {} mb.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }); } catch(e) {}
       // 6.107: без всплывающих оценок — итог спокойно показан в карточке
@@ -27145,7 +27252,8 @@ bKk:
         '3': { ru: 'подробности', kk: 'толықтырулар' },
         '4': { ru: 'онлайн', kk: 'онлайн' },
         '5': { ru: 'учитель', kk: 'мұғалім' },
-        '6': { ru: 'намаз и практика', kk: 'намаз және практика' }
+        '6': { ru: 'намаз и практика', kk: 'намаз және практика' },
+        '7': { ru: 'учёба и удобство', kk: 'оқу және ыңғайлылық' }
       };
       const majorTabs = [{ id: 'all', lab: (_clKk ? 'Барлығы' : 'Все') }].concat(majorsSorted.map(function(m){
         const st = MAJOR_SERIES_TITLES[m];
