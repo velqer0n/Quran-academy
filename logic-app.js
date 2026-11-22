@@ -2097,6 +2097,8 @@ async function fetchTafsir(surah, ayah) {
     let viewStack = ['dailyhub'];
     const MAIN_TABS = new Set(['dailyhub', 'home', 'learn', 'games', 'teacher', 'bookmarks', 'online', 'more']);
     function goBack() {
+      // 7.35: открыто нижнее окошко (выбор, «Мои наборы» и т.п.) — «Назад» закрывает его
+      try { var _pp = document.getElementById('pl-pop'); if (_pp) { if (_pp._close) _pp._close(); _pp.remove(); return; } } catch(e) {}
       // build 6.36: внутри папки «Назад» поднимает на уровень выше (а не уходит с экрана и не выглядит как «отмена»)
       try { if (typeof fsBackHook === 'function' && fsBackHook()) return; } catch(e) {}
       const MORE_SET = new Set(['myreading','data','sins','aqidah','sunnahs','family','hadith','hadiths','stories','howsalah','hisn','memorize','fatihaphon','quiz','quizmistakes','adhkar','qol','names','qdict','cache','settings','export','duabuilder','qurandua','ramadan','adab','calendar','library','topics','search','changelog','legaldocs','sources','help','prayertimes','appupdate','dict','sadaqa','ask']);
@@ -3225,7 +3227,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (name === 'changelog') try { renderChangelog(); } catch(e) {}
       if (name === 'legaldocs') try { renderLegalDocs(); } catch(e) { console.warn('legaldocs', e); }
       if (name === 'sources') { try { renderSources(); } catch(e) { console.warn('sources', e); } try { _appendLegalLinks(document.getElementById('sources-body')); } catch(e) {} }
-      if (name === 'settings') try { applyTheme(); renderSettingsExtraData(); renderBtnViewSetting(); renderBgSetting(); renderThemePickerList(); if (!window._setKeepPanel) setHomeMode(true); window._setKeepPanel = false; } catch(e) {}
+      if (name === 'settings') try { applyTheme(); renderSettingsExtraData(); renderBtnViewSetting(); renderBgSetting(); renderThemePickerList(); try { fzVals(); } catch(e2) {} if (!window._setKeepPanel) setHomeMode(true); window._setKeepPanel = false; } catch(e) {}
       if (name === 'help') try { renderHelp(); } catch(e) {}
       if (name === 'account' || name === 'login' || name === 'register' || name === 'forgot') try { renderAuth(name); } catch(e) {}
       if (name === 'stats') try { renderStats(); } catch(e) {}
@@ -3932,7 +3934,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var v = document.getElementById('view-settings'); if (!v) return;
       v.classList.toggle('set-home-mode', !!on);
       var bb = document.getElementById('set-backbar');
-      try { setGroupView(); setGroupAudio(); spEnhance(); document.querySelectorAll('#view-settings select.sp-hidden').forEach(function(s) { if (s._spPaint) s._spPaint(); }); } catch(e) {}
+      try { setGroupView(); setGroupAudio(); setGroupFonts(); spEnhance(); document.querySelectorAll('#view-settings select.sp-hidden').forEach(function(s) { if (s._spPaint) s._spPaint(); }); } catch(e) {}
       if (on) { setHomeRender(); if (bb) bb.innerHTML = ''; return; }
       if (cat === 'presets') { try { renderPresetsList(); } catch(e) {} }
       var it = SET_HOME.filter(function(x) { return x.cat === cat; })[0], kk = isKk();
@@ -4021,13 +4023,10 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         var lb = theme.querySelector(':scope > span'); if (lb) lb.style.display = 'none';
         try { renderThemePickerList(); } catch(e) {}
       }
-      var uf = document.getElementById('uifont-setting');
-      if (!uf) { uf = document.createElement('div'); uf.id = 'uifont-setting'; uf.className = 'setting-row'; uf.style.cssText = 'flex-direction:column;align-items:stretch;gap:0.4rem'; }
       var head = pn.querySelector('b');
       var after = head ? head.nextSibling : pn.firstChild;
-      var groups = [mk('🎨', 'Тема', 'Тақырып', true, [theme, night]), mk('🖼', 'Фон', 'Фон', false, [bg]), mk('🔤', 'Шрифт сайта', 'Сайт қарпі', false, [uf]), mk('🔘', 'Кнопки и размер', 'Батырмалар және өлшем', false, [bv, ui]), mk('⚙️', 'Дополнительно', 'Қосымша', false, [fw, anim, hints])];
+      var groups = [mk('🎨', 'Тема', 'Тақырып', false, [theme, night]), mk('🖼', 'Фон', 'Фон', false, [bg]), mk('🔘', 'Кнопки и размер', 'Батырмалар және өлшем', false, [bv, ui]), mk('⚙️', 'Дополнительно', 'Қосымша', false, [fw, anim, hints])];
       groups.forEach(function(g) { pn.insertBefore(g, after); });
-      var fg = uf.closest('details'); if (fg) fg.addEventListener('toggle', function() { if (fg.open) renderUiFontSetting(); });
       if (head) head.style.display = 'none';
       // «Стартовый экран» — по смыслу в «Меню и главная»
       var mc = document.querySelector('#view-settings .set-cat[data-set-panel="morecfg"]');
@@ -4044,6 +4043,85 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     });
     // любой переход в раздел (из списка, поиска или из других мест сайта) — режим раздела с «‹ Настройки»
     document.getElementById('settings-cats')?.addEventListener('click', function(e) { var b = e.target.closest('[data-set-cat]'); if (b) setHomeMode(false, b.getAttribute('data-set-cat')); });
+    // 7.35: блоки настроек — как карточки: открыли новый, прошлый закрылся (если включено «Закрывать прошлую карточку»)
+    document.addEventListener('toggle', function(e) {
+      var d = e.target; if (!d || !d.classList || !d.classList.contains('set-grp') || !d.open) return;
+      if (state.settings && state.settings.cardAutoClose === false) return;
+      Array.prototype.forEach.call(d.parentNode.children, function(x) { if (x !== d && x.classList && x.classList.contains('set-grp') && x.open) x.open = false; });
+    }, true);
+    // 7.35: «Шрифты» — блоками: размер (ползунок с образцом), шрифт сайта, шрифт Корана, шрифт перевода (карточки)
+    function setGroupFonts() {
+      var pn = document.querySelector('#view-settings .set-cat[data-set-panel="fonts"]'); if (!pn || pn._grouped) return;
+      var kk = isKk();
+      Array.prototype.forEach.call(pn.children, function(x) { if (x.tagName !== 'B') x.style.display = 'none'; });
+      var head = pn.querySelector(':scope > b'); if (head) head.style.display = 'none';
+      var mk = function(ico, ru, kz, id, cb) {
+        var d = document.createElement('details'); d.className = 'set-grp';
+        d.innerHTML = '<summary><span>' + ico + '</span><b>' + (kk ? kz : ru) + '</b><small class="sg-val" id="' + id + '-val"></small></summary><div class="set-grp-body" id="' + id + '"></div>';
+        d.addEventListener('toggle', function() { if (d.open) cb(); });
+        pn.appendChild(d); return d;
+      };
+      mk('📏', 'Размер текста', 'Мәтін өлшемі', 'fz-size', fzSizeRender);
+      mk('🔠', 'Шрифт сайта', 'Сайт қарпі', 'uifont-setting', renderUiFontSetting);
+      mk('🕌', 'Шрифт Корана', 'Құран қарпі', 'fz-ar', function() { fzFontRender('ar'); });
+      mk('📖', 'Шрифт перевода', 'Аударма қарпі', 'fz-tr', function() { fzFontRender('tr'); });
+      pn._grouped = true; fzVals();
+    }
+    function _fzOpts(id) { var s = document.getElementById(id); return s ? Array.prototype.map.call(s.options, function(o) { return { v: o.value, t: o.textContent.trim() }; }) : []; }
+    function _fzPick(listId, v) { var b = Array.prototype.find.call(document.querySelectorAll('#' + listId + ' [data-v]'), function(x) { return x.getAttribute('data-v') === v; }); if (b) b.click(); else { var s = document.getElementById(listId.replace('pick-', 'setting-')); if (s) { s.value = v; s.dispatchEvent(new Event('change')); } } }
+    function fzVals() {
+      var kk = isKk(), set = function(id, s) { var e = document.getElementById(id + '-val'); if (e) e.textContent = s; };
+      var px = function(id, base) { var s = document.getElementById(id), o = s && s.options[s.selectedIndex]; return o ? o.textContent.trim().replace(/\D+$/, '') : ''; };
+      set('fz-size', px('setting-arabic-size') + ' / ' + px('setting-tr-size') + ' px');
+      var f = uiFontCur(); set('uifont-setting', kk ? f.kk : f.ru);
+      var a = document.getElementById('setting-arabic-font'), r = document.getElementById('setting-tr-font');
+      set('fz-ar', a && a.selectedIndex >= 0 ? a.options[a.selectedIndex].textContent.trim() : '');
+      set('fz-tr', r && r.selectedIndex >= 0 ? r.options[r.selectedIndex].textContent.trim() : '');
+    }
+    function fzSizeRender() {
+      var el = document.getElementById('fz-size'); if (!el) return;
+      var kk = isKk(), ar = _fzOpts('setting-arabic-size'), tr = _fzOpts('setting-tr-size');
+      var as = document.getElementById('setting-arabic-size'), ts = document.getElementById('setting-tr-size');
+      var row = function(key, lab, opts, sel) { var i = Math.max(0, sel ? sel.selectedIndex : 0);
+        return '<div class="fz-row"><div class="fz-lab"><span>' + lab + '</span><b id="fz-' + key + '-px">' + (opts[i] ? opts[i].t : '') + '</b></div>' +
+          '<div class="fz-sl"><button type="button" class="fz-step" data-fz-step="' + key + '" data-d="-1" aria-label="−">A−</button><input type="range" min="0" max="' + (opts.length - 1) + '" value="' + i + '" data-fz-range="' + key + '"><button type="button" class="fz-step" data-fz-step="' + key + '" data-d="1" aria-label="+">A+</button></div></div>'; };
+      el.innerHTML = row('ar', kk ? 'Араб мәтіні' : 'Арабский текст', ar, as) + row('tr', kk ? 'Аударма' : 'Перевод', tr, ts) +
+        '<div class="fz-prev"><div class="arabic" dir="rtl" style="font-size:var(--ar-size, 1.55rem)">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div><div class="ayah-translation">' + (kk ? 'Аса қамқор, ерекше мейірімді Алланың атымен' : 'С именем Аллаха, Милостивого, Милосердного') + '</div></div>' +
+        '<div class="rd-note">' + (kk ? 'Бүкіл сайтта бірден өзгереді.' : 'Меняется сразу везде на сайте.') + '</div>';
+      fzPrev();
+    }
+    function fzPrev() {
+      var p = document.querySelector('#fz-size .fz-prev'); if (!p) return;
+      var as = document.getElementById('setting-arabic-size'), ts = document.getElementById('setting-tr-size');
+      if (as) p.firstChild.style.fontSize = as.value + 'rem';
+      if (ts) p.lastChild.style.fontSize = ts.value + 'rem';
+      if (state.settings && state.settings.arabicFont) p.firstChild.style.fontFamily = "'" + state.settings.arabicFont + "', Amiri, serif";
+      if (state.settings && state.settings.trFont) p.lastChild.style.fontFamily = state.settings.trFont;
+    }
+    function fzSet(key, i) {
+      var opts = _fzOpts(key === 'ar' ? 'setting-arabic-size' : 'setting-tr-size'); i = Math.max(0, Math.min(opts.length - 1, i)); if (!opts[i]) return;
+      _fzPick(key === 'ar' ? 'pick-arabic-size' : 'pick-tr-size', opts[i].v);
+      var r = document.querySelector('[data-fz-range="' + key + '"]'); if (r) r.value = i;
+      var l = document.getElementById('fz-' + key + '-px'); if (l) l.textContent = opts[i].t;
+      fzPrev(); fzVals();
+    }
+    document.addEventListener('input', function(e) { var r = e.target && e.target.getAttribute && e.target.getAttribute('data-fz-range'); if (r) fzSet(r, +e.target.value); });
+    function fzFontRender(kind) {
+      var el = document.getElementById(kind === 'ar' ? 'fz-ar' : 'fz-tr'); if (!el) return;
+      var kk = isKk(), sel = document.getElementById(kind === 'ar' ? 'setting-arabic-font' : 'setting-tr-font'), opts = _fzOpts(sel ? sel.id : '');
+      var sample = kind === 'ar' ? '<span dir="rtl">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ</span>' : (kk ? 'Аса қамқор Алланың атымен' : 'С именем Аллаха, Милостивого');
+      el.innerHTML = '<div class="uif-list fz-fonts">' + opts.map(function(o) {
+        var fam = kind === 'ar' ? (o.v === 'serif' ? 'serif' : "'" + o.v + "', serif") : o.v, on = sel && sel.value === o.v;
+        return '<button type="button" class="uif-item' + (on ? ' on' : '') + '" data-fz-font="' + kind + '" data-v="' + o.v.replace(/"/g, '&quot;') + '"><span class="uif-aa' + (kind === 'ar' ? ' arabic' : '') + '" style="font-family:' + fam.replace(/"/g, '&quot;') + '">' + sample + '</span><b>' + (on ? '✓ ' : '') + o.t + '</b></button>';
+      }).join('') + '</div>' + (kind === 'ar' ? '<div class="rd-note">' + (kk ? 'Құран мәтіні осы қаріппен көрсетіледі.' : 'Этим шрифтом показывается текст Корана.') + '</div>' : '');
+    }
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      var s = t.closest('[data-fz-step]');
+      if (s) { var k = s.getAttribute('data-fz-step'), r = document.querySelector('[data-fz-range="' + k + '"]'); if (r) fzSet(k, +r.value + (+s.getAttribute('data-d'))); return; }
+      var f = t.closest('[data-fz-font]');
+      if (f) { var kind = f.getAttribute('data-fz-font'); _fzPick(kind === 'ar' ? 'pick-arabic-font' : 'pick-tr-font', f.getAttribute('data-v')); fzFontRender(kind); fzVals(); }
+    });
     function applyBtnView() { try { document.body.classList.toggle('btn-icons', !!(state.settings && state.settings.btnView === 'icons')); } catch(e) {} }
     function renderBtnViewSetting() {
       var el = document.getElementById('btnview-setting'); if (!el) return;
@@ -4109,7 +4187,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var b = e.target && e.target.closest && e.target.closest('[data-uifont],[data-uifontmode]'); if (!b || b.disabled) return;
       if (b.hasAttribute('data-uifont')) state.settings.uiFont = b.getAttribute('data-uifont'); else state.settings.uiFontMode = b.getAttribute('data-uifontmode');
       try { saveState(); } catch(er) {}
-      applyUiFont(); renderUiFontSetting();
+      applyUiFont(); renderUiFontSetting(); try { fzVals(); } catch(er) {}
     });
     function _bl(ico, lab) { return '<i class="bi" aria-hidden="true">' + ico + '</i><span class="bl">' + lab + '</span>'; }
     async function openSurah(num, focusAyah) {
@@ -32821,31 +32899,57 @@ function renderDict() {
         readPace: [kk ? 'Оқу қарқыны' : 'Темп чтения', function(v) { return ({ slow: kk ? 'баяу' : 'медленно', normal: kk ? 'орташа' : 'средне', fast: kk ? 'жылдам' : 'быстро' })[v] || null; }],
         hideTr: [kk ? 'Аударманы жасыру' : 'Скрыть перевод', yn], arOnly: [kk ? 'Тек араб мәтіні' : 'Только арабский', yn],
         nightAuto: [kk ? 'Түнгі тақырып автоматты' : 'Ночная тема сама', yn], reduceMotion: [kk ? 'Анимациясыз' : 'Без анимаций', yn],
-        prayerNotif: [kk ? 'Намаз хабарламасы' : 'Уведомления о намазе', yn], prayerAdhan: [kk ? 'Азан' : 'Азан', yn], prayerMethod: [kk ? 'Намаз уақыты әдісі' : 'Метод времени намаза', function(v) { return String(v); }]
+        prayerNotif: [kk ? 'Намаз хабарламасы' : 'Уведомления о намазе', yn], prayerNotifLead: [kk ? 'Намаздан бұрын ескерту, мин' : 'Напомнить до намаза, мин', function(v) { return String(v); }],
+        adhanReciter: [kk ? 'Азан оқушы' : 'Голос азана', function(v) { return _msName(typeof ADHAN_RECITERS !== 'undefined' ? ADHAN_RECITERS : [], v) || String(v); }],
+        academySequential: [kk ? 'Курс ретімен' : 'Курс строго по порядку', yn], cardAutoClose: [kk ? 'Алдыңғы карточканы жабу' : 'Закрывать прошлую карточку', yn],
+        cardMaxOpen: [kk ? 'Ашық карточкалар саны' : 'Открытых карточек максимум', function(v) { return String(v); }],
+        cardCloseMode: [kk ? 'Карточкаларды жабу' : 'Закрытие карточек', function(v) { return v === 'section' ? (kk ? 'бөлімнен шыққанда' : 'при выходе из раздела') : (kk ? 'қолмен' : 'вручную'); }],
+        listPageSize: [kk ? 'Тізімде бір бетте' : 'Строк на странице списка', function(v) { return String(v); }], hintsCollapsed: [kk ? 'Кеңестер жиналған' : 'Подсказки свёрнуты', yn],
+        quranOnly: [kk ? 'Тек Құран' : 'Только Коран', yn], hideStudyTr: [kk ? 'Оқуда аударманы жасыру' : 'Скрыть перевод в учёбе', yn],
+        wbwRevealMode: [kk ? 'Сөзбе-сөз' : 'Пословный перевод', function(v) { return v === 'tap' ? (kk ? 'басқанда' : 'по нажатию') : (kk ? 'бәрі бірден' : 'всё сразу'); }],
+        quizDifficulty: [kk ? 'Тест қиындығы' : 'Сложность тестов', function(v) { return ({ easy: kk ? 'жеңіл' : 'лёгкая', medium: kk ? 'орташа' : 'средняя', hard: kk ? 'қиын' : 'сложная' })[v] || String(v); }],
+        drillLetters: [kk ? 'Жаттығу әріптері' : 'Буквы тренировки', function() { return kk ? 'өзгертілген' : 'изменено'; }], drillSukun: [kk ? 'Жаттығуда сукун' : 'Сукун в тренировке', yn],
+        voiceAutoDownload: [kk ? 'Дауысты өзі жүктеу' : 'Скачивать голосовые сами', yn], trimSilence: [kk ? 'Үнсіздікті қысқарту' : 'Убирать тишину в аудио', yn],
+        teacherDailyGoal: [kk ? 'Мұғалімнің күндік мақсаты' : 'Дневная цель учителя', yn], swipeTabsOff: [kk ? 'Сырғытып ауыстыруды өшіру' : 'Без смахивания вкладок', yn],
+        srNoHarakat: [kk ? 'Қайталауда харакатсыз' : 'Повторение без огласовок', yn], showStudyFullAyah: [kk ? 'Оқуда толық аят' : 'Полный аят в учёбе', yn],
+        repPause: [kk ? 'Қайталау арасындағы үзіліс' : 'Пауза между повторами', function(v) { return v === 'len' ? (kk ? 'аят ұзындығындай' : 'по длине аята') : String(v); }],
+        remindHour: [kk ? 'Еске салу сағаты' : 'Час напоминания', function(v) { return String(v) + ':00'; }], quietFrom: [kk ? 'Тыныштық басталуы' : 'Тихие часы с', function(v) { return String(v); }], quietTo: [kk ? 'Тыныштық соңы' : 'Тихие часы до', function(v) { return String(v); }],
+        plShowTr: [kk ? 'Плеерде аударма' : 'Перевод в плеере', yn], plShowTl: [kk ? 'Плеерде транскрипция' : 'Транскрипция в плеере', yn], plTextK: [kk ? 'Плеер мәтінінің өлшемі' : 'Размер текста в плеере', pct],
+        photoAutoLoad: [kk ? 'Суреттерді өзі жүктеу' : 'Загружать фото сами', yn], mediaCompress: [kk ? 'Медианы сығу' : 'Сжимать медиа', yn], moreFreq: [kk ? '«Тағы» — жиі қолданылатындар' : '«Ещё» — частые сверху', yn],
+        hideHelpBtn: [kk ? '«?» батырмасын жасыру' : 'Скрыть кнопку «?»', yn], hideDeviceBtn: [kk ? 'Тел/ПК батырмасын жасыру' : 'Скрыть кнопку Тел/ПК', yn],
+        dayGoalMin: [kk ? 'Күндік мақсат, мин' : 'Цель на день, мин', function(v) { return String(v); }], cmpSlow: [kk ? 'Салыстыру баяу' : 'Сравнение медленно', yn],
+        bgDim: [kk ? 'Фонды күңгірттеу' : 'Затемнение фона', function(v) { return Math.round(+v * 100) + '%'; }], ayahRailSide: [kk ? 'Аят батырмалары' : 'Кнопки у аята', function(v) { return v === 'left' ? (kk ? 'сол жақта' : 'слева') : (kk ? 'оң жақта' : 'справа'); }],
+        audioPlayMode: [kk ? 'Ойнату тәртібі' : 'Режим воспроизведения', function(v) { return ({ single: kk ? 'бір аят' : 'один аят', surah: kk ? 'сүре' : 'сура', next: kk ? 'келесі сүре' : 'следующая сура', stop: kk ? 'тоқтау' : 'стоп', random: kk ? 'кездейсоқ' : 'случайно' })[v] || String(v); }],
+        answerFeedback: [kk ? 'Жауаптан кейін' : 'После ответа', function() { return kk ? 'өзгертілген' : 'изменено'; }], reciterBy: [kk ? '«Дыбыстау» / «Тәжуид» қарилері' : 'Чтецы «Озвучки» / «Таджвида»', function(v) { var n = function(id) { return _msName(typeof RECITER_LIST !== 'undefined' ? RECITER_LIST : [], id) || '—'; }; v = v || {}; return n(v.study) + ' / ' + n(v.tajweed); }],
+        widgetTahajjud: [kk ? 'Тәһажжуд виджеті' : 'Виджет тахаджуда', yn], widgetDuha: [kk ? 'Духа виджеті' : 'Виджет духа', yn], prayerAdhan: [kk ? 'Азан' : 'Азан', yn], prayerMethod: [kk ? 'Намаз уақыты әдісі' : 'Метод времени намаза', function(v) { return String(v); }]
       };
     }
     function _msEq(a, b) {
-      var e = function(x) { return x === undefined || x === null || x === false || x === '' ? '' : JSON.stringify(x); };
+      var e = function(x) { var s = x === undefined || x === null || x === false || x === '' ? '' : JSON.stringify(x); return s === '{}' || s === '[]' ? '' : s; };
       return e(a) === e(b);
     }
     // base: с чем сравнивать (по умолчанию — настройки нового пользователя)
     function msDiff(vals, base) {
-      base = base || Object.assign({ fontScaleAr: 1, fontScaleRu: 1, uiFont: 'sys', uiFontMode: 'all', btnView: 'both', bg: 'none', translitMode: 'latin', readPace: 'normal' }, typeof DEFAULT_SETTINGS !== 'undefined' ? DEFAULT_SETTINGS : {});
+      base = base || Object.assign({ fontScaleAr: 1, fontScaleRu: 1, uiFont: 'sys', uiFontMode: 'all', btnView: 'both', bg: 'none', translitMode: 'latin', readPace: 'normal', prayerMethod: 'DUMK', hideDeviceBtn: true, cardAutoClose: true, plTextK: 1 }, typeof DEFAULT_SETTINGS !== 'undefined' ? DEFAULT_SETTINGS : {});
       var L = msLabels(), out = [], other = 0;
       Object.keys(vals || {}).forEach(function(k) {
         if (MS_SKIP.test(k) || /pin|lock|pass|token|secret|key$/i.test(k)) return;
-        if (_msEq(vals[k], base[k])) return;
-        if (!L[k]) { other++; return; }
-        var f = function(v) { var s = null; try { s = L[k][1](v); } catch(e) {} return s == null ? (v === undefined ? '—' : String(v)) : s; };
-        out.push({ k: k, l: L[k][0], from: f(base[k]), to: f(vals[k]) });
+        if (k === 'reciterBy') { var _d = 'ar.husary', _v = vals[k] || {}, _b = base[k] || { study: _d, tajweed: _d }; if ((_v.study || _d) === (_b.study || _d) && (_v.tajweed || _d) === (_b.tajweed || _d)) return; }
+        else if (_msEq(vals[k], base[k])) return;
+        var lb = L[k] || [isKk() ? 'Басқа баптау' : 'Другая настройка', function() { return isKk() ? 'өзгертілген' : 'изменено'; }];
+        var f = function(v) { var s = null; try { s = lb[1](v); } catch(e) {} return s == null ? (v === undefined ? '—' : String(v)) : s; };
+        out.push({ k: k, l: lb[0], from: f(base[k]), to: f(vals[k]), o: !L[k] });
       });
+      var ord = Object.keys(L); out.sort(function(a, b) { return (a.o ? 999 : ord.indexOf(a.k)) - (b.o ? 999 : ord.indexOf(b.k)); });
       return { list: out, other: other };
     }
     function msDiffHtml(d, arrows) {
       var kk = isKk(), esc = function(s) { return String(s).replace(/</g, '&lt;'); };
-      if (!d.list.length && !d.other) return '<div class="rd-note">' + (kk ? 'Бәрі әдепкідей' : 'Всё как по умолчанию') + '</div>';
-      return '<ul class="ms-diff">' + d.list.map(function(x) { return '<li><span>' + esc(x.l) + ':</span> ' + (arrows ? '<s>' + esc(x.from) + '</s> → ' : '') + '<b>' + esc(x.to) + '</b></li>'; }).join('') +
-        (d.other ? '<li class="ms-more">' + (kk ? '+ тағы ' + d.other + ' баптау' : '+ ещё ' + d.other + ' настр.') + '</li>' : '') + '</ul>';
+      if (!d.list.length) return '<div class="rd-note">' + (kk ? 'Бәрі әдепкідей' : 'Всё как по умолчанию') + '</div>';
+      var li = function(x) { return '<li><span>' + esc(x.l) + ':</span> ' + (arrows && !x.o ? '<s>' + esc(x.from) + '</s> → ' : '') + '<b>' + esc(x.to) + '</b></li>'; };
+      var L = d.list, top = L.slice(0, 8), rest = L.slice(8);
+      return '<ul class="ms-diff">' + top.map(li).join('') + '</ul>' +
+        (rest.length ? '<details class="ms-rest"><summary>' + (kk ? '+ тағы ' + rest.length + ' — көрсету' : '+ ещё ' + rest.length + ' — показать') + '</summary><ul class="ms-diff">' + rest.map(li).join('') + '</ul></details>' : '');
     }
     function msAsk(p) {
       var kk = isKk(), d = msDiff(p.values, msSnap());
@@ -32854,6 +32958,17 @@ function renderDict() {
       plPop('⭐ ' + String(p.name).replace(/</g, '&lt;'), body, function(ov, close) {
         ov.addEventListener('click', function(e) { if (e.target.closest && e.target.closest('[data-ms-go]')) { close(); msHistPush(); msApply(p.values); } });
       });
+    }
+    // название набора — своим окошком (не системным): «Назад» и «Отмена» закрывают его вместе с клавиатурой
+    function msName(cur, done) {
+      var kk = isKk();
+      plPop(cur ? (kk ? '✏️ Атын өзгерту' : '✏️ Переименовать') : (kk ? '💾 Жинақты сақтау' : '💾 Сохранить набор'),
+        '<form class="ms-name" autocomplete="off"><input type="text" maxlength="40" enterkeyhint="done" placeholder="' + (kk ? 'Мысалы «Үйде»' : 'Например «Дома»') + '" value="' + String(cur || '').replace(/"/g, '&quot;') + '">' +
+        '<div class="ms-btns"><button type="button" class="btn" data-pl-x>' + (kk ? 'Болдырмау' : 'Отмена') + '</button><button type="submit" class="btn btn-primary">' + (kk ? 'Сақтау' : 'Сохранить') + '</button></div></form>', function(ov, close) {
+        var f = ov.querySelector('form'), i = f.querySelector('input');
+        f.addEventListener('submit', function(e) { e.preventDefault(); var v = i.value.trim(); if (!v) { i.focus(); return; } try { i.blur(); } catch(er) {} close(); done(v.slice(0, 40)); });
+        setTimeout(function() { try { i.focus(); } catch(er) {} }, 80);
+      }, function(ov) { try { var i = ov.querySelector('input'); if (i) i.blur(); } catch(er) {} });
     }
     function msMenu(p) {
       var kk = isKk();
@@ -32864,7 +32979,7 @@ function renderDict() {
         ov.addEventListener('click', function(e) {
           var b = e.target.closest && e.target.closest('[data-msm]'); if (!b) return;
           var a = b.getAttribute('data-msm'); close();
-          if (a === 'ren') { var n = prompt(kk ? 'Жаңа атау:' : 'Новое название:', p.name); if (n == null || !n.trim()) return; p.name = n.trim().slice(0, 40); }
+          if (a === 'ren') { msName(p.name, function(n) { p.name = n; try { saveState(); } catch(er) {} renderPresetsList(); toast(kk ? 'Дайын' : 'Готово'); }); return; }
           else if (a === 'upd') { if (!confirm(kk ? 'Жинаққа қазіргі баптауларды жазу керек пе?' : 'Записать в набор текущие настройки?')) return; p.values = msSnap(); p.ts = Date.now(); }
           else if (a === 'del') { if (!confirm(kk ? 'Жинақты жою керек пе?' : 'Удалить набор?')) return; state.customPresets = (state.customPresets || []).filter(function(x) { return x !== p; }); }
           try { saveState(); } catch(er) {} renderPresetsList(); toast(kk ? 'Дайын' : 'Готово');
@@ -32879,7 +32994,7 @@ function renderDict() {
       var pn = host.closest('.set-cat'); if (pn) { var hb = pn.querySelector(':scope > b'), hd = pn.querySelector(':scope > .ayah-translation'); if (hb) hb.textContent = '⭐ ' + (kk ? 'Менің жинақтарым' : 'Мои наборы'); if (hd) hd.textContent = kk ? 'Өз баптауларыңызды сақтап, бір басумен ауыстырыңыз; басқа телефонға көшіріңіз немесе бұрынғысын қайтарыңыз.' : 'Сохраните свои настройки и переключайтесь одним нажатием; перенесите их на другой телефон или верните как было.'; }
       var h = '<div class="ms-sec"><div class="pl-lbl2">⭐ ' + (kk ? 'Сақталған жинақтар' : 'Сохранённые наборы') + '</div>' +
         (mine.length ? mine.map(function(p) {
-          var d = msDiff(p.values), n = d.list.length + d.other;
+          var d = msDiff(p.values), n = d.list.length;
           return '<div class="ms-item"><div class="ms-row"><span class="ms-t"><b>' + String(p.name).replace(/</g, '&lt;') + '</b><small>' + msFmt(p.ts) + '</small></span>' +
             '<button type="button" class="btn btn-sm btn-primary" data-ms-apply="' + p.id + '">' + (kk ? 'Қолдану' : 'Применить') + '</button>' +
             '<button type="button" class="btn btn-sm" data-ms-more="' + p.id + '" aria-label="' + (kk ? 'Тағы' : 'Ещё') + '">⋯</button></div>' +
@@ -32899,10 +33014,12 @@ function renderDict() {
       var kk = isKk(), b;
       if (t.closest('[data-ms-save]')) {
         if ((state.customPresets || []).length >= MS_MAX) { toast(kk ? 'Ең көбі ' + MS_MAX + ' жинақ' : 'Максимум ' + MS_MAX + ' наборов'); return; }
-        var name = prompt(kk ? 'Жинақ атауы (мысалы «Үйде»):' : 'Название набора (например «Дома»):', ''); if (name == null || !name.trim()) return;
-        if (!Array.isArray(state.customPresets)) state.customPresets = [];
-        state.customPresets.unshift({ id: 'my_' + Date.now(), name: name.trim().slice(0, 40), ts: Date.now(), values: msSnap(), full: true });
-        try { saveState(); } catch(er) {} renderPresetsList(); toast(kk ? 'Сақталды' : 'Сохранено'); return;
+        msName('', function(name) {
+          if (!Array.isArray(state.customPresets)) state.customPresets = [];
+          state.customPresets.unshift({ id: 'my_' + Date.now(), name: name, ts: Date.now(), values: msSnap(), full: true });
+          try { saveState(); } catch(er) {} renderPresetsList(); toast(kk ? 'Сақталды' : 'Сохранено');
+        });
+        return;
       }
       if ((b = t.closest('[data-ms-apply]'))) { var p = (state.customPresets || []).find(function(x) { return x.id === b.getAttribute('data-ms-apply'); }); if (p) msAsk(p); return; }
       if ((b = t.closest('[data-ms-more]'))) { var pm = (state.customPresets || []).find(function(x) { return x.id === b.getAttribute('data-ms-more'); }); if (pm) msMenu(pm); return; }

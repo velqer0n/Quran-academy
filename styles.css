@@ -5125,3 +5125,22 @@ body.uif-on .section-title, body.uif-on .card h3, body.uif-on .rule-card h3, bod
 .ms-diff span { color: var(--text-muted); }
 .ms-diff s { color: var(--text-muted); }
 .ms-more { color: var(--text-muted); list-style: none; margin-left: -1.1rem; }
+
+/* ===== 7.35: «Шрифты» блоками, ползунки размера, окошко названия набора ===== */
+.set-grp > summary .sg-val { margin-left: auto; font-size: 0.76rem; color: var(--text-muted); max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-grp > summary:has(.sg-val)::after { margin-left: 0.4rem; }
+.set-grp > summary .sg-val:empty { display: none; }
+.fz-row { margin: 0.35rem 0 0.7rem; }
+.fz-lab { display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 0.25rem; }
+.fz-lab b { color: var(--accent); }
+.fz-sl { display: flex; align-items: center; gap: 0.5rem; }
+.fz-sl input[type=range] { flex: 1; accent-color: var(--accent); height: 32px; }
+.fz-step { min-width: 44px; min-height: 40px; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.fz-prev { border: 1px solid var(--border); border-radius: 12px; padding: 0.7rem; text-align: center; margin: 0.3rem 0 0.4rem; background: var(--card, transparent); }
+.fz-prev .arabic { line-height: 1.9; }
+.fz-prev .ayah-translation { margin-top: 0.3rem; }
+.fz-fonts .uif-aa { font-size: 1.05rem; }
+.fz-fonts .uif-aa.arabic { font-size: 1.35rem; line-height: 1.8; width: 100%; text-align: right; }
+.ms-name input { width: 100%; box-sizing: border-box; min-height: 46px; padding: 0.55rem 0.75rem; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; font-size: 1rem; }
+.ms-name .ms-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.6rem; }
+.ms-rest summary { font-size: 0.8rem; color: var(--accent); cursor: pointer; padding: 0.2rem 0 0.1rem 0.2rem; }
