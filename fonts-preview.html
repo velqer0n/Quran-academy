@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Образцы шрифтов — Quran Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600&family=Onest:wght@400;600&family=Manrope:wght@400;600&family=Nunito:wght@400;600&family=Inter:wght@400;600&family=Rubik:wght@400;600&family=Literata:opsz,wght@7..72,400;7..72,600&family=PT+Serif:wght@400;700&family=Noto+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --muted: #94a3b8; --accent: #10b981; --border: #334155; }
+  @media (prefers-color-scheme: light) { :root { --bg: #eef1f5; --card: #ffffff; --text: #1a2332; --muted: #5b6474; --border: #d8dee8; } }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
+  h1 { font-size: 1.2rem; margin: 0 0 0.3rem; }
+  .note { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; line-height: 1.45; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 0.9rem 1rem; margin-bottom: 0.8rem; }
+  .name { font-size: 0.75rem; color: var(--accent); font-family: system-ui, sans-serif; margin-bottom: 0.35rem; letter-spacing: 0.02em; text-transform: uppercase; }
+  .h { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.25rem; }
+  .p { font-size: 0.98rem; line-height: 1.55; }
+  .kk { font-size: 0.98rem; line-height: 1.55; margin-top: 0.35rem; }
+  .letters { font-size: 1.35rem; letter-spacing: 0.08em; margin-top: 0.35rem; }
+  .btns { display: flex; gap: 0.4rem; margin-top: 0.55rem; flex-wrap: wrap; }
+  .btns span { border: 1px solid var(--border); border-radius: 999px; padding: 0.3rem 0.75rem; font-size: 0.85rem; }
+  .tr { font-size: 1.02rem; line-height: 1.65; }
+  .sec { font-size: 0.95rem; font-weight: 600; margin: 1.2rem 0 0.6rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<h1>Образцы шрифтов</h1>
+<div class="note">Посмотрите, какой читается легче и нравится больше. Проверьте казахские буквы в строке «ә ғ қ ң ө ұ ү һ і»: если какая-то выглядит иначе остальных (другим шрифтом), значит этот шрифт казахский не поддерживает. Шрифты грузятся из интернета.</div>
+
+<div class="sec">Для сайта (кнопки, заголовки, меню)</div>
+<div id="ui"></div>
+
+<div class="sec">Для перевода Корана (длинное чтение) — текст только для образца шрифта</div>
+<div id="tr"></div>
+
+<script>
+  var UI = [['Системный (как сейчас)', 'system-ui, sans-serif'], ['Golos Text', "'Golos Text'"], ['Onest', "'Onest'"], ['Manrope', "'Manrope'"], ['Nunito', "'Nunito'"], ['Inter', "'Inter'"], ['Rubik', "'Rubik'"], ['Noto Sans', "'Noto Sans'"]];
+  var TR = [['С засечками (как сейчас)', "Georgia, 'Times New Roman', serif"], ['Literata', "'Literata'"], ['PT Serif', "'PT Serif'"], ['Golos Text', "'Golos Text'"], ['Onest', "'Onest'"], ['Nunito', "'Nunito'"]];
+  document.getElementById('ui').innerHTML = UI.map(function (f) {
+    return '<div class="card" style="font-family:' + f[1] + '"><div class="name">' + f[0] + '</div>' +
+      '<div class="h">Хатм и план · Тренировка дня</div>' +
+      '<div class="p">Нажмите раздел, чтобы открыть его. Сегодня: ≈ 1 джуз (20 стр.), Аль-Бакара 2:142 → 2:257.</div>' +
+      '<div class="kk">Бүгінгі жаттығу: әріптерді танып, сөздерді оқыңыз. Құран оқуды жалғастыру.</div>' +
+      '<div class="letters">ә ғ қ ң ө ұ ү һ і · Ә Ғ Қ Ң Ө Ұ Ү Һ І</div>' +
+      '<div class="btns"><span>▶ Слушать</span><span>☆ Закладка</span><span>⋯ Ещё</span><span>0123456789</span></div></div>';
+  }).join('');
+  document.getElementById('tr').innerHTML = TR.map(function (f) {
+    return '<div class="card" style="font-family:' + f[1] + '"><div class="name">' + f[0] + '</div>' +
+      '<div class="tr">Аллах — нет божества, кроме Него, Живого, Поддерживающего жизнь. Им не овладевают ни дремота, ни сон. Ему принадлежит то, что на небесах, и то, что на земле.</div>' +
+      '<div class="kk">Алла — Одан басқа құдай жоқ. Ол тірі, мәңгі тұрушы. Оны мүлгу де, ұйқы да баспайды. Көктердегі және жердегі нәрселер Онікі.</div></div>';
+  }).join('');
+</script>
+</body>
+</html>

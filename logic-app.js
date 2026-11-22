@@ -3903,7 +3903,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       { cat: 'morecfg', ico: '🧭', ru: 'Меню и главная', kk: 'Мәзір және басты бет', dRu: 'вкладки внизу, кнопки шапки, Лента', dKk: 'төменгі қойындылар, жоғарғы батырмалар, Лента' },
       { cat: 'offline', ico: '📶', ru: 'Офлайн', kk: 'Офлайн', dRu: 'скачать для работы без интернета, кэш', dKk: 'интернетсіз жұмысқа жүктеу, кэш' },
       { cat: 'security', ico: '🔒', ru: 'Безопасность', kk: 'Қауіпсіздік', dRu: 'пароль, блокировка', dKk: 'құпиясөз, құлыптау' },
-      { cat: 'presets', ico: '⚡', ru: 'Быстрые наборы', kk: 'Жылдам жинақтар', dRu: 'готовые сочетания настроек', dKk: 'дайын баптаулар жиынтығы' },
+      { cat: 'presets', ico: '⭐', ru: 'Мои наборы', kk: 'Менің жинақтарым', dRu: 'сохранить свои настройки, перенести на другой телефон, вернуть как было', dKk: 'өз баптауларыңызды сақтау, басқа телефонға көшіру, бұрынғыша қайтару' },
       { cat: 'other', ico: '⚙️', ru: 'Дополнительно', kk: 'Қосымша', dRu: 'данные, экспорт, редкие настройки', dKk: 'деректер, экспорт, сирек баптаулар' }
     ];
     function setHomeVal(it) {
@@ -3934,6 +3934,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var bb = document.getElementById('set-backbar');
       try { setGroupView(); setGroupAudio(); spEnhance(); document.querySelectorAll('#view-settings select.sp-hidden').forEach(function(s) { if (s._spPaint) s._spPaint(); }); } catch(e) {}
       if (on) { setHomeRender(); if (bb) bb.innerHTML = ''; return; }
+      if (cat === 'presets') { try { renderPresetsList(); } catch(e) {} }
       var it = SET_HOME.filter(function(x) { return x.cat === cat; })[0], kk = isKk();
       if (bb) bb.innerHTML = '<button type="button" class="btn btn-quiet sh-back" data-sh-back="1">‹ ' + (kk ? 'Баптаулар' : 'Настройки') + '</button><b>' + (it ? it.ico + ' ' + (kk ? it.kk : it.ru) : '') + '</b>';
       try { window.scrollTo(0, 0); } catch(e) {}
@@ -32705,11 +32706,76 @@ function renderDict() {
         return { id: p.id, icon: '⭐', label: p.name, desc: 'Ваш сохранённый пресет.', values: p.values, custom: true };
       }));
     }
-    function renderPresetsList() {
-      const host = document.getElementById('presets-list');
-      if (!host) return;
-      host.innerHTML = allPresets().map(function(p) { return renderPresetCard(p, !!p.custom); }).join('');
+    // ===== 7.33: «Мои наборы» вместо готовых пресетов — свои сохранённые настройки, перенос кодом, «вернуть как было» =====
+    function msSnap() {
+      var s = {}; Object.keys(state.settings || {}).forEach(function(k) { if (/pin|lock|pass|token|secret|key$/i.test(k)) return; s[k] = state.settings[k]; });
+      return JSON.parse(JSON.stringify(s));
     }
+    function msApply(vals, msg) {
+      Object.keys(vals || {}).forEach(function(k) { if (/pin|lock|pass|token|secret|key$/i.test(k)) return; state.settings[k] = vals[k]; });
+      try { saveState(); } catch(e) {}
+      toast(msg || (isKk() ? 'Баптаулар қолданылды — бет жаңартылады' : 'Настройки применены — страница обновится'));
+      setTimeout(function() { try { location.reload(); } catch(e) {} }, 700);
+    }
+    function msHist() { try { var a = JSON.parse(localStorage.getItem('qa_set_hist') || '[]'); return Array.isArray(a) ? a : []; } catch(e) { return []; } }
+    // при каждом запуске — запомнить настройки, если изменились (последние 3 версии)
+    function msHistPush() {
+      try {
+        var cur = JSON.stringify(msSnap()), h = msHist();
+        if (h.length && JSON.stringify(h[0].s) === cur) return;
+        h.unshift({ ts: Date.now(), s: JSON.parse(cur) }); localStorage.setItem('qa_set_hist', JSON.stringify(h.slice(0, 4)));
+      } catch(e) {}
+    }
+    setTimeout(msHistPush, 3000);
+    function msCode() { try { return 'QA1.' + btoa(unescape(encodeURIComponent(JSON.stringify(msSnap())))); } catch(e) { return ''; } }
+    function msDecode(code) { try { code = String(code || '').trim(); if (code.indexOf('QA1.') !== 0) return null; return JSON.parse(decodeURIComponent(escape(atob(code.slice(4))))); } catch(e) { return null; } }
+    function msFmt(ts) { try { var d = new Date(ts); return d.toLocaleDateString() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); } catch(e) { return ''; } }
+    function renderPresetsList() {
+      var host = document.getElementById('presets-list'); if (!host) return;
+      var kk = isKk(), mine = state.customPresets || [], hist = msHist().slice(1, 4);
+      var sb = document.getElementById('btn-save-preset'); if (sb) sb.style.display = 'none';
+      var pn = host.closest('.set-cat'); if (pn) { var hb = pn.querySelector(':scope > b'), hd = pn.querySelector(':scope > .ayah-translation'); if (hb) hb.textContent = '⭐ ' + (kk ? 'Менің жинақтарым' : 'Мои наборы'); if (hd) hd.textContent = kk ? 'Өз баптауларыңызды сақтап, бір басумен ауыстырыңыз; басқа телефонға көшіріңіз немесе бұрынғысын қайтарыңыз.' : 'Сохраните свои настройки и переключайтесь одним нажатием; перенесите их на другой телефон или верните как было.'; }
+      var h = '<div class="ms-sec"><div class="pl-lbl2">⭐ ' + (kk ? 'Сақталған жинақтар' : 'Сохранённые наборы') + '</div>' +
+        (mine.length ? mine.map(function(p) {
+          return '<div class="ms-row"><span class="ms-t"><b>' + String(p.name).replace(/</g, '&lt;') + '</b><small>' + msFmt(p.ts) + '</small></span>' +
+            '<button type="button" class="btn btn-sm btn-primary" data-ms-apply="' + p.id + '">' + (kk ? 'Қолдану' : 'Применить') + '</button>' +
+            '<button type="button" class="btn btn-sm" data-ms-del="' + p.id + '" aria-label="' + (kk ? 'Жою' : 'Удалить') + '">🗑</button></div>';
+        }).join('') : '<div class="rd-note">' + (kk ? 'Әзірге жоқ. Мысалы: «Үйде» — ірі мәтін, «Жаттау» — қайталау және баяу.' : 'Пока нет. Например: «Дома» — крупный текст, «Заучивание» — повтор и медленнее.') + '</div>') +
+        '<button type="button" class="btn ms-wide" data-ms-save="1">💾 ' + (kk ? 'Қазіргі баптауларды жинақ ретінде сақтау' : 'Сохранить текущие настройки как набор') + '</button></div>' +
+        '<div class="ms-sec"><div class="pl-lbl2">📲 ' + (kk ? 'Басқа телефонға көшіру' : 'Перенести на другой телефон') + '</div>' +
+        '<div class="rd-note">' + (kk ? 'Кодты көшіріп не бөлісіп, екінші телефонда «Кодты енгізу» басыңыз.' : 'Скопируйте или отправьте код, на втором телефоне нажмите «Ввести код».') + '</div>' +
+        '<div class="ms-btns"><button type="button" class="btn" data-ms-share="1">📤 ' + (kk ? 'Кодты бөлісу' : 'Отправить код') + '</button><button type="button" class="btn" data-ms-import="1">📥 ' + (kk ? 'Кодты енгізу' : 'Ввести код') + '</button></div></div>' +
+        '<div class="ms-sec"><div class="pl-lbl2">↩️ ' + (kk ? 'Бұрынғыша қайтару' : 'Вернуть как было') + '</div>' +
+        (hist.length ? hist.map(function(x, i) { return '<div class="ms-row"><span class="ms-t"><b>' + msFmt(x.ts) + '</b><small>' + (kk ? 'сайт өзі сақтаған нұсқа' : 'версия, которую сайт сохранил сам') + '</small></span><button type="button" class="btn btn-sm" data-ms-hist="' + (i + 1) + '">' + (kk ? 'Қайтару' : 'Вернуть') + '</button></div>'; }).join('')
+          : '<div class="rd-note">' + (kk ? 'Сайт баптаулардың соңғы 3 нұсқасын өзі сақтайды — өзгергеннен кейін осында пайда болады.' : 'Сайт сам хранит 3 последние версии ваших настроек — появятся здесь после изменений.') + '</div>') + '</div>';
+      host.innerHTML = h;
+    }
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t || !t.closest('#presets-list')) return;
+      var kk = isKk(), b;
+      if (t.closest('[data-ms-save]')) {
+        var name = prompt(kk ? 'Жинақ атауы (мысалы «Үйде»):' : 'Название набора (например «Дома»):', ''); if (name == null || !name.trim()) return;
+        if (!Array.isArray(state.customPresets)) state.customPresets = [];
+        state.customPresets.unshift({ id: 'my_' + Date.now(), name: name.trim().slice(0, 40), ts: Date.now(), values: msSnap(), full: true });
+        try { saveState(); } catch(er) {} renderPresetsList(); toast(kk ? 'Сақталды' : 'Сохранено'); return;
+      }
+      if ((b = t.closest('[data-ms-apply]'))) { var p = (state.customPresets || []).find(function(x) { return x.id === b.getAttribute('data-ms-apply'); }); if (p) { msHistPush(); msApply(p.values); } return; }
+      if ((b = t.closest('[data-ms-del]'))) { if (!confirm(kk ? 'Жинақты жою керек пе?' : 'Удалить набор?')) return; state.customPresets = (state.customPresets || []).filter(function(x) { return x.id !== b.getAttribute('data-ms-del'); }); try { saveState(); } catch(er) {} renderPresetsList(); return; }
+      if ((b = t.closest('[data-ms-hist]'))) { var h = msHist()[+b.getAttribute('data-ms-hist')]; if (h && confirm(kk ? 'Осы нұсқаны қайтару керек пе?' : 'Вернуть эту версию настроек?')) { msHistPush(); msApply(h.s); } return; }
+      if (t.closest('[data-ms-share]')) {
+        var code = msCode(); if (!code) return;
+        var txt = (kk ? 'Quran Academy баптаулары — кодты «Баптаулар → Менің жинақтарым → Кодты енгізу» ішіне қойыңыз:\n' : 'Настройки Quran Academy — вставьте код в «Настройки → Мои наборы → Ввести код»:\n') + code;
+        if (navigator.share) navigator.share({ text: txt }).catch(function() {});
+        else { try { navigator.clipboard.writeText(code); toast(kk ? 'Код көшірілді' : 'Код скопирован'); } catch(er) { prompt(kk ? 'Кодты көшіріңіз:' : 'Скопируйте код:', code); } }
+        return;
+      }
+      if (t.closest('[data-ms-import]')) {
+        var c = prompt(kk ? 'Кодты қойыңыз (QA1. деп басталады):' : 'Вставьте код (начинается с QA1.):', ''); if (!c) return;
+        var vals = msDecode(c); if (!vals) { toast(kk ? 'Код дұрыс емес' : 'Код не распознан'); return; }
+        msHistPush(); msApply(vals, kk ? 'Баптаулар көшірілді — бет жаңартылады' : 'Настройки перенесены — страница обновится');
+      }
+    });
+
     function applyPresetValues(values) {
       Object.keys(values || {}).forEach(function(k) { state.settings[k] = values[k]; });
       try { window._tipOpen = {}; localStorage.setItem('quran_tip_open', '{}'); } catch(e) {}
@@ -66317,7 +66383,8 @@ function startApp() {
           var bareT = tk.replace(/[\u064B-\u0655\u0670\u06E5\u06E6\u0640]/g, '');
           var cons = bareT.replace(/[اوىيٱآ]/g, '').length; // 7.14: آ — долгий «а», не согласная (иначе «لَآ» выпадало из транскрипции)
           var vm = (tk.match(/[\u064B-\u0652\u0670]/g) || []).length;
-          var unvoc = bareT.length >= 2 && (vm === 0 || vm < 0.6 * cons);
+          // 7.33: последняя буква в мусхафе часто без сукуна («مَن ذَا») — её не считаем; иначе «ман» превращалось в словарное «мин»
+          var unvoc = bareT.length >= 2 && (vm === 0 || vm < 0.6 * Math.max(1, cons - 1));
           if (bareT.length === 1) return tk;
           if (unvoc) { var d = DICT[bareT]; return d !== undefined ? d : ''; }
           return tk;
@@ -66547,10 +66614,26 @@ function startApp() {
           }
         }
         out = out.replace(/\s+/g, ' ').replace(/ ([,.;:?!])/g, '$1').trim();
+        out = tlFix(out);
         out = out.replace(/(^|[.!?]\s+)([а-яёәғқңөұүһі])/g, function (m, a, b) { return a + b.toUpperCase(); });
         return out;
       }
 
+      // 7.33: поправки к готовой транскрипции (проверка 1, 93, 103, 112–114, 2:255)
+      function tlFix(s) {
+        var V = 'аиуәөұүіы';
+        // идгам через границу слов: «хайрун ллака» → «хайрул-лака», «йакун ллаху» → «йакул-лаху», «н рр» → «р-р», «н мм» → «м-м», «н нн» → «н-н»
+        s = s.replace(/н\s+лл/g, 'л-л').replace(/н\s+рр/g, 'р-р').replace(/н\s+нн/g, 'н-н').replace(/н\s+мм/g, 'м-м');
+        // танвин уже съеден, а «м» удвоено: «бишай’и ммин» → «бишай’им-мин»
+        s = s.replace(new RegExp('([' + V + '])\\s+мм(?=[' + V + '])', 'g'), '$1м-м');
+        // долгая гласная перед артиклем/слиянием («-ль-», «-с-», «-д-»…) читается коротко: «фии-ль-» → «фи-ль-», «Ихдинаа-с-» → «Ихдина-с-»
+        s = s.replace(/(аа|ии|уу)(?=-(?:ль|[бвгджзйклмнпрстфхцчшщһқғң]{1,2})-)/g, function (m) { return m.charAt(0); });
+        // «ٱلَّذِى/ٱلَّتِى» после гласной — через дефис, долгая гласная короткая: «Иллаа ллазиина» → «Илла-ллазиина»
+        s = s.replace(/(аа|ии|уу|[аиу])\s+(лла[зт][иі])/g, function (m, v, w) { return v.charAt(0) + '-' + w; });
+        // «кх» (ق + ه) по-русски читается как одна буква — разделяем: «такхар» → «так-хар»
+        s = s.replace(/кх/g, 'к-х');
+        return s;
+      }
       var cache = {};
       // build 6.27: латиница (по умолчанию) строится из той же проверенной кириллической версии
       // правилами замены букв; эмфатические (ṣ, ṭ, ḥ) при этом не различаются — «приблизительно».

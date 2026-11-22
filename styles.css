@@ -5097,3 +5097,12 @@ body.bg-photo .view > h2, body.bg-photo .section-title { text-shadow: 0 1px 6px 
 .reader-tl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.5rem; }
 .reader-tl-row:empty { display: none; }
 .rtl-lbl { font-size: 0.8rem; color: var(--text-muted); margin-right: 0.15rem; }
+
+/* ===== 7.33: «Мои наборы» ===== */
+.ms-sec { margin-top: 0.8rem; }
+.ms-row { display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.ms-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ms-t small { font-size: 0.74rem; color: var(--text-muted); }
+.ms-wide { width: 100%; margin-top: 0.5rem; min-height: 44px; }
+.ms-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-top: 0.4rem; }
+.ms-btns .btn { min-height: 44px; }
