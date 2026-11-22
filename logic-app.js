@@ -3222,7 +3222,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (name === 'changelog') try { renderChangelog(); } catch(e) {}
       if (name === 'legaldocs') try { renderLegalDocs(); } catch(e) { console.warn('legaldocs', e); }
       if (name === 'sources') { try { renderSources(); } catch(e) { console.warn('sources', e); } try { _appendLegalLinks(document.getElementById('sources-body')); } catch(e) {} }
-      if (name === 'settings') try { applyTheme(); renderSettingsExtraData(); renderBtnViewSetting(); renderBgSetting(); } catch(e) {}
+      if (name === 'settings') try { applyTheme(); renderSettingsExtraData(); renderBtnViewSetting(); renderBgSetting(); if (!window._setKeepPanel) setHomeMode(true); window._setKeepPanel = false; } catch(e) {}
       if (name === 'help') try { renderHelp(); } catch(e) {}
       if (name === 'account' || name === 'login' || name === 'register' || name === 'forgot') try { renderAuth(name); } catch(e) {}
       if (name === 'stats') try { renderStats(); } catch(e) {}
@@ -3887,6 +3887,87 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       };
       fr.readAsDataURL(e.target.files[0]);
     });
+    // ===== 7.30: Настройки — главный экран списком (как в телефоне): раздел → «‹ Настройки»; поиск сверху =====
+    const SET_HOME = [
+      { cat: 'view', ico: '🌓', ru: 'Внешний вид', kk: 'Сыртқы түрі', dRu: 'тема, фон, кнопки, размер', dKk: 'тақырып, фон, батырмалар, өлшем' },
+      { cat: 'fonts', ico: '🔤', ru: 'Шрифты', kk: 'Қаріптер', dRu: 'арабский и русский текст, размеры', dKk: 'араб және орыс мәтіні, өлшемдер' },
+      { cat: 'read', ico: '📖', ru: 'Чтение', kk: 'Оқу', dRu: 'перевод, транскрипция, тафсир', dKk: 'аударма, транскрипция, тәпсір' },
+      { cat: 'audio', ico: '🎧', ru: 'Аудио', kk: 'Аудио', dRu: 'чтецы, скорость, повтор', dKk: 'қарилер, жылдамдық, қайталау' },
+      { go: 'prayertimes', ico: '🕌', ru: 'Намаз', kk: 'Намаз', dRu: 'город, метод, уведомления о намазе', dKk: 'қала, әдіс, намаз хабарламалары' },
+      { cat: 'study', ico: '🎓', ru: 'Учёба', kk: 'Оқу бағдарламасы', dRu: 'курс, тренировка, повторение', dKk: 'курс, жаттығу, қайталау' },
+      { cat: 'lang', ico: '🌐', ru: 'Язык', kk: 'Тіл', dRu: 'язык сайта и перевода', dKk: 'сайт пен аударма тілі' },
+      { cat: 'notif', ico: '🔔', ru: 'Уведомления', kk: 'Хабарландырулар', dRu: 'напоминания и звуки', dKk: 'еске салғыштар мен дыбыстар' },
+      { cat: 'morecfg', ico: '🧭', ru: 'Меню и главная', kk: 'Мәзір және басты бет', dRu: 'вкладки внизу, кнопки шапки, Лента', dKk: 'төменгі қойындылар, жоғарғы батырмалар, Лента' },
+      { cat: 'offline', ico: '📶', ru: 'Офлайн', kk: 'Офлайн', dRu: 'скачать для работы без интернета, кэш', dKk: 'интернетсіз жұмысқа жүктеу, кэш' },
+      { cat: 'security', ico: '🔒', ru: 'Безопасность', kk: 'Қауіпсіздік', dRu: 'пароль, блокировка', dKk: 'құпиясөз, құлыптау' },
+      { cat: 'presets', ico: '⚡', ru: 'Быстрые наборы', kk: 'Жылдам жинақтар', dRu: 'готовые сочетания настроек', dKk: 'дайын баптаулар жиынтығы' },
+      { cat: 'other', ico: '⚙️', ru: 'Дополнительно', kk: 'Қосымша', dRu: 'данные, экспорт, редкие настройки', dKk: 'деректер, экспорт, сирек баптаулар' }
+    ];
+    function setHomeVal(it) {
+      var kk = isKk(), s = state.settings || {};
+      try {
+        if (it.cat === 'view') { var th = (typeof THEME_LIST !== 'undefined' ? THEME_LIST : []).find(function(x) { return x.v === s.theme; }); return th ? (kk ? (th.kk || th.name) : th.name) : ''; }
+        if (it.cat === 'lang') return kk ? 'Қазақша' : 'Русский';
+        if (it.cat === 'audio') { var r = (typeof RECITER_LIST !== 'undefined' ? RECITER_LIST : []).find(function(x) { return x.id === s.reciter; }); return r ? String(kk ? (r.kk || r.ru) : r.ru).replace(/\s*\(.*\)\s*$/, '') : ''; }
+        if (it.cat === 'security') return s.appLock === false ? (kk ? 'құлып өшірулі' : 'блокировка выкл') : (kk ? 'құлып қосулы' : 'блокировка вкл');
+        if (it.go === 'prayertimes') { var l = state.prayerLoc || state.prayerLocSaved; return l && l.city ? l.city : ''; }
+      } catch(e) {}
+      return '';
+    }
+    function setHomeRender() {
+      var el = document.getElementById('set-home'); if (!el) return;
+      var kk = isKk();
+      el.innerHTML = SET_HOME.map(function(it) {
+        var v = setHomeVal(it);
+        return '<button type="button" class="sh-row" ' + (it.cat ? 'data-sh-cat="' + it.cat + '"' : 'data-sh-go="' + it.go + '"') + '>' +
+          '<span class="sh-ico" aria-hidden="true">' + it.ico + '</span>' +
+          '<span class="sh-txt"><b>' + (kk ? it.kk : it.ru) + '</b><small>' + (v ? '<em>' + String(v).replace(/</g, '&lt;') + '</em> · ' : '') + (kk ? it.dKk : it.dRu) + '</small></span>' +
+          '<span class="sh-chev" aria-hidden="true">›</span></button>';
+      }).join('');
+    }
+    function setHomeMode(on, cat) {
+      var v = document.getElementById('view-settings'); if (!v) return;
+      v.classList.toggle('set-home-mode', !!on);
+      var bb = document.getElementById('set-backbar');
+      try { setGroupView(); } catch(e) {}
+      if (on) { setHomeRender(); if (bb) bb.innerHTML = ''; return; }
+      var it = SET_HOME.filter(function(x) { return x.cat === cat; })[0], kk = isKk();
+      if (bb) bb.innerHTML = '<button type="button" class="btn btn-quiet sh-back" data-sh-back="1">‹ ' + (kk ? 'Баптаулар' : 'Настройки') + '</button><b>' + (it ? it.ico + ' ' + (kk ? it.kk : it.ru) : '') + '</b>';
+      try { window.scrollTo(0, 0); } catch(e) {}
+    }
+    // «Внешний вид» — по блокам (Тема / Фон / Кнопки и размер / Дополнительно); узлы переносятся, логика по id не меняется
+    function setGroupView() {
+      var pn = document.querySelector('#view-settings .set-cat[data-set-panel="view"]'); if (!pn || pn._grouped) return;
+      var kk = isKk(), row = function(sel) { var x = document.querySelector(sel); return x ? (x.classList.contains('setting-row') ? x : x.closest('.setting-row')) : null; };
+      var mk = function(ico, ru, kz, open, nodes) {
+        var d = document.createElement('details'); d.className = 'set-grp'; if (open) d.open = true;
+        d.innerHTML = '<summary><span>' + ico + '</span><b>' + (kk ? kz : ru) + '</b></summary>';
+        var body = document.createElement('div'); body.className = 'set-grp-body'; d.appendChild(body);
+        nodes.forEach(function(n) { if (n) body.appendChild(n); });
+        return d;
+      };
+      var theme = row('#setting-theme'), night = row('#setting-night-auto'), bg = document.getElementById('bg-setting'), bv = document.getElementById('btnview-setting'), ui = document.getElementById('ui-size-setting'),
+        fw = document.getElementById('fw-op-setting'), anim = row('#setting-reduce-motion'), hints = row('#setting-hints-collapsed'), start = row('#setting-startup-view');
+      var head = pn.querySelector('b');
+      var after = head ? head.nextSibling : pn.firstChild;
+      var groups = [mk('🎨', 'Тема', 'Тақырып', true, [theme, night]), mk('🖼', 'Фон', 'Фон', false, [bg]), mk('🔘', 'Кнопки и размер', 'Батырмалар және өлшем', false, [bv, ui]), mk('⚙️', 'Дополнительно', 'Қосымша', false, [fw, anim, hints])];
+      groups.forEach(function(g) { pn.insertBefore(g, after); });
+      if (head) head.style.display = 'none';
+      // «Стартовый экран» — по смыслу в «Меню и главная»
+      var mc = document.querySelector('#view-settings .set-cat[data-set-panel="morecfg"]');
+      if (start && mc) { var h2 = mc.querySelector('b'); mc.insertBefore(start, h2 ? h2.nextSibling : mc.firstChild); }
+      pn._grouped = true;
+    }
+    // открыть раздел — через прежние кнопки категорий (вся старая логика остаётся)
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      var c = t.closest('[data-sh-cat]');
+      if (c) { var b = document.querySelector('#settings-cats [data-set-cat="' + c.getAttribute('data-sh-cat') + '"]'); if (b) b.click(); return; }
+      var g = t.closest('[data-sh-go]'); if (g) { try { showView(g.getAttribute('data-sh-go')); } catch(er) {} return; }
+      if (t.closest('[data-sh-back]')) { setHomeMode(true); try { window.scrollTo(0, 0); } catch(er) {} }
+    });
+    // любой переход в раздел (из списка, поиска или из других мест сайта) — режим раздела с «‹ Настройки»
+    document.getElementById('settings-cats')?.addEventListener('click', function(e) { var b = e.target.closest('[data-set-cat]'); if (b) setHomeMode(false, b.getAttribute('data-set-cat')); });
     function applyBtnView() { try { document.body.classList.toggle('btn-icons', !!(state.settings && state.settings.btnView === 'icons')); } catch(e) {} }
     function renderBtnViewSetting() {
       var el = document.getElementById('btnview-setting'); if (!el) return;

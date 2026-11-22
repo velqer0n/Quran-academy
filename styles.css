@@ -5053,3 +5053,32 @@ body.bg-photo .view > h2, body.bg-photo .section-title { text-shadow: 0 1px 6px 
 #salah-anim [data-sa="prev"], #salah-anim [data-sa="play"], #salah-anim [data-sa="next"], #salah-anim [data-sa="speed"], #salah-anim .hs-more-btn { min-height: 44px; min-width: 44px; }
 #salah-anim.hs-compact #salah-anim-cap { font-size: 1.02rem; line-height: 1.55; }
 #salah-anim.hs-wide #hs-text { max-height: calc(100vh - var(--hdr-vis, 0px) - 1rem); max-height: calc(100dvh - var(--hdr-vis, 0px) - 1rem); overflow-y: auto; }
+
+/* ===== 7.30: Настройки — главный экран списком ===== */
+#view-settings #settings-cats { display: none !important; }
+#view-settings.set-home-mode .set-cat { display: none !important; }
+#view-settings:not(.set-home-mode) #set-home { display: none; }
+.set-home { display: grid; gap: 0; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: var(--bg-card); margin-bottom: 1rem; }
+.sh-row { display: flex; align-items: center; gap: 0.75rem; width: 100%; min-height: 60px; padding: 0.55rem 0.85rem; border: none; border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.sh-row:last-child { border-bottom: none; }
+.sh-row:active { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.sh-ico { flex: none; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.sh-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.sh-txt b { font-size: 0.98rem; font-weight: 600; }
+.sh-txt small { font-size: 0.76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-txt small em { font-style: normal; color: var(--accent); }
+.sh-chev { flex: none; font-size: 1.4rem; color: var(--text-muted); }
+.set-backbar { display: none; }
+#view-settings:not(.set-home-mode) .set-backbar { display: flex; align-items: center; gap: 0.5rem; position: sticky; top: var(--hdr-vis, 0px); z-index: 6; padding: 0.4rem 0; margin-bottom: 0.5rem; background: var(--bg); }
+.set-backbar b { font-size: 1.05rem; }
+.sh-back { min-height: 40px; color: var(--accent); font-weight: 600; }
+.set-grp { border: 1px solid var(--border); border-radius: 14px; margin: 0.5rem 0; background: color-mix(in srgb, var(--bg) 40%, transparent); }
+.set-grp > summary { list-style: none; display: flex; align-items: center; gap: 0.55rem; min-height: 50px; padding: 0.5rem 0.8rem; cursor: pointer; }
+.set-grp > summary::-webkit-details-marker { display: none; }
+.set-grp > summary::after { content: '›'; margin-left: auto; font-size: 1.3rem; color: var(--text-muted); transition: transform .2s; }
+.set-grp[open] > summary::after { transform: rotate(90deg); }
+.set-grp > summary span { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.set-grp-body { padding: 0 0.8rem 0.7rem; }
+.sh-row, .set-grp, .set-home { box-sizing: border-box; }
+#view-settings:not(.set-home-mode) > h2, #view-settings:not(.set-home-mode) > div:has(> #settings-search) { display: none; }
+.set-grp-body > .setting-row:first-child > span:first-child:only-of-type { font-weight: 600; }
