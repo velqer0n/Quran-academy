@@ -7107,24 +7107,18 @@ document.getElementById('audio-stop').addEventListener('click', () => {
             Object.keys(rs.sectionSeconds || {}).forEach(function (sid) { const m = normalizeDayMap(rs.sectionSeconds[sid]); Object.keys(m).forEach(function (d) { if (m[d] > 0) act[d] = (act[d] || 0) + m[d]; }); });
           } catch (e) {}
           const days = []; const now = new Date(); now.setHours(12, 0, 0, 0);
-          for (let i = 83; i >= 0; i--) { const d = new Date(now.getTime() - i * 86400000); days.push(d.toISOString().slice(0, 10)); }
+          for (let i = 83; i >= 0; i--) { const d = new Date(now.getTime() - i * 86400000); days.push(rdDay(d)); }
           const actN = days.filter(function (d) { return act[d]; }).length;
           // привычки из «Сегодня» за 30 дней
           let hz = { mz: 0, ez: 0, qr: 0 };
           days.slice(-30).forEach(function (d) { try { const tm = JSON.parse(localStorage.getItem('qa_today_' + d) || '{}') || {}; ['mz', 'ez', 'qr'].forEach(function (k) { if (tm[k]) hz[k]++; }); } catch (e) {} });
-          pb.innerHTML =
+          pb.innerHTML = (function () { try { return stHtml(kkP); } catch (e) { return ''; } })() +
             '<div class="card pg-card"><div class="pg-head"><b>👨‍🏫 ' + T('Курс', 'Курс') + '</b><span>' + done + ' / ' + skills.length + '</span></div>' + bar(skills.length ? done / skills.length * 100 : 0) +
               (nxt ? '<div class="pg-sub">' + T('Следующий урок: ', 'Келесі сабақ: ') + '<b>' + skillTitle(nxt) + '</b></div>' : '') +
               (nR ? '<div class="pg-sub">' + T('Средний результат в уроках: ', 'Сабақтардағы орташа нәтиже: ') + '<b>' + Math.round(sumR / nR * 100) + '%</b></div>' : '') +
               (weak.length ? '<div class="pg-sub">' + T('Стоит повторить: ', 'Қайталау керек: ') + weak.map(function (s) { return '<button type="button" class="online-chip" data-pg-skill="' + s.id + '">' + skillTitle(s) + '</button>'; }).join(' ') + '</div>' : '') +
               '<button type="button" class="btn btn-sm btn-primary" data-pg-go="teacher" style="margin-top:0.5rem">▶ ' + T('Продолжить курс', 'Курсты жалғастыру') + '</button></div>' +
             (function () { try { return lmapCardHtml('pg-card'); } catch (e) { return ''; } })() +
-            '<div class="card pg-card"><div class="pg-head"><b>📖 ' + T('Коран', 'Құран') + '</b><span>' + (Math.round(learnedA / totalAyahs * 1000) / 10) + '%</span></div>' + bar(learnedA / totalAyahs * 100) +
-              '<div class="pg-grid">' +
-              '<div><b>' + learnedA + '</b><span>' + T('аятов выучено', 'аят жатталды') + '</span></div>' +
-              '<div><b>' + learnedS + '</b><span>' + T('сур целиком', 'толық сүре') + '</span></div>' +
-              '<div><b>' + hifzN + '</b><span>' + T('на заучивании', 'жаттауда') + '</span></div>' +
-              '<div><b>' + Math.round(lsec / 60) + '</b><span>' + T('минут прослушано', 'минут тыңдалды') + '</span></div></div></div>' +
             '<div class="card pg-card"><div class="pg-head"><b>📅 ' + T('Активность за 12 недель', '12 аптадағы белсенділік') + '</b><span>' + actN + ' ' + T('дн.', 'күн') + '</span></div>' +
               '<div class="pg-cal">' + days.map(function (d) { const v = act[d] || 0; const lv = v === 0 ? 0 : v < 300 ? 1 : v < 1200 ? 2 : 3; return '<i class="l' + lv + '" title="' + d + '"></i>'; }).join('') + '</div>' +
               '<div class="pg-sub" style="font-size:0.74rem">' + T('Каждая клетка — день; чем ярче, тем больше времени с Кораном и учёбой.', 'Әр шаршы — бір күн; неғұрлым ашық болса, Құран мен оқуға соғұрлым көп уақыт.') + '</div></div>' +
@@ -15159,6 +15153,8 @@ function renderMistakes() {
       m.total++;
       if (!correct) m.wrong++;
       state.academyProgress._mistakes[cat][key] = m;
+      // 7.20: ответы по дням [верно, ошибка] — для статистики и графика точности
+      try { var _md = state.academyProgress._mday || (state.academyProgress._mday = {}), _dk = dayKey(), _v = _md[_dk] || (_md[_dk] = [0, 0]); _v[correct ? 0 : 1]++; } catch(e) {}
       qzMemUpdate(cat, key, correct);
       saveState();
       // 6.108: «Мои ошибки» обновляются сразу, а не после перезагрузки
@@ -17672,21 +17668,44 @@ function renderMistakes() {
       if (!k.days || typeof k.days !== 'object') k.days = {};
       return k;
     }
+    function rdDecode(str) {
+      var I = rdIdx(), out = new Uint8Array(I.total);
+      try { if (str) { var bin = atob(str); for (var i = 0; i < I.total; i++) out[i] = (bin.charCodeAt(i >> 3) >> (i & 7)) & 1; } } catch(e) {}
+      return out;
+    }
+    function rdEncode(arr) {
+      var I = rdIdx(), n = Math.ceil(I.total / 8), pk = new Uint8Array(n), s = '';
+      for (var i = 0; i < I.total; i++) if (arr[i]) pk[i >> 3] |= 1 << (i & 7);
+      for (var j = 0; j < n; j++) s += String.fromCharCode(pk[j]);
+      return btoa(s);
+    }
     var _rdBits = null, _rdBitsB = null;
     function rdBits() {
       var k = rdK();
       if (_rdBits && k.b === _rdBitsB) return _rdBits;
-      var I = rdIdx(); _rdBits = new Uint8Array(I.total);
-      try { if (k.b) { var bin = atob(k.b); for (var i = 0; i < I.total; i++) _rdBits[i] = (bin.charCodeAt(i >> 3) >> (i & 7)) & 1; } } catch(e) {}
-      _rdBitsB = k.b;
+      _rdBits = rdDecode(k.b); _rdBitsB = k.b;
       return _rdBits;
     }
-    function rdSaveBits() {
-      var I = rdIdx(), n = Math.ceil(I.total / 8), arr = new Uint8Array(n), s = '';
-      for (var i = 0; i < I.total; i++) if (_rdBits[i]) arr[i >> 3] |= 1 << (i & 7);
-      for (var j = 0; j < n; j++) s += String.fromCharCode(arr[j]);
-      rdK().b = btoa(s); _rdBitsB = rdK().b;
+    function rdSaveBits() { rdK().b = rdEncode(_rdBits); _rdBitsB = rdK().b; }
+    // 7.20: план «свои суры» — отдельный учёт с нуля (биты p.pb), только аяты выбранных сур
+    var _rdPB = null, _rdPBb = null, _rdMask = null, _rdMaskKey = '';
+    function rdPlanSuras() { var p = rdK().plan; return p && Array.isArray(p.suras) && p.suras.length ? p : null; }
+    function rdPlanBits() { var p = rdPlanSuras(); if (!p) return null; if (_rdPB && p.pb === _rdPBb) return _rdPB; _rdPB = rdDecode(p.pb); _rdPBb = p.pb; return _rdPB; }
+    function rdMask() {
+      var p = rdPlanSuras(); if (!p) return null;
+      var key = p.suras.join(','); if (_rdMask && key === _rdMaskKey) return _rdMask;
+      var I = rdIdx(); _rdMask = new Uint8Array(I.total); _rdMaskKey = key;
+      p.suras.forEach(function(s) { for (var g = I.pre[s - 1]; g < I.pre[s]; g++) _rdMask[g] = 1; });
+      return _rdMask;
     }
+    // диапазоны текущей цели: весь Коран или выбранные суры (в порядке выбора)
+    function rdScope() { var p = rdPlanSuras(), I = rdIdx(); return p ? p.suras.map(function(s) { return [I.pre[s - 1], I.pre[s] - 1]; }) : [[0, I.total - 1]]; }
+    function rdW(g) { return 1 / rdJuzSize(rdJuzOf(g)); }
+    function rdGoalBits() { return rdPlanBits() || rdBits(); }
+    function rdScopeJ(onlyRead) { var B = rdGoalBits(), s = 0; rdScope().forEach(function(r) { for (var g = r[0]; g <= r[1]; g++) if (!onlyRead || B[g]) s += rdW(g); }); return s; }
+    function rdScopeFirst() { var B = rdGoalBits(), sc = rdScope(); for (var i = 0; i < sc.length; i++) for (var g = sc[i][0]; g <= sc[i][1]; g++) if (!B[g]) return g; return -1; }
+    // аят ещё нужен: не прочитан в хатме или (план «свои суры») не прочитан в плане
+    function rdNeeded(g) { if (!rdBits()[g]) return true; var M = rdMask(); return !!(M && M[g] && !rdPlanBits()[g]); }
     function rdJuzSize(j) { var I = rdIdx(); return I.js[j + 1] - I.js[j]; }
     function rdJuzCount(j) { var I = rdIdx(), B = rdBits(), c = 0; for (var g = I.js[j]; g < I.js[j + 1]; g++) c += B[g]; return c; }
     function rdDoneJ() { var s = 0; for (var j = 1; j <= 30; j++) s += rdJuzCount(j) / rdJuzSize(j); return s; }
@@ -17694,17 +17713,24 @@ function renderMistakes() {
     // отметить/снять диапазон глобальных индексов (включительно); src: 'read' | 'listen' | 'manual'
     function rdMark(g1, g2, on, src) {
       var B = rdBits(), I = rdIdx(), k = rdK(), added = 0, addJ = 0, touched = {}, kk = isKk();
+      var PS = rdPlanSuras(), PB = rdPlanBits(), M = rdMask(), pAdd = 0, pChanged = false;
       g1 = Math.max(0, g1); g2 = Math.min(I.total - 1, g2);
       for (var g = g1; g <= g2; g++) {
+        if (PB && M[g] && !!PB[g] !== !!on) { PB[g] = on ? 1 : 0; pChanged = true; if (on) pAdd += rdW(g); }
         if (!!B[g] === !!on) continue;
         B[g] = on ? 1 : 0;
         var j = rdJuzOf(g); touched[j] = 1;
         if (on) { added++; addJ += 1 / rdJuzSize(j); }
       }
-      var tj = Object.keys(touched);
-      if (!tj.length) return 0;
-      rdSaveBits();
       var today = rdDay();
+      if (pChanged) {
+        PS.pb = rdEncode(PB); _rdPBb = PS.pb;
+        if (on && src !== 'migrate') { if (!PS.tj || PS.tj.d !== today) PS.tj = { d: today, j: 0 }; PS.tj.j += pAdd; }
+        if (on && !PS.doneAt && rdScopeFirst() < 0) { PS.doneAt = today; try { toast(kk ? 'Таңдалған сүрелер оқылды — мәшәллаһ!' : 'Выбранные суры прочитаны — машаАллах!'); } catch(e) {} }
+      }
+      var tj = Object.keys(touched);
+      if (!tj.length) { if (pChanged) { try { saveState(); } catch(e) {} } return 0; }
+      rdSaveBits();
       if (on && src !== 'migrate') {
         k.days[today] = (k.days[today] || 0) + added;
         if (!k.tj || k.tj.d !== today) k.tj = { d: today, j: 0 };
@@ -17747,19 +17773,28 @@ function renderMistakes() {
       var k = rdK(), p = k.plan; if (!p || !p.start || !p.days) return null;
       var today = rdDay(), end = rdAddDays(p.start, p.days - 1);
       var left = Math.max(1, rdDiff(today, end) + 1);
-      var done = rdDoneJ(), todayJ = (k.tj && k.tj.d === today) ? k.tj.j : 0;
+      var PS = rdPlanSuras(), tot = PS ? rdScopeJ(false) : 30, done = PS ? rdScopeJ(true) : rdDoneJ();
+      var tjo = PS ? PS.tj : k.tj, todayJ = (tjo && tjo.d === today) ? tjo.j : 0;
       var before = Math.max(0, done - todayJ);
-      var target = Math.max(0, (30 - before) / left);
+      var target = Math.max(0, (tot - before) / left);
       var elapsed = Math.min(p.days, Math.max(0, rdDiff(p.start, today)));
-      var expected = 30 * elapsed / p.days;
-      return { end: end, left: left, day: Math.min(p.days, rdDiff(p.start, today) + 1), done: done, todayJ: todayJ, target: target, diff: before - expected, over: rdDiff(today, end) < 0 };
+      var expected = tot * elapsed / p.days;
+      return { end: end, left: left, day: Math.min(p.days, rdDiff(p.start, today) + 1), done: done, tot: tot, todayJ: todayJ, target: target, diff: before - expected, over: rdDiff(today, end) < 0, suras: PS ? PS.suras : null };
     }
     // сегодняшняя порция: с первого непрочитанного аята, пока не наберётся остаток нормы
     function rdTodayRange(need) {
-      var B = rdBits(), I = rdIdx(), g0 = rdFirstUnread(0);
+      var B = rdGoalBits(), sc = rdScope(), g0 = rdScopeFirst();
       if (g0 < 0 || need <= 0) return null;
-      var sum = 0, g = g0, last = g0;
-      for (; g < I.total; g++) { if (B[g]) continue; sum += 1 / rdJuzSize(rdJuzOf(g)); last = g; if (sum >= need - 1e-9) break; }
+      var sum = 0, last = g0, started = false;
+      for (var i = 0; i < sc.length; i++) {
+        for (var g = sc[i][0]; g <= sc[i][1]; g++) {
+          if (g === g0) started = true;
+          if (!started || B[g]) continue;
+          // порция не перескакивает в другую суру списка, если в этой уже набралась половина нормы
+          if (last !== g0 && rdSA(g)[0] !== rdSA(last)[0] && sum >= need * 0.5 && sc.length > 1) return [g0, last];
+          sum += rdW(g); last = g; if (sum >= need - 1e-9) return [g0, last];
+        }
+      }
       return [g0, last];
     }
     function rdSaLabel(g) { var sa = rdSA(g), nm = typeof surahNameLocal === 'function' ? String(surahNameLocal(sa[0]) || '').replace(/\s*\(\d+\)\s*$/, '') : ''; return (nm ? nm + ' ' : '') + sa[0] + ':' + sa[1]; }
@@ -17790,16 +17825,20 @@ function renderMistakes() {
       var el = document.getElementById('rd-body'); if (!el) return;
       var kk = isKk(), k = rdK();
       try { rdSync(); } catch(e) {}
-      var I = rdIdx(), done = rdDoneJ(), pct = Math.floor(done / 30 * 1000) / 10, P = rdPlanInfo(), next = rdFirstUnread(0);
+      var I = rdIdx(), done = rdDoneJ(), pct = Math.floor(done / 30 * 1000) / 10, P = rdPlanInfo(), next = rdFirstUnread(0), gnext = rdScopeFirst();
       var h = '';
       // 1) сегодня / выбор цели
-      if (next >= 0 && P) {
+      if (P && P.suras && gnext < 0) {
+        h += '<div class="card rd-done"><b>🌿 ' + (kk ? 'Мақсатқа жеттіңіз — мәшәллаһ!' : 'Цель достигнута — машаАллах!') + '</b><div class="rd-note">' + rdSurasLabel(P.suras, kk) + '</div>' +
+          '<div class="rd-btns"><button type="button" class="btn btn-primary" data-rd-again="1">↻ ' + (kk ? 'Тағы бір рет' : 'Ещё раз') + '</button><button type="button" class="btn" data-rd-cancel="1">' + (kk ? 'Жаңа мақсат' : 'Новая цель') + '</button></div></div>';
+      } else if (gnext >= 0 && P) {
         var need = Math.max(0, P.target - P.todayJ), rng = rdTodayRange(need), tp = P.target > 0 ? Math.min(100, Math.round(P.todayJ / P.target * 100)) : 100;
         var st = P.over ? (kk ? 'Мерзім өтті — асықпай жалғастырыңыз немесе жоспарды өзгертіңіз.' : 'Срок прошёл — продолжайте без спешки или поменяйте план.')
           : Math.abs(P.diff) < 0.15 ? (kk ? 'Кестеде келесіз 👍' : 'Вы в графике 👍')
           : P.diff > 0 ? (kk ? 'Озып келесіз: ' : 'Опережаете: ') + rdJ(P.diff, kk)
           : (kk ? 'Артта: ' + rdJ(-P.diff, kk) + ' — норма қайта есептелді, асықпаңыз.' : 'Отстаёте на ' + rdJ(-P.diff, kk) + ' — норма пересчитана, без спешки.');
-        h += '<div class="card rd-today"><div class="rd-h"><b>' + (kk ? 'Бүгін' : 'Сегодня') + '</b><span>' + (kk ? P.day + '-күн, барлығы ' + k.plan.days : 'день ' + P.day + ' из ' + k.plan.days) + '</span></div>';
+        h += '<div class="card rd-today"><div class="rd-h"><b>' + (kk ? 'Бүгін' : 'Сегодня') + '</b><span>' + (kk ? P.day + '-күн, барлығы ' + k.plan.days : 'день ' + P.day + ' из ' + k.plan.days) + '</span></div>' +
+          (P.suras ? '<div class="rd-note" style="margin-top:0.15rem">📚 ' + rdSurasLabel(P.suras, kk) + ' · ' + Math.round(P.done / P.tot * 100) + '%</div>' : '');
         if (rng) {
           h += '<div class="rd-portion">' + rdJ(need, kk) + '</div>' +
             '<div class="rd-range">' + rdSaLabel(rng[0]) + ' → ' + rdSaLabel(rng[1]) + '</div>' +
@@ -17810,7 +17849,7 @@ function renderMistakes() {
         } else {
           h += '<div class="rd-portion">✓ ' + (kk ? 'Бүгінгі норма орындалды' : 'Норма на сегодня выполнена') + '</div>' +
             '<div class="rd-bar"><i style="width:100%"></i></div>' +
-            '<div class="rd-btns"><button type="button" class="btn" data-rd-read="' + next + '">▶ ' + (kk ? 'Әрі қарай оқу' : 'Читать дальше') + '</button></div>';
+            '<div class="rd-btns"><button type="button" class="btn" data-rd-read="' + gnext + '">▶ ' + (kk ? 'Әрі қарай оқу' : 'Читать дальше') + '</button></div>';
         }
         h += '<div class="rd-note">' + st + '</div>' +
           '<div class="rd-note">' + (kk ? 'Аяқталуы: ' : 'Завершение: ') + formatDateRu(P.end) + ' · <button type="button" class="btn-link" data-rd-replan="1">' + (kk ? 'жоспарды өзгерту' : 'изменить план') + '</button></div></div>';
@@ -17838,7 +17877,12 @@ function renderMistakes() {
           (oc < on ? '<button type="button" class="btn btn-sm" data-rd-mjuz="' + oj + '">✓ ' + (kk ? 'Толық оқылды' : 'Прочитан весь') + '</button>' : '') +
           (oc > 0 ? '<button type="button" class="btn btn-sm" data-rd-ujuz="' + oj + '">↺ ' + (kk ? 'Белгілерді алу' : 'Снять отметки') + '</button>' : '') + '</div></div>';
       }
-      h += '<div class="rd-note">' + (kk ? 'Өзі белгіленеді: экранда оқыған немесе тыңдаған аяттар. Жүзді басыңыз — толығырақ.' : 'Отмечается само: аяты, которые вы прочитали на экране или прослушали. Нажмите джуз — подробнее.') + '</div></div>';
+      var pc = rdPace();
+      h += '<div class="rd-note">' + (kk ? 'Өзі белгіленеді: оқу бетінде не мусхафта экранда ретімен оқылған аяттар (жоғарыдан төмен) және соңына дейін тыңдалғандары. Жүзді басыңыз — толығырақ.' : 'Отмечается само: аяты, прочитанные на экране по очереди (сверху вниз) в читалке или мусхафе, и дослушанные до конца. Нажмите джуз — подробнее.') + '</div>' +
+        '<div class="rd-pace"><span>' + (kk ? 'Оқу қарқыны:' : 'Мой темп:') + '</span>' +
+        [['slow', kk ? '🐢 баяу' : '🐢 медленно', '1,2'], ['normal', kk ? 'қалыпты' : 'обычно', '0,8'], ['fast', kk ? 'жылдам' : 'быстро', '0,5']].map(function(x) {
+          return '<button type="button" class="rd-pc' + (pc === x[0] ? ' on' : '') + '" data-rd-pace="' + x[0] + '" aria-pressed="' + (pc === x[0]) + '">' + x[1] + '<small>' + x[2] + (kk ? ' с/сөз' : ' с/слово') + '</small></button>';
+        }).join('') + '</div></div>';
       // 3) дни с Кораном — не подряд, а сколько дней из недели/месяца/года
       var D = rdDaysStats(), dn = kk ? ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сн', 'Жк'] : ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
       var row = function(lab, a, b) { return '<div class="rd-drow"><span>' + lab + '</span><span class="rd-bar"><i style="width:' + Math.round(a / b * 100) + '%"></i></span><b>' + a + ' ' + (kk ? '/ ' : 'из ') + b + '</b></div>'; };
@@ -17849,11 +17893,29 @@ function renderMistakes() {
       if (done > 0) h += '<div class="rd-foot"><button type="button" class="btn btn-sm btn-quiet" data-rd-reset="1" style="color:var(--danger)">' + (kk ? 'Хатымды нөлдеу' : 'Сбросить хатм') + '</button></div>';
       el.innerHTML = h;
     }
+    function rdSurasLabel(arr, kk) {
+      var nm = function(s) { return (typeof surahNameLocal === 'function' ? String(surahNameLocal(s) || s).replace(/\s*\(\d+\)\s*$/, '') : String(s)); };
+      return arr.slice(0, 3).map(nm).join(', ') + (arr.length > 3 ? (kk ? ' және тағы ' : ' и ещё ') + (arr.length - 3) : '');
+    }
+    var _rdPickSel = [];
+    function rdPickHtml(kk) {
+      var I = rdIdx(), selJ = 0;
+      _rdPickSel.forEach(function(s) { for (var g = I.pre[s - 1]; g < I.pre[s]; g++) selJ += rdW(g); });
+      var nm = function(s) { return (typeof surahNameLocal === 'function' ? String(surahNameLocal(s) || s).replace(/\s*\(\d+\)\s*$/, '') : String(s)); };
+      var list = '';
+      for (var s = 1; s <= 114; s++) list += '<button type="button" class="rd-ps' + (_rdPickSel.indexOf(s) >= 0 ? ' on' : '') + '" data-rd-ps="' + s + '"><i>' + s + '</i>' + nm(s) + '<small>' + SURAH_AYAH_COUNTS[s] + '</small></button>';
+      return '<div class="rd-pickbox"><input type="search" id="rd-ps-q" placeholder="' + (kk ? 'Сүрені іздеу…' : 'Найти суру…') + '">' +
+        '<div class="rd-pslist">' + list + '</div>' +
+        '<div class="rd-note">' + (kk ? 'Таңдалды: ' : 'Выбрано: ') + _rdPickSel.length + (_rdPickSel.length ? ' · ' + rdJ(selJ, kk) : '') + '</div>' +
+        '<div class="rd-psdays"><span>' + (kk ? 'Мерзімі:' : 'Срок:') + '</span>' + [1, 3, 7, 14, 30].map(function(d) { return '<button type="button" class="rd-pc" data-rd-psgo="' + d + '"' + (_rdPickSel.length ? '' : ' disabled') + '>' + d + (kk ? ' күн' : (d === 1 ? ' день' : d < 5 ? ' дня' : ' дней')) + '</button>'; }).join('') + '</div></div>';
+    }
     function rdGoalHtml(kk, hadPlan) {
       var opts = [[15, kk ? 'күніне 2 жүз' : '2 джуза в день'], [30, kk ? 'күніне 1 жүз · Рамазан' : '1 джуз в день · Рамадан'], [60, kk ? 'күніне жарты жүз' : 'полджуза в день'], [90, kk ? 'күніне ≈ 7 бет' : '≈ 7 стр. в день'], [365, kk ? 'күніне ≈ 2 бет' : '≈ 2 стр. в день']];
       return '<div class="card rd-goal"><div class="rd-h"><b>🎯 ' + (kk ? 'Хатым мақсаты' : 'Цель хатма') + '</b>' + (hadPlan ? '<button type="button" class="btn-link" data-rd-cancel="1">' + (kk ? 'жоспарсыз' : 'без плана') + '</button>' : '') + '</div>' +
         '<div class="rd-opts">' + opts.map(function(o) { return '<button type="button" class="rd-opt" data-rd-plan="' + o[0] + '"><b>' + o[0] + ' ' + (kk ? 'күн' : (o[0] === 365 ? 'дней · год' : 'дней')) + '</b><small>' + o[1] + '</small></button>'; }).join('') +
-        '<label class="rd-opt rd-own"><b>' + (kk ? 'Өз мерзімім' : 'Свой срок') + '</b><input type="date" id="rd-own-date" min="' + rdAddDays(rdDay(), 1) + '"></label></div>' +
+        '<label class="rd-opt rd-own"><b>' + (kk ? 'Өз мерзімім' : 'Свой срок') + '</b><input type="date" id="rd-own-date" min="' + rdAddDays(rdDay(), 1) + '"></label>' +
+        '<button type="button" class="rd-opt rd-opt-wide" data-rd-pick="1"><b>📚 ' + (kk ? 'Өз сүрелерім' : 'Свои суры') + '</b><small>' + (kk ? 'тек таңдалған сүрелер, мысалы «Кәһф, Ясин, Мүлк» — мерзімімен' : 'только выбранные, например «Аль-Кахф, Ясин, Аль-Мульк» — за свой срок') + '</small></button></div>' +
+        '<div id="rd-pick"></div>' +
         '<div class="rd-note">' + (kk ? 'Норма қалған көлем мен күндерге қарай есептеледі; бір күн өткізіп алсаңыз — асықтырмай қайта есептеледі. Жоспарсыз да оқылғаны өзі белгіленеді.' : 'Норма считается по оставшемуся объёму и дням; пропустили день — спокойно пересчитается. Без плана прочитанное тоже отмечается само.') + '</div></div>';
     }
     document.addEventListener('click', function(e) {
@@ -17869,65 +17931,210 @@ function renderMistakes() {
       if ((b = t.closest('[data-rd-plan]'))) { k.plan = { start: rdDay(), days: +b.getAttribute('data-rd-plan') }; try { saveState(); } catch(er) {} toast(kk ? 'Жоспар басталды' : 'План запущен'); renderPlanStatus(); return; }
       if (t.closest('[data-rd-replan]')) { var el = document.getElementById('rd-body'); if (el) { el.insertAdjacentHTML('afterbegin', rdGoalHtml(kk, true)); el.querySelector('.rd-goal').scrollIntoView({ behavior: 'smooth', block: 'start' }); } return; }
       if (t.closest('[data-rd-cancel]')) { k.plan = null; try { saveState(); } catch(er) {} renderPlanStatus(); return; }
+      if ((b = t.closest('[data-rd-pace]'))) { state.settings.readPace = b.getAttribute('data-rd-pace'); try { saveState(); } catch(er) {} renderPlanStatus(); return; }
+      if (t.closest('[data-rd-pick]')) { var pk = document.getElementById('rd-pick'); if (pk) { if (pk.innerHTML) pk.innerHTML = ''; else { _rdPickSel = []; pk.innerHTML = rdPickHtml(kk); } } return; }
+      if ((b = t.closest('[data-rd-ps]'))) {
+        var sN = +b.getAttribute('data-rd-ps'), ix = _rdPickSel.indexOf(sN);
+        if (ix >= 0) _rdPickSel.splice(ix, 1); else _rdPickSel.push(sN);
+        var box = document.getElementById('rd-pick'), sc = box && box.querySelector('.rd-pslist'), top = sc ? sc.scrollTop : 0, qv = (document.getElementById('rd-ps-q') || {}).value || '';
+        if (box) { box.innerHTML = rdPickHtml(kk); var sc2 = box.querySelector('.rd-pslist'); if (sc2) sc2.scrollTop = top; var qi = document.getElementById('rd-ps-q'); if (qi && qv) { qi.value = qv; rdPickFilter(qv); } }
+        return;
+      }
+      if ((b = t.closest('[data-rd-psgo]'))) {
+        if (!_rdPickSel.length) return;
+        k.plan = { start: rdDay(), days: +b.getAttribute('data-rd-psgo'), suras: _rdPickSel.slice(), pb: '' }; _rdPB = null;
+        try { saveState(); } catch(er) {} toast(kk ? 'Жоспар басталды' : 'План запущен'); renderPlanStatus(); return;
+      }
+      if (t.closest('[data-rd-again]')) { var op = rdPlanSuras(); if (op) { k.plan = { start: rdDay(), days: op.days, suras: op.suras.slice(), pb: '' }; _rdPB = null; try { saveState(); } catch(er) {} renderPlanStatus(); } return; }
       if (t.closest('[data-rd-newcycle]')) { k.cycles = (k.cycles || 0) + 1; k.b = ''; _rdBits = null; k.juz = {}; k.doneAt = null; k.tj = null; k.startDate = null; if (k.plan) k.plan = { start: rdDay(), days: k.plan.days }; try { saveState(); } catch(er) {} renderPlanStatus(); return; }
       if (t.closest('[data-rd-reset]')) {
         if (!confirm(kk ? 'Хатымның барлық белгісін өшіру керек пе? (Құранмен күндер сақталады)' : 'Стереть все отметки хатма? (дни с Кораном сохранятся)')) return;
         k.b = ''; _rdBits = null; k.juz = {}; k.doneAt = null; k.tj = null; k.startDate = null; try { saveState(); } catch(er) {} renderPlanStatus(); return;
       }
     });
+    function rdPickFilter(q) {
+      q = String(q || '').toLowerCase().trim();
+      document.querySelectorAll('#rd-pick .rd-ps').forEach(function(b) { b.style.display = !q || b.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none'; });
+    }
+    document.addEventListener('input', function(e) { if (e.target && e.target.id === 'rd-ps-q') rdPickFilter(e.target.value); });
     document.addEventListener('change', function(e) {
       if (!e.target || e.target.id !== 'rd-own-date' || !e.target.value) return;
       var days = rdDiff(rdDay(), e.target.value) + 1; if (days < 2) return;
       rdK().plan = { start: rdDay(), days: days }; try { saveState(); } catch(er) {}
       toast(isKk() ? 'Жоспар басталды' : 'План запущен'); renderPlanStatus();
     });
-    // авто-учёт в читалке: аят засчитан, если он был на экране достаточно долго (≈0,5 с на слово, от 2 до 25 с)
-    var _rdIO = null, _rdVis = new Map(), _rdTick = null, _rdQ = [];
-    function rdNeedMs(el) { var tx = el.querySelector('.ayah-text'); var w = tx ? (tx.textContent || '').trim().split(/\s+/).length : 6; return Math.min(25000, Math.max(2000, w * 500)); }
-    function rdReaderActive() { var v = document.getElementById('view-reader'); return !!(v && v.classList.contains('active')) && !document.hidden; }
-    function rdTrackReader() {
-      if (typeof IntersectionObserver === 'undefined') return;
-      var list = document.getElementById('ayah-list'); if (!list) return;
-      if (_rdIO) _rdIO.disconnect();
-      _rdVis.clear();
-      var vh = function() { return window.innerHeight || 700; };
-      _rdIO = new IntersectionObserver(function(ents) {
-        var now = Date.now();
-        ents.forEach(function(en) {
-          var el = en.target, vis = en.isIntersecting && (en.intersectionRatio >= 0.5 || en.intersectionRect.height >= vh() * 0.5);
-          if (vis && !_rdVis.has(el)) _rdVis.set(el, now);
-          else if (!vis && _rdVis.has(el)) { el._rdAcc = (el._rdAcc || 0) + (now - _rdVis.get(el)); _rdVis.delete(el); rdCheck(el); }
-        });
-      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
-      list.querySelectorAll('.ayah[data-ayah]').forEach(function(el) { if (!el._rdDone) _rdIO.observe(el); });
-      if (!_rdTick) _rdTick = setInterval(rdTickFn, 1500);
+    // 7.20: авто-учёт — аяты засчитываются ПО ОЧЕРЕДИ, как читают глазами: время копит только первый незасчитанный аят
+    // на экране (сверху вниз), засчитался — копит следующий. Темп на выбор (мс на слово), от 3 до 40 с на аят.
+    // Время не идёт, если читалка/мусхаф не на экране, приложение свёрнуто или страницу быстро листают.
+    const RD_PACE = { slow: 1200, normal: 800, fast: 500 };
+    function rdPace() { var p = state.settings && state.settings.readPace; return RD_PACE[p] ? p : 'normal'; }
+    function rdNeedMs(el) {
+      var tx = el.classList.contains('ayah') ? el.querySelector('.ayah-text') : el;
+      var w = tx ? (tx.textContent || '').trim().split(/\s+/).filter(Boolean).length : 6;
+      return Math.min(40000, Math.max(3000, w * RD_PACE[rdPace()]));
     }
-    function rdCheck(el) {
-      if (el._rdDone || (el._rdAcc || 0) < rdNeedMs(el)) return;
-      var s = +(state && state.currentSurah), a = +el.getAttribute('data-ayah');
-      if (!s || !a || !el.closest('#ayah-list')) return;
-      el._rdDone = true; try { _rdIO && _rdIO.unobserve(el); } catch(e) {}
-      _rdQ.push(rdG(s, a));
+    // поверхности чтения: обычная читалка и мусхаф на главной
+    function rdSurface() {
+      if (document.hidden) return null;
+      var v = document.getElementById('view-reader'), list = document.getElementById('ayah-list');
+      if (v && v.classList.contains('active') && list) {
+        var s = +(state && state.currentSurah);
+        if (s) return { els: list.querySelectorAll('.ayah[data-ayah]'), sa: function(el) { return [s, +el.getAttribute('data-ayah')]; } };
+      }
+      var mp = document.getElementById('home-mushaf-pane'), hv = document.getElementById('view-home');
+      if (mp && mp.getClientRects().length && (!hv || hv.classList.contains('active'))) {
+        return { els: mp.querySelectorAll('.mushaf-ayah[data-ms][data-ma]'), sa: function(el) { return [+el.getAttribute('data-ms'), +el.getAttribute('data-ma')]; } };
+      }
+      return null;
+    }
+    var _rdT = { last: 0, cand: null, top: 0, justDone: false }, _rdTick = null, _rdQ = [];
+    function rdVisible(el, vh) {
+      var r = el.getBoundingClientRect(); if (!r.height) return false;
+      var top = Math.max(0, r.top), bot = Math.min(vh, r.bottom), h = bot - top;
+      return h > 0 && (h >= r.height * 0.6 || h >= vh * 0.45);
     }
     function rdTickFn() {
-      var now = Date.now(), act = rdReaderActive();
-      _rdVis.forEach(function(t0, el) {
-        if (act) el._rdAcc = (el._rdAcc || 0) + (now - t0);
-        _rdVis.set(el, now);
-        if (act) rdCheck(el);
-      });
-      if (_rdQ.length && (_rdQ.length >= 5 || !act || (now - (rdTickFn._last || 0)) > 8000)) {
+      var now = Date.now(), dt = Math.min(1500, now - (_rdT.last || now)); _rdT.last = now;
+      var S = rdSurface();
+      if (S) {
+        var vh = window.innerHeight || 700, cand = null;
+        for (var i = 0; i < S.els.length; i++) {
+          var el = S.els[i];
+          if (el._rdDone) continue;
+          var sa = S.sa(el); if (!sa[0] || !sa[1]) continue;
+          var g = rdG(sa[0], sa[1]);
+          if (!rdNeeded(g)) { el._rdDone = true; continue; } // уже прочитан раньше — не держит очередь
+          if (!rdVisible(el, vh)) { if (cand === null && el.getBoundingClientRect().top >= vh) break; continue; }
+          cand = el; cand._rdG = g; break;
+        }
+        if (cand) {
+          var top = cand.getBoundingClientRect().top;
+          var same = cand === _rdT.cand, moving = same && Math.abs(top - _rdT.top) > vh * 0.35;
+          if ((same || _rdT.justDone) && !moving) cand._rdAcc = (cand._rdAcc || 0) + dt;
+          _rdT.justDone = false; _rdT.cand = cand; _rdT.top = top;
+          if ((cand._rdAcc || 0) >= rdNeedMs(cand)) { cand._rdDone = true; _rdT.justDone = true; _rdQ.push(cand._rdG); }
+        } else { _rdT.cand = null; }
+      } else { _rdT.cand = null; }
+      if (_rdQ.length && (_rdQ.length >= 3 || !S || now - (rdTickFn._last || 0) > 8000)) {
         rdTickFn._last = now;
-        var q = _rdQ.splice(0).sort(function(x, y) { return x - y; }), i = 0;
-        while (i < q.length) { var a = q[i], b = a; while (i + 1 < q.length && q[i + 1] <= b + 1) { i++; b = q[i]; } rdMark(a, b, true, 'read'); i++; }
+        var q = _rdQ.splice(0).sort(function(x, y) { return x - y; }), k = 0;
+        while (k < q.length) { var a = q[k], b = a; while (k + 1 < q.length && q[k + 1] <= b + 1) { k++; b = q[k]; } rdMark(a, b, true, 'read'); k++; }
       }
     }
-    (function() {
-      var list = document.getElementById('ayah-list');
-      if (!list || typeof MutationObserver !== 'function') return;
-      var tm = null;
-      new MutationObserver(function() { clearTimeout(tm); tm = setTimeout(function() { try { rdTrackReader(); } catch(e) {} }, 400); }).observe(list, { childList: true });
-    })();
+    function rdTrackReader() { if (!_rdTick) _rdTick = setInterval(rdTickFn, 1000); }
+    rdTrackReader();
+    document.addEventListener('visibilitychange', function() { _rdT.last = Date.now(); if (document.hidden) { try { rdTickFn._last = 0; rdTickFn(); } catch(e) {} } });
+    // ===== 7.20: статистика «Мой прогресс» — подробно и понятно, но без понтов: только вы и ваш прошлый результат =====
+    const ST_SKIP_SEC = /chat|online|forum|friend|group|dm|settings|profile|admin|notif|changelog|appupdate|export|cache|report|ideas/i;
+    function stMinutesOn(ds) {
+      var sum = 0;
+      try { var rs = ensureRichStats(); Object.keys(rs.sectionSeconds || {}).forEach(function(sid) { if (ST_SKIP_SEC.test(sid)) return; var m = normalizeDayMap(rs.sectionSeconds[sid]); sum += m[ds] || 0; }); } catch(e) {}
+      return sum / 60;
+    }
+    function stDayData(ds) {
+      var md = (state.academyProgress && state.academyProgress._mday && state.academyProgress._mday[ds]) || [0, 0];
+      var ld = (state.stats && state.stats.listenDays && state.stats.listenDays[ds]) || 0;
+      return { min: stMinutesOn(ds), ay: rdK().days[ds] || 0, ok: md[0], bad: md[1], listen: ld / 60 };
+    }
+    function stSum(dates) { var o = { min: 0, ay: 0, ok: 0, bad: 0, listen: 0, days: 0 }; dates.forEach(function(ds) { var d = stDayData(ds); o.min += d.min; o.ay += d.ay; o.ok += d.ok; o.bad += d.bad; o.listen += d.listen; if (d.ay || d.min >= 1 || d.ok + d.bad) o.days++; }); return o; }
+    function stWeekDates(offsetWeeks, uptoToday) {
+      var now = new Date(), wd = (now.getDay() + 6) % 7, mon = new Date(now); mon.setDate(now.getDate() - wd - 7 * offsetWeeks);
+      var n = uptoToday ? wd + 1 : 7, out = [];
+      for (var i = 0; i < n; i++) { var x = new Date(mon); x.setDate(mon.getDate() + i); out.push(rdDay(x)); }
+      return out;
+    }
+    function stMilestones(kk) {
+      var k = rdK(), done = rdDoneJ(), fullJ = 0; for (var j = 1; j <= 30; j++) if (rdJuzCount(j) === rdJuzSize(j)) fullJ++;
+      var skills = (typeof PERSONAL_TEACHER_SKILLS !== 'undefined') ? PERSONAL_TEACHER_SKILLS : [], mast = (typeof getTeacherMastery === 'function') ? getTeacherMastery() : {};
+      var isM = function(s) { return mast[s.id] && mast[s.id].status === 'mastered'; };
+      var letSk = skills.filter(function(s) { return s.kind === 'letters'; }), courseDone = skills.filter(isM).length;
+      var answers = 0; try { var mk = state.academyProgress._mistakes || {}; Object.keys(mk).forEach(function(c) { Object.keys(mk[c]).forEach(function(x) { answers += mk[c][x].total || 0; }); }); } catch(e) {}
+      var D = rdDaysStats(), bestWeek = D.w, bestMonth = D.m;
+      try { // лучшая неделя/месяц по истории дней
+        var byW = {}, byM = {};
+        Object.keys(k.days).forEach(function(ds) { if (!(k.days[ds] > 0)) return; var d = new Date(ds + 'T12:00:00'), wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); var wk = rdDay(d); byW[wk] = (byW[wk] || 0) + 1; byM[ds.slice(0, 7)] = (byM[ds.slice(0, 7)] || 0) + 1; });
+        Object.keys(byW).forEach(function(x) { bestWeek = Math.max(bestWeek, byW[x]); }); Object.keys(byM).forEach(function(x) { bestMonth = Math.max(bestMonth, byM[x]); });
+      } catch(e) {}
+      var lsec = (state.stats && state.stats.listenSeconds) || 0;
+      var T = function(ru, kz) { return kk ? kz : ru; };
+      return [
+        ['📖', T('Первый джуз', 'Алғашқы жүз'), fullJ, 1],
+        ['🌙', T('10 джузов', '10 жүз'), Math.floor(done), 10],
+        ['🌿', T('Полный хатм', 'Толық хатым'), (k.cycles || 0) + (k.doneAt ? 1 : 0) ? 1 : 0, 1],
+        ['🔤', T('Все буквы в Курсе', 'Курстағы барлық әріп'), letSk.filter(isM).length, letSk.length || 1],
+        ['🎓', T('Курс пройден', 'Курс аяқталды'), courseDone, skills.length || 1],
+        ['🧠', T('Первая сура наизусть', 'Алғашқы жатталған сүре'), Math.min(1, Object.keys(state.learnedSurahs || {}).length), 1],
+        ['📅', T('7 дней из 7 за неделю', 'Аптада 7 күннің 7-і'), bestWeek, 7],
+        ['📆', T('20 дней с Кораном за месяц', 'Айына Құранмен 20 күн'), bestMonth, 20],
+        ['✍️', T('1000 ответов в тренажёрах', 'Жаттықтырғышта 1000 жауап'), answers, 1000],
+        ['🎧', T('10 часов прослушано', '10 сағат тыңдалды'), Math.floor(lsec / 3600), 10]
+      ];
+    }
+    function stHtml(kk) {
+      var T = function(ru, kz) { return kk ? kz : ru; };
+      try { flushSectionTime(); } catch(e) {}
+      var today = rdDay(), d0 = stDayData(today), goal = (state.settings && +state.settings.dayGoalMin) || 15;
+      var pctG = Math.min(1, d0.min / goal), R = 30, C = 2 * Math.PI * R;
+      var h = '';
+      // намерение
+      h += '<div class="card st-niyya">🤍 ' + T('Учитесь ради довольства Аллаха, а не ради цифр. Эта страница видна только вам: чтобы видеть, где вы растёте и что стоит повторить. «Поистине, дела — по намерениям» (аль-Бухари 1; Муслим 1907).',
+        'Аллаһтың ризалығы үшін оқыңыз, сандар үшін емес. Бұл бетті тек сіз көресіз: қай жерде өсіп келе жатқаныңызды және нені қайталау керегін көру үшін. «Шын мәнінде, амалдар ниетке байланысты» (әл-Бұхари 1; Мүслим 1907).') + '</div>';
+      // сегодня
+      h += '<div class="card st-today"><div class="st-ring"><svg viewBox="0 0 72 72" aria-hidden="true"><circle cx="36" cy="36" r="' + R + '" class="st-ring-bg"/><circle cx="36" cy="36" r="' + R + '" class="st-ring-fg" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - pctG)).toFixed(1) + '"/></svg><div><b>' + Math.round(d0.min) + '</b><small>/ ' + goal + ' ' + T('мин', 'мин') + '</small></div></div>' +
+        '<div class="st-tbody"><b>' + T('Сегодня', 'Бүгін') + '</b>' +
+        '<div class="st-kv"><span>📖 ' + T('аятов прочитано', 'аят оқылды') + '</span><b>' + d0.ay + '</b></div>' +
+        '<div class="st-kv"><span>🎧 ' + T('минут слушали', 'минут тыңдадыңыз') + '</span><b>' + Math.round(d0.listen) + '</b></div>' +
+        '<div class="st-kv"><span>🎯 ' + T('заданий', 'тапсырма') + '</span><b>' + (d0.ok + d0.bad) + (d0.ok + d0.bad ? ' · ' + Math.round(d0.ok / (d0.ok + d0.bad) * 100) + '%' : '') + '</b></div>' +
+        '<div class="st-goal">' + T('Цель в день:', 'Күндік мақсат:') + [5, 10, 15, 30, 60].map(function(m) { return '<button type="button" class="rd-pc' + (m === goal ? ' on' : '') + '" data-st-goal="' + m + '">' + m + '</button>'; }).join('') + '</div></div></div>';
+      // неделя против прошлой (тот же отрезок дней)
+      var cw = stSum(stWeekDates(0, true)), lw = stSum(stWeekDates(1, true).slice(0, stWeekDates(0, true).length));
+      var cmp = function(a, b, unit) { var diff = Math.round(a - b); return '<small class="' + (diff > 0 ? 'up' : diff < 0 ? 'down' : '') + '">' + (diff > 0 ? '▲ +' + diff : diff < 0 ? '▼ ' + diff : '= ') + (unit || '') + '</small>'; };
+      var acc = function(o) { return o.ok + o.bad ? Math.round(o.ok / (o.ok + o.bad) * 100) : null; };
+      var ca = acc(cw), la = acc(lw);
+      h += '<div class="card st-week"><div class="rd-h"><b>📊 ' + T('Эта неделя', 'Осы апта') + '</b><span>' + T('сравнение с тем же отрезком прошлой недели', 'өткен аптаның сол кезеңімен салыстыру') + '</span></div>' +
+        '<div class="st-grid">' +
+        '<div><b>' + Math.round(cw.min) + '</b><span>' + T('минут', 'минут') + '</span>' + cmp(cw.min, lw.min) + '</div>' +
+        '<div><b>' + cw.ay + '</b><span>' + T('аятов прочитано', 'аят оқылды') + '</span>' + cmp(cw.ay, lw.ay) + '</div>' +
+        '<div><b>' + (cw.ok + cw.bad) + '</b><span>' + T('заданий', 'тапсырма') + '</span>' + cmp(cw.ok + cw.bad, lw.ok + lw.bad) + '</div>' +
+        '<div><b>' + (ca == null ? '—' : ca + '%') + '</b><span>' + T('верных ответов', 'дұрыс жауап') + '</span>' + (ca != null && la != null ? cmp(ca, la, '%') : '<small></small>') + '</div>' +
+        '</div></div>';
+      // дни с Кораном
+      var D = rdDaysStats(), dn = kk ? ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сн', 'Жк'] : ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      var row = function(lab, a, b) { return '<div class="rd-drow"><span>' + lab + '</span><span class="rd-bar"><i style="width:' + Math.round(a / b * 100) + '%"></i></span><b>' + a + ' ' + (kk ? '/ ' : 'из ') + b + '</b></div>'; };
+      h += '<div class="card"><div class="rd-h"><b>📅 ' + T('Дни с Кораном', 'Құранмен күндер') + '</b></div>' +
+        '<div class="rd-week">' + D.week.map(function(x, i) { return '<span class="' + (x.on ? 'on' : '') + (x.fut ? ' fut' : '') + '"><i></i><small>' + dn[i] + '</small></span>'; }).join('') + '</div>' +
+        row(T('Эта неделя', 'Осы апта'), D.w, 7) + row(T('Этот месяц', 'Осы ай'), D.m, D.dim) + row(T('Этот год', 'Осы жыл'), D.y, D.diy) +
+        '<div class="rd-note">' + T('Не обязательно подряд — главное постоянство.', 'Қатарынан болуы міндетті емес — ең бастысы тұрақтылық.') + '</div></div>';
+      // Коран
+      var done = rdDoneJ(), B = rdBits(), readA = 0; for (var g = 0; g < B.length; g++) readA += B[g];
+      var lsec = (state.stats && state.stats.listenSeconds) || 0;
+      h += '<div class="card"><div class="rd-h"><b>📖 ' + T('Коран', 'Құран') + '</b><button type="button" class="btn-link" data-pg-go="plans">' + T('Хатм и план ›', 'Хатым және жоспар ›') + '</button></div>' +
+        '<div class="st-grid">' +
+        '<div><b>' + String(Math.floor(done * 10) / 10).replace('.', ',') + '</b><span>' + T('из 30 джузов (хатм)', '30 жүздің (хатым)') + '</span></div>' +
+        '<div><b>' + readA + '</b><span>' + T('аятов прочитано', 'аят оқылды') + '</span></div>' +
+        '<div><b>' + Object.keys(state.learnedAyahs || {}).length + '</b><span>' + T('аятов наизусть', 'аят жатқа') + '</span></div>' +
+        '<div><b>' + Math.round(lsec / 3600 * 10) / 10 + '</b><span>' + T('часов прослушано', 'сағат тыңдалды') + '</span></div>' +
+        '</div></div>';
+      // точность по неделям (8 недель)
+      var wk = [], mx = 0;
+      for (var w = 7; w >= 0; w--) { var s = stSum(stWeekDates(w, w === 0)), n = s.ok + s.bad; wk.push({ n: n, a: n ? s.ok / n : 0 }); mx = Math.max(mx, n); }
+      var anyW = wk.some(function(x) { return x.n; });
+      h += '<div class="card"><div class="rd-h"><b>🎯 ' + T('Точность в тренажёрах', 'Жаттықтырғыштағы дәлдік') + '</b><span>' + T('8 недель', '8 апта') + '</span></div>' +
+        (anyW ? '<div class="st-bars">' + wk.map(function(x, i) { return '<div class="st-bcol" title="' + (x.n ? Math.round(x.a * 100) + '% · ' + x.n : '—') + '"><i style="height:' + (x.n ? Math.max(6, Math.round(x.a * 100)) : 0) + '%"></i><small>' + (x.n ? Math.round(x.a * 100) : '') + '</small></div>'; }).join('') + '</div>' +
+          '<div class="rd-note">' + T('Высота — доля верных ответов за неделю; справа — эта неделя.', 'Биіктігі — аптадағы дұрыс жауаптар үлесі; оң жақта — осы апта.') + '</div>'
+          : '<div class="rd-note">' + T('График появится после первых занятий в Тренировке или Курсе.', 'Жаттығу не Курстағы алғашқы сабақтардан кейін график шығады.') + '</div>') + '</div>';
+      // вехи
+      var ms = stMilestones(kk), got = ms.filter(function(m) { return m[2] >= m[3]; }).length;
+      h += '<div class="card"><div class="rd-h"><b>🏷 ' + T('Вехи пути', 'Жол белестері') + '</b><span>' + got + ' / ' + ms.length + '</span></div><div class="st-ms">' +
+        ms.map(function(m) { var ok = m[2] >= m[3], p = Math.min(100, Math.round(m[2] / m[3] * 100)); return '<div class="st-m' + (ok ? ' ok' : '') + '"><span class="st-mi">' + m[0] + '</span><span class="st-mt"><b>' + m[1] + '</b>' + (ok ? '<small>✓ ' + T('пройдено', 'өтті') + '</small>' : '<span class="rd-bar"><i style="width:' + p + '%"></i></span><small>' + Math.min(m[2], m[3]) + ' / ' + m[3] + '</small>') + '</span></div>'; }).join('') +
+        '</div><div class="rd-note">' + T('Вехи — не награды и не рейтинг, а отметки на вашем пути. Их видите только вы.', 'Белестер — марапат та, рейтинг те емес, жолыңыздағы белгілер ғана. Оларды тек сіз көресіз.') + '</div></div>';
+      return h;
+    }
+    document.addEventListener('click', function(e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-st-goal]'); if (!b) return;
+      state.settings.dayGoalMin = +b.getAttribute('data-st-goal'); try { saveState(); } catch(er) {}
+      try { renderProgress(); } catch(er) {}
+    });
     // прослушанный до конца аят (или целая сура) тоже засчитывается
     function rdOnAudioEnded(item) {
       try {
@@ -40892,6 +41099,8 @@ function playArabicAudio(text, fallbackRu, opts) {
       if (!state.stats) state.stats = { openedAyahs: 0, listenSeconds: 0, sessions: 0, lastOpen: null };
       state.stats.listenSeconds = (state.stats.listenSeconds || 0) + sec;
       state.stats.audioPlays = (state.stats.audioPlays || 0) + 1;
+      // 7.20: прослушивание по дням — для статистики «сегодня / неделя»
+      try { var _ld = state.stats.listenDays || (state.stats.listenDays = {}), _dk = dayKey(); _ld[_dk] = (_ld[_dk] || 0) + (+sec || 0); } catch(e) {}
       saveState();
     }
 
@@ -41024,7 +41233,8 @@ function playArabicAudio(text, fallbackRu, opts) {
         }, { onConflict: 'id' });
       } catch (e) { console.warn('profile', e); }
     }
-    async function dayKey(d) {
+    // 7.20: была async — возвращала Promise, и время по дням копилось под ключом «[object Promise]»
+    function dayKey(d) {
       d = d || new Date();
       var y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
       return y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
@@ -41101,7 +41311,7 @@ function playArabicAudio(text, fallbackRu, opts) {
       var out = {};
       var orphan = 0;
       Object.keys(m).forEach(function(k) {
-        if (!k || k.charAt(0) === '_') return;
+        if (!k || k.charAt(0) === '_' || k === '[object Promise]') return; // 7.20: битый ключ без даты — не приписываем сегодняшнему дню
         var val = Number(m[k]);
         if (!val || val !== val) return;
         var dt = parseDayKey(k);
