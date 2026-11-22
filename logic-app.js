@@ -5772,7 +5772,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         ['Режим', 'Басыңыз — таңдау терезесі: «Құран бойынша әрі қарай» (сүре біткенде келесісі), «Сүре және тоқтау», «🔁 Сүрені қайталау», «🔂 Аятты қайталау», «Тек осы аят», «🔀 Кездейсоқ».'],
         ['1×', 'Жылдамдық: басыңыз — 0,5×-тен 2×-ге дейін таңдайсыз.'],
         ['🔂 Қайталау', 'Әр аятты ×2…×10 қайталау, дауыстап қайталауға үзіліс (2/5/10 с не аят ұзақтығындай) және «аяттан аятқа дейін» үзінді — жаттауға.'],
-        ['⏱ Таймер', 'Ұйқы таймері: минут, аят саны немесе «сүре соңына дейін».'],
+        ['⏱ Таймер', 'Ұйқы таймері: минут немесе аят саны. Сүре соңында тоқтау — «Режим» → «Сүре және тоқтау».'],
         ['☰ Кезек', 'Келесіде не ойнайды: ↑↓ ретін ауыстыру, ✕ алып тастау, 🔁 шеңбермен, 🔀 араластыру. Сүрелер тізіміндегі «⋯», аят мәзірі және қалталардан «▶ Келесі болып» / «＋ Кезекке» арқылы қосылады. Қалта = плейлист: «▶ Бәрін тыңдау», «🔀 Араластыру».'],
         ['🎙 Қари', 'Аят мәтінінің астындағы батырма — қариді ауыстыру, сол жерден жалғасады.'],
         ['⏪ 10 · 10 ⏩', '«Толық» режимінде және дұғаларда — 10 секунд артқа/алға.'],
@@ -5787,7 +5787,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         ['Режим', 'Нажмите — окошко с выбором: «Дальше по Корану» (сура закончилась — включается следующая), «Сура и стоп», «🔁 Повтор суры», «🔂 Повтор аята», «Только этот аят», «🔀 Случайно».'],
         ['1×', 'Скорость: нажмите — выберите от 0,5× до 2×.'],
         ['🔂 Повтор', 'Повторять каждый аят ×2…×10, пауза, чтобы повторить вслух (2/5/10 с или как длина аята), и отрывок «с аята по аят» — для заучивания.'],
-        ['⏱ Таймер', 'Таймер сна: минуты, число аятов или «до конца суры».'],
+        ['⏱ Таймер', 'Таймер сна: минуты или число аятов. Остановиться в конце суры — «Режим» → «Сура и стоп».'],
         ['☰ Очередь', 'Что сыграет дальше: ↑↓ — порядок, ✕ — убрать, 🔁 — по кругу, 🔀 — перемешать. Добавлять — «▶ Следующим» / «＋ В очередь» в списке сур (⋯), в меню аята и в папках. Папка = плейлист: «▶ Слушать всё», «🔀 Перемешать».'],
         ['🎙 Чтец', 'Кнопка под текстом аята — сменить чтеца, продолжит с того же места.'],
         ['⏪ 10 · 10 ⏩', 'В режиме «Целиком» и в дуа — 10 секунд назад/вперёд.'],
@@ -6051,7 +6051,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       b.innerHTML = '☰ ' + (kk ? 'Кезек' : 'Очередь') + (n ? ' <b>' + n + '</b>' : '');
       b.classList.toggle('on', n > 0);
     }
-    function plqSheetHtml() {
+    function plqSheetHtml(addOpen) {
       var kk = isKk(), cw = audioQueue && audioQueue[audioQueueIdx];
       var now = cw ? (cw.ext ? '🤲 ' + (cw.title || '') : (cw.surah ? plqNm(+cw.surah) + (cw.whole ? '' : ' ' + cw.surah + ':' + cw.ayah) : (cw.title || ''))) : '—';
       var rows = PLQ.list.map(function(x, i) {
@@ -6061,8 +6061,9 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           '<button type="button" class="plq-b" data-plq-del="' + i + '" aria-label="' + (kk ? 'Алып тастау' : 'Убрать') + '">✕</button></div>';
       }).join('');
       return '<div class="plq-now"><small>' + (kk ? 'Қазір ойнап тұр' : 'Сейчас играет') + '</small><b>' + now + '</b></div>' +
+        (addOpen ? plqAddPanelHtml() : '<button type="button" class="btn plq-addbtn" data-plq-addopen="1">＋ ' + (kk ? 'Қосу: сүре, аят, қалта' : 'Добавить: суру, аят, папку') + '</button>') +
         '<div class="pl-lbl2">' + (kk ? 'Келесі' : 'Далее') + (PLQ.name ? ' · ' + PLQ.name.replace(/</g, '&lt;') : '') + ' (' + PLQ.list.length + ')</div>' +
-        (rows ? '<div class="plq-list">' + rows + '</div>' : '<div class="rd-note">' + (kk ? 'Кезек бос. Сүрелер тізіміндегі «⋯», аят мәзірі және қалталардан «▶ Келесі болып» не «＋ Кезекке» арқылы қосыңыз.' : 'Очередь пуста. Добавляйте «▶ Следующим» или «＋ В очередь» из списка сур (⋯), меню аята и папок.') + '</div>') +
+        (rows ? '<div class="plq-list">' + rows + '</div>' : '<div class="rd-note">' + (kk ? 'Кезек бос. Жоғарыдағы «＋ Қосу» арқылы, не сүрелер тізіміндегі «⋯», аят мәзірі және қалталардан қосыңыз.' : 'Очередь пуста. Добавьте кнопкой «＋ Добавить» выше или из списка сур (⋯), меню аята и папок.') + '</div>') +
         '<div class="pl-chiprow" style="margin-top:0.6rem">' +
           '<button type="button" class="rd-pc' + (PLQ.loop ? ' on' : '') + '" data-plq-loop="1">🔁 ' + (kk ? 'Шеңбермен' : 'По кругу') + '</button>' +
           (PLQ.list.length > 1 ? '<button type="button" class="rd-pc" data-plq-shuf="1">🔀 ' + (kk ? 'Араластыру' : 'Перемешать') + '</button>' : '') +
@@ -6082,10 +6083,67 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           else if (t.hasAttribute('data-plq-loop')) { PLQ.loop = !PLQ.loop; plqSave(); }
           else if (t.hasAttribute('data-plq-shuf')) { PLQ.list = shuffle(PLQ.list.slice()); plqSave(); }
           else if (t.hasAttribute('data-plq-clear')) { PLQ.list = []; PLQ.name = ''; plqSave(); }
-          var bd = ov.querySelector('#plq-body'); if (bd) bd.innerHTML = plqSheetHtml();
+          plqRefreshSheet();
         });
       });
     }
+    // 7.23: пока открыт полный плеер или окошко — страница под ним не прокручивается (иначе браузер прячет/показывает адресную строку и всё прыгает)
+    (function() {
+      var bar = document.getElementById('audio-bar');
+      function chk() {
+        var lock = !!document.querySelector('body > #pl-pop, body > .fs-ov, body > #player-help') ||
+          !!(bar && bar.classList.contains('visible') && !bar.classList.contains('collapsed') && window.innerWidth <= 640);
+        document.documentElement.classList.toggle('no-scroll', lock);
+      }
+      try { new MutationObserver(chk).observe(document.body, { childList: true }); if (bar) new MutationObserver(chk).observe(bar, { attributes: true, attributeFilter: ['class'] }); } catch(e) {}
+      chk();
+    })();
+    // 7.23: добавлять прямо из окна очереди — поиск суры/аята, «Следующая сура», «Из папки…»
+    function plqFind(q) {
+      q = String(q || '').trim().toLowerCase(); var out = [];
+      if (!q) return out;
+      var m = q.match(/^(\d{1,3})\s*[:.\s]\s*(\d{1,3})$/);
+      if (m) { var s = +m[1], a = +m[2]; if (s >= 1 && s <= 114 && a >= 1 && a <= (SURAH_AYAH_COUNTS[s] || 0)) out.push({ t: 'ayah', s: s, a: a }); return out; }
+      if (/^\d{1,3}$/.test(q)) { var n = +q; if (n >= 1 && n <= 114) out.push({ t: 'surah', s: n }); }
+      var norm = function(x) { return String(x).toLowerCase().replace(/[‘’'ʼ`\-\s]/g, '').replace(/ё/g, 'е'); }, nq = norm(q);
+      for (var i = 1; i <= 114 && out.length < 12; i++) { if (out.some(function(o) { return o.s === i && o.t === 'surah'; })) continue; if (norm(plqNm(i)).indexOf(nq) >= 0) out.push({ t: 'surah', s: i }); }
+      return out;
+    }
+    function plqResHtml(q) {
+      var kk = isKk(), res = plqFind(q);
+      if (!String(q || '').trim()) return '';
+      if (!res.length) return '<div class="rd-note">' + (kk ? 'Табылмады. Мысалы: «Мүлк», «67», «2:255».' : 'Ничего не нашлось. Например: «Мульк», «67», «2:255».') + '</div>';
+      return res.map(function(x) {
+        var key = x.t === 'ayah' ? 'ayah:' + x.s + ':' + x.a : 'surah:' + x.s;
+        return '<div class="plq-row"><span class="plq-go plq-static">' + plqLabel(x) + (x.t === 'surah' ? ' <i>' + x.s + '</i>' : '') + '</span>' +
+          '<button type="button" class="plq-b plq-add" data-plq-add="' + key + '" data-plq-next="1" title="' + (kk ? 'Келесі болып' : 'Следующим') + '">▶</button>' +
+          '<button type="button" class="plq-b plq-add" data-plq-add="' + key + '" title="' + (kk ? 'Соңына' : 'В конец') + '">＋</button></div>';
+      }).join('');
+    }
+    function plqAddPanelHtml() {
+      var kk = isKk(), cw = audioQueue && audioQueue[audioQueueIdx], s = cw && !cw.ext && +cw.surah;
+      return '<div class="plq-addp"><input type="search" id="plq-q" autocomplete="off" placeholder="' + (kk ? 'Сүре не аят: Мүлк, 67, 2:255' : 'Сура или аят: Мульк, 67, 2:255') + '">' +
+        '<div class="pl-chiprow" style="margin-top:0.4rem">' +
+          (s && s < 114 ? '<button type="button" class="rd-pc" data-plq-add="surah:' + (s + 1) + '" data-plq-next="1">📖 ' + (kk ? 'Келесі сүре: ' : 'Следующая сура: ') + plqNm(s + 1) + '</button>' : '') +
+          '<button type="button" class="rd-pc" data-plq-folder="1">📂 ' + (kk ? 'Қалтадан…' : 'Из папки…') + '</button></div>' +
+        '<div id="plq-res" class="plq-list" style="margin-top:0.4rem"></div>' +
+        '<div class="rd-note">' + (kk ? '▶ — келесі болып, ＋ — кезектің соңына.' : '▶ — сыграет следующим, ＋ — в конец очереди.') + '</div></div>';
+    }
+    function plqRefreshSheet() {
+      var bd = document.querySelector('#pl-pop #plq-body'); if (!bd) return;
+      var q = document.getElementById('plq-q'), qv = q ? q.value : null, open = !!bd.querySelector('.plq-addp');
+      bd.innerHTML = plqSheetHtml(open);
+      if (open) { var q2 = document.getElementById('plq-q'); if (q2 && qv != null) { q2.value = qv; var r = document.getElementById('plq-res'); if (r) r.innerHTML = plqResHtml(qv); } }
+    }
+    document.addEventListener('input', function(e) { if (e.target && e.target.id === 'plq-q') { var r = document.getElementById('plq-res'); if (r) r.innerHTML = plqResHtml(e.target.value); } });
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      if (t.closest('[data-plq-addopen]')) { var bd = document.querySelector('#pl-pop #plq-body'); if (bd) { bd.innerHTML = plqSheetHtml(true); var q = document.getElementById('plq-q'); if (q) q.focus(); } return; }
+      if (t.closest('[data-plq-folder]')) {
+        var pp = document.getElementById('pl-pop'); if (pp) pp.remove();
+        try { fsWhenReady(function() { fsPickFolder({ title: isKk() ? 'Қай қалтаны кезекке қосу?' : 'Какую папку добавить в очередь?', okLabel: isKk() ? 'Кезекке' : 'В очередь', onPick: function(fid) { fsPlayFolder(fid, 'add'); } }); }); } catch(er) {}
+      }
+    });
     document.getElementById('pl-queue-btn')?.addEventListener('click', plqOpen);
     try { plqPaintBtn(); } catch(e) {}
     // «▶ Следующим / ＋ В очередь» по всему сайту: data-plq-add="surah:67" | "ayah:67:12", data-plq-next="1" — следующим
@@ -6096,6 +6154,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (p[0] === 'surah' && +p[1]) x = { t: 'surah', s: +p[1] };
       else if (p[0] === 'ayah' && +p[1] && +p[2]) x = { t: 'ayah', s: +p[1], a: +p[2] };
       if (x) plqAdd([x], b.getAttribute('data-plq-next') === '1');
+      try { plqRefreshSheet(); } catch(er) {}
     }, true);
 
     function playNextInQueue() {
@@ -6654,7 +6713,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       if (!pn || pn.style.display === 'none') return;
       var kk = isKk();
       var trimOn = !(state.settings && state.settings.trimSilence === false);
-      var h = '<div class="sl-row"><select id="sleep-mode"><option value="min">' + (kk ? 'Минут' : 'Минуты') + '</option><option value="ayah">' + (kk ? 'Аяттар' : 'Аяты') + '</option><option value="surah">' + (kk ? 'Сүре соңына дейін' : 'До конца суры') + '</option></select>' +
+      var h = '<div class="sl-row"><select id="sleep-mode"><option value="min">' + (kk ? 'Минут' : 'Минуты') + '</option><option value="ayah">' + (kk ? 'Аяттар' : 'Аяты') + '</option></select>' +
         '<input type="number" id="sleep-val" min="1" max="9999" value="' + ((_sleep && _sleep.mode === 'ayah') ? _sleep.total : 10) + '">' +
         '<button type="button" class="btn-player" id="sleep-start">' + (kk ? 'Бастау' : 'Старт') + '</button>' +
         (_sleep ? '<button type="button" class="btn-player" id="sleep-cancel">' + (kk ? 'Өшіру' : 'Отмена') + '</button>' : '') + '</div>' +
@@ -34669,13 +34728,14 @@ function renderDict() {
     }
 
     // ---------- интерфейс: мелкие элементы ----------
-    function fsModal(html, cls) {
+    function fsModal(html, cls, noOutside) {
       var ov = document.createElement('div');
       ov.className = 'fs-ov';
+      if (noOutside) ov._noOutside = true; // 7.23: окна с выбором не закрываются случайным касанием мимо
       ov.innerHTML = '<div class="fs-sheet ' + (cls || '') + '">' + html + '</div>';
       document.body.appendChild(ov);
       try { var sn = document.getElementById('fs-snack'); if (sn) sn.classList.remove('show'); } catch (e) {}
-      ov.addEventListener('click', function(e) { if (e.target === ov) fsCloseModal(ov); });
+      ov.addEventListener('click', function(e) { if (e.target === ov && !ov._noOutside) fsCloseModal(ov); });
       return ov;
     }
     function fsCloseModal(ov) {
@@ -34748,13 +34808,18 @@ function renderDict() {
     // выбор папки (перенос / «куда сохранить»)
     function fsPickFolder(o) {
       var ids = o.ids || [];
-      var ov = fsModal('<div class="fs-sheet-title">' + fsEsc(o.title || fsT('Выберите папку', 'Қалтаны таңдаңыз')) + '</div><div class="fs-pick" id="fs-pick-list"></div>' +
-        '<button type="button" class="fs-act fs-cancel" id="fs-pick-close">' + fsT('Закрыть', 'Жабу') + '</button>', 'fs-tall');
+      var ov = fsModal('<div class="fs-sheet-title">' + fsEsc(o.title || fsT('Выберите папку', 'Қалтаны таңдаңыз')) + '</div>' +
+        '<div class="fs-pick-hint">' + fsT('Нажмите на папку, чтобы выбрать, затем — кнопку внизу.', 'Қалтаны басып таңдаңыз, содан кейін — төмендегі батырманы.') + '</div>' +
+        '<div class="fs-pick" id="fs-pick-list"></div>' +
+        '<div class="fs-pick-foot"><button type="button" class="btn btn-primary fs-pick-ok" id="fs-pick-ok" disabled>' + fsT('Выберите папку', 'Қалтаны таңдаңыз') + '</button>' +
+        '<div class="fs-pick-foot2"><button type="button" class="btn" id="fs-pick-new">📁＋ ' + fsT('Новая папка', 'Жаңа қалта') + '</button>' +
+        '<button type="button" class="btn" id="fs-pick-close">' + fsT('Закрыть', 'Жабу') + '</button></div></div>', 'fs-tall', true);
+      var sel = undefined; // undefined — ничего не выбрано, null — корень
       var list = ov.querySelector('#fs-pick-list');
       var excl = {};
       ids.forEach(function(id) { var it = FS.items.get(id); if (it && it.k === 'folder') fsCollectTree([id]).forEach(function(x) { excl[x] = 1; }); });
       var draw = function() {
-        var rows = ['<div class="fs-pick-row"><button type="button" class="fs-pick-name" data-id="">📂 ' + fsT('Корень', 'Түбір') + '</button><button type="button" class="fs-pick-add" data-add="" title="' + fsT('Новая папка', 'Жаңа қалта') + '">＋</button></div>'];
+        var rows = ['<div class="fs-pick-row"><span class="fs-pick-tg0"></span><button type="button" class="fs-pick-name' + (sel === null ? ' on' : '') + '" data-id="" aria-pressed="' + (sel === null) + '">📂 ' + fsT('Корень', 'Түбір') + '</button><button type="button" hidden class="fs-pick-add" data-add="" title="' + fsT('Новая папка', 'Жаңа қалта') + '">＋</button></div>'];
         (function walk(pid, depth) {
           fsChildren(pid).filter(function(x) { return x.k === 'folder' && !excl[x.id]; }).forEach(function(f) {
             var ok = ids.every(function(id) { return fsCanMoveTo(id, f.id); });
@@ -34762,15 +34827,30 @@ function renderDict() {
             var hasKids = fsChildren(f.id).some(function(x) { return x.k === 'folder' && !excl[x.id]; }), isOpen = !!openSet[f.id];
             rows.push('<div class="fs-pick-row' + (ok ? '' : ' fs-dis') + '" style="padding-left:' + (depth * 16) + 'px">' +
               (hasKids ? '<button type="button" class="fs-pick-tg" data-tg="' + f.id + '" aria-label="' + fsT('Раскрыть', 'Ашу') + '" aria-expanded="' + isOpen + '">' + (isOpen ? '▾' : '▸') + '</button>' : '<span class="fs-pick-tg fs-pick-tg0"></span>') +
-              '<button type="button" class="fs-pick-name" data-id="' + f.id + '"' + (ok ? '' : ' disabled') + '>' + fsEsc((f.d && f.d.icon) || '📁') + ' ' + fsEsc(fsName(f)) + '</button>' +
-              (fsDepthOf(f.id) < FS_LIMITS.depth ? '<button type="button" class="fs-pick-add" data-add="' + f.id + '" title="' + fsT('Новая папка внутри', 'Ішіне жаңа қалта') + '">＋</button>' : '') + '</div>');
+              '<button type="button" class="fs-pick-name' + (sel === f.id ? ' on' : '') + '" data-id="' + f.id + '"' + (ok ? '' : ' disabled') + ' aria-pressed="' + (sel === f.id) + '">' + fsEsc((f.d && f.d.icon) || '📁') + ' ' + fsEsc(fsName(f)) + '</button>' + '</div>');
             if (isOpen) walk(f.id, depth + 1);
           });
         })(null, 0);
         list.innerHTML = rows.join('');
+        var okb = ov.querySelector('#fs-pick-ok');
+        if (okb) {
+          var selIt = sel ? FS.items.get(sel) : null;
+          okb.disabled = sel === undefined;
+          okb.textContent = sel === undefined ? fsT('Выберите папку', 'Қалтаны таңдаңыз') : ('✓ ' + (o.okLabel || fsT('Сюда', 'Осында')) + ': ' + (sel === null ? fsT('Корень', 'Түбір') : (selIt ? fsName(selIt) : '')));
+        }
       };
       var openSet = {};
       draw();
+      ov.querySelector('#fs-pick-ok').addEventListener('click', function() { if (sel === undefined) return; fsCloseModal(ov); o.onPick(sel); });
+      ov.querySelector('#fs-pick-new').addEventListener('click', function() {
+        var parentId = sel || null;
+        if (parentId && fsDepthOf(parentId) >= FS_LIMITS.depth) parentId = (FS.items.get(parentId) || {}).p || null;
+        fsPrompt(fsT('Название новой папки', 'Жаңа қалта атауы') + (parentId ? ' (' + fsT('внутри', 'ішінде') + ' «' + fsName(FS.items.get(parentId)) + '»)' : ''), '', function(v) {
+          if (!v.trim()) return;
+          var nf = fsCreate({ k: 'folder', p: parentId, n: v.trim() });
+          if (nf) { if (parentId) openSet[parentId] = 1; sel = nf.id; draw(); }
+        });
+      });
       list.addEventListener('click', function(e) {
         var tg = e.target.closest('[data-tg]');
         if (tg) { var tid = tg.getAttribute('data-tg'); if (openSet[tid]) delete openSet[tid]; else openSet[tid] = 1; draw(); return; }
@@ -34785,9 +34865,8 @@ function renderDict() {
         }
         var b = e.target.closest('.fs-pick-name');
         if (!b || b.disabled) return;
-        var id = b.getAttribute('data-id') || null;
-        fsCloseModal(ov);
-        o.onPick(id);
+        sel = b.getAttribute('data-id') || null; // 7.23: касание только выбирает
+        draw();
       });
       ov.querySelector('#fs-pick-close').addEventListener('click', function() { fsCloseModal(ov); });
     }
@@ -66199,11 +66278,15 @@ async function pushUnsub() {
     try {
       var nav = document.querySelector('.bottom-nav');
       var h = 0;
-      if (nav && getComputedStyle(nav).display !== 'none') { var r = nav.getBoundingClientRect(); h = Math.max(0, Math.round(window.innerHeight - r.top)); if (r.height < 20) h = 0; }
-      document.documentElement.style.setProperty('--nav-h', h + 'px');
+      // 7.23: по собственной высоте панели — пока адресная строка браузера прячется/появляется, «высота окна − верх панели» на миг врёт, и всё внизу прыгало
+      if (nav && getComputedStyle(nav).display !== 'none' && !document.body.classList.contains('nav-collapsed')) { h = Math.round(nav.offsetHeight); if (h < 20) h = 0; }
+      var hv = h + 'px';
+      if (document.documentElement.style.getPropertyValue('--nav-h') !== hv) document.documentElement.style.setProperty('--nav-h', hv);
     } catch (e) {}
   }
-  window.addEventListener('resize', sync);
+  var _syncRaf = 0;
+  window.addEventListener('resize', function () { if (_syncRaf) return; _syncRaf = requestAnimationFrame(function () { _syncRaf = 0; sync(); }); });
+  try { new MutationObserver(function () { setTimeout(sync, 280); }).observe(document.body, { attributes: true, attributeFilter: ['class'] }); } catch (e) {}
   window.addEventListener('orientationchange', function () { setTimeout(sync, 200); });
   window.addEventListener('load', function () { sync(); setTimeout(sync, 800); setTimeout(sync, 3000); });
   document.addEventListener('DOMContentLoaded', sync);

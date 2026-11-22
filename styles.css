@@ -4950,3 +4950,23 @@ main::after { content: ''; display: block; height: var(--player-h, 0px); pointer
 .plq-go i { font-style: normal; color: var(--text-muted); font-size: 0.75rem; min-width: 1.2rem; }
 .plq-b { flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; cursor: pointer; }
 .plq-b:disabled { opacity: 0.35; cursor: default; }
+
+/* ===== 7.23: без прыжков, выбор папки, добавление в очередь ===== */
+html.no-scroll, html.no-scroll body { overflow: hidden !important; overscroll-behavior: none; }
+.pl-pop, .pl-pop-card, .fs-ov, .fs-sheet, .audio-bar.visible:not(.collapsed) { overscroll-behavior: contain; }
+.fs-pick-hint { font-size: 0.8rem; color: var(--text-muted); margin: -0.2rem 0 0.5rem; }
+.fs-pick-name { min-height: 46px; }
+.fs-pick-name.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--bg-card)); font-weight: 600; }
+.fs-pick-name.on::after { content: ' ✓'; color: var(--accent); }
+.fs-pick-tg, .fs-pick-tg0 { width: 2.6rem; height: 2.6rem; flex: 0 0 2.6rem; font-size: 1.1rem; }
+.fs-pick-foot { position: sticky; bottom: 0; display: grid; gap: 0.4rem; padding-top: 0.6rem; margin-top: 0.4rem; background: var(--bg-card); border-top: 1px solid var(--border); }
+.fs-pick-ok { min-height: 48px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs-pick-ok:disabled { opacity: 0.5; }
+.fs-pick-foot2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.fs-pick-foot2 .btn { min-height: 44px; }
+.plq-addbtn { width: 100%; min-height: 44px; margin-bottom: 0.6rem; border-style: dashed; }
+.plq-addp { margin-bottom: 0.7rem; padding: 0.6rem; border-radius: 12px; border: 1px dashed var(--border); }
+.plq-addp input[type=search] { width: 100%; min-height: 44px; padding: 0.45rem 0.7rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; }
+.plq-static { cursor: default; }
+.plq-static i { margin-left: auto; }
+.plq-add { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); font-weight: 700; }
