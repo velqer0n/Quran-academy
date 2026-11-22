@@ -5091,3 +5091,9 @@ body.bg-photo .view > h2, body.bg-photo .section-title { text-shadow: 0 1px 6px 
 .sp-val .sp-chev { color: var(--text-muted); font-size: 1.2rem; line-height: 1; }
 .sp-reset { display: block; margin: 0.8rem auto 0.2rem; color: var(--text-muted); }
 .sp-val { max-width: 100%; }
+
+/* ===== 7.32 ===== */
+#view-settings:not(.set-home-mode) .view-back-bar { display: none !important; }
+.reader-tl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.5rem; }
+.reader-tl-row:empty { display: none; }
+.rtl-lbl { font-size: 0.8rem; color: var(--text-muted); margin-right: 0.15rem; }

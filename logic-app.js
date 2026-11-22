@@ -1122,6 +1122,8 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
           optKk.textContent = 'Қазақша (Халифа Алтай)';
           trSel.appendChild(optKk);
         }
+        // 7.32: в списке — только переводы текущего языка сайта (русский и казахский выбираются отдельно)
+        try { var _lp = lang === 'kk' ? 'kk' : 'ru'; Array.prototype.forEach.call(trSel.options, function(o) { var on = String(o.value).slice(0, 2) === _lp; o.hidden = !on; o.disabled = !on; }); var _row = trSel.closest('.setting-row'), _sp = _row && _row.querySelector(':scope > span'); if (_sp) _sp.textContent = lang === 'kk' ? 'Құран аудармасы (қазақ тіліндегі сайт үшін)' : 'Перевод Корана (для русского языка сайта)'; } catch(e) {}
         // Russian options labels stay; when kk selected ensure value
         if (isKk) trSel.value = 'kk.altai';
       }
@@ -1130,6 +1132,7 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
 
 function applySettings() {
       try { applyBtnView(); applyBg(); } catch(e) {}
+      try { var _db = document.getElementById('setting-device-btn'); if (_db) _db.value = (state.settings && state.settings.hideDeviceBtn === false) ? '1' : '0'; } catch(e) {}
       try {
         const railSel = document.getElementById('setting-ayah-rail');
         if (railSel) railSel.value = (state.settings && state.settings.ayahRailSide) || 'right';
@@ -3929,7 +3932,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var v = document.getElementById('view-settings'); if (!v) return;
       v.classList.toggle('set-home-mode', !!on);
       var bb = document.getElementById('set-backbar');
-      try { setGroupView(); spEnhance(); document.querySelectorAll('#view-settings select.sp-hidden').forEach(function(s) { if (s._spPaint) s._spPaint(); }); } catch(e) {}
+      try { setGroupView(); setGroupAudio(); spEnhance(); document.querySelectorAll('#view-settings select.sp-hidden').forEach(function(s) { if (s._spPaint) s._spPaint(); }); } catch(e) {}
       if (on) { setHomeRender(); if (bb) bb.innerHTML = ''; return; }
       var it = SET_HOME.filter(function(x) { return x.cat === cat; })[0], kk = isKk();
       if (bb) bb.innerHTML = '<button type="button" class="btn btn-quiet sh-back" data-sh-back="1">‹ ' + (kk ? 'Баптаулар' : 'Настройки') + '</button><b>' + (it ? it.ico + ' ' + (kk ? it.kk : it.ru) : '') + '</b>';
@@ -3958,7 +3961,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           var opts = [], grp = '';
           Array.prototype.forEach.call(sel.querySelectorAll('option, optgroup'), function(o) {
             if (o.tagName === 'OPTGROUP') { opts.push('<div class="pl-lbl2" style="margin-top:0.4rem">' + o.label.replace(/</g, '&lt;') + '</div>'); return; }
-            if (o.disabled && !o.value) return;
+            if ((o.disabled && !o.value) || o.hidden) return;
             opts.push('<button type="button" class="pl-opt' + (o.selected ? ' on' : '') + '" data-spv="' + String(o.value).replace(/"/g, '&quot;') + '"' + (o.disabled ? ' disabled' : '') + '><b>' + (o.selected ? '✓ ' : '') + o.textContent.trim().replace(/</g, '&lt;') + '</b></button>');
           });
           plPop(title.replace(/</g, '&lt;'), (hint ? '<div class="rd-note" style="margin:-0.2rem 0 0.5rem">' + hint.replace(/</g, '&lt;') + '</div>' : '') + '<div class="pl-opts">' + opts.join('') + '</div>', function(ov, close) {
@@ -3986,6 +3989,16 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         });
         pn.appendChild(b);
       });
+    }
+    function setGroupAudio() {
+      var pn = document.querySelector('#view-settings .set-cat[data-set-panel="audio"]'); if (!pn || pn._grouped) return;
+      var r1 = document.getElementById('setting-reciter-study'), r2 = document.getElementById('setting-reciter-tajweed');
+      r1 = r1 && r1.closest('.setting-row'); r2 = r2 && r2.closest('.setting-row'); if (!r1 || !r2) return;
+      var kk = isKk(), d = document.createElement('details'); d.className = 'set-grp';
+      d.innerHTML = '<summary><span>🎧</span><b>' + (kk ? '«Дыбыстау» және «Тәжуид» қарилері' : 'Чтецы для «Озвучки» и «Таджвида»') + '</b></summary><div class="set-grp-body"><div class="rd-note" style="margin-bottom:0.4rem">' + (kk ? 'Сөздер тек әл-Хусариде жарықтанады — қалғандарында тек дыбыс. Әдетте өзгертудің қажеті жоқ.' : 'Подсветка слов есть только у аль-Хусари — у остальных только звук. Обычно менять не нужно.') + '</div></div>';
+      r1.parentNode.insertBefore(d, r1);
+      d.querySelector('.set-grp-body').appendChild(r1); d.querySelector('.set-grp-body').appendChild(r2);
+      pn._grouped = true;
     }
     // «Внешний вид» — по блокам (Тема / Фон / Кнопки и размер / Дополнительно); узлы переносятся, логика по id не меняется
     function setGroupView() {
@@ -8019,6 +8032,24 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       }
     });
 
+    // 7.32: транскрипция прямо в читалке (панель «Aa»): Eng · Рус · Қаз · выкл — без захода в настройки
+    function readerTlRender() {
+      var host = document.getElementById('reader-tl-row'); if (!host) return;
+      var kk = isKk(), cur = translitModeNow();
+      host.innerHTML = '<span class="rtl-lbl">' + (kk ? 'Транскрипция:' : 'Транскрипция:') + '</span>' + [['latin', 'Eng'], ['ru', 'Рус'], ['kk', 'Қаз'], ['off', kk ? 'жоқ' : 'выкл']].map(function(x) {
+        return '<button type="button" class="btn btn-sm' + (x[0] === cur ? ' btn-primary' : '') + '" data-rtl="' + x[0] + '">' + x[1] + '</button>'; }).join('');
+    }
+    document.addEventListener('click', function(e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-rtl]'); if (!b) return;
+      var v = b.getAttribute('data-rtl'), ts = document.getElementById('setting-translit');
+      if (ts) { ts.value = v; ts.dispatchEvent(new Event('change')); } else { state.settings.translitMode = v; state.settings.showTranslit = v !== 'off'; saveState(); }
+      readerTlRender();
+      try {
+        var s = +state.currentSurah, first = null;
+        document.querySelectorAll('#ayah-list .ayah[data-ayah]').forEach(function(el) { if (first == null && el.getBoundingClientRect().bottom > 80) first = +el.getAttribute('data-ayah'); });
+        if (s) openSurah(s, first && first > 1 ? first : null);
+      } catch(er) {}
+    });
     // Settings
     (function () {
       var ts = document.getElementById('setting-translit');
@@ -8033,6 +8064,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     })();
     document.getElementById('setting-translation').addEventListener('change', e => {
       state.settings.translation = e.target.value;
+      try { var _tl = String(e.target.value).slice(0, 2) === 'kk' ? 'kk' : 'ru'; state.settings.trByLang = Object.assign({}, state.settings.trByLang || {}); state.settings.trByLang[_tl] = e.target.value; } catch(er) {}
       state.cache = {}; // invalidate
       saveState();
       toast('Перевод изменён');
@@ -8251,12 +8283,9 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         } catch(err) {}
       }
       state.settings.lang = e.target.value || 'ru';
-      // Язык интерфейса → сразу нужный перевод Корана
-      if (state.settings.lang === 'kk') {
-        state.settings.translation = 'kk.altai';
-      } else {
-        state.settings.translation = 'ru.kuliev';
-      }
+      // Язык интерфейса → свой перевод Корана для каждого языка (7.32: запоминается отдельно)
+      var _tbl = state.settings.trByLang || {};
+      state.settings.translation = _tbl[state.settings.lang] || (state.settings.lang === 'kk' ? 'kk.altai' : 'ru.kuliev');
       try {
         var trSel = document.getElementById('setting-translation');
         if (trSel) trSel.value = state.settings.translation;
@@ -14134,6 +14163,7 @@ function renderMistakes() {
       if (am) { const box = am.parentNode.querySelector('.ayah-more'); if (box) { const on = box.style.display === 'none'; box.style.display = on ? 'flex' : 'none'; am.setAttribute('aria-expanded', on ? 'true' : 'false'); } return; }
       const pv = tg.closest('#btn-reader-view,#btn-reader-more');
       if (pv) {
+        try { readerTlRender(); } catch(er) {}
         const id = pv.id === 'btn-reader-view' ? 'reader-view-panel' : 'reader-more-panel', other = pv.id === 'btn-reader-view' ? 'reader-more-panel' : 'reader-view-panel';
         const p = document.getElementById(id), o = document.getElementById(other);
         if (o) o.style.display = 'none';
@@ -63517,7 +63547,7 @@ function renderLibrary() {
         btn.title = mode === 'desktop' ? (kk ? 'Компьютер нұсқасы (басыңыз — телефон)' : 'Версия для компьютера (нажмите — телефон)') : (kk ? 'Телефон нұсқасы (басыңыз — компьютер)' : 'Версия для телефона (нажмите — ПК)');
         let show = true;
         try {
-          if (state && state.settings && state.settings.hideDeviceBtn) show = false;
+          if (state && state.settings && state.settings.hideDeviceBtn !== false) show = false; // 7.32: по умолчанию скрыта
         } catch(e) {}
         btn.style.display = show ? '' : 'none';
       }
@@ -65387,8 +65417,10 @@ function startApp() {
         if (!t) return;
         var dx = t.clientX - tx, dy = t.clientY - ty;
         var dt = Date.now() - t0;
-        if (dt > 700) return;
-        if (Math.abs(dx) < 65 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+        if (dt > 900) return;
+        // 7.32: было «≥65 px и почти строго горизонтально» — туго; теперь ≥48 px (или быстрый взмах ≥32 px) и наклон до ~40°
+        var flick = dt < 260 && Math.abs(dx) >= 32;
+        if ((Math.abs(dx) < 48 && !flick) || Math.abs(dx) < Math.abs(dy) * 1.15) return;
         var cur = activeMainTabId();
         if (!cur) return;
         var order = (typeof getMainTabOrder === 'function' ? getMainTabOrder() : ['dailyhub','home','learn','games']).concat(['more']);
@@ -66713,7 +66745,7 @@ function pushSettingsHtml() {
   const kk = (typeof isKk === 'function') && isKk();
   const st = state.settings || {};
   const L = function(r, q) { return kk ? q : r; };
-  const chips = PUSH_PRAYERS.map(function(p) {
+  const chips = (PUSH_PRAYERS || [['fajr','Фаджр','Таң'],['duha','Духа','Духа'],['dhuhr','Зухр','Бесін'],['asr','Аср','Екінті'],['maghrib','Магриб','Ақшам'],['isha','Иша','Құптан']]).map(function(p) { // 7.32: список объявлен ниже по файлу — при раннем открытии «Намаза» был undefined
     const on = pushPrayerOn(p[0]);
     return '<button type="button" class="btn btn-sm ' + (on ? 'btn-primary' : '') + '" data-pn-prayer="' + p[0] + '" style="flex:1 1 30%">' + (kk ? p[2] : p[1]) + '</button>';
   }).join('');
@@ -66756,7 +66788,7 @@ function pushBuildSchedule() {
     const DAYK = [['fajr', 'Фаджр', 'Таң'], ['sunrise', 'Восход', 'Күн шығу'], ['dhuhr', 'Зухр', 'Бесін'], ['asr', 'Аср', 'Екінті'], ['maghrib', 'Магриб', 'Ақшам'], ['isha', 'Иша', 'Құптан']];
     const dayLine = DAYK.filter(function(x) { return t[x[0]] && t[x[0]] !== '--:--'; }).map(function(x) { return (kk ? x[2] : x[1]) + ' ' + t[x[0]]; }).join(' · ');
     const nextOf = function(k) { var ord = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'], i = ord.indexOf(k); if (i < 0 || i >= ord.length - 1) return ''; var nk = ord[i + 1], x = DAYK.filter(function(y) { return y[0] === nk; })[0]; return x && t[nk] ? (kk ? 'Келесі: ' : 'Далее: ') + (kk ? x[2] : x[1]) + ' ' + t[nk] : ''; };
-    PUSH_PRAYERS.forEach(function(p) {
+    (PUSH_PRAYERS || []).forEach(function(p) {
       const k = p[0]; if (!pushPrayerOn(k) || !t[k] || t[k] === '--:--') return;
       const hm = String(t[k]).split(':');
       const when = ptReal(new Date(day.getFullYear(), day.getMonth(), day.getDate(), +hm[0], +hm[1], 0, 0), ptz);
