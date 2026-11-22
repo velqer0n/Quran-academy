@@ -4747,3 +4747,38 @@ main::after { content: ''; display: block; height: var(--player-h, 0px); pointer
     .tq-w { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.4rem; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-hover, rgba(127,127,127,.08)); color: var(--text); font: inherit; cursor: pointer; }
     .tq-w .arabic { font-size: calc(1.6rem * var(--ar-scale, 1)); line-height: 1.6; }
     .tq-w small { font-size: 0.68rem; color: var(--text-muted); text-align: center; }
+
+/* ===== 7.18: карта букв, «Я и чтец», письмо и «Найди правило» в общей рамке ===== */
+.lmap-card { margin: 0.5rem 0; }
+.lmap-h { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.lmap-h span { font-size: 0.78rem; color: var(--text-muted); }
+.lmap-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.3rem; }
+.lmap-c { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 48px; padding: 0.15rem 0; border-radius: var(--r-md, 10px); border: 1px solid var(--border); background: var(--card-bg, transparent); color: var(--text); cursor: pointer; font: inherit; }
+.lmap-c b { font-family: Amiri, serif; font-size: 1.35rem; line-height: 1.15; font-weight: 400; }
+.lmap-c small { font-size: 0.62rem; color: var(--text-muted); direction: ltr; }
+.lmap-ok { background: color-mix(in srgb, var(--success, #22c55e) 20%, transparent); border-color: color-mix(in srgb, var(--success, #22c55e) 50%, var(--border)); }
+.lmap-mid { background: color-mix(in srgb, #f59e0b 20%, transparent); border-color: color-mix(in srgb, #f59e0b 50%, var(--border)); }
+.lmap-bad { background: color-mix(in srgb, var(--danger, #ef4444) 22%, transparent); border-color: color-mix(in srgb, var(--danger, #ef4444) 60%, var(--border)); }
+.lmap-n { opacity: 0.75; }
+.lmap-c:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.lmap-leg { display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; margin-top: 0.5rem; font-size: 0.74rem; color: var(--text-muted); }
+.lmap-leg i { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 3px; border: 1px solid var(--border); vertical-align: -0.12rem; margin-right: 0.25rem; }
+.lmap-hint { margin-top: 0.35rem; font-size: 0.78rem; color: var(--text-muted); }
+.lmap-det .lmap-grid { margin-top: 0.5rem; }
+.qz-mixmap.on { border-color: var(--accent); color: var(--accent); }
+.cmp-loop.on, .cmp-slow.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.qz-start-free { display: block; margin: 0.5rem auto 0; }
+.wq-card #write-compare { min-height: 44px; }
+.fr-need { margin-top: 0.35rem; font-size: 0.85rem; color: var(--text-muted); }
+.fr-w { cursor: pointer; padding: 0.1rem 0.2rem; margin: 0 0.05rem; border-radius: 0.35rem; outline: 2px solid transparent; transition: background .15s, outline-color .15s; }
+.fr-sel { background: color-mix(in srgb, var(--accent) 22%, transparent); outline-color: var(--accent); }
+.fr-ok { background: color-mix(in srgb, var(--success, #22c55e) 24%, transparent); outline: 2px solid var(--success, #22c55e); }
+.fr-bad { background: color-mix(in srgb, var(--danger, #ef4444) 22%, transparent); outline: 2px solid var(--danger, #ef4444); }
+.fr-miss { background: color-mix(in srgb, #f59e0b 18%, transparent); outline: 2px dashed #f59e0b; }
+.fr-check { display: block; margin: 0.6rem auto 0; min-height: 44px; min-width: 9rem; }
+.fr-sum { margin-top: 0.6rem; font-weight: 600; }
+.fr-leg { display: flex; justify-content: center; gap: 0.6rem; flex-wrap: wrap; margin: 0.4rem 0; font-size: 0.78rem; }
+.fr-leg span { padding: 0.05rem 0.4rem; border-radius: 0.35rem; }
+.fr-color { margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+.fr-color-h { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.2rem; }
+.fr-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: center; margin-top: 0.3rem; }

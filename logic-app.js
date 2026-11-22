@@ -7118,6 +7118,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
               (nR ? '<div class="pg-sub">' + T('Средний результат в уроках: ', 'Сабақтардағы орташа нәтиже: ') + '<b>' + Math.round(sumR / nR * 100) + '%</b></div>' : '') +
               (weak.length ? '<div class="pg-sub">' + T('Стоит повторить: ', 'Қайталау керек: ') + weak.map(function (s) { return '<button type="button" class="online-chip" data-pg-skill="' + s.id + '">' + skillTitle(s) + '</button>'; }).join(' ') + '</div>' : '') +
               '<button type="button" class="btn btn-sm btn-primary" data-pg-go="teacher" style="margin-top:0.5rem">▶ ' + T('Продолжить курс', 'Курсты жалғастыру') + '</button></div>' +
+            (function () { try { return lmapCardHtml('pg-card'); } catch (e) { return ''; } })() +
             '<div class="card pg-card"><div class="pg-head"><b>📖 ' + T('Коран', 'Құран') + '</b><span>' + (Math.round(learnedA / totalAyahs * 1000) / 10) + '%</span></div>' + bar(learnedA / totalAyahs * 100) +
               '<div class="pg-grid">' +
               '<div><b>' + learnedA + '</b><span>' + T('аятов выучено', 'аят жатталды') + '</span></div>' +
@@ -10866,6 +10867,7 @@ function speakLetter(ch, name, ttsOnly) {
             ? lettersMastered + ' әріп, ' + rulesMastered + ' таджуид ережесі меңгерілді, екі сүре толығымен оқылды (Әл-Ихлас, Әл-Аляк). Енді еркін оқу мен ұзақ сүрелерге көшуге болады.'
             : lettersMastered + ' букв, ' + rulesMastered + ' правил таджвида освоено, две суры прочитаны целиком (Аль-Ихлас, Аль-Аляк). Теперь можно переходить к свободному чтению и длинным сурам.') + '</div></div>';
       }
+      try { html += lmapDetailsHtml(); } catch(e) {}
       const groups = ['orientation', 'letters', 'basics', 'special', 'tajweed', 'reading'];
       groups.forEach(function(g) {
         const glabel = PERSONAL_TEACHER_GROUP_LABELS[g];
@@ -11013,37 +11015,74 @@ function speakLetter(ch, name, ttsOnly) {
       const okWords = words.filter(function(w) { return item.anns.some(function(a) { return a[0] === (matchingAnn && matchingAnn[0]) && a[1] < w.end && a[2] > w.start; }); });
       const ruleLab = matchingAnn && TAJWEED_RULE_LABELS[matchingAnn[0]];
       const area = document.getElementById('game-area');
+      // 7.18: раньше хватало нажать одно слово; теперь нужно найти ВСЕ места с правилом, потом разбор с цветами таджвида
+      const need = okWords.length || (targetWord ? 1 : 0);
+      if (!okWords.length && targetWord) okWords.push(targetWord);
       area.innerHTML =
         '<div class="quiz-card" style="text-align:center">' +
-        '<div class="quiz-q">' + (kkF ? 'Аятта осы ережені тауып, сөзге басыңыз' : 'Найдите это правило в аяте — нажмите на нужное слово') + '</div>' +
+        '<div class="quiz-q">' + (kkF ? 'Аяттан осы ереже бар барлық сөзді белгілеңіз' : 'Отметьте в аяте все слова с этим правилом') + '</div>' +
         (ruleLab ? '<div style="margin-top:0.3rem"><span class="tw-chip tw-' + matchingAnn[0] + '">● ' + (kkF ? ruleLab.kk : ruleLab.ru) + '</span></div>' : '') +
-        '<div class="arabic" dir="rtl" id="findrule-ayah" style="font-size:calc(1.6rem * var(--ar-scale, 1));line-height:2.3;margin:0.75rem 0"></div>' +
+        '<div class="fr-need">' + (kkF ? 'Мұндай сөздер: ' : 'Таких слов: ') + '<b>' + need + '</b></div>' +
+        '<div class="arabic" dir="rtl" id="findrule-ayah" style="font-size:calc(1.6rem * var(--ar-scale, 1));line-height:2.3;margin:0.6rem 0"></div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem">' + item.surah + ':' + item.ayah + '</div>' +
+        '<button type="button" class="btn btn-primary fr-check" id="fr-check" disabled>' + (kkF ? 'Тексеру' : 'Проверить') + '</button>' +
+        '<div id="fr-review"></div>' +
         '<div style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkF ? 'Есеп: ' : 'Счёт: ') + gameScore + ' / ' + gameTotal + '</div></div>';
       const ayahEl = document.getElementById('findrule-ayah');
-      words.forEach(function(w, wi) {
+      const checkBtn = document.getElementById('fr-check');
+      const spans = [];
+      words.forEach(function(w) {
         const span = document.createElement('span');
+        span.className = 'fr-w';
         span.textContent = w.text;
-        span.style.cssText = 'cursor:pointer;padding:0.1rem 0.15rem;border-radius:0.3rem;margin:0 0.1rem';
+        span.setAttribute('role', 'button');
         span.addEventListener('click', function() {
-          ayahEl.querySelectorAll('span').forEach(function(s){ s.style.pointerEvents = 'none'; });
-          const isRight = (w === targetWord) || okWords.indexOf(w) >= 0;
-          if (isRight) { span.style.background = 'var(--accent)'; span.style.color = '#04120c'; gameScore++; toast(kkF ? 'Дұрыс!' : 'Верно!'); }
-          else {
-            span.style.background = '#ef4444';
-            if (targetWord) {
-              const idx = words.indexOf(targetWord);
-              ayahEl.children[idx].style.background = 'var(--accent)';
-            }
-            toast(kkF ? 'Дұрыс сөз жасыл түспен белгіленді' : 'Правильное слово подсвечено зелёным');
-          }
-          qzSchedule(nextFindRuleQuestion, isRight);
+          if (ayahEl.classList.contains('fr-checked')) return;
+          span.classList.toggle('fr-sel');
+          checkBtn.disabled = !ayahEl.querySelector('.fr-sel');
         });
+        spans.push(span);
         ayahEl.appendChild(span);
         ayahEl.appendChild(document.createTextNode(' '));
       });
+      checkBtn.addEventListener('click', function() {
+        if (ayahEl.classList.contains('fr-checked')) return;
+        ayahEl.classList.add('fr-checked');
+        checkBtn.remove();
+        let bad = 0, miss = 0;
+        const yours = [];
+        words.forEach(function(w, wi) {
+          const s = spans[wi], sel = s.classList.contains('fr-sel'), ok = okWords.indexOf(w) >= 0;
+          if (sel) yours.push(w.text);
+          s.classList.remove('fr-sel');
+          if (sel && ok) s.classList.add('fr-ok');
+          else if (sel && !ok) { s.classList.add('fr-bad'); bad++; }
+          else if (!sel && ok) { s.classList.add('fr-miss'); miss++; }
+        });
+        const isRight = !bad && !miss;
+        if (isRight) gameScore++;
+        else { try { _teacherSessionWrongs.push({ q: (ruleLab ? (kkF ? ruleLab.kk : ruleLab.ru) : '') + ' · ' + item.surah + ':' + item.ayah, your: yours.join(' ') || '—', correct: okWords.map(function(w) { return w.text; }).join(' ') }); } catch(e) {} }
+        try { if (matchingAnn) recordMistake('findrule', matchingAnn[0], isRight); } catch(e) {}
+        // разбор: итог, весь аят в цветах, правила этого аята, «почему» из Справочника
+        const tagsHere = [];
+        item.anns.forEach(function(a) { if (TAJWEED_RULE_LABELS[a[0]] && tagsHere.indexOf(a[0]) < 0) tagsHere.push(a[0]); });
+        let why = '';
+        try {
+          const title = matchingAnn ? Object.keys(RULE_TITLE_TO_TAGS).find(function(k) { return RULE_TITLE_TO_TAGS[k].indexOf(matchingAnn[0]) >= 0; }) : null;
+          const r = title ? ARABIC_RULES.concat(TAJWEED_RULES).find(function(x) { return x.title === title; }) : null;
+          if (r) why = String((kkF && r.shortKk) ? r.shortKk : (r.short || '')).replace(/<[^>]+>/g, '');
+        } catch(e) {}
+        document.getElementById('fr-review').innerHTML =
+          '<div class="fr-sum ' + (isRight ? 'qz-good' : 'qz-bad') + '">' + (isRight ? (kkF ? '✓ Барлығы табылды' : '✓ Всё найдено')
+            : (kkF ? 'Артық: ' + bad + ' · өткізілген: ' + miss : 'Лишних: ' + bad + ' · пропущено: ' + miss)) + '</div>' +
+          '<div class="fr-leg"><span class="fr-ok">✓ ' + (kkF ? 'дұрыс' : 'верно') + '</span><span class="fr-bad">✗ ' + (kkF ? 'артық' : 'лишнее') + '</span><span class="fr-miss">◌ ' + (kkF ? 'өткізілген' : 'пропущено') + '</span></div>' +
+          (why ? '<div class="qz-explain" style="text-align:left"><div class="qz-ex-h">💡 ' + (kkF ? 'Неге' : 'Почему') + '</div>' + why + '</div>' : '') +
+          '<div class="fr-color"><div class="fr-color-h">' + (kkF ? 'Бүкіл аят — тәжуид түстерімен:' : 'Весь аят в цветах таджвида:') + '</div>' +
+            '<div class="arabic" dir="rtl" style="font-size:calc(1.45rem * var(--ar-scale, 1));line-height:2.2">' + renderTajweedText(item.text, item.anns) + '</div>' +
+            '<div class="fr-chips">' + tagsHere.map(function(tg) { const lb = TAJWEED_RULE_LABELS[tg]; return '<span class="tw-chip tw-' + tg + '">● ' + (kkF ? lb.kk : lb.ru) + '</span>'; }).join('') + '</div></div>';
+        qzSchedule(nextFindRuleQuestion, isRight, true);
+      });
     }
-
     // build 5.82: сложность теперь считается по каждому конкретному аяту
     // (длина + признаки таджвид-сложности), а не по суре целиком — как и
     // просил пользователь: аят 103:1 короткий и лёгкий, а есть длинные и
@@ -11539,7 +11578,9 @@ function speakLetter(ch, name, ttsOnly) {
         const c = due[idx];
         const st = srs[c.id] || { level: 0 };
         el.innerHTML =
-          '<div class="card" style="border-color:var(--accent)"><b>' + (kkR ? 'Аралықты карточкалар (SRS)' : 'Интервальные карточки (SRS)') + '</b>' +
+          '<div class="card srs-frame" style="border-color:var(--accent)">' +
+          '<div class="qz-top"><button type="button" class="qz-close" data-srs-close="1" aria-label="' + (kkR ? 'Аяқтау' : 'Завершить') + '">✕</button><span class="qz-bar"><i style="width:' + Math.round(idx / Math.max(1, due.length) * 100) + '%"></i></span><span class="qz-count">' + (idx + 1) + ' / ' + due.length + '</span></div>' +
+          '<b>' + (kkR ? 'Аралықты карточкалар (SRS)' : 'Интервальные карточки (SRS)') + '</b>' +
           '<div class="ayah-translation">' + (kkR ? 'Аралығы ұлғаятын қайталау. Қалды: ' : 'Повторение с увеличением интервала. Осталось: ') + (due.length-idx)+'</div></div>' +
           '<div class="flashcard" id="srs-card" style="min-height:220px;margin-top:0.75rem">' +
           (flipped
@@ -11722,6 +11763,7 @@ function renderMistakes() {
               ? 'Әлі деректер жеткіліксіз. Бірнеше тест өткеннен кейін мұнда нақты сіздің әлсіз тұстарыңыз көрінеді.'
               : 'Пока данных недостаточно. После нескольких пройденных тестов здесь появятся именно ваши слабые места.')+'</p></div>';
           }
+          html = lmapCardHtml() + html;
           panel.innerHTML = html;
           panel.querySelectorAll('[data-train]').forEach(function(b) {
             b.addEventListener('click', function(){ startTargetedPractice(b.dataset.train); });
@@ -15229,10 +15271,6 @@ function renderMistakes() {
           try { renderMinimalPairs(area); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Қате: ' : 'Ошибка: ') + (e.message||e) + '</p>'; }
           return;
         }
-        if (currentGame === 'write') {
-          try { renderWriteLetterDrill(area); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Қате: ' : 'Ошибка: ') + (e.message||e) + '</p>'; }
-          return;
-        }
         if (PRACTICE_TEACHER_DRILLS[currentGame]) {
           try { renderTeacherDrillIntro(area, currentGame); } catch(e) { area.innerHTML = '<p>' + (kkG ? 'Қате: ' : 'Ошибка: ') + (e.message||e) + '</p>'; }
           return;
@@ -15243,6 +15281,11 @@ function renderMistakes() {
         }
         area.innerHTML = qzStartCardHtml(currentGame, qzGameName(currentGame) || btn.textContent);
         document.getElementById('btn-start-game').addEventListener('click', startGame);
+        if (currentGame === 'write') {
+          var sb = document.getElementById('btn-start-game');
+          sb.insertAdjacentHTML('afterend', '<button type="button" class="btn qz-start-free" id="btn-write-free">✍️ ' + (kkG ? 'Еркін жазу — әріпті өзім таңдаймын' : 'Свободно — выбрать букву самому') + '</button>');
+          document.getElementById('btn-write-free').addEventListener('click', function() { try { renderWriteLetterDrill(area); } catch(e) {} });
+        }
       });
     });
 
@@ -15393,12 +15436,13 @@ function renderMistakes() {
       gameQueue.splice(Math.min(2, gameQueue.length), 0, copy);
     }
     // пауза после ответа: верно — 1,6 с, ошибка — 3,2 с (чтобы прочитать «почему»); «Далее ›» — сразу
-    function qzSchedule(fn, isRight) {
+    function qzSchedule(fn, isRight, manual) {
       var area = document.getElementById('game-area');
       var card = area && area.querySelector('.quiz-card');
       var done = false;
       var go = function() { if (done) return; done = true; clearTimeout(tm); fn(); };
-      var tm = setTimeout(go, isRight ? 1600 : 3200);
+      // 7.18: manual — без автоперехода (после разбора есть что прочитать), только «Далее ›»
+      var tm = manual ? null : setTimeout(go, isRight ? 1600 : 3200);
       if (card && !card.querySelector('.qz-next')) {
         var b = document.createElement('button');
         b.type = 'button'; b.className = 'btn btn-primary qz-next';
@@ -15558,7 +15602,8 @@ function renderMistakes() {
       };
       var nMist = qzMistakesCount();
       return '<div class="qz-mix"><button type="button" class="btn btn-primary qz-daily" data-qz-daily="1">▶ ' + (kk ? 'Бүгінгі жаттығу' : 'Тренировка дня') + '<small>' + (kk ? '10 тапсырма: қайталау + жаңа' : '10 заданий: повтор + новое') + '</small></button>' +
-        (nMist ? '<button type="button" class="btn qz-mixmist" data-qz-mixmist="1">⚠️ ' + (kk ? 'Қателер' : 'Ошибки') + ' <b>' + nMist + '</b></button>' : '') + '</div>' +
+        (nMist ? '<button type="button" class="btn qz-mixmist" data-qz-mixmist="1">⚠️ ' + (kk ? 'Қателер' : 'Ошибки') + ' <b>' + nMist + '</b></button>' : '') +
+        '<button type="button" class="btn qz-mixmap" data-qz-lmap="1" title="' + (kk ? 'Әріптер картасы' : 'Карта букв') + '">🗺 ' + (kk ? 'Әріптер' : 'Буквы') + '</button></div>' +
         '<div class="qz-hub" id="qz-hub"><div class="qz-ladder-h">🪜 ' + (kk ? 'Оқу сатылары' : 'Ступени чтения') + '<span>' + (kk ? 'келесісіне — 80% және жоғары болғанда' : 'дальше — когда результат 80% и выше') + '</span></div>' +
         QZ_HUB.map(function(s, i) { return stepHtml(s, i, true); }).join('') +
         QZ_HUB_EXTRA.map(function(s, i) { return stepHtml(s, -1 - i, false); }).join('') + '</div>';
@@ -15635,6 +15680,7 @@ function renderMistakes() {
       if (cat === 'letters' || cat === 'names') { var L = ARABIC_LETTERS.find(function(l) { return l.ch === key; }); return L ? { type: cat, item: L } : null; }
       if (cat === 'rules') { var r = ARABIC_RULES.concat(TAJWEED_RULES).find(function(x) { return x.title === key; }); return r ? { type: 'rules', item: qzRuleItem(r) } : null; }
       if (cat === 'inword') { var it = _qzInwordFor(key); return it ? { type: 'inword', item: it } : null; }
+      if (cat === 'write') { var W = ARABIC_LETTERS.find(function(l) { return l.ch === key; }); return W ? { type: 'write', item: W } : null; }
       return null;
     }
     function qzBuildDaily() {
@@ -15647,13 +15693,14 @@ function renderMistakes() {
       shuffle(ARABIC_LETTERS).slice(0, 3).forEach(function(l) { if (!mem['letters:' + l.ch]) fresh.push({ type: 'letters', item: l }); else if (!mem['names:' + l.ch]) fresh.push({ type: 'names', item: l }); });
       var iw = _qzInwordFor(null); if (iw) fresh.push({ type: 'inword', item: iw });
       var r = shuffle(ARABIC_RULES.concat(TAJWEED_RULES))[0]; if (r) fresh.push({ type: 'rules', item: qzRuleItem(r) });
+      var wl = shuffle(ARABIC_LETTERS)[0]; if (wl && !mem['write:' + wl.ch]) fresh.push({ type: 'write', item: wl });
       tasks = tasks.concat(shuffle(fresh));
       while (tasks.length < 10) { var l2 = ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)]; tasks.push({ type: Math.random() < 0.5 ? 'letters' : 'names', item: l2 }); }
       return tasks.slice(0, 10);
     }
     function qzBuildMistakes() {
       var mk = (state.academyProgress && state.academyProgress._mistakes) || {}, list = [];
-      ['letters', 'names', 'rules', 'inword'].forEach(function(cat) { Object.keys(mk[cat] || {}).forEach(function(k) { var m = mk[cat][k]; if (m.wrong > 0) list.push({ cat: cat, key: k, r: m.wrong / Math.max(1, m.total) }); }); });
+      ['letters', 'names', 'rules', 'inword', 'write'].forEach(function(cat) { Object.keys(mk[cat] || {}).forEach(function(k) { var m = mk[cat][k]; if (m.wrong > 0) list.push({ cat: cat, key: k, r: m.wrong / Math.max(1, m.total) }); }); });
       list.sort(function(a, b) { return b.r - a.r; });
       var tasks = []; list.slice(0, 10).forEach(function(x) { var t = _qzTaskFromKey(x.cat, x.key); if (t) tasks.push(t); });
       return tasks;
@@ -15664,9 +15711,16 @@ function renderMistakes() {
       if (t.type === 'letters' || t.type === 'names') nextLetterQuestion();
       else if (t.type === 'rules') nextRulesQuestion();
       else if (t.type === 'inword') nextInwordQuestion();
+      else if (t.type === 'write') nextWriteQuestion();
+    }
+    // 7.18: «5 заданий на одну букву» (из карты букв): узнай, назови, найди в слове, напиши, ещё раз узнай
+    function qzBuildLetterFocus(ch) {
+      var L = ARABIC_LETTERS.find(function(l) { return l.ch === ch; }); if (!L) return [];
+      var iw = _qzInwordFor(ch);
+      return [{ type: 'names', item: L }, { type: 'letters', item: L }, iw ? { type: 'inword', item: iw } : { type: 'names', item: L }, { type: 'write', item: L }, { type: 'letters', item: L }];
     }
     function qzStartMixed(kind) {
-      var tasks = kind === 'mistakes' ? qzBuildMistakes() : qzBuildDaily(), kk = isKk();
+      var tasks = kind === 'mistakes' ? qzBuildMistakes() : (String(kind).indexOf('letter:') === 0 ? qzBuildLetterFocus(kind.slice(7)) : qzBuildDaily()), kk = isKk();
       if (!tasks.length) { toast(kind === 'mistakes' ? (kk ? 'Қате жоқ — керемет!' : 'Ошибок для повтора нет') : (kk ? 'Деректер жоқ' : 'Нет данных')); return; }
       _activeTeacherSkill = null; _teacherSessionWrongs = []; window._qzReqN = 0;
       gameScore = 0; gameTotal = 0;
@@ -15686,7 +15740,7 @@ function renderMistakes() {
       view.classList.toggle('qz-picked', !!g);
       var bar = document.getElementById('qz-pickbar');
       if (!g) { if (bar) bar.remove(); return; }
-      var kk = isKk(), name = g === '_daily' ? (kk ? 'Бүгінгі жаттығу' : 'Тренировка дня') : g === '_mistakes' ? (kk ? 'Қателерді қайталау' : 'Повторить ошибки') : (qzGameName(g) || '');
+      var kk = isKk(), name = String(g).indexOf('_letter:') === 0 ? (kk ? 'Әріп ' : 'Буква ') + '<bdi lang="ar">' + g.slice(8) + '</bdi>' : g === '_daily' ? (kk ? 'Бүгінгі жаттығу' : 'Тренировка дня') : g === '_mistakes' ? (kk ? 'Қателерді қайталау' : 'Повторить ошибки') : (qzGameName(g) || '');
       if (!bar) { bar = document.createElement('div'); bar.id = 'qz-pickbar'; var ga = document.getElementById('game-area'); ga.parentNode.insertBefore(bar, ga); }
       bar.innerHTML = '<button type="button" class="btn btn-quiet" data-qz-back="1">‹ ' + (kk ? 'Барлық жаттықтырғыштар' : 'Все тренажёры') + '</button><b>' + name + '</b>';
     }
@@ -15704,6 +15758,151 @@ function renderMistakes() {
       }
     });
 
+    // ===== 7.18: «Напиши букву» в общей рамке — название → пишете по памяти → сравниваете с образцом → 👍/👎 в общую память =====
+    function startWriteGame() {
+      currentGame = 'write'; gameScore = 0; gameTotal = 0; _teacherSessionWrongs = []; window._qzReqN = 0;
+      gameQueue = qzPickItems('write', ARABIC_LETTERS, function(l) { return l.ch; }, 8);
+      nextWriteQuestion();
+    }
+    function nextWriteQuestion() {
+      if (!gameQueue.length) return endGame();
+      gameTotal++;
+      var L = gameQueue.shift(), kk = isKk(), area = document.getElementById('game-area');
+      var nm = kk && L.nameKk ? L.nameKk : L.name;
+      area.innerHTML = '<div class="quiz-card qz-selfcard wq-card" style="text-align:center">' +
+        '<div class="quiz-q">' + (kk ? 'Әріпті есте сақтап жазыңыз' : 'Напишите букву по памяти') + '<br><b>' + nm + '</b> <span style="color:var(--text-muted);font-weight:500">(' + letterTr(L) + ')</span> ' +
+        '<button type="button" class="btn btn-sm" id="wq-hear" aria-label="' + (kk ? 'Тыңдау' : 'Послушать') + '">🔊</button></div>' +
+        '<div id="wq-canvas" style="margin-top:0.5rem"></div>' +
+        '<div id="wq-self" hidden style="margin-top:0.6rem"><div class="sr-ask">' + (kk ? 'Үлгімен салыстырыңыз — шықты ма?' : 'Сравните с образцом — получилось?') + '</div>' + qzSelfRowHtml() + '</div></div>';
+      try { renderLetterWriteCanvas(document.getElementById('wq-canvas'), L.ch); } catch(e) {}
+      document.getElementById('wq-hear').addEventListener('click', function() { try { if (!playLetterRec(L.ch)) speakLetter(L.ch, L.name); } catch(e) {} });
+      var cmp = document.getElementById('write-compare');
+      if (cmp) cmp.addEventListener('click', function() { var s = document.getElementById('wq-self'); if (s) s.hidden = false; });
+      var answered = false;
+      area.querySelectorAll('[data-qz-self]').forEach(function(b) { b.addEventListener('click', function() {
+        if (answered) return; answered = true;
+        var ok = b.getAttribute('data-qz-self') === '1';
+        b.classList.add(ok ? 'on' : 'on-no');
+        try { recordMistake('write', L.ch, ok); } catch(e) {}
+        if (ok) gameScore++;
+        else { try { _teacherSessionWrongs.push({ q: nm, your: kk ? 'әзірге жоқ' : 'не получилось', correct: L.ch }); qzRequeue(L); } catch(e) {} }
+        setTimeout(nextWriteQuestion, 500);
+      }); });
+    }
+    // ===== 7.18: карта трудных букв — по общей памяти ошибок (тесты букв, буква в слове, письмо, произношение, слоги) =====
+    function lmapStats() {
+      var mk = (state.academyProgress && state.academyProgress._mistakes) || {}, out = {};
+      ARABIC_LETTERS.forEach(function(l) { out[l.ch] = { w: 0, t: 0 }; });
+      ['letters', 'names', 'inword', 'speak', 'write'].forEach(function(cat) {
+        Object.keys(mk[cat] || {}).forEach(function(k) { if (out[k]) { out[k].w += mk[cat][k].wrong || 0; out[k].t += mk[cat][k].total || 0; } });
+      });
+      // слоги: ключ — слог целиком (بَتِ), каждая буква в нём получает этот ответ один раз
+      Object.keys(mk.blend || {}).forEach(function(k) {
+        var m = mk.blend[k], seen = {};
+        Array.from(String(k).replace(/[ً-ْٰ]/g, '')).forEach(function(c) { if (out[c] && !seen[c]) { seen[c] = 1; out[c].w += m.wrong || 0; out[c].t += m.total || 0; } });
+      });
+      return out;
+    }
+    function lmapLevel(s) { if (!s || s.t < 2) return 'n'; var r = s.w / s.t; return r >= 0.34 ? 'bad' : (r >= 0.12 ? 'mid' : 'ok'); }
+    function lmapHtml() {
+      var kk = isKk(), st = lmapStats(), cnt = { ok: 0, mid: 0, bad: 0, n: 0 };
+      var cells = ARABIC_LETTERS.map(function(l) {
+        var s = st[l.ch], lv = lmapLevel(s); cnt[lv]++;
+        var nm = kk && l.nameKk ? l.nameKk : l.name;
+        var tip = nm + (s.t ? ' · ' + (kk ? 'дұрыс ' : 'верно ') + (s.t - s.w) + ' / ' + s.t : '');
+        return '<button type="button" class="lmap-c lmap-' + lv + '" data-lmap="' + l.ch + '" title="' + tip.replace(/"/g, '') + '" aria-label="' + tip.replace(/"/g, '') + '"><b lang="ar">' + l.ch + '</b><small>' + (s.t >= 2 ? Math.round((1 - s.w / s.t) * 100) + '%' : '·') + '</small></button>';
+      }).join('');
+      return { seen: cnt.ok + cnt.mid + cnt.bad, bad: cnt.bad, html:
+        '<div class="lmap-grid" dir="rtl">' + cells + '</div>' +
+        '<div class="lmap-leg"><span><i class="lmap-ok"></i>' + (kk ? 'сенімді' : 'уверенно') + '</span><span><i class="lmap-mid"></i>' + (kk ? 'кейде қате' : 'иногда путаю') + '</span><span><i class="lmap-bad"></i>' + (kk ? 'жиі қате' : 'часто путаю') + '</span><span><i class="lmap-n"></i>' + (kk ? 'дерек аз' : 'мало данных') + '</span></div>' +
+        '<div class="lmap-hint">' + (kk ? 'Әріпті басыңыз — дәл соған 5 тапсырма: таны, ата, сөзден тап, жаз.' : 'Нажмите букву — 5 заданий именно на неё: узнать, назвать, найти в слове, написать.') + '</div>' };
+    }
+    function lmapCardHtml(cls) {
+      var kk = isKk(), m = lmapHtml();
+      return '<div class="card lmap-card' + (cls ? ' ' + cls : '') + '"><div class="lmap-h"><b>🗺 ' + (kk ? 'Әріптер картасы' : 'Карта букв') + '</b><span>' + (m.seen ? (kk ? 'тексерілді: ' : 'проверено: ') + m.seen + ' / ' + ARABIC_LETTERS.length + (m.bad ? ' · ' + (kk ? 'жиі қате: ' : 'часто путаю: ') + m.bad : '') : (kk ? 'жаттығудан кейін толады' : 'заполнится по мере тренировок')) + '</span></div>' + m.html + '</div>';
+    }
+    function lmapDetailsHtml() {
+      var kk = isKk(), m = lmapHtml();
+      if (!m.seen) return '';
+      return '<details class="teacher-group lmap-det" style="margin-bottom:0.5rem"><summary class="section-title" style="cursor:pointer">🗺 ' + (kk ? 'Әріптер картасы' : 'Карта букв') + (m.bad ? ' · <span style="color:var(--danger,#ef4444)">' + (kk ? 'жиі қате: ' : 'часто путаю: ') + m.bad + '</span>' : '') + '</summary>' + m.html + '</details>';
+    }
+    function qzLetterFocusGo(ch) {
+      try { if (typeof showView === 'function') showView('games'); } catch(e) {}
+      setTimeout(function() { qzSetPicked('_letter:' + ch); qzStartMixed('letter:' + ch); }, 90);
+    }
+    document.addEventListener('click', function(e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-lmap]');
+      if (b) { qzLetterFocusGo(b.getAttribute('data-lmap')); return; }
+      var o = e.target && e.target.closest && e.target.closest('[data-qz-lmap]');
+      if (o) {
+        var ex = document.getElementById('qz-lmap');
+        if (ex) { ex.remove(); o.classList.remove('on'); return; }
+        var mix = o.closest('.qz-mix'); if (!mix) return;
+        mix.insertAdjacentHTML('afterend', lmapCardHtml('qz-lmap-card').replace('class="card lmap-card', 'id="qz-lmap" class="card lmap-card'));
+        o.classList.add('on');
+      }
+    });
+    // ===== 7.18: «Я и чтец подряд» — образец (можно 0.75×) → своя запись → пауза, 3 круга; сравнивать на слух легче =====
+    var _cmpLoop = null;
+    function cmpLoopStop() {
+      var L = _cmpLoop; if (!L) return;
+      _cmpLoop = null; L.stop = true;
+      try { if (L.cur) L.cur.pause(); } catch(e) {}
+      try { if (L.btn) { L.btn.classList.remove('on'); L.btn.innerHTML = L.lab; } } catch(e) {}
+    }
+    function _cmpPlay(a, rate, cb) {
+      if (!a) { cb(); return; }
+      var done = false;
+      var fin = function() { if (done) return; done = true; a.removeEventListener('ended', fin); a.removeEventListener('error', fin); try { a.playbackRate = 1; } catch(e) {} cb(); };
+      try { a.pause(); a.currentTime = 0; } catch(e) {}
+      try { a.playbackRate = rate || 1; a.preservesPitch = true; } catch(e) {}
+      a.addEventListener('ended', fin); a.addEventListener('error', fin);
+      try { var p = a.play(); if (p && p.catch) p.catch(fin); } catch(e) { fin(); }
+    }
+    // getRef() → { audio: HTMLAudioElement | null, fallback: function } — образец; без записи — голос устройства
+    function cmpLoopToggle(btn, getRef) {
+      if (_cmpLoop && _cmpLoop.btn === btn) { cmpLoopStop(); return; }
+      cmpLoopStop();
+      var kk = isKk();
+      if (!recordedBlobUrl) { toast(kk ? 'Алдымен өзіңізді жазыңыз' : 'Сначала запишите себя'); return; }
+      var slow = !!(state.settings && state.settings.cmpSlow);
+      var L = _cmpLoop = { btn: btn, lab: btn.innerHTML, n: 0, stop: false, cur: null };
+      btn.classList.add('on'); btn.innerHTML = '⏹ ' + (kk ? 'Тоқтату' : 'Стоп');
+      var alive = function() { return !L.stop && document.body.contains(btn); };
+      var step = function() {
+        if (!alive()) { if (_cmpLoop === L) cmpLoopStop(); return; }
+        if (L.n >= 3) { cmpLoopStop(); return; }
+        L.n++;
+        var ref = getRef() || {};
+        var mine = function() {
+          setTimeout(function() {
+            if (!alive()) { if (_cmpLoop === L) cmpLoopStop(); return; }
+            var me = new Audio(recordedBlobUrl); L.cur = me;
+            _cmpPlay(me, 1, function() { setTimeout(step, 900); });
+          }, 450);
+        };
+        if (ref.audio) { L.cur = ref.audio; _cmpPlay(ref.audio, slow ? 0.75 : 1, mine); }
+        else { try { if (ref.fallback) ref.fallback(); } catch(e) {} setTimeout(mine, 1600); }
+      };
+      step();
+    }
+    function cmpButtonsHtml(isAyah) {
+      var kk = isKk(), slow = !!(state.settings && state.settings.cmpSlow);
+      return '<button class="btn btn-sm cmp-loop" id="btn-cmp-loop" disabled style="opacity:0.5" title="' + (kk ? 'Үлгі → менің жазбам, 3 рет' : 'Образец → моя запись, 3 круга') + '">🔁 ' + (isAyah ? (kk ? 'Қари → мен' : 'Чтец → я') : (kk ? 'Үлгі → мен' : 'Образец → я')) + '</button>' +
+        '<button class="btn btn-sm cmp-slow' + (slow ? ' on' : '') + '" id="btn-cmp-slow" aria-pressed="' + slow + '" title="' + (kk ? 'Үлгіні баяу ойнату' : 'Образец медленнее') + '">🐢 0.75×</button>';
+    }
+    function cmpBind(getRef) {
+      var lb = document.getElementById('btn-cmp-loop'), sb = document.getElementById('btn-cmp-slow');
+      if (lb) lb.addEventListener('click', function() { cmpLoopToggle(lb, getRef); });
+      if (sb) sb.addEventListener('click', function() {
+        state.settings.cmpSlow = !state.settings.cmpSlow; try { saveState(); } catch(e) {}
+        sb.classList.toggle('on', !!state.settings.cmpSlow); sb.setAttribute('aria-pressed', String(!!state.settings.cmpSlow));
+      });
+    }
+    function cmpSyncBtn(on) {
+      var b = document.getElementById('btn-cmp-loop'); if (!b) return;
+      b.disabled = !on; b.style.opacity = on ? '1' : '0.5';
+    }
     // ===== 7.14: «Прочитай сам» — читаете → «Показать» (чтец и транскрипция) → сами отмечаете 👍/👎; отметка идёт в память повторения =====
     function qzSelfRowHtml() {
       var kk = isKk();
@@ -15787,6 +15986,7 @@ function renderMistakes() {
       'sr-word': { ico: '📝', ru: 'Слово из Корана: прочитайте сами, затем послушайте чтеца и отметьте 👍 или 👎.', kk: 'Құраннан сөз: өзіңіз оқып, қариды тыңдап, 👍 немесе 👎 белгілеңіз.' },
       'sr-ayah': { ico: '📜', ru: 'Короткий аят: прочитайте сами (можно без огласовок), затем послушайте чтеца и отметьте 👍 или 👎.', kk: 'Қысқа аят: өзіңіз оқып (харакатсыз да болады), қариды тыңдап, 👍 немесе 👎 белгілеңіз.' },
       inword: { ico: '🔍', ru: 'Слово из Корана → нажмите на нужную букву и посмотрите, какую форму она принимает в слове.', kk: 'Құраннан сөз → керекті әріпті басып, оның сөздегі пішінін көріңіз.' },
+      write: { ico: '✍️', ru: 'Видите название буквы → напишите её пальцем по памяти, сравните с образцом и сами отметьте 👍 или 👎.', kk: 'Әріптің атын көресіз → саусақпен есте сақтап жазыңыз, үлгімен салыстырып, өзіңіз 👍 не 👎 белгілеңіз.' },
       findrule: { ico: '🎨', ru: 'Найдите в настоящем аяте слово с нужным правилом таджвида.', kk: 'Нақты аяттан керекті тәжуид ережесі бар сөзді табыңыз.' }
     };
     function qzStartCardHtml(game, title) {
@@ -15819,8 +16019,8 @@ function renderMistakes() {
     function qzEnhance() {
       var area = document.getElementById('game-area'); if (!area) return;
       var view = document.getElementById('view-games');
-      var card = area.querySelector('.quiz-card');
-      var running = !!(card && !card.classList.contains('qz-result') && (card.querySelector('.quiz-opts') || card.querySelector('#findrule-ayah') || card.querySelector('.iw-word') || card.querySelector('.qz-self') || card.classList.contains('qz-selfcard')));
+      var card = area.querySelector('.quiz-card') || area.querySelector('.srs-frame');
+      var running = !!(card && !card.classList.contains('qz-result') && (card.querySelector('.quiz-opts') || card.querySelector('#findrule-ayah') || card.querySelector('#construct-tiles') || area.querySelector('#srs-card') || card.querySelector('.iw-word') || card.querySelector('.qz-self') || card.classList.contains('qz-selfcard')));
       if (view) view.classList.toggle('qz-running', running);
       if (!running) return;
       var kk = isKk();
@@ -15851,11 +16051,18 @@ function renderMistakes() {
       new MutationObserver(function() { if (pending) return; pending = true; requestAnimationFrame(function() { pending = false; try { qzEnhance(); } catch(e) {} }); }).observe(area, { childList: true, subtree: true });
     })();
     document.addEventListener('click', function(e) {
+      var s = e.target && e.target.closest && e.target.closest('[data-srs-close]');
+      if (!s) return;
+      var back = document.querySelector('[data-qz-back]');
+      if (back) back.click();
+      else { var ga = document.getElementById('game-area'); if (ga) ga.innerHTML = ''; try { qzEnhance(); } catch(er) {} }
+    });
+    document.addEventListener('click', function(e) {
       var c = e.target && e.target.closest && e.target.closest('[data-qz-close]');
       if (!c) return;
       try { gameQueue = []; if (_qzDaily) _qzDaily.queue = []; } catch(er) {}
       // текущий вопрос без ответа в итог не считаем
-      try { var card = document.querySelector('#game-area .quiz-card'); var answered = card && card.querySelector('.quiz-opts button:disabled, .quiz-opts button.correct, #findrule-ayah span[style*="background"], .iw-word.iw-done'); if (!answered && gameTotal > 0) gameTotal--; } catch(er) {}
+      try { var card = document.querySelector('#game-area .quiz-card'); var answered = card && card.querySelector('.quiz-opts button:disabled, .quiz-opts button.correct, #findrule-ayah span[style*="background"], #findrule-ayah.fr-checked, #construct-target.cx-done, .qz-self .on, .qz-self .on-no, .iw-word.iw-done'); if (!answered && gameTotal > 0) gameTotal--; } catch(er) {}
       try { endGame(); } catch(er) {}
     });
 
@@ -15885,6 +16092,8 @@ function renderMistakes() {
         startAyahGame();
       } else if (currentGame === 'findrule') {
         startFindRuleQuizStandalone();
+      } else if (currentGame === 'write') {
+        startWriteGame();
       } else if (currentGame === 'inword') {
         startInwordGame();
       } else if (/^sr-/.test(currentGame)) {
@@ -15925,6 +16134,7 @@ function renderMistakes() {
         playBtn.disabled = true;
         playBtn.style.opacity = '0.5';
       }
+      try { cmpLoopStop(); cmpSyncBtn(false); } catch(e) {}
     }
 
     async function startRecording(onStop) {
@@ -15954,6 +16164,7 @@ function renderMistakes() {
             playBtn.disabled = false;
             playBtn.style.opacity = '1';
           }
+          try { cmpSyncBtn(true); } catch(e) {}
           toast(isKk() ? 'Жазба дайын — «Менің жазбам» басыңыз' : 'Запись готова — нажмите «Моя запись»');
           if (onStop) onStop(true);
         };
@@ -16001,6 +16212,7 @@ function renderMistakes() {
     }
 
     function nextSpeakQuestion() {
+      try { cmpLoopStop(); } catch(e) {}
       if (!gameQueue.length) return endGame();
       gameTotal++;
       clearRecording();
@@ -16015,6 +16227,7 @@ function renderMistakes() {
           '<button class="btn btn-sm" id="btn-hear">🔊 ' + (kkQ ? 'Дұрысы' : 'Как надо') + '</button>' +
           '<button class="btn btn-primary" id="btn-rec">⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя') + '</button>' +
           '<button class="btn btn-sm" id="btn-play-me" disabled style="opacity:0.5">▶ ' + (kkQ ? 'Менің жазбам' : 'Моя запись') + '</button>' +
+          cmpButtonsHtml(false) +
           '<button class="btn btn-sm" id="btn-asr">🎙 ' + (kkQ ? 'Тексеру' : 'Проверить') + '</button>' +
 
         '</div>' +
@@ -16026,6 +16239,7 @@ function renderMistakes() {
 
       document.getElementById('btn-hear').addEventListener('click', () => speakLetter(letter.ch, letter.name));
       document.getElementById('btn-play-me').addEventListener('click', playMyRecording);
+      cmpBind(function() { return { audio: (typeof letterRecAudio === 'function' ? letterRecAudio(letter.ch) : null), fallback: function() { speakLetter(letter.ch, letter.name); } }; });
       area.querySelectorAll('[data-qz-self]').forEach(function(b) { b.addEventListener('click', function() {
         stopRecording();
         var ok = b.getAttribute('data-qz-self') === '1';
@@ -16124,6 +16338,7 @@ function renderMistakes() {
     }
 
     function nextSpeakAyahQuestion() {
+      try { cmpLoopStop(); } catch(e) {}
       if (!gameQueue.length) return endGame();
       gameTotal++;
       clearRecording();
@@ -16139,7 +16354,7 @@ function renderMistakes() {
           '<button class="btn btn-sm" id="btn-hear">🔊 ' + (kkQ ? 'Дұрысы' : 'Как надо') + '</button>' +
           '<button class="btn btn-primary" id="btn-rec">⏺ ' + (kkQ ? 'Өзімді жазу' : 'Записать себя') + '</button>' +
           '<button class="btn btn-sm" id="btn-play-me" disabled style="opacity:0.5">▶ ' + (kkQ ? 'Менің жазбам' : 'Моя запись') + '</button>' +
-
+          cmpButtonsHtml(true) +
         '</div>' +
         '<div class="sr-ask">' + (kkQ ? 'Қаримен салыстырыңыз — шықты ма?' : 'Сравните с чтецом — получилось?') + '</div>' + qzSelfRowHtml() +
         '<div id="listen-status" style="text-align:center;color:var(--text-muted);font-size:0.85rem">' + (kkQ ? 'Қарини тыңдаңыз → қайталаңыз → жазбаңызды салыстырыңыз' : 'Слушайте чтеца → повторите → сравните свою запись') + '</div>' +
@@ -16151,6 +16366,12 @@ function renderMistakes() {
         else toast(kkQ ? 'Аят аудиосы қолжетімсіз' : 'Аудио аята недоступно');
       });
       document.getElementById('btn-play-me').addEventListener('click', playMyRecording);
+      var _cmpRefA = null;
+      cmpBind(function() {
+        var u = (typeof ayahAudioUrl === 'function' && ayah.surah) ? ayahAudioUrl(ayah.surah, ayah.number) : ayah.audio;
+        if (u && !_cmpRefA) _cmpRefA = new Audio(u);
+        return { audio: _cmpRefA, fallback: function() { toast(kkQ ? 'Аят аудиосы қолжетімсіз' : 'Аудио аята недоступно'); } };
+      });
       area.querySelectorAll('[data-qz-self]').forEach(function(b) { b.addEventListener('click', function() {
         stopRecording();
         var ok = b.getAttribute('data-qz-self') === '1';
@@ -16451,7 +16672,10 @@ function renderMistakes() {
       const totalRounds = 6;
       let score = 0;
       gameScore = 0; gameTotal = 0;
+      try { if (!_activeTeacherSkill) _teacherSessionWrongs = []; } catch(e) {}
       const paint = () => {
+        // 7.18: занятие закрыли «✕» — следующий раунд не рисуем
+        if (round > 0 && !document.getElementById('construct-target')) return;
         if (round >= totalRounds) {
           gameScore = score; gameTotal = totalRounds;
           return endGame();
@@ -16478,6 +16702,8 @@ function renderMistakes() {
         const area = document.getElementById('game-area');
         const targetTr = target.map(function(x){ return x.tr; }).join('-');
         const renderUi = (done, ok) => {
+          // 7.18: общая рамка считает прогресс по gameTotal + gameQueue
+          gameTotal = round; gameScore = score; gameQueue = new Array(Math.max(0, totalRounds - round)).fill(null);
           area.innerHTML =
             '<div class="quiz-card" style="text-align:center">' +
             '<div class="quiz-q">' + (kkC ? 'Естіген буынды арабша жазыңыз' : 'Запишите по-арабски то, что слышите') + '</div>' +
@@ -16486,12 +16712,12 @@ function renderMistakes() {
             '<div style="margin-top:0.5rem;color:var(--text-muted);font-size:0.82rem;line-height:1.5">' + (kkC
               ? 'Тақтайшаларды естілу ретімен басыңыз: бірінші буын — оң жақта, сөз оңнан солға өсіп, әріптер өзара жалғасады.'
               : 'Нажимайте плитки в том порядке, как звучит слово: первый слог встаёт справа, слово растёт справа налево, буквы сами соединяются.') + '</div>' +
-            '<div class="arabic" dir="rtl" id="construct-target" style="min-height:3.2rem;font-size:calc(2rem * var(--ar-scale, 1));border:1px dashed ' + (done ? (ok ? '#4ade80' : '#f87171') : 'var(--border)') + ';border-radius:0.5rem;padding:0.5rem;margin:0.75rem 0">' +
+            '<div class="arabic' + (done ? ' cx-done' : '') + '" dir="rtl" id="construct-target" style="min-height:3.2rem;font-size:calc(2rem * var(--ar-scale, 1));border:1px dashed ' + (done ? (ok ? '#4ade80' : '#f87171') : 'var(--border)') + ';border-radius:0.5rem;padding:0.5rem;margin:0.75rem 0">' +
             picked.map(function(t){ return t.ar; }).join('') + '</div>' +
             (done && !ok ? '<div style="margin-bottom:0.5rem">' + (kkC ? 'Дұрысы: ' : 'Правильно: ') + '<span class="arabic" dir="rtl" style="font-size:calc(1.6rem * var(--ar-scale, 1))">' + target.map(function(x){return x.ar;}).join('') + '</span></div>' : '') +
             '<div id="construct-tiles" style="display:flex;flex-wrap:wrap;gap:0.4rem;justify-content:center"></div>' +
             (done ? '' : '<div style="margin-top:0.6rem"><button type="button" class="btn btn-sm" id="construct-undo">↩ ' + (kkC ? 'Соңғысын алып тастау' : 'Убрать последнюю') + '</button></div>') +
-            '<div style="margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkC?'Раунд ':'Раунд ') + round + ' / ' + totalRounds + '</div>' +
+            '<div class="qz-hide" style="margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkC?'Раунд ':'Раунд ') + round + ' / ' + totalRounds + '</div>' +
             '</div>';
           document.getElementById('construct-listen')?.addEventListener('click', function() {
             try { if (typeof speakArText === 'function') speakArText(target.map(function(x){ return x.ar; }).join(''), 0.7); } catch(e) {}
@@ -16511,6 +16737,7 @@ function renderMistakes() {
               if (picked.length === target.length) {
                 const correct = picked.every(function(p, i){ return p.ar === target[i].ar; });
                 if (correct) { score++; toast(kkC ? 'Дұрыс!' : 'Верно!'); }
+                else { try { _teacherSessionWrongs.push({ q: '«' + targetTr + '»', your: picked.map(function(x){ return x.ar; }).join(''), correct: target.map(function(x){ return x.ar; }).join('') }); } catch(e) {} }
                 try { recordMistake('blend', target.map(function(x){return x.ar;}).join(''), correct); } catch(e) {}
                 renderUi(true, correct);
                 setTimeout(paint, correct ? 1000 : 2200);
@@ -17298,9 +17525,11 @@ function renderMistakes() {
       area.innerHTML = qzResultHtml(pct, kkE);
       try { if (!_activeTeacherSkill && !_qzDaily && currentGame && gameTotal >= 5) { var ql = JSON.parse(localStorage.getItem('qz_last') || '{}'); ql[currentGame] = pct; localStorage.setItem('qz_last', JSON.stringify(ql)); } } catch(e) {}
       try { if (typeof renderMistakes === 'function') renderMistakes(); } catch(e) {}
+      var _mkRestart = !!_qzDaily;
       if (_qzDaily) { var _mk = _qzDaily.kind; _qzDaily = null; try { var rb = area.querySelector('#btn-start-game'); if (rb) { var nb = rb.cloneNode(true); rb.replaceWith(nb); nb.addEventListener('click', function() { qzStartMixed(_mk); }); } } catch(e) {} }
       try { qzHubRefresh(); } catch(e) {}
-      document.getElementById('btn-start-game').addEventListener('click', startGame);
+      // 7.18: после «Тренировки дня»/«Ошибок»/«Буквы» кнопку уже связали с тем же занятием — обычный тест сверху не вешаем
+      if (!_mkRestart) document.getElementById('btn-start-game').addEventListener('click', startGame);
       try { var qm = area.querySelector('[data-qz-mistakes]'); if (qm) qm.addEventListener('click', function() { var mb = document.getElementById('games-mistakes-box'); if (mb) { mb.open = true; try { renderMistakes(); } catch(e) {} mb.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }); } catch(e) {}
       // 6.107: без всплывающих оценок — итог спокойно показан в карточке
       try {
