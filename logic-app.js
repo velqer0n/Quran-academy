@@ -3838,12 +3838,19 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       };
       var dim = state.settings && state.settings.bgDim != null ? +state.settings.bgDim : 0.55;
       var isPhoto = BG_LIST.some(function(b) { return b.id === cur && (b.img || b.own); });
+      var _og = el.querySelector('.bg-grid'), _sl = _og ? _og.scrollLeft : null; // 7.28: не прыгать в начало после выбора
       el.innerHTML = '<span>' + (kk ? 'Фон' : 'Фон') + '</span><div class="bg-grid">' + BG_LIST.map(thumb).join('') + '</div>' +
         (isPhoto ? '<label class="bg-dim-row"><span>' + (kk ? 'Фонды күңгірттеу' : 'Приглушить фон') + '</span><input type="range" id="bg-dim" min="0.25" max="0.85" step="0.05" value="' + dim + '"></label>' : '') +
         (own ? '<button type="button" class="btn btn-sm" data-bg-own-new="1">📷 ' + (kk ? 'Басқа сурет' : 'Другое фото') + '</button>' : '') +
         '<input type="file" id="bg-own-file" accept="image/*" hidden>' +
         '<div class="bg-note">' + (kk ? 'Оқу бетінде фон бәсеңдейді — мәтін оқылуы үшін. Өз суретіңіз тек осы телефонда сақталады. Мешіт суреттері — Unsplash.' : 'В читалке фон приглушается — чтобы текст читался. Своё фото хранится только на этом телефоне. Фото мечетей — Unsplash.') + '</div>';
       el.querySelectorAll('[data-pat]').forEach(function(b) { var p = BG_PAT[b.getAttribute('data-pat')]; b.style.setProperty('--pat', p); });
+      var g = el.querySelector('.bg-grid'), on = el.querySelector('.bg-th.on');
+      if (g) {
+        if (_sl != null) g.scrollLeft = _sl;
+        else if (on) g.scrollLeft = Math.max(0, on.offsetLeft - 12);
+        if (on && (on.offsetLeft < g.scrollLeft || on.offsetLeft + on.offsetWidth > g.scrollLeft + g.clientWidth)) g.scrollLeft = Math.max(0, on.offsetLeft - 12);
+      }
     }
     function bgPickOwn() { var f = document.getElementById('bg-own-file'); if (f) f.click(); }
     document.addEventListener('click', function(e) {
@@ -29437,6 +29444,7 @@ bKk:
     function ptMethodNoteHtml(loc, methodKey, country) {
       var kk = isKk(), n = PT_METHOD_NOTE[methodKey], h = '';
       if (n) h += kk ? n[1] : n[0];
+      if (country && !PT_METHOD_REC[country]) h += (h ? '<br>' : '') + (kk ? '⚠️ Бұл ел үшін ресми әдісті растай алмадық — жергілікті мешіттің кестесімен салыстырыңыз.' : '⚠️ Официальный метод для этой страны мы не смогли подтвердить — сверяйтесь с расписанием местной мечети.');
       try {
         if (methodKey !== 'DUMK' && loc && loc.lat != null && (country === 'KZ' || !country)) {
           var a = resolveDayTimes(+loc.lat, +loc.lon, new Date(), 'DUMK'), b = resolveDayTimes(+loc.lat, +loc.lon, new Date(), methodKey);
@@ -30840,6 +30848,12 @@ let body = '';
           });
           const bindSel = function(id, fn){ const n = document.getElementById(id); if (n) n.addEventListener('change', fn); };
           bindSel('pt-country', function(e){
+            // 7.28: стоял рекомендуемый метод прежней страны — ставим рекомендуемый для новой
+            try {
+              var oldC = (window._ptWorking && window._ptWorking.country) || country, newC = e.target.value;
+              var curM = window._ptMethodWorking || methodKey, oldRec = PT_METHOD_REC[oldC] || 'MWL', newRec = PT_METHOD_REC[newC] || 'MWL';
+              if (curM === oldRec && newRec !== curM) { window._ptMethodWorking = newRec; toast((isKk() ? 'Әдіс: ' : 'Метод: ') + PRAYER_METHODS[newRec].name + (isKk() ? ' (ұсынылады)' : ' (рекомендуется)')); }
+            } catch(er) {}
             window._ptWorking = Object.assign({}, window._ptWorking || {}, { country: e.target.value, city: '', lat: null, lon: null });
             paint(tab);
           });
