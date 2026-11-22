@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Красивые шрифты — Quran Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Cormorant:wght@400;600&family=Lora:wght@400;600&family=EB+Garamond:wght@400;600&family=Prata&family=Montserrat:wght@400;600&family=Raleway:wght@400;600&family=Jost:wght@400;600&family=Exo+2:wght@400;600&family=Manrope:wght@400;600&family=Comfortaa:wght@400;600&family=Nunito:wght@400;600&family=Rubik:wght@400;600&family=Caveat:wght@400;600&family=Marck+Script&family=Lobster&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #eef1f5; --card: #ffffff; --text: #1a2332; --muted: #5b6474; --accent: #0f9f6e; --border: #d8dee8; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --muted: #94a3b8; --accent: #10b981; --border: #334155; } }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
+  h1 { font-size: 1.2rem; margin: 0 0 0.3rem; }
+  .note { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; line-height: 1.45; }
+  .sec { font-size: 0.95rem; font-weight: 600; margin: 1.3rem 0 0.6rem; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 0.9rem 1rem; margin-bottom: 0.8rem; }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; font-family: system-ui, sans-serif; }
+  .name { font-size: 0.78rem; color: var(--accent); letter-spacing: 0.02em; text-transform: uppercase; font-weight: 600; }
+  .num { font-size: 0.75rem; color: var(--muted); }
+  .badge { font-size: 0.7rem; padding: 0.1rem 0.45rem; border-radius: 999px; font-family: system-ui, sans-serif; }
+  .ok { background: rgba(16,185,129,0.15); color: #0f9f6e; }
+  .bad { background: rgba(245,158,11,0.18); color: #b45309; }
+  .wait { color: var(--muted); }
+  .h { font-size: 1.5rem; font-weight: 600; line-height: 1.25; margin-bottom: 0.3rem; }
+  .p { font-size: 1rem; line-height: 1.55; }
+  .kk { font-size: 1rem; line-height: 1.55; margin-top: 0.3rem; }
+  .letters { font-size: 1.4rem; letter-spacing: 0.08em; margin-top: 0.35rem; }
+</style>
+</head>
+<body>
+<h1>Красивые шрифты — выберите понравившиеся</h1>
+<div class="note">У каждого шрифта — заголовок, обычный текст и казахская строка. Значок справа сам проверяет казахские буквы: «✓ қазақша» — всё есть, «⚠ нет каз. букв» — часть букв будет другим шрифтом. Напишите номера тех, что понравились (например «2, 6, 11»). Шрифты грузятся из интернета — подождите пару секунд.</div>
+<div id="list"></div>
+<script>
+  var GROUPS = [
+    ['Изящные с засечками', [['Playfair Display', 'serif'], ['Cormorant', 'serif'], ['Lora', 'serif'], ['EB Garamond', 'serif'], ['Prata', 'serif']]],
+    ['Современные', [['Montserrat', 'sans-serif'], ['Raleway', 'sans-serif'], ['Jost', 'sans-serif'], ['Exo 2', 'sans-serif'], ['Manrope', 'sans-serif']]],
+    ['Мягкие, округлые', [['Comfortaa', 'sans-serif'], ['Nunito', 'sans-serif'], ['Rubik', 'sans-serif']]],
+    ['Рукописные (только для заголовков)', [['Caveat', 'cursive'], ['Marck Script', 'cursive'], ['Lobster', 'cursive']]]
+  ];
+  var KK = 'әғқңөұүһіӘҒҚҢӨҰҮҺІ', n = 0, html = '';
+  GROUPS.forEach(function (g) {
+    html += '<div class="sec">' + g[0] + '</div>';
+    g[1].forEach(function (f) {
+      n++;
+      var fam = "'" + f[0] + "', " + f[1];
+      html += '<div class="card" style="font-family:' + fam + '"><div class="top"><span><span class="num">' + n + '.</span> <span class="name">' + f[0] + '</span></span><span class="badge wait" data-f="' + f[0] + '">проверка…</span></div>' +
+        '<div class="h">Хатм и план · Мои наборы</div>' +
+        '<div class="p">Сегодня: ≈ 1 джуз (20 стр.). Нажмите раздел, чтобы открыть его. 0123456789</div>' +
+        '<div class="kk">Бүгінгі жаттығу: әріптерді танып, сөздерді оқыңыз.</div>' +
+        '<div class="letters">ә ғ қ ң ө ұ ү һ і · Ә Ғ Қ Ң Ө Ұ Ү Һ І</div></div>';
+    });
+  });
+  document.getElementById('list').innerHTML = html;
+  // проверка казахских букв: сравниваем ширину строки с шрифтом и с запасным — если совпадает с запасным, букв в шрифте нет
+  function width(fam, txt) { var c = width.c || (width.c = document.createElement('canvas').getContext('2d')); c.font = '40px ' + fam; return c.measureText(txt).width; }
+  function checkAll() {
+    document.querySelectorAll('[data-f]').forEach(function (b) {
+      var f = b.getAttribute('data-f');
+      document.fonts.load("40px '" + f + "'", 'Аа' + KK).then(function () {
+        var latin = width("'" + f + "', monospace", 'Hamburgefonstiv') !== width('monospace', 'Hamburgefonstiv');
+        if (!latin) { b.className = 'badge wait'; b.textContent = 'не загрузился'; return; }
+        var cyr = width("'" + f + "', monospace", 'ЖжЩщЫы'), cm = width('monospace', 'ЖжЩщЫы');
+        if (Math.abs(cyr - cm) < 0.5) { b.className = 'badge bad'; b.textContent = '⚠ нет кириллицы'; return; }
+        // по каждой казахской букве: совпала ширина с запасным моноширинным — буквы в шрифте нет
+        var miss = KK.split('').filter(function (ch) { return Math.abs(width("'" + f + "', monospace", ch) - width('monospace', ch)) < 0.3; });
+        if (miss.length) { b.className = 'badge bad'; b.textContent = '⚠ нет: ' + miss.slice(0, 6).join(' '); }
+        else { b.className = 'badge ok'; b.textContent = '✓ қазақша'; }
+      }).catch(function () { b.textContent = 'не загрузился'; });
+    });
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { setTimeout(checkAll, 300); }); else setTimeout(checkAll, 2500);
+</script>
+</body>
+</html>
