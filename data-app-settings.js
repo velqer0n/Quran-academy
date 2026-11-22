@@ -122,7 +122,7 @@
       trSize: '0.95',
       arabicFont: 'Amiri',
       trFont: "'PT Serif', Georgia, serif",
-      theme: 'dark',
+      theme: 'light', // 7.34: новым пользователям — светлая
       adhanReciter: 'mishary',
       prayerNotifLead: 10,
       prayerAdhan: false,

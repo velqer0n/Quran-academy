@@ -1131,7 +1131,7 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
     }
 
 function applySettings() {
-      try { applyBtnView(); applyBg(); } catch(e) {}
+      try { applyBtnView(); applyBg(); applyUiFont(); } catch(e) {}
       try { var _db = document.getElementById('setting-device-btn'); if (_db) _db.value = (state.settings && state.settings.hideDeviceBtn === false) ? '1' : '0'; } catch(e) {}
       try {
         const railSel = document.getElementById('setting-ayah-rail');
@@ -3225,7 +3225,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (name === 'changelog') try { renderChangelog(); } catch(e) {}
       if (name === 'legaldocs') try { renderLegalDocs(); } catch(e) { console.warn('legaldocs', e); }
       if (name === 'sources') { try { renderSources(); } catch(e) { console.warn('sources', e); } try { _appendLegalLinks(document.getElementById('sources-body')); } catch(e) {} }
-      if (name === 'settings') try { applyTheme(); renderSettingsExtraData(); renderBtnViewSetting(); renderBgSetting(); if (!window._setKeepPanel) setHomeMode(true); window._setKeepPanel = false; } catch(e) {}
+      if (name === 'settings') try { applyTheme(); renderSettingsExtraData(); renderBtnViewSetting(); renderBgSetting(); renderThemePickerList(); if (!window._setKeepPanel) setHomeMode(true); window._setKeepPanel = false; } catch(e) {}
       if (name === 'help') try { renderHelp(); } catch(e) {}
       if (name === 'account' || name === 'login' || name === 'register' || name === 'forgot') try { renderAuth(name); } catch(e) {}
       if (name === 'stats') try { renderStats(); } catch(e) {}
@@ -4014,10 +4014,20 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       };
       var theme = row('#setting-theme'), night = row('#setting-night-auto'), bg = document.getElementById('bg-setting'), bv = document.getElementById('btnview-setting'), ui = document.getElementById('ui-size-setting'),
         fw = document.getElementById('fw-op-setting'), anim = row('#setting-reduce-motion'), hints = row('#setting-hints-collapsed'), start = row('#setting-startup-view');
+      if (theme && !document.getElementById('set-theme-tiles')) {
+        var pt = document.getElementById('pick-theme'); if (pt) pt.style.display = 'none';
+        var tl = document.createElement('div'); tl.id = 'set-theme-tiles'; tl.className = 'theme-tiles';
+        if (pt) pt.parentNode.insertBefore(tl, pt); else theme.appendChild(tl);
+        var lb = theme.querySelector(':scope > span'); if (lb) lb.style.display = 'none';
+        try { renderThemePickerList(); } catch(e) {}
+      }
+      var uf = document.getElementById('uifont-setting');
+      if (!uf) { uf = document.createElement('div'); uf.id = 'uifont-setting'; uf.className = 'setting-row'; uf.style.cssText = 'flex-direction:column;align-items:stretch;gap:0.4rem'; }
       var head = pn.querySelector('b');
       var after = head ? head.nextSibling : pn.firstChild;
-      var groups = [mk('🎨', 'Тема', 'Тақырып', true, [theme, night]), mk('🖼', 'Фон', 'Фон', false, [bg]), mk('🔘', 'Кнопки и размер', 'Батырмалар және өлшем', false, [bv, ui]), mk('⚙️', 'Дополнительно', 'Қосымша', false, [fw, anim, hints])];
+      var groups = [mk('🎨', 'Тема', 'Тақырып', true, [theme, night]), mk('🖼', 'Фон', 'Фон', false, [bg]), mk('🔤', 'Шрифт сайта', 'Сайт қарпі', false, [uf]), mk('🔘', 'Кнопки и размер', 'Батырмалар және өлшем', false, [bv, ui]), mk('⚙️', 'Дополнительно', 'Қосымша', false, [fw, anim, hints])];
       groups.forEach(function(g) { pn.insertBefore(g, after); });
+      var fg = uf.closest('details'); if (fg) fg.addEventListener('toggle', function() { if (fg.open) renderUiFontSetting(); });
       if (head) head.style.display = 'none';
       // «Стартовый экран» — по смыслу в «Меню и главная»
       var mc = document.querySelector('#view-settings .set-cat[data-set-panel="morecfg"]');
@@ -4047,6 +4057,59 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var b = e.target && e.target.closest && e.target.closest('[data-btnview]'); if (!b) return;
       state.settings.btnView = b.getAttribute('data-btnview'); try { saveState(); } catch(er) {}
       applyBtnView(); renderBtnViewSetting();
+    });
+    // ===== 7.34: шрифт сайта — подборка красивых шрифтов с поддержкой казахских букв; грузится только выбранный =====
+    var UI_FONTS = [
+      { id: 'sys', ru: 'Обычный', kk: 'Әдепкі', note: { ru: 'как сейчас', kk: 'қазіргідей' } },
+      { id: 'manrope', fam: "'Manrope', sans-serif", g: 'Manrope:wght@400;500;600;700', note: { ru: 'современный, чёткий', kk: 'заманауи, анық' } },
+      { id: 'montserrat', fam: "'Montserrat', sans-serif", g: 'Montserrat:wght@400;500;600;700', note: { ru: 'строгий, широкий', kk: 'қатаң, кең' } },
+      { id: 'nunito', fam: "'Nunito', sans-serif", g: 'Nunito:wght@400;600;700', note: { ru: 'мягкий, округлый', kk: 'жұмсақ, домалақ' } },
+      { id: 'rubik', fam: "'Rubik', sans-serif", g: 'Rubik:wght@400;500;600;700', note: { ru: 'дружелюбный', kk: 'жылы' } },
+      { id: 'comfortaa', fam: "'Comfortaa', sans-serif", g: 'Comfortaa:wght@400;600;700', note: { ru: 'круглый, лёгкий', kk: 'дөңгелек, жеңіл' } },
+      { id: 'lora', fam: "'Lora', serif", g: 'Lora:wght@400;600;700', note: { ru: 'книжный, с засечками', kk: 'кітаптағыдай' } },
+      { id: 'playfair', fam: "'Playfair Display', serif", g: 'Playfair+Display:wght@400;600;700', note: { ru: 'изящный, для заголовков', kk: 'әсем, тақырыптарға' } },
+      { id: 'caveat', fam: "'Caveat', cursive", g: 'Caveat:wght@500;700', headOnly: 1, note: { ru: 'рукописный, только заголовки', kk: 'қолжазба, тек тақырыптар' } }
+    ];
+    UI_FONTS.forEach(function(f) { if (f.fam && !f.ru) f.ru = f.kk = f.fam.split("'")[1]; });
+    function uiFontCur() { var id = state.settings && state.settings.uiFont; return UI_FONTS.find(function(f) { return f.id === id; }) || UI_FONTS[0]; }
+    function uiFontMode(f) { f = f || uiFontCur(); return f.headOnly ? 'head' : ((state.settings && state.settings.uiFontMode) === 'head' ? 'head' : 'all'); }
+    function _uiFontLink(id, families) {
+      var l = document.getElementById(id), href = 'https://fonts.googleapis.com/css2?' + families.map(function(g) { return 'family=' + g; }).join('&') + '&display=swap';
+      if (l && l.getAttribute('href') === href) return;
+      if (!l) { l = document.createElement('link'); l.id = id; l.rel = 'stylesheet'; document.head.appendChild(l); }
+      l.href = href;
+    }
+    function applyUiFont() {
+      try {
+        var f = uiFontCur(), r = document.documentElement.style, mode = uiFontMode(f);
+        if (!f.fam) { r.removeProperty('--font-head'); r.removeProperty('--font-ui'); document.body.classList.remove('uif-on'); return; }
+        _uiFontLink('qa-uifont', [f.g]);
+        var stack = f.fam.replace(/, (sans-serif|serif|cursive)$/, '') + ", Amiri, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+        r.setProperty('--font-head', stack);
+        if (mode === 'all') r.setProperty('--font-ui', stack); else r.removeProperty('--font-ui');
+        document.body.classList.add('uif-on');
+      } catch(e) {}
+    }
+    function renderUiFontSetting() {
+      var el = document.getElementById('uifont-setting'); if (!el) return;
+      var kk = isKk(), cur = uiFontCur(), mode = uiFontMode(cur);
+      // образцы: один запрос на все шрифты — только когда раздел открыт
+      _uiFontLink('qa-uifont-prev', UI_FONTS.filter(function(f) { return f.g; }).map(function(f) { return f.g.replace(/:wght@.*$/, ':wght@600'); }));
+      el.innerHTML = '<div class="uif-list">' + UI_FONTS.map(function(f) {
+        return '<button type="button" class="uif-item' + (f === cur ? ' on' : '') + '" data-uifont="' + f.id + '"' + (f.fam ? ' style="font-family:' + f.fam.replace(/"/g, '&quot;') + '"' : '') + '>' +
+          '<span class="uif-aa">Аа Әә Ққ</span><b>' + (f === cur ? '✓ ' : '') + (kk ? f.kk : f.ru) + '</b><small>' + (kk ? f.note.kk : f.note.ru) + '</small></button>';
+      }).join('') + '</div>' +
+        (cur.fam ? '<div class="bv-opts">' + [['all', kk ? 'Бүкіл сайт' : 'Весь сайт', kk ? 'мәзір, батырмалар, мәтін' : 'меню, кнопки, тексты'], ['head', kk ? 'Тек тақырыптар' : 'Только заголовки', kk ? 'атаулар мен тақырыптар' : 'названия и заголовки']].map(function(o) {
+          var dis = cur.headOnly && o[0] === 'all';
+          return '<button type="button" class="bv-opt' + (o[0] === mode ? ' on' : '') + '" data-uifontmode="' + o[0] + '"' + (dis ? ' disabled style="opacity:0.45"' : '') + '><b>' + o[1] + '</b><small>' + o[2] + '</small></button>';
+        }).join('') + '</div>' : '') +
+        '<div style="font-size:0.75rem;color:var(--text-muted)">' + (kk ? 'Құран мәтінінің (араб) және аударманың қарпі өзгермейді — олар «Оқу» бөлімінде. Қаріп интернеттен бір рет жүктеледі.' : 'Арабский текст Корана и перевод не меняются — их шрифты в разделе «Чтение». Шрифт загружается из интернета один раз.') + '</div>';
+    }
+    document.addEventListener('click', function(e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-uifont],[data-uifontmode]'); if (!b || b.disabled) return;
+      if (b.hasAttribute('data-uifont')) state.settings.uiFont = b.getAttribute('data-uifont'); else state.settings.uiFontMode = b.getAttribute('data-uifontmode');
+      try { saveState(); } catch(er) {}
+      applyUiFont(); renderUiFontSetting();
     });
     function _bl(ico, lab) { return '<i class="bi" aria-hidden="true">' + ico + '</i><span class="bl">' + lab + '</span>'; }
     async function openSurah(num, focusAyah) {
@@ -8389,7 +8452,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         ['pick-tr-font', (state.settings && state.settings.trFont) || 'Inter, system-ui, sans-serif'],
         ['pick-arabic-size', String((state.settings && state.settings.arabicSize) || 1.55)],
         ['pick-tr-size', String((state.settings && state.settings.trSize) || 0.95)],
-        ['pick-theme', (state.settings && state.settings.theme) || 'dark'],
+        ['pick-theme', (state.settings && state.settings.theme) || 'light'],
         ['pick-font-ar', String((state.settings && state.settings.fontScaleAr) || 1)],
         ['pick-font-ru', String((state.settings && state.settings.fontScaleRu) || 1)]
       ];
@@ -24916,9 +24979,11 @@ function renderDictation(area) {
     }
 
     function renderThemePickerList() {
-      var list = document.getElementById('theme-picker-list');
-      if (!list) return;
-      var cur = (state.settings && state.settings.theme) || 'dark';
+      // 7.34: те же плитки — и в окне из шапки, и в «Настройки → Вид и тема»
+      ['set-theme-tiles', 'theme-picker-list'].forEach(function(id) { var el = document.getElementById(id); if (el) _renderThemeTiles(el); });
+    }
+    function _renderThemeTiles(list) {
+      var cur = (state.settings && state.settings.theme) || 'light';
       // build 6.11: темы теперь по группам (светлые / тёмные спокойные /
       // особые) — вместо одной длинной вперемешку, где вечерние и дневные
       // стояли рядом без всякого порядка.
@@ -24933,6 +24998,7 @@ function renderDictation(area) {
       list.innerHTML = _html;
       list.querySelectorAll('.theme-pick-item').forEach(function(item) {
         item.addEventListener('click', function() {
+          if (list.id === 'set-theme-tiles') { var _sy = window.scrollY; applyHeaderTheme(item.dataset.v); renderThemePickerList(); try { window.scrollTo(0, _sy); } catch (e) {} return; }
           applyHeaderTheme(item.dataset.v);
           renderThemePickerList();
           try { toast((_kkT ? 'Тақырып: ' : 'Тема: ') + item.querySelector('.tp-n').textContent.replace('✓ ', '').trim()); } catch (e) {}
@@ -32481,7 +32547,7 @@ function renderDict() {
 
     // ========== THEME / TR SIZE ==========
     function applyTheme() {
-      let t = state.settings.theme || 'dark';
+      let t = state.settings.theme || 'light';
       // build 6.11: тема «Моно» убрана (плоская, без вариации по яркости —
       // «больно смотреть»); у тех, у кого она была сохранена, тихо
       // переключаем на «Тёмную».
@@ -32729,6 +32795,82 @@ function renderDict() {
     setTimeout(msHistPush, 3000);
     function msCode() { try { return 'QA1.' + btoa(unescape(encodeURIComponent(JSON.stringify(msSnap())))); } catch(e) { return ''; } }
     function msDecode(code) { try { code = String(code || '').trim(); if (code.indexOf('QA1.') !== 0) return null; return JSON.parse(decodeURIComponent(escape(atob(code.slice(4))))); } catch(e) { return null; } }
+    // 7.34: что в наборе отличается — понятными словами («Тема: Тёмная»)
+    var MS_MAX = 10;
+    var MS_SKIP = /^(travelDismiss|travelCheckOff|translitPrev|showTranslit|arabicSize|trSize|trByLang|dhGreetingName)$/;
+    function _msOpt(id, v) { var s = document.getElementById(id); if (!s) return null; var o = v === undefined || v === '' ? s.options[0] : Array.prototype.find.call(s.options, function(x) { return x.value === String(v); }); return o ? o.textContent.replace(/\s*—\s*по умолчанию.*$/, '').replace(/\s*—\s*әдепкі.*$/, '').trim() : null; }
+    function _msName(list, v, key) { var kk = isKk(), x = (list || []).find(function(i) { return (i[key || 'id']) === v; }); return x ? String(kk ? (x.kk || x.ru || x.name) : (x.ru || x.name)).replace(/\s*\(.*\)\s*$/, '') : null; }
+    function msLabels() {
+      var kk = isKk(), yn = function(v) { return v ? (kk ? 'қосулы' : 'вкл') : (kk ? 'өшірулі' : 'выкл'); }, pct = function(v) { return Math.round((+v || 1) * 100) + '%'; };
+      return {
+        theme: [kk ? 'Тақырып' : 'Тема', function(v) { return _msName(typeof THEME_LIST !== 'undefined' ? THEME_LIST : [], v, 'v'); }],
+        bg: [kk ? 'Фон' : 'Фон', function(v) { return _msName(BG_LIST, v) || (v === 'own' ? (kk ? 'өз суретім' : 'своё фото') : null); }],
+        uiFont: [kk ? 'Сайт қарпі' : 'Шрифт сайта', function(v) { return _msName(UI_FONTS, v); }],
+        uiFontMode: [kk ? 'Қаріп қайда' : 'Шрифт для', function(v) { return v === 'head' ? (kk ? 'тек тақырыптар' : 'только заголовки') : (kk ? 'бүкіл сайт' : 'весь сайт'); }],
+        btnView: [kk ? 'Батырмалар' : 'Кнопки', function(v) { return v === 'icons' ? (kk ? 'тек белгілер' : 'только значки') : (kk ? 'белгі және жазу' : 'значок и подпись'); }],
+        lang: [kk ? 'Тіл' : 'Язык', function(v) { return _msOpt('setting-lang', v); }],
+        translation: [kk ? 'Аударма' : 'Перевод', function(v) { return _msOpt('setting-translation', v); }],
+        translitMode: [kk ? 'Транскрипция' : 'Транскрипция', function(v) { return _msOpt('setting-translit', v); }],
+        tafsir: [kk ? 'Тәпсір' : 'Тафсир', function(v) { return _msOpt('setting-tafsir', v); }],
+        reciter: [kk ? 'Қари' : 'Чтец', function(v) { return _msName(typeof RECITER_LIST !== 'undefined' ? RECITER_LIST : [], v); }],
+        arabicFont: [kk ? 'Араб қарпі' : 'Арабский шрифт', function(v) { return _msOpt('setting-arabic-font', v); }],
+        trFont: [kk ? 'Аударма қарпі' : 'Шрифт перевода', function(v) { return _msOpt('setting-tr-font', v); }],
+        fontScaleAr: [kk ? 'Араб мәтіні өлшемі' : 'Размер арабского', pct],
+        fontScaleRu: [kk ? 'Аударма өлшемі' : 'Размер перевода', pct],
+        startupView: [kk ? 'Бастапқы бет' : 'Стартовый экран', function(v) { return _msOpt('setting-startup-view', v); }],
+        readPace: [kk ? 'Оқу қарқыны' : 'Темп чтения', function(v) { return ({ slow: kk ? 'баяу' : 'медленно', normal: kk ? 'орташа' : 'средне', fast: kk ? 'жылдам' : 'быстро' })[v] || null; }],
+        hideTr: [kk ? 'Аударманы жасыру' : 'Скрыть перевод', yn], arOnly: [kk ? 'Тек араб мәтіні' : 'Только арабский', yn],
+        nightAuto: [kk ? 'Түнгі тақырып автоматты' : 'Ночная тема сама', yn], reduceMotion: [kk ? 'Анимациясыз' : 'Без анимаций', yn],
+        prayerNotif: [kk ? 'Намаз хабарламасы' : 'Уведомления о намазе', yn], prayerAdhan: [kk ? 'Азан' : 'Азан', yn], prayerMethod: [kk ? 'Намаз уақыты әдісі' : 'Метод времени намаза', function(v) { return String(v); }]
+      };
+    }
+    function _msEq(a, b) {
+      var e = function(x) { return x === undefined || x === null || x === false || x === '' ? '' : JSON.stringify(x); };
+      return e(a) === e(b);
+    }
+    // base: с чем сравнивать (по умолчанию — настройки нового пользователя)
+    function msDiff(vals, base) {
+      base = base || Object.assign({ fontScaleAr: 1, fontScaleRu: 1, uiFont: 'sys', uiFontMode: 'all', btnView: 'both', bg: 'none', translitMode: 'latin', readPace: 'normal' }, typeof DEFAULT_SETTINGS !== 'undefined' ? DEFAULT_SETTINGS : {});
+      var L = msLabels(), out = [], other = 0;
+      Object.keys(vals || {}).forEach(function(k) {
+        if (MS_SKIP.test(k) || /pin|lock|pass|token|secret|key$/i.test(k)) return;
+        if (_msEq(vals[k], base[k])) return;
+        if (!L[k]) { other++; return; }
+        var f = function(v) { var s = null; try { s = L[k][1](v); } catch(e) {} return s == null ? (v === undefined ? '—' : String(v)) : s; };
+        out.push({ k: k, l: L[k][0], from: f(base[k]), to: f(vals[k]) });
+      });
+      return { list: out, other: other };
+    }
+    function msDiffHtml(d, arrows) {
+      var kk = isKk(), esc = function(s) { return String(s).replace(/</g, '&lt;'); };
+      if (!d.list.length && !d.other) return '<div class="rd-note">' + (kk ? 'Бәрі әдепкідей' : 'Всё как по умолчанию') + '</div>';
+      return '<ul class="ms-diff">' + d.list.map(function(x) { return '<li><span>' + esc(x.l) + ':</span> ' + (arrows ? '<s>' + esc(x.from) + '</s> → ' : '') + '<b>' + esc(x.to) + '</b></li>'; }).join('') +
+        (d.other ? '<li class="ms-more">' + (kk ? '+ тағы ' + d.other + ' баптау' : '+ ещё ' + d.other + ' настр.') + '</li>' : '') + '</ul>';
+    }
+    function msAsk(p) {
+      var kk = isKk(), d = msDiff(p.values, msSnap());
+      var body = '<div style="padding:0 0.2rem">' + (d.list.length || d.other ? '<div class="rd-note">' + (kk ? 'Не өзгереді:' : 'Что изменится:') + '</div>' + msDiffHtml(d, true) : '<div class="rd-note">' + (kk ? 'Қазіргі баптаулар осы жинақпен бірдей.' : 'Текущие настройки уже такие же, как в наборе.') + '</div>') +
+        '<button type="button" class="btn btn-primary ms-wide" data-ms-go="1"' + (d.list.length || d.other ? '' : ' disabled') + '>' + (kk ? 'Қолдану' : 'Применить') + '</button></div>';
+      plPop('⭐ ' + String(p.name).replace(/</g, '&lt;'), body, function(ov, close) {
+        ov.addEventListener('click', function(e) { if (e.target.closest && e.target.closest('[data-ms-go]')) { close(); msHistPush(); msApply(p.values); } });
+      });
+    }
+    function msMenu(p) {
+      var kk = isKk();
+      plPop('⭐ ' + String(p.name).replace(/</g, '&lt;'), '<div class="pl-opts">' +
+        '<button type="button" class="pl-opt" data-msm="ren"><b>✏️ ' + (kk ? 'Атын өзгерту' : 'Переименовать') + '</b></button>' +
+        '<button type="button" class="pl-opt" data-msm="upd"><b>🔄 ' + (kk ? 'Қазіргі баптаулармен жаңарту' : 'Обновить текущими настройками') + '</b></button>' +
+        '<button type="button" class="pl-opt" data-msm="del"><b>🗑 ' + (kk ? 'Жою' : 'Удалить') + '</b></button></div>', function(ov, close) {
+        ov.addEventListener('click', function(e) {
+          var b = e.target.closest && e.target.closest('[data-msm]'); if (!b) return;
+          var a = b.getAttribute('data-msm'); close();
+          if (a === 'ren') { var n = prompt(kk ? 'Жаңа атау:' : 'Новое название:', p.name); if (n == null || !n.trim()) return; p.name = n.trim().slice(0, 40); }
+          else if (a === 'upd') { if (!confirm(kk ? 'Жинаққа қазіргі баптауларды жазу керек пе?' : 'Записать в набор текущие настройки?')) return; p.values = msSnap(); p.ts = Date.now(); }
+          else if (a === 'del') { if (!confirm(kk ? 'Жинақты жою керек пе?' : 'Удалить набор?')) return; state.customPresets = (state.customPresets || []).filter(function(x) { return x !== p; }); }
+          try { saveState(); } catch(er) {} renderPresetsList(); toast(kk ? 'Дайын' : 'Готово');
+        });
+      });
+    }
     function msFmt(ts) { try { var d = new Date(ts); return d.toLocaleDateString() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); } catch(e) { return ''; } }
     function renderPresetsList() {
       var host = document.getElementById('presets-list'); if (!host) return;
@@ -32737,11 +32879,13 @@ function renderDict() {
       var pn = host.closest('.set-cat'); if (pn) { var hb = pn.querySelector(':scope > b'), hd = pn.querySelector(':scope > .ayah-translation'); if (hb) hb.textContent = '⭐ ' + (kk ? 'Менің жинақтарым' : 'Мои наборы'); if (hd) hd.textContent = kk ? 'Өз баптауларыңызды сақтап, бір басумен ауыстырыңыз; басқа телефонға көшіріңіз немесе бұрынғысын қайтарыңыз.' : 'Сохраните свои настройки и переключайтесь одним нажатием; перенесите их на другой телефон или верните как было.'; }
       var h = '<div class="ms-sec"><div class="pl-lbl2">⭐ ' + (kk ? 'Сақталған жинақтар' : 'Сохранённые наборы') + '</div>' +
         (mine.length ? mine.map(function(p) {
-          return '<div class="ms-row"><span class="ms-t"><b>' + String(p.name).replace(/</g, '&lt;') + '</b><small>' + msFmt(p.ts) + '</small></span>' +
+          var d = msDiff(p.values), n = d.list.length + d.other;
+          return '<div class="ms-item"><div class="ms-row"><span class="ms-t"><b>' + String(p.name).replace(/</g, '&lt;') + '</b><small>' + msFmt(p.ts) + '</small></span>' +
             '<button type="button" class="btn btn-sm btn-primary" data-ms-apply="' + p.id + '">' + (kk ? 'Қолдану' : 'Применить') + '</button>' +
-            '<button type="button" class="btn btn-sm" data-ms-del="' + p.id + '" aria-label="' + (kk ? 'Жою' : 'Удалить') + '">🗑</button></div>';
-        }).join('') : '<div class="rd-note">' + (kk ? 'Әзірге жоқ. Мысалы: «Үйде» — ірі мәтін, «Жаттау» — қайталау және баяу.' : 'Пока нет. Например: «Дома» — крупный текст, «Заучивание» — повтор и медленнее.') + '</div>') +
-        '<button type="button" class="btn ms-wide" data-ms-save="1">💾 ' + (kk ? 'Қазіргі баптауларды жинақ ретінде сақтау' : 'Сохранить текущие настройки как набор') + '</button></div>' +
+            '<button type="button" class="btn btn-sm" data-ms-more="' + p.id + '" aria-label="' + (kk ? 'Тағы' : 'Ещё') + '">⋯</button></div>' +
+            '<details class="ms-det"><summary>' + (kk ? 'Өзгертілген: ' : 'Изменено: ') + n + '</summary>' + msDiffHtml(d) + '</details></div>';
+        }).join('') + (mine.length >= MS_MAX ? '<div class="rd-note">' + (kk ? 'Ең көбі ' + MS_MAX + ' жинақ. Жаңасы үшін біреуін жойыңыз не жаңартыңыз (⋯).' : 'Максимум ' + MS_MAX + ' наборов. Для нового удалите или обновите один из них (⋯).') + '</div>' : '') : '<div class="rd-note">' + (kk ? 'Әзірге жоқ. Мысалы: «Үйде» — ірі мәтін, «Жаттау» — қайталау және баяу.' : 'Пока нет. Например: «Дома» — крупный текст, «Заучивание» — повтор и медленнее.') + '</div>') +
+        '<button type="button" class="btn ms-wide" data-ms-save="1"' + (mine.length >= MS_MAX ? ' disabled' : '') + '>💾 ' + (kk ? 'Қазіргі баптауларды жинақ ретінде сақтау' : 'Сохранить текущие настройки как набор') + '</button></div>' +
         '<div class="ms-sec"><div class="pl-lbl2">📲 ' + (kk ? 'Басқа телефонға көшіру' : 'Перенести на другой телефон') + '</div>' +
         '<div class="rd-note">' + (kk ? 'Кодты көшіріп не бөлісіп, екінші телефонда «Кодты енгізу» басыңыз.' : 'Скопируйте или отправьте код, на втором телефоне нажмите «Ввести код».') + '</div>' +
         '<div class="ms-btns"><button type="button" class="btn" data-ms-share="1">📤 ' + (kk ? 'Кодты бөлісу' : 'Отправить код') + '</button><button type="button" class="btn" data-ms-import="1">📥 ' + (kk ? 'Кодты енгізу' : 'Ввести код') + '</button></div></div>' +
@@ -32754,12 +32898,14 @@ function renderDict() {
       var t = e.target && e.target.closest ? e.target : null; if (!t || !t.closest('#presets-list')) return;
       var kk = isKk(), b;
       if (t.closest('[data-ms-save]')) {
+        if ((state.customPresets || []).length >= MS_MAX) { toast(kk ? 'Ең көбі ' + MS_MAX + ' жинақ' : 'Максимум ' + MS_MAX + ' наборов'); return; }
         var name = prompt(kk ? 'Жинақ атауы (мысалы «Үйде»):' : 'Название набора (например «Дома»):', ''); if (name == null || !name.trim()) return;
         if (!Array.isArray(state.customPresets)) state.customPresets = [];
         state.customPresets.unshift({ id: 'my_' + Date.now(), name: name.trim().slice(0, 40), ts: Date.now(), values: msSnap(), full: true });
         try { saveState(); } catch(er) {} renderPresetsList(); toast(kk ? 'Сақталды' : 'Сохранено'); return;
       }
-      if ((b = t.closest('[data-ms-apply]'))) { var p = (state.customPresets || []).find(function(x) { return x.id === b.getAttribute('data-ms-apply'); }); if (p) { msHistPush(); msApply(p.values); } return; }
+      if ((b = t.closest('[data-ms-apply]'))) { var p = (state.customPresets || []).find(function(x) { return x.id === b.getAttribute('data-ms-apply'); }); if (p) msAsk(p); return; }
+      if ((b = t.closest('[data-ms-more]'))) { var pm = (state.customPresets || []).find(function(x) { return x.id === b.getAttribute('data-ms-more'); }); if (pm) msMenu(pm); return; }
       if ((b = t.closest('[data-ms-del]'))) { if (!confirm(kk ? 'Жинақты жою керек пе?' : 'Удалить набор?')) return; state.customPresets = (state.customPresets || []).filter(function(x) { return x.id !== b.getAttribute('data-ms-del'); }); try { saveState(); } catch(er) {} renderPresetsList(); return; }
       if ((b = t.closest('[data-ms-hist]'))) { var h = msHist()[+b.getAttribute('data-ms-hist')]; if (h && confirm(kk ? 'Осы нұсқаны қайтару керек пе?' : 'Вернуть эту версию настроек?')) { msHistPush(); msApply(h.s); } return; }
       if (t.closest('[data-ms-share]')) {

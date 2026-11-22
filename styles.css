@@ -5106,3 +5106,22 @@ body.bg-photo .view > h2, body.bg-photo .section-title { text-shadow: 0 1px 6px 
 .ms-wide { width: 100%; margin-top: 0.5rem; min-height: 44px; }
 .ms-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-top: 0.4rem; }
 .ms-btns .btn { min-height: 44px; }
+
+/* ===== 7.34: плитки темы в настройках (как в окне из шапки) и шрифт сайта ===== */
+#set-theme-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+#set-theme-tiles .theme-pick-item { padding: 0.6rem 0.4rem; border: 1px solid var(--border); border-radius: var(--r-md); cursor: pointer; text-align: center; font-size: 0.8rem; }
+#set-theme-tiles .theme-pick-item.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.uif-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.45rem; }
+.uif-item { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; padding: 0.55rem 0.65rem; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text); text-align: left; cursor: pointer; min-height: 72px; }
+.uif-item.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.uif-item .uif-aa { font-size: 1.35rem; line-height: 1.2; }
+.uif-item b { font-size: 0.9rem; font-weight: 600; }
+.uif-item small { font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-ui); }
+body.uif-on .section-title, body.uif-on .card h3, body.uif-on .rule-card h3, body.uif-on .tw-rc-title, body.uif-on h1, body.uif-on h2, body.uif-on h3, body.uif-on .set-grp > summary b, body.uif-on .sh-t b { font-family: var(--font-head); }
+.ms-item { border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); padding-bottom: 0.35rem; }
+.ms-item .ms-row { border-bottom: none; }
+.ms-det summary { font-size: 0.8rem; color: var(--accent); cursor: pointer; padding: 0.15rem 0; }
+.ms-diff { margin: 0.3rem 0 0.2rem; padding-left: 1.1rem; font-size: 0.82rem; line-height: 1.5; }
+.ms-diff span { color: var(--text-muted); }
+.ms-diff s { color: var(--text-muted); }
+.ms-more { color: var(--text-muted); list-style: none; margin-left: -1.1rem; }
