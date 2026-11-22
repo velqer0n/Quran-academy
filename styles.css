@@ -5004,3 +5004,18 @@ html.no-scroll, html.no-scroll body { overflow: hidden !important; overscroll-be
 .prc-pick small { font-size: 0.72rem; color: var(--text-muted); }
 .prc-row.on .prc-pick { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .prc-fav.on { color: #f59e0b; border-color: #f59e0b; }
+
+/* ===== 7.26: значок + подпись на кнопках ===== */
+.ayah-actions .btn, .ayah-more .btn { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 38px; }
+.ayah-actions .bi, .ayah-more .bi { font-style: normal; }
+.ayah-actions .bl, .ayah-more .bl { font-size: 0.8rem; }
+body.btn-icons .ayah-actions .bl, body.btn-icons .ayah-more .bl, body.btn-icons .pl-act .bl { display: none; }
+body.btn-icons .ayah-actions .btn, body.btn-icons .ayah-more .btn { min-width: 38px; justify-content: center; }
+.audio-bar .pl-act { width: auto; min-width: 64px; height: auto; min-height: 52px; border-radius: 14px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1rem; padding: 0.3rem 0.5rem; }
+.audio-bar .pl-act i { font-style: normal; font-size: 1.1rem; line-height: 1.1; }
+.audio-bar .pl-act .bl { font-size: 0.66rem; color: var(--text-muted); }
+body.btn-icons .audio-bar .pl-act { min-width: 46px; min-height: 46px; border-radius: 50%; }
+.bv-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.bv-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; min-height: 52px; padding: 0.5rem 0.65rem; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.bv-opt small { font-size: 0.72rem; color: var(--text-muted); }
+.bv-opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
