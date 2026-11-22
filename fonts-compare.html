@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сравнение шрифтов — Quran Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Cormorant:wght@400;600&family=Lora:wght@400;600&family=EB+Garamond:wght@400;600&family=Prata&family=Montserrat:wght@400;600&family=Raleway:wght@400;600&family=Jost:wght@400;600&family=Exo+2:wght@400;600&family=Manrope:wght@400;600&family=Comfortaa:wght@400;600&family=Nunito:wght@400;600&family=Rubik:wght@400;600&family=Caveat:wght@400;600&family=Marck+Script&family=Lobster&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #eef1f5; --card: #ffffff; --text: #1a2332; --muted: #5b6474; --accent: #0f9f6e; --border: #d8dee8; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --muted: #94a3b8; --accent: #10b981; --border: #334155; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 12px; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
+  h1 { font-size: 1.15rem; margin: 0 0 0.6rem; }
+  .ctl { display: grid; gap: 0.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 0.7rem; margin-bottom: 0.8rem; position: sticky; top: 0; z-index: 5; }
+  .ctl input[type=text] { width: 100%; padding: 0.5rem 0.6rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; font-size: 1rem; }
+  .row2 { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); }
+  .row2 input[type=range] { flex: 1; accent-color: var(--accent); }
+  .chips { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .chips button { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 999px; padding: 0.3rem 0.65rem; font: inherit; font-size: 0.82rem; }
+  .chips button.on { border-color: var(--accent); color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 14px; overflow: hidden; }
+  td { border-bottom: 1px solid var(--border); padding: 0.45rem 0.55rem; vertical-align: middle; }
+  td.n { width: 1%; white-space: nowrap; font-size: 0.72rem; color: var(--muted); }
+  td.n b { display: block; color: var(--accent); font-size: 0.78rem; }
+  td.s { line-height: 1.25; word-break: break-word; }
+  tr.base td { background: rgba(127,127,127,0.08); }
+  .sec { font-size: 0.95rem; font-weight: 600; margin: 1.2rem 0 0.5rem; color: var(--muted); }
+  .cmp { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 0.7rem; }
+  .cmp select { padding: 0.4rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; max-width: 48%; }
+  .ov { position: relative; margin-top: 0.6rem; min-height: 4rem; }
+  .ov div { position: absolute; left: 0; top: 0; right: 0; line-height: 1.25; word-break: break-word; }
+  .ov .a { color: rgba(16,185,129,0.85); }
+  .ov .b { color: rgba(239,68,68,0.75); }
+  .leg { font-size: 0.8rem; margin-top: 0.4rem; color: var(--muted); }
+  .leg i { font-style: normal; font-weight: 700; }
+  .side { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.8rem; }
+  .side div { border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem; font-size: 1rem; line-height: 1.5; }
+  .side small { display: block; font-family: system-ui, sans-serif; font-size: 0.7rem; color: var(--accent); margin-bottom: 0.25rem; }
+</style>
+</head>
+<body>
+<h1>Сравнение шрифтов</h1>
+<div class="ctl">
+  <input type="text" id="txt" value="Хатм и план · Ққ Әә Жж Щщ Ыы 2025">
+  <div class="chips" id="presets">
+    <button data-t="Хатм и план · Ққ Әә Жж Щщ Ыы 2025" class="on">Смесь</button>
+    <button data-t="агдежзклфщыюя">строчные</button>
+    <button data-t="АБВГДЖЗКЛФЩЫЮЯ">прописные</button>
+    <button data-t="ә ғ қ ң ө ұ ү һ і">казахские</button>
+    <button data-t="0123456789">цифры</button>
+  </div>
+  <div class="row2">Размер <input type="range" id="sz" min="18" max="64" value="34"> <span id="szv">34</span></div>
+</div>
+<table id="tbl"></table>
+
+<div class="sec">Наложение двух шрифтов — разница видна сразу</div>
+<div class="cmp">
+  <div class="row2"><select id="fa"></select><select id="fb"></select></div>
+  <div class="ov" id="ov"><div class="a" id="ova"></div><div class="b" id="ovb"></div></div>
+  <div class="leg"><i style="color:#10b981">зелёный</i> — первый шрифт, <i style="color:#ef4444">красный</i> — второй. Где буквы совпадают — цвета смешиваются, где отличаются — видно две разные буквы.</div>
+  <div class="side"><div id="sa"></div><div id="sb"></div></div>
+</div>
+<script>
+  var F = [['Системный (сейчас)', 'system-ui, sans-serif'], ['Playfair Display', 'serif'], ['Cormorant', 'serif'], ['Lora', 'serif'], ['EB Garamond', 'serif'], ['Prata', 'serif'], ['Montserrat', 'sans-serif'], ['Raleway', 'sans-serif'], ['Jost', 'sans-serif'], ['Exo 2', 'sans-serif'], ['Manrope', 'sans-serif'], ['Comfortaa', 'sans-serif'], ['Nunito', 'sans-serif'], ['Rubik', 'sans-serif'], ['Caveat', 'cursive'], ['Marck Script', 'cursive'], ['Lobster', 'cursive']];
+  function fam(i) { return i === 0 ? F[0][1] : "'" + F[i][0] + "', " + F[i][1]; }
+  var PARA = 'Нажмите раздел, чтобы открыть его. Бүгінгі жаттығу: әріптерді танып, сөздерді оқыңыз.';
+  var tbl = document.getElementById('tbl'), txt = document.getElementById('txt'), sz = document.getElementById('sz');
+  function draw() {
+    var t = txt.value || ' ', s = sz.value + 'px';
+    document.getElementById('szv').textContent = sz.value;
+    tbl.innerHTML = F.map(function (f, i) { return '<tr' + (i === 0 ? ' class="base"' : '') + '><td class="n">' + (i || '–') + '<b>' + f[0] + '</b></td><td class="s" style="font-family:' + fam(i) + ';font-size:' + s + '">' + t.replace(/</g, '&lt;') + '</td></tr>'; }).join('');
+    var a = +document.getElementById('fa').value, b = +document.getElementById('fb').value;
+    ['ova', 'ovb'].forEach(function (id, k) { var el = document.getElementById(id); el.textContent = t; el.style.fontFamily = fam(k ? b : a); el.style.fontSize = s; });
+    var ov = document.getElementById('ov'); ov.style.height = Math.max(document.getElementById('ova').offsetHeight, document.getElementById('ovb').offsetHeight) + 'px';
+    document.getElementById('sa').innerHTML = '<small>' + F[a][0] + '</small>' + PARA; document.getElementById('sa').style.fontFamily = fam(a);
+    document.getElementById('sb').innerHTML = '<small>' + F[b][0] + '</small>' + PARA; document.getElementById('sb').style.fontFamily = fam(b);
+  }
+  ['fa', 'fb'].forEach(function (id, k) { var s = document.getElementById(id); s.innerHTML = F.map(function (f, i) { return '<option value="' + i + '">' + (i || '–') + '. ' + f[0] + '</option>'; }).join(''); s.value = k ? '6' : '0'; s.addEventListener('change', draw); });
+  txt.addEventListener('input', draw); sz.addEventListener('input', draw);
+  document.getElementById('presets').addEventListener('click', function (e) { var b = e.target.closest('[data-t]'); if (!b) return; txt.value = b.getAttribute('data-t'); document.querySelectorAll('#presets button').forEach(function (x) { x.classList.toggle('on', x === b); }); draw(); });
+  draw(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+</script>
+</body>
+</html>
