@@ -4979,3 +4979,28 @@ html.no-scroll, html.no-scroll body { overflow: hidden !important; overscroll-be
 .rc-other summary { cursor: pointer; font-size: 0.8rem; color: var(--text-muted); min-height: 32px; display: flex; align-items: center; }
 .pl-now-all { font-size: calc(1.25rem * var(--ar-scale, 1)); line-height: 2.1; text-align: justify; color: var(--text); }
 .pl-now-n { color: var(--accent); font-size: 0.85em; }
+
+/* ===== 7.25: удобства плеера ===== */
+.audio-bar .pl-acts { display: none; justify-content: center; gap: 0.5rem; }
+.audio-bar.visible:not(.collapsed) .pl-acts { display: flex; }
+.pl-act { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-size: 1.05rem; cursor: pointer; }
+.pl-act.on { color: #f59e0b; border-color: #f59e0b; }
+.pl-act:disabled { opacity: 0.35; cursor: default; }
+.audio-bar .pl-next { text-align: center; font-size: 0.8rem; color: var(--text-muted); }
+.audio-bar.collapsed .pl-next { display: none !important; }
+.audio-bar .pl-next b { color: var(--text); font-weight: 600; }
+.pl-now { --pl-k: 1; }
+.pl-now .pl-now-ar { font-size: calc(1.55rem * var(--ar-scale, 1) * var(--pl-k)); }
+.pl-now .pl-now-tr { font-size: calc(0.88rem * var(--pl-k)); }
+.pl-now .pl-now-tl { display: none; font-size: calc(0.85rem * var(--pl-k)); color: var(--accent); font-style: italic; }
+.pl-now.show-tl .pl-now-tl { display: block; }
+.pl-now.no-tr .pl-now-tr { display: none; }
+.pl-w { border-radius: 6px; transition: background .12s; }
+.pl-w.on { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+#prc-q { width: 100%; min-height: 44px; padding: 0.45rem 0.7rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; margin-bottom: 0.4rem; }
+.prc-list { display: grid; gap: 0.3rem; }
+.prc-row { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.3rem; }
+.prc-pick { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; min-height: 48px; padding: 0.45rem 0.7rem; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.prc-pick small { font-size: 0.72rem; color: var(--text-muted); }
+.prc-row.on .prc-pick { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.prc-fav.on { color: #f59e0b; border-color: #f59e0b; }

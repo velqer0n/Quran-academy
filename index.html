@@ -1584,6 +1584,12 @@
       <button type="button" class="btn-player" id="audio-stop" title="Закрыть">✕</button>
     </div>
     <div class="pl-now" id="pl-now"></div>
+    <div class="pl-acts" id="pl-acts">
+      <button type="button" class="pl-act" data-pla="star" title="В закладки">☆</button>
+      <button type="button" class="pl-act" data-pla="fold" title="В папку">📁</button>
+      <button type="button" class="pl-act" data-pla="share" title="Поделиться аятом">⤴</button>
+      <button type="button" class="pl-act" data-pla="text" title="Размер текста, перевод, транскрипция">Aa</button>
+    </div>
     <div class="pl-where" id="pl-where"></div>
     <div class="progress-row">
       <span id="audio-time-cur">0:00</span>
@@ -1608,6 +1614,7 @@
         <option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option>
       </select>
     </div>
+    <div class="pl-next" id="pl-next" style="display:none"></div>
     <div class="pl-pausehint" id="pl-pausehint" aria-live="polite"></div>
     <div class="pl-chips" id="pl-chips">
       <button type="button" class="pl-chip" id="pl-mode-btn" title="Режим воспроизведения">⏭ Дальше</button>
