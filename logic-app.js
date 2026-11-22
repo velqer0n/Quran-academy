@@ -20786,16 +20786,29 @@ function renderDictation(area) {
         if (view.panX || view.panY) { camera.translateX(view.panX || 0); camera.translateY(view.panY || 0); } // build 6.25: свободный сдвиг камеры двумя пальцами
         if (view.pov && I.eye) {
           // build 6.85: «взгляд молящегося» — камера у глаз смотрит туда, куда велит шаг; в углу — фигура со стороны
-          if (!povCam) povCam = new THREE.PerspectiveCamera(72, camera.aspect, 3.2, 3000);
+          // 7.29: шире угол (как у человека), камера не уходит под коврик в суджуде, переходы между позами плавные
+          if (!povCam) povCam = new THREE.PerspectiveCamera(86, camera.aspect, 2.4, 3000);
           povCam.aspect = camera.aspect; povCam.updateProjectionMatrix();
-          const ey = I.eye.clone().add(I.fwd.clone().multiplyScalar(2.2));
-          povCam.position.copy(ey);
-          const lt = tgt ? V3(tgt) : ey.clone().add(I.fwd.clone().multiplyScalar(100)).add(new THREE.Vector3(0, -40, 0));
-          povCam.up.set(0, 1, 0); povCam.lookAt(lt);
+          // камера — сразу перед носом (не внутри головы: иначе в кадре своё лицо изнутри)
+          const ey = (I.nose ? I.nose.clone() : I.eye.clone()).add(I.fwd.clone().multiplyScalar(3));
+          const fy = (typeof floor !== 'undefined' && floor && floor.position) ? floor.position.y : 0;
+          const lowHead = ey.y < fy + 8; // суджуд: лицо у самого пола
+          if (lowHead) ey.y = fy + 5;
+          // вперёд по горизонтали: по лицу, а если лицо смотрит в пол — в сторону киблы (+x)
+          let hf = new THREE.Vector3(I.fwd.x, 0, I.fwd.z); if (hf.length() < 0.35) hf.set(1, 0, 0); hf.normalize();
+          let lt = tgt ? V3(tgt) : ey.clone().add(I.fwd.clone().multiplyScalar(100)).add(new THREE.Vector3(0, -40, 0));
+          if (lowHead || (lt.y > ey.y - 2 && lt.distanceTo(ey) < 12)) lt = new THREE.Vector3(ey.x + hf.x * 26, fy, ey.z + hf.z * 26); // смотрим вперёд на коврик — ладони по бокам видны
+          if (lt.y < fy) lt.y = fy;
+          if (!_povPos || _povPos.distanceTo(ey) > 80) { _povPos = ey.clone(); _povLt = lt.clone(); }
+          else { _povPos.lerp(ey, 0.2); _povLt.lerp(lt, 0.2); }
+          povCam.position.copy(_povPos);
+          povCam.up.set(0, 1, 0); povCam.lookAt(_povLt);
+          _povMoving = _povPos.distanceTo(ey) > 0.3 || _povLt.distanceTo(lt) > 0.3;
           const gv = gazeLine.visible, gc = gazeCone.visible; gazeLine.visible = gazeCone.visible = false;
+          const gw = glow.visible, smv = sjMarks.map(function(m) { return m.visible; }); glow.visible = false; sjMarks.forEach(function(m) { m.visible = false; }); // 7.29: подсветка точек опоры вблизи закрывает обзор — в виде «глазами» прячем
           const sz = new THREE.Vector2(); renderer.getSize(sz);
           renderer.setScissorTest(false); renderer.setViewport(0, 0, sz.x, sz.y); renderer.render(scene, povCam);
-          gazeLine.visible = gv; gazeCone.visible = gc;
+          gazeLine.visible = gv; gazeCone.visible = gc; glow.visible = gw; sjMarks.forEach(function(m, i) { m.visible = smv[i]; });
           const iw = Math.round(sz.x * 0.34), ih = Math.round(iw / (camera.aspect || 1)), ix = sz.x - iw - 6, iy = 6;
           const cc = new THREE.Color(); renderer.getClearColor(cc); const ca = renderer.getClearAlpha();
           renderer.setScissorTest(true); renderer.setScissor(ix, iy, iw, ih); renderer.setViewport(ix, iy, iw, ih);
@@ -20804,10 +20817,10 @@ function renderDictation(area) {
           renderer.render(scene, camera);
           camera.aspect = asp0; camera.updateProjectionMatrix();
           renderer.setScissorTest(false); renderer.setViewport(0, 0, sz.x, sz.y); renderer.setClearColor(cc, ca);
-        } else renderer.render(scene, camera);
-        return Math.hypot(target[0] - want[0], target[1] - want[1]) > 0.3;
+        } else { renderer.render(scene, camera); _povMoving = false; _povPos = null; }
+        return Math.hypot(target[0] - want[0], target[1] - want[1]) > 0.3 || _povMoving;
       }
-      let povCam = null;
+      let povCam = null, _povPos = null, _povLt = null, _povMoving = false;
       function render(pose, view, gaze, gazeK, matX) {
         if (model) return renderModel(pose, view, gaze, gazeK, matX);
         if (female) return true; // женская фигура — только живая модель с закрытой одеждой; упрощённого мужского тела не показываем
@@ -23339,7 +23352,7 @@ function renderDictation(area) {
         '</div>' +
         '<input type="range" id="salah-anim-seek" min="0" max="1" value="0" step="1" style="width:100%;margin-top:0.45rem">' +
         '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem;align-items:center">' +
-        btn('prev', '⏮') + btn('play', '⏸', ' style="min-width:3rem"') + btn('next', '⏭') + btn('speed', hsSpeedLabel(hsSpeedSaved())) + btn('zin', '＋') + btn('zout', '－') + btn('zreset', '⟲', ' title="' + (kk ? 'Толық бой' : 'Весь рост') + '"') +
+        btn('prev', '⏮') + btn('play', '⏸', ' style="min-width:3rem"') + btn('next', '⏭') + btn('speed', hsSpeedLabel(hsSpeedSaved())) + '<button type="button" class="btn btn-sm hs-more-btn" data-hs-more="1" aria-expanded="false" title="' + (kk ? 'Тағы' : 'Ещё') + '">⋯</button>' + btn('zin', '＋') + btn('zout', '－') + btn('zreset', '⟲', ' title="' + (kk ? 'Толық бой' : 'Весь рост') + '"') +
         '<span style="flex:1"></span>' +
         '</div>' +
         '<div id="hs-mode-row" style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem;align-items:center">' + /* build 6.85: режимы видны и на телефоне */
@@ -23640,6 +23653,20 @@ function renderDictation(area) {
       };
       const hintUpd = function () { const h = box.querySelector('#hs-hint-g'); if (h) h.textContent = st.zoom > 1.05 ? (kk ? '✥ жылжыту · ⟲ — толық бой' : '✥ двигайте · ⟲ — весь рост') : (kk ? '✥ айналдыру · екі рет басу — жақындату' : '✥ вращайте · двойное нажатие — приблизить'); };
       const btnOn = function (id, on) { const e = box.querySelector('[data-sa="' + id + '"]'); if (e) { e.classList.toggle('btn-primary', !!on); } };
+      // 7.29: «⋯» — масштаб (＋ － ⟲) и режимы (зеркало, взгляд, вместе) скрыты, пока не нужны; смахивание по тексту — шаг вперёд/назад
+      (function() {
+        var mb = box.querySelector('[data-hs-more]');
+        if (mb) mb.addEventListener('click', function() { var on = !box.classList.contains('hs-more-open'); box.classList.toggle('hs-more-open', on); mb.setAttribute('aria-expanded', String(on)); });
+        var tx = box.querySelector('#hs-text'); if (!tx) return;
+        var x0 = 0, y0 = 0, t0 = 0;
+        tx.addEventListener('touchstart', function(e) { var p = e.touches[0]; x0 = p.clientX; y0 = p.clientY; t0 = Date.now(); }, { passive: true });
+        tx.addEventListener('touchend', function(e) {
+          var p = e.changedTouches[0], dx = p.clientX - x0, dy = p.clientY - y0;
+          if (Date.now() - t0 > 600 || Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+          if (e.target.closest && e.target.closest('input, button, select, .tw-ex, [data-no-swipe]')) return;
+          var b = box.querySelector('[data-sa="' + (dx < 0 ? 'next' : 'prev') + '"]'); if (b) b.click();
+        }, { passive: true });
+      })();
       box.querySelectorAll('[data-sa]').forEach(function(b) {
         b.addEventListener('click', function() {
           const a = b.getAttribute('data-sa');
@@ -23794,7 +23821,8 @@ function renderDictation(area) {
           if (box._hsVw !== vw) { box._hsVw = vw; box._hsVh = 0; }
           box._hsVh = Math.max(box._hsVh || 0, window.innerHeight);
           const vh = full ? window.innerHeight : box._hsVh;
-          const wide = !full && (box.parentElement ? box.parentElement.clientWidth : vw) >= 700;
+          // 7.29: телефон боком (горизонтально) — тоже «модель слева, текст справа», как на компьютере
+          const wide = !full && ((box.parentElement ? box.parentElement.clientWidth : vw) >= 700 || (vw > window.innerHeight && vw >= 560));
           box.classList.toggle('hs-wide', wide);
           box.classList.toggle('hs-compact', !full && !wide && vh > vw);
           let hv = 0; try { hv = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-vis')) || 0; } catch (e) {}

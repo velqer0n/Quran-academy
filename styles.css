@@ -5043,3 +5043,13 @@ body.bg-photo .view > h2, body.bg-photo .section-title { text-shadow: 0 1px 6px 
 .bg-dim-row input { flex: 1; accent-color: var(--accent); }
 .bg-note { font-size: 0.75rem; color: var(--text-muted); }
 .pt-method-note { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.45; }
+
+/* ===== 7.29: «Как читать намаз» на телефоне ===== */
+#salah-anim [data-sa="zin"], #salah-anim [data-sa="zout"], #salah-anim [data-sa="zreset"] { display: none; }
+#salah-anim #hs-mode-row { display: none !important; }
+#salah-anim.hs-more-open [data-sa="zin"], #salah-anim.hs-more-open [data-sa="zout"], #salah-anim.hs-more-open [data-sa="zreset"] { display: inline-flex; }
+#salah-anim.hs-more-open #hs-mode-row { display: flex !important; }
+#salah-anim .hs-more-btn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+#salah-anim [data-sa="prev"], #salah-anim [data-sa="play"], #salah-anim [data-sa="next"], #salah-anim [data-sa="speed"], #salah-anim .hs-more-btn { min-height: 44px; min-width: 44px; }
+#salah-anim.hs-compact #salah-anim-cap { font-size: 1.02rem; line-height: 1.55; }
+#salah-anim.hs-wide #hs-text { max-height: calc(100vh - var(--hdr-vis, 0px) - 1rem); max-height: calc(100dvh - var(--hdr-vis, 0px) - 1rem); overflow-y: auto; }
