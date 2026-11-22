@@ -1567,27 +1567,34 @@
   <!-- Audio bar -->
   <button type="button" id="device-mode-btn" title="Версия экрана">📱</button>
   <div class="audio-bar" id="audio-bar">
+    <div class="pl-mini-prog" aria-hidden="true"><i id="pl-mini-prog"></i></div>
+    <div class="pl-grab" id="pl-grab" aria-hidden="true"></div>
     <div class="player-top">
-      <div class="info">
+      <button type="button" class="btn-player pl-down" id="audio-collapse" title="Свернуть плеер">⌄</button>
+      <div class="info" id="pl-info">
         <div class="title" id="audio-title">—</div>
         <div class="sub" id="audio-sub">—</div>
       </div>
       <button type="button" class="btn-player mini-nav" id="audio-mini-prev" style="display:none" title="Предыдущий аят">⏮</button>
       <button type="button" class="btn-player primary" id="audio-mini-play" style="display:none" title="Пуск/пауза">▶</button>
       <button type="button" class="btn-player mini-nav" id="audio-mini-next" style="display:none" title="Следующий аят">⏭</button>
-      <button type="button" class="btn-player" id="audio-help" title="Что делают кнопки">❓</button>
-      <button type="button" class="btn-player" id="audio-collapse" title="Свернуть плеер">▾</button>
+      <button type="button" class="btn-player pl-menu-btn" id="pl-menu-btn" title="Ещё">⋯</button>
       <button type="button" class="btn-player" id="audio-stop" title="Закрыть">✕</button>
     </div>
+    <div class="pl-now" id="pl-now"></div>
+    <div class="pl-where" id="pl-where"></div>
     <div class="progress-row">
       <span id="audio-time-cur">0:00</span>
       <input type="range" id="audio-seek" min="0" max="1000" value="0" step="1"/>
       <span id="audio-time-dur">0:00</span>
     </div>
+    <div class="pl-ayahbar" aria-hidden="true"><i id="pl-ayahbar"></i></div>
     <div class="player-controls">
-      <button type="button" class="btn-player" id="audio-prev" title="Предыдущий аят">⏮</button>
+      <button type="button" class="btn-player pl-surbtn" id="audio-prev-surah" title="Предыдущая сура">⏮<small data-pk="sur">сура</small></button>
+      <button type="button" class="btn-player" id="audio-prev" title="Предыдущий аят">◀<small data-pk="ay">аят</small></button>
       <button type="button" class="btn-player primary" id="audio-play-pause" title="Пауза">▶</button>
-      <button type="button" class="btn-player" id="audio-next" title="Следующий аят">⏭</button>
+      <button type="button" class="btn-player" id="audio-next" title="Следующий аят">▶<small data-pk="ay">аят</small></button>
+      <button type="button" class="btn-player pl-surbtn" id="audio-next-surah" title="Следующая сура">⏭<small data-pk="sur">сура</small></button>
     </div>
     <div class="player-dua" id="audio-dua-row" style="display:none">
       <button type="button" class="pl-chip" id="audio-dua-back" title="Назад 10 с">⏪ 10</button>
@@ -1599,12 +1606,15 @@
         <option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option>
       </select>
     </div>
-    <div class="player-surahnav">
-      <button type="button" class="pl-chip" id="audio-prev-surah" title="Предыдущая сура">⏮ <span data-pk="prevs">Пред. сура</span></button>
-      <button type="button" class="pl-chip" id="audio-mode-cycle" title="Режим воспроизведения (нажмите — сменится)">Режим</button>
-      <button type="button" class="pl-chip" id="audio-next-surah" title="Следующая сура"><span data-pk="nexts">След. сура</span> ⏭</button>
+    <div class="pl-pausehint" id="pl-pausehint" aria-live="polite"></div>
+    <div class="pl-chips" id="pl-chips">
+      <button type="button" class="pl-chip" id="pl-mode-btn" title="Режим воспроизведения">⏭ Дальше</button>
+      <button type="button" class="pl-chip" id="pl-speed-btn" title="Скорость">1×</button>
+      <button type="button" class="pl-chip" id="pl-rep-btn" title="Повтор и заучивание">🔂 <span data-pk="rep">Повтор</span></button>
+      <button type="button" class="pl-chip" id="pl-sleep-btn" title="Таймер сна">⏱ <span data-pk="timer">Таймер</span></button>
+      <button type="button" class="pl-chip pl-help" id="audio-help" title="Как пользоваться плеером">?</button>
     </div>
-    <button type="button" class="pl-more-toggle" id="audio-more-toggle">⋯ Ещё</button>
+    <button type="button" class="btn-player" id="audio-mode-cycle" hidden>Режим</button>
     <div id="audio-more" style="display:none">
       <div class="pl-row"><span class="pl-lbl" data-pk="mode">Режим</span>
         <div class="player-modes" id="audio-modes">

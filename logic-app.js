@@ -4653,6 +4653,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       try { if (typeof updateAudioModeButtons === 'function') updateAudioModeButtons(); } catch(e) {}
       updateAudioBarVisibility();
       try { _syncDuaMode(); } catch(e) {}
+      try { plNowUpdate(item); plPaint(); } catch(e) {}
       highlightPlayingAyah();
       try {
         const lab = document.getElementById('home-player-label');
@@ -4827,6 +4828,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var cur = audioQueue && audioQueue[audioQueueIdx];
       var on = !!(cur && cur.ext);
       bar.classList.toggle('is-dua', on);
+      bar.classList.toggle('is-whole', !!(cur && cur.whole)); // 7.21: «⏪ 10 / 10 ⏩» и в режиме «Целиком»
       var chain = on && cur.ext === 'hisn' && !!(window._hisnAllOn || (_hisnQueue && _hisnQueue.length));
       bar.classList.toggle('no-chain', on && !chain);
       if (!on) return;
@@ -5724,6 +5726,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         var L = { single: kk ? '1 аят' : '1 аят', 'ayah-loop': kk ? '🔁 аят' : '🔁 аят', surah: kk ? 'Сүре' : 'Сура', 'surah-loop': kk ? '🔁 сүре' : '🔁 сура', random: '🔀' };
         cyc.textContent = (kk ? 'Режим: ' : 'Режим: ') + (L[audioPlayMode] || '—');
       }
+      try { plPaint(); } catch(e) {}
     }
     // build 6.94: «Аяты с … по …» в панели «⋯ Ещё» — играет выбранный кусок суры по аятам и останавливается
     function _rangeSurah() { var it = audioQueue && audioQueue[audioQueueIdx]; return +((it && it.surah && !it.dua && !it.adhkar && !it.ext) ? it.surah : (state && state.currentSurah)) || 0; }
@@ -5754,38 +5757,38 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var kk = isKk();
       var old = document.getElementById('player-help'); if (old) old.remove();
       var rows = kk ? [
-        ['⏮ ⏭', 'Алдыңғы / келесі аят. Сүренің шетінде көрші сүреге өтеді.'],
+        ['Мини-плеер', 'Төменгі жол: ▶ — ойнату/кідірту, ⏭ — келесі аят. Жолды басыңыз — плеер толық ашылады. Солға/оңға сырғытыңыз — келесі/алдыңғы аят. Үстіндегі жіңішке сызық — сүренің қай жерінде екеніңіз.'],
+        ['⌄', 'Толық плеерді жинау (немесе төмен сырғытыңыз).'],
+        ['⏮ сүре · ◀ аят', 'Алдыңғы сүре / алдыңғы аят.'],
         ['▶ / ⏸', 'Ойнату және кідірту.'],
-        ['⏮ Алдыңғы сүре · Келесі сүре ⏭', 'Көрші сүренің басына секіру.'],
-        ['Режим: …', 'Басқан сайын ауысады:\nСүре — аяттар бірінен соң бірі.\n🔁 сүре — шеңбермен.\n1 аят — тек бір аят.\n🔁 аят — бір аятты қайталау.\n🔀 — аралас реттілік.'],
-        ['⋯ Тағы / ▴ Азырақ', 'Қалған түймелерді көрсетеді немесе жасырады.'],
-        ['Жылдамдық', 'Ойнату жылдамдығы 0.25×–2×.'],
-        ['Сүреден кейін', 'Сүре біткен соң: тоқтау немесе «Келесі сүрені қосу».'],
-        ['🎙 Қари', 'Қариді ауыстыру — сол жерден жалғасады. «Толық» режимінде сүре бір файлмен (кесусіз) ойнайды — көп қариде бар; Абкар мен Лухайданда тек толық сүре. Аят белгісі жоқ қариларда (Лухайдан, Муайқли, Миншауи мужәууад) ⏮⏭ 15 секундқа айналдырады.'],
-        ['⏱ Таймер', 'Ұйқы таймері және аяттар арасындағы үзілістерді қысқарту.'],
-        ['📥 Жүктеу', 'Қазіргі аятты, сүрені (аятпен .zip немесе толық бір файл) немесе дұғаны телефонға сақтайды.'],
-        ['🚩 Ойнамайды', 'Бұл қаридің бұл аяты ойнамаса — белгілеңіз, келесі жолы басқа қари ұсынылады.'],
-        ['▾ / ▴', 'Плеерді бір жолға жинау / ашу.'],
+        ['аят ▶ · сүре ⏭', 'Келесі аят / келесі сүре.'],
+        ['Режим', 'Басыңыз — таңдау терезесі: «Құран бойынша әрі қарай» (сүре біткенде келесісі), «Сүре және тоқтау», «🔁 Сүрені қайталау», «🔂 Аятты қайталау», «Тек осы аят», «🔀 Кездейсоқ».'],
+        ['1×', 'Жылдамдық: басыңыз — 0,5×-тен 2×-ге дейін таңдайсыз.'],
+        ['🔂 Қайталау', 'Әр аятты ×2…×10 қайталау, дауыстап қайталауға үзіліс (2/5/10 с не аят ұзақтығындай) және «аяттан аятқа дейін» үзінді — жаттауға.'],
+        ['⏱ Таймер', 'Ұйқы таймері: минут, аят саны немесе «сүре соңына дейін».'],
+        ['🎙 Қари', 'Аят мәтінінің астындағы батырма — қариді ауыстыру, сол жерден жалғасады.'],
+        ['⏪ 10 · 10 ⏩', '«Толық» режимінде және дұғаларда — 10 секунд артқа/алға.'],
+        ['⋯', 'Сүрені ашу, қариді ауыстыру, жүктеу, «аят ойнамайды», осы көмек, плеерді жабу.'],
         ['✕', 'Плеерді жабу.']
       ] : [
-        ['⏮ ⏭', 'Предыдущий / следующий аят. На краю суры переходит в соседнюю.'],
+        ['Мини-плеер', 'Строка внизу: ▶ — играть/пауза, ⏭ — следующий аят. Нажмите на строку — плеер откроется целиком. Смахните влево/вправо — следующий/предыдущий аят. Тонкая полоска сверху — где вы в суре.'],
+        ['⌄', 'Свернуть полный плеер (или смахните вниз).'],
+        ['⏮ сура · ◀ аят', 'Предыдущая сура / предыдущий аят.'],
         ['▶ / ⏸', 'Играть и пауза.'],
-        ['⏮ Пред. сура · След. сура ⏭', 'Прыжок в начало соседней суры.'],
-        ['Режим: …', 'Нажимайте — режим меняется по кругу:\nСура — аяты подряд.\n🔁 сура — по кругу.\n1 аят — только один аят.\n🔁 аят — повтор аята.\n🔀 — случайный порядок.'],
-        ['⋯ Ещё / ▴ Меньше', 'Показать или скрыть остальные кнопки.'],
-        ['Скорость', 'Скорость воспроизведения 0.25×–2×.'],
-        ['После суры', 'Что делать, когда сура закончилась: остановиться или «Включить следующую суру».'],
-        ['🎙 Чтец', 'Сменить чтеца — продолжает с того же места. В режиме «Целиком» сура играет одним файлом без нарезки — есть почти у всех чтецов; у Абкара и Лухайдана только целые суры. Где нет разметки аятов (Лухайдан, Муайкли, Миншави муджаввад), ⏮⏭ перематывают на 15 с.'],
-        ['⏱ Таймер', 'Таймер сна и сокращение пауз между аятами.'],
-        ['📥 Скачать', 'Сохранить на телефон текущий аят, суру (по аятам в .zip или целым файлом) или дуа.'],
-        ['🚩 Не играет', 'Если у этого чтеца аят не играет — отметьте, в следующий раз предложим другого чтеца.'],
-        ['▾ / ▴', 'Свернуть плеер в одну строку / развернуть.'],
+        ['аят ▶ · сура ⏭', 'Следующий аят / следующая сура.'],
+        ['Режим', 'Нажмите — окошко с выбором: «Дальше по Корану» (сура закончилась — включается следующая), «Сура и стоп», «🔁 Повтор суры», «🔂 Повтор аята», «Только этот аят», «🔀 Случайно».'],
+        ['1×', 'Скорость: нажмите — выберите от 0,5× до 2×.'],
+        ['🔂 Повтор', 'Повторять каждый аят ×2…×10, пауза, чтобы повторить вслух (2/5/10 с или как длина аята), и отрывок «с аята по аят» — для заучивания.'],
+        ['⏱ Таймер', 'Таймер сна: минуты, число аятов или «до конца суры».'],
+        ['🎙 Чтец', 'Кнопка под текстом аята — сменить чтеца, продолжит с того же места.'],
+        ['⏪ 10 · 10 ⏩', 'В режиме «Целиком» и в дуа — 10 секунд назад/вперёд.'],
+        ['⋯', 'Открыть суру, сменить чтеца, скачать, «аят не играет», эта справка, закрыть плеер.'],
         ['✕', 'Закрыть плеер.']
       ];
       var ov = document.createElement('div');
       ov.id = 'player-help';
       ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
-      ov.innerHTML = '<div class="card" style="max-width:420px;width:100%;max-height:88vh;max-height:88dvh;overflow:auto"><b>❓ ' + (kk ? 'Плеер түймелері не істейді' : 'Что делают кнопки плеера') + '</b>' +
+      ov.innerHTML = '<div class="card" style="max-width:420px;width:100%;max-height:88vh;max-height:88dvh;overflow:auto"><b>❓ ' + (kk ? 'Плеерді қалай қолдану' : 'Как пользоваться плеером') + '</b>' +
         '<div style="margin-top:0.6rem">' + rows.map(function(r) { return '<div style="display:flex;gap:0.6rem;padding:0.4rem 0;border-top:1px solid var(--border)"><div style="flex:0 0 7.5rem;font-weight:600;font-size:0.88rem">' + r[0] + '</div><div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5">' + String(r[1]).split('\n').join('<br>') + '</div></div>'; }).join('') + '</div>' +
         '<button type="button" class="btn btn-primary" id="ph-close" style="width:100%;margin-top:0.7rem">' + (kk ? 'Түсінікті' : 'Понятно') + '</button></div>';
       document.body.appendChild(ov);
@@ -5801,6 +5804,184 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     document.getElementById('audio-after-stop')?.addEventListener('click', function() { _lsSet('quran_after_surah_v1', 'stop'); paintPlayerMore(); });
     document.getElementById('audio-after-next')?.addEventListener('click', function() { _lsSet('quran_after_surah_v1', 'next'); paintPlayerMore(); });
     try { paintPlayerMore(); } catch(e) {}
+    // ===== 7.21: плеер для телефона — мини-плеер (▶ ⏭, полоска сверху, смахивание), полный экран с текстом аята,
+    // ⏮ сура · ◀ аят · ▶ · аят ▶ · сура ⏭; режим, скорость, повтор, таймер — мини-окошками с выбором =====
+    try { Object.assign(PLAYER_PK.ru, { sur: 'сура', ay: 'аят', rep: 'Повтор' }); Object.assign(PLAYER_PK.kk, { sur: 'сүре', ay: 'аят', rep: 'Қайталау' }); } catch(e) {}
+    function plPop(title, bodyHtml, onOpen, onClose) {
+      var old = document.getElementById('pl-pop'); if (old) { try { old._close && old._close(); } catch(e) {} old.remove(); }
+      var ov = document.createElement('div'); ov.id = 'pl-pop'; ov.className = 'pl-pop';
+      ov.innerHTML = '<div class="pl-pop-card" role="dialog" aria-label="' + String(title).replace(/"/g, '') + '"><div class="pl-pop-h"><b>' + title + '</b><button type="button" class="btn-player" data-pl-x aria-label="' + (isKk() ? 'Жабу' : 'Закрыть') + '">✕</button></div>' + bodyHtml + '</div>';
+      document.body.appendChild(ov);
+      var close = function() { try { onClose && onClose(ov); } catch(e) {} ov.remove(); };
+      ov._close = function() { try { onClose && onClose(ov); } catch(e) {} };
+      ov.addEventListener('click', function(e) { if (e.target === ov || (e.target.closest && e.target.closest('[data-pl-x]'))) close(); });
+      try { onOpen && onOpen(ov, close); } catch(e) {}
+      return ov;
+    }
+    function plOpts(list, cur) { return '<div class="pl-opts">' + list.map(function(o) { return '<button type="button" class="pl-opt' + (o.v === cur ? ' on' : '') + '" data-pl-v="' + o.v + '"><b>' + o.l + '</b>' + (o.s ? '<small>' + o.s + '</small>' : '') + '</button>'; }).join('') + '</div>'; }
+    function plModeKey() { return audioPlayMode === 'surah' ? (afterSurahNext() ? 'next' : 'stop') : audioPlayMode; }
+    function plModeList(kk, whole) {
+      var L = [
+        { v: 'next', l: kk ? '⏭ Құран бойынша әрі қарай' : '⏭ Дальше по Корану', s: kk ? 'сүре біткенде келесісі өзі қосылады' : 'сура закончилась — сама включается следующая' },
+        { v: 'stop', l: kk ? '⏹ Сүре және тоқтау' : '⏹ Сура и стоп', s: kk ? 'сүренің соңында тоқтайды' : 'останавливается в конце суры' },
+        { v: 'surah-loop', l: kk ? '🔁 Сүрені қайталау' : '🔁 Повтор суры', s: kk ? 'сүре шеңбермен' : 'сура по кругу' }
+      ];
+      if (!whole) L = L.concat([
+        { v: 'ayah-loop', l: kk ? '🔂 Аятты қайталау' : '🔂 Повтор аята', s: kk ? 'бір аят шеңбермен' : 'один аят по кругу' },
+        { v: 'single', l: kk ? '1️⃣ Тек осы аят' : '1️⃣ Только этот аят', s: kk ? 'бір рет ойнап, тоқтайды' : 'один раз и стоп' },
+        { v: 'random', l: kk ? '🔀 Сүреде кездейсоқ' : '🔀 Случайно в суре', s: kk ? 'аяттар араласып' : 'аяты вперемешку' }
+      ]);
+      return L;
+    }
+    function plSetMode(v) {
+      if (v === 'next' || v === 'stop') { _lsSet('quran_after_surah_v1', v === 'next' ? 'next' : 'stop'); applyPlayerMode('surah'); }
+      else applyPlayerMode(v);
+      setTimeout(function() { try { paintPlayerMore(); } catch(e) {} }, 50);
+    }
+    const PL_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+    function plSpeed() { var el = document.getElementById('audio-speed-bar'); return el ? (parseFloat(el.value) || 1) : 1; }
+    function plFmtSpeed(v) { return String(v).replace('.', ',') + '×'; }
+    function plPaint() {
+      var kk = isKk(), cw = audioQueue && audioQueue[audioQueueIdx], whole = !!(cw && cw.whole);
+      var mb = document.getElementById('pl-mode-btn');
+      if (mb) { var SL = kk ? { next: '⏭ Әрі қарай', stop: '⏹ Сүре, тоқтау', 'surah-loop': '🔁 Сүре', 'ayah-loop': '🔂 Аят', single: '1️⃣ Бір аят', random: '🔀 Кездейсоқ' } : { next: '⏭ Дальше', stop: '⏹ Сура и стоп', 'surah-loop': '🔁 Сура', 'ayah-loop': '🔂 Аят', single: '1️⃣ Один аят', random: '🔀 Случайно' }; mb.textContent = SL[plModeKey()] || 'Режим'; }
+      var sb = document.getElementById('pl-speed-btn'); if (sb) sb.textContent = plFmtSpeed(plSpeed());
+      var rb = document.getElementById('pl-rep-btn');
+      if (rb) { var n = getRepeatCount(), ps = state.settings && state.settings.repPause; rb.classList.toggle('on', n > 1 || !!ps); rb.innerHTML = '🔂 ' + (n > 1 ? '×' + n : (kk ? 'Қайталау' : 'Повтор')) + (ps ? ' · ⏸' : ''); rb.style.display = whole ? 'none' : ''; }
+      var tb = document.getElementById('pl-sleep-btn'); if (tb) tb.classList.toggle('on', !!_sleep);
+      try { var bar = document.getElementById('audio-bar'); if (bar) bar.classList.toggle('is-whole', whole); } catch(e) {}
+      var ab = document.getElementById('audio-collapse'); if (ab) ab.textContent = '⌄';
+    }
+    // текущий аят крупно — в полном плеере
+    function plRecName() {
+      try { var id = state.settings && state.settings.reciter, r = (typeof RECITER_LIST !== 'undefined' ? RECITER_LIST : []).find(function(x) { return x.id === id; }); return r ? String(isKk() && r.nameKk ? r.nameKk : (r.name || r.ru || id)).replace(/\s*\(.*\)\s*$/, '') : ''; } catch(e) { return ''; }
+    }
+    function plNowUpdate(item) {
+      var el = document.getElementById('pl-now'), wh = document.getElementById('pl-where'); if (!el || !wh) return;
+      var kk = isKk();
+      if (!item || item.ext || !item.surah) { el.innerHTML = ''; wh.innerHTML = ''; el.dataset.k = ''; plProg(); return; }
+      var s = +item.surah, a = +item.ayah || 0, cnt = SURAH_AYAH_COUNTS[s] || 0;
+      var nm = (typeof surahNameLocal === 'function') ? String(surahNameLocal(s) || s).replace(/\s*\(\d+\)\s*$/, '') : String(s);
+      wh.innerHTML = '<span>' + nm + (item.whole ? ' · ' + (kk ? 'толық' : 'целиком') : (a ? ' · ' + (kk ? a + '-аят / ' + cnt : 'аят ' + a + ' из ' + cnt) : '')) + '</span>' +
+        '<button type="button" class="pl-rec" data-pl-rec="1" title="' + (kk ? 'Қариді ауыстыру' : 'Сменить чтеца') + '">🎙 ' + (plRecName() || (kk ? 'Қари' : 'Чтец')) + '</button>';
+      var key = s + ':' + (item.whole ? 0 : a);
+      if (el.dataset.k === key) return;
+      el.dataset.k = key;
+      if (item.whole || !a) { el.innerHTML = '<div class="pl-now-big">' + nm + '</div>'; return; }
+      var put = function(ar, tr) { if (el.dataset.k !== key) return; el.innerHTML = '<div class="pl-now-ar arabic" dir="rtl" lang="ar">' + ar + '</div>' + (tr ? '<div class="pl-now-tr">' + tr + '</div>' : ''); };
+      var dom = (+(state && state.currentSurah) === s) && document.querySelector('#ayah-list .ayah[data-ayah="' + a + '"]');
+      if (dom) { var at = dom.querySelector('.ayah-text'), tt = dom.querySelector('.ayah-translation'); put(at ? at.textContent.trim() : '', tt ? tt.textContent.trim() : ''); return; }
+      el.innerHTML = '';
+      try { fetchSurah(s).then(function(d) { var x = d && d.ayahs ? d.ayahs.find(function(y) { return +y.number === a; }) : null; if (x) put(String(x.text || '').replace(/</g, '&lt;'), String(x.translation || '').replace(/<[^>]+>/g, '')); }).catch(function() {}); } catch(e) {}
+    }
+    // полоски: тонкая сверху мини-плеера и «где вы в суре» (по аятам)
+    function plProg() {
+      var it = audioQueue && audioQueue[audioQueueIdx], d = audioEl.duration, c = audioEl.currentTime, f = (d && isFinite(d)) ? Math.min(1, c / d) : 0, tot = f;
+      var ab = document.getElementById('pl-ayahbar'), bar = document.getElementById('audio-bar');
+      var byAyah = !!(it && it.surah && !it.whole && !it.ext && it.ayah && (SURAH_AYAH_COUNTS[+it.surah] || 0) > 1);
+      if (byAyah) tot = ((+it.ayah - 1) + f) / SURAH_AYAH_COUNTS[+it.surah];
+      if (bar) bar.classList.toggle('by-ayah', byAyah);
+      if (ab) ab.style.width = (tot * 100).toFixed(2) + '%';
+      var mp = document.getElementById('pl-mini-prog'); if (mp) mp.style.width = (tot * 100).toFixed(2) + '%';
+    }
+    audioEl.addEventListener('timeupdate', function() { try { plProg(); } catch(e) {} });
+    // пауза «повторить вслух» после аята (и между повторами)
+    var _plPauseWait = null, _plPausePass = false;
+    function plPauseMs() {
+      var it = audioQueue && audioQueue[audioQueueIdx]; if (!it || it.ext || it.whole || !it.surah) return 0;
+      var p = state.settings && state.settings.repPause; if (!p) return 0;
+      if (p === 'len') return Math.min(30000, Math.max(1500, (audioEl.duration || 3) * 1000));
+      return (+p || 0) * 1000;
+    }
+    function plPauseCancel() { if (_plPauseWait) { clearTimeout(_plPauseWait); _plPauseWait = null; } var tip = document.getElementById('pl-pausehint'); if (tip) tip.classList.remove('on'); }
+    audioEl.addEventListener('play', plPauseCancel);
+    document.getElementById('audio-stop')?.addEventListener('click', plPauseCancel);
+    // всплывашки: режим, скорость, повтор, меню
+    document.getElementById('pl-mode-btn')?.addEventListener('click', function() {
+      var kk = isKk(), cw = audioQueue && audioQueue[audioQueueIdx];
+      plPop(kk ? 'Ойнату режимі' : 'Режим воспроизведения', plOpts(plModeList(kk, !!(cw && cw.whole)), plModeKey()), function(ov, close) {
+        ov.querySelectorAll('[data-pl-v]').forEach(function(b) { b.addEventListener('click', function() { plSetMode(b.getAttribute('data-pl-v')); close(); }); });
+      });
+    });
+    document.getElementById('pl-speed-btn')?.addEventListener('click', function() {
+      var kk = isKk(), cur = plSpeed();
+      var list = PL_SPEEDS.map(function(v) { return { v: String(v), l: plFmtSpeed(v), s: v === 1 ? (kk ? 'қалыпты' : 'обычная') : v < 1 ? (kk ? 'баяу — жаттауға' : 'медленнее — для заучивания') : '' }; });
+      plPop(kk ? 'Жылдамдық' : 'Скорость', plOpts(list, String(cur)).replace('class="pl-opts"', 'class="pl-opts pl-opts-grid"'), function(ov, close) {
+        ov.querySelectorAll('[data-pl-v]').forEach(function(b) { b.addEventListener('click', function() {
+          var el = document.getElementById('audio-speed-bar'); if (el) { el.value = b.getAttribute('data-pl-v'); el.dispatchEvent(new Event('change')); }
+          plPaint(); close();
+        }); });
+      });
+    });
+    document.getElementById('pl-sleep-btn')?.addEventListener('click', function() { var b = document.getElementById('audio-sleep-btn'); if (b) b.click(); setTimeout(plPaint, 50); });
+    document.getElementById('pl-rep-btn')?.addEventListener('click', function() {
+      var kk = isKk(), n = getRepeatCount(), ps = (state.settings && state.settings.repPause) || 0;
+      var chip = function(attr, v, label, on) { return '<button type="button" class="rd-pc' + (on ? ' on' : '') + '" ' + attr + '="' + v + '">' + label + '</button>'; };
+      var body = '<div class="pl-sec"><div class="pl-lbl2">' + (kk ? 'Әр аятты қайталау' : 'Повторять каждый аят') + '</div><div class="pl-chiprow">' + [1, 2, 3, 5, 7, 10].map(function(x) { return chip('data-pl-rn', x, '×' + x, x === n); }).join('') + '</div></div>' +
+        '<div class="pl-sec"><div class="pl-lbl2">' + (kk ? 'Дауыстап қайталауға үзіліс' : 'Пауза, чтобы повторить вслух') + '</div><div class="pl-chiprow">' +
+          [[0, kk ? 'жоқ' : 'нет'], [2, '2 с'], [5, '5 с'], [10, '10 с'], ['len', kk ? 'аят ұзақтығындай' : 'как длина аята']].map(function(x) { return chip('data-pl-rp', x[0], x[1], String(x[0]) === String(ps)); }).join('') + '</div>' +
+          '<div class="rd-note">' + (kk ? 'Қари оқиды → үзіліс → сіз қайталайсыз. Мысалы: ×3 және «аят ұзақтығындай» — жаттауға ыңғайлы.' : 'Чтец читает → пауза → вы повторяете. Например, ×3 и «как длина аята» — удобно для заучивания.') + '</div></div>' +
+        '<div class="pl-sec"><div class="pl-lbl2">' + (kk ? 'Үзінді: аяттан аятқа дейін' : 'Отрывок: с аята по аят') + '</div><div id="pl-range-slot"></div></div>';
+      plPop(kk ? '🔂 Қайталау және жаттау' : '🔂 Повтор и заучивание', body, function(ov) {
+        var rr = document.getElementById('audio-range-row'), slot = ov.querySelector('#pl-range-slot');
+        if (rr && slot) { try { paintRangeRow(); } catch(e) {} slot.appendChild(rr); rr.style.display = ''; }
+        ov.querySelectorAll('[data-pl-rn]').forEach(function(b) { b.addEventListener('click', function() {
+          var v = +b.getAttribute('data-pl-rn'), inp = document.getElementById('audio-repeat'); if (inp) inp.value = v;
+          audioRepeatTotal = v; audioRepeatLeft = v;
+          ov.querySelectorAll('[data-pl-rn]').forEach(function(x) { x.classList.toggle('on', x === b); }); plPaint();
+        }); });
+        ov.querySelectorAll('[data-pl-rp]').forEach(function(b) { b.addEventListener('click', function() {
+          var v = b.getAttribute('data-pl-rp'); state.settings.repPause = v === '0' ? 0 : (v === 'len' ? 'len' : +v); try { saveState(); } catch(e) {}
+          ov.querySelectorAll('[data-pl-rp]').forEach(function(x) { x.classList.toggle('on', x === b); }); plPaint();
+        }); });
+      }, function() {
+        var rr = document.getElementById('audio-range-row'), more = document.getElementById('audio-more');
+        if (rr && more && rr.parentNode !== more) more.appendChild(rr);
+      });
+    });
+    document.getElementById('pl-menu-btn')?.addEventListener('click', function() {
+      var kk = isKk(), it = audioQueue && audioQueue[audioQueueIdx], hasS = !!(it && it.surah && !it.ext);
+      var L = [];
+      if (hasS) L.push({ v: 'open', l: kk ? '📖 Сүрені ашу' : '📖 Открыть суру', s: kk ? 'оқу бетінде, осы аятта' : 'в читалке, на этом аяте' });
+      L.push({ v: 'rec', l: kk ? '🎙 Қариді ауыстыру' : '🎙 Сменить чтеца' });
+      L.push({ v: 'dl', l: kk ? '📥 Жүктеу' : '📥 Скачать', s: kk ? 'аят, сүре не дұға — телефонға' : 'аят, суру или дуа — на телефон' });
+      if (hasS) L.push({ v: 'miss', l: kk ? '🚩 Бұл аят ойнамайды' : '🚩 Этот аят не играет', s: kk ? 'келесі жолы басқа қари ұсынылады' : 'в следующий раз предложим другого чтеца' });
+      L.push({ v: 'help', l: kk ? '❓ Плеерді қалай қолдану' : '❓ Как пользоваться плеером' });
+      L.push({ v: 'close', l: kk ? '✕ Плеерді жабу' : '✕ Закрыть плеер' });
+      plPop(kk ? 'Плеер' : 'Плеер', plOpts(L, ''), function(ov, close) {
+        ov.querySelectorAll('[data-pl-v]').forEach(function(b) { b.addEventListener('click', function() {
+          var v = b.getAttribute('data-pl-v'); close();
+          var clk = function(id) { var x = document.getElementById(id); if (x) x.click(); };
+          if (v === 'open' && it) { clk('audio-collapse'); try { openSurah(+it.surah, it.whole ? null : +it.ayah); } catch(e) {} }
+          else if (v === 'rec') clk('audio-pick-reciter');
+          else if (v === 'dl') clk('audio-download');
+          else if (v === 'miss') clk('audio-report-missing');
+          else if (v === 'help') openPlayerHelp();
+          else if (v === 'close') clk('audio-stop');
+        }); });
+      });
+    });
+    document.addEventListener('click', function(e) { var b = e.target && e.target.closest && e.target.closest('[data-pl-rec]'); if (b) { var x = document.getElementById('audio-pick-reciter'); if (x) x.click(); } });
+    // мини-плеер: нажатие — развернуть; смахнуть влево/вправо — следующий/предыдущий аят; полный экран — смахнуть вниз
+    (function() {
+      var bar = document.getElementById('audio-bar'); if (!bar) return;
+      var x0 = 0, y0 = 0, t0 = 0, moved = false;
+      bar.addEventListener('touchstart', function(e) { var t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; t0 = Date.now(); moved = false; }, { passive: true });
+      bar.addEventListener('touchmove', function() { moved = true; }, { passive: true });
+      bar.addEventListener('touchend', function(e) {
+        var t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+        if (!moved || Date.now() - t0 > 700) return;
+        var collapsed = bar.classList.contains('collapsed');
+        if (e.target.closest && e.target.closest('input, select, .pl-now')) return;
+        if (collapsed && Math.abs(dx) > 60 && Math.abs(dy) < 45) { var id = dx < 0 ? 'audio-next' : 'audio-prev'; var b = document.getElementById(id); if (b) b.click(); bar._swiped = Date.now(); }
+        else if (!collapsed && dy > 80 && Math.abs(dx) < 60 && e.target.closest && e.target.closest('.player-top, .pl-grab, .pl-where')) { var c = document.getElementById('audio-collapse'); if (c) c.click(); }
+      }, { passive: true });
+      var info = document.getElementById('pl-info');
+      if (info) info.addEventListener('click', function() { if (bar.classList.contains('collapsed') && !(bar._swiped && Date.now() - bar._swiped < 500)) { var c = document.getElementById('audio-collapse'); if (c) c.click(); } });
+      // новый запуск — всегда мини-плеер (полный экран только по нажатию)
+      var wasVis = bar.classList.contains('visible');
+      try { new MutationObserver(function() { var v = bar.classList.contains('visible'); if (v && !wasVis && !bar.classList.contains('collapsed')) { var c = document.getElementById('audio-collapse'); if (c) c.click(); } wasVis = v; }).observe(bar, { attributes: true, attributeFilter: ['class'] }); } catch(e) {}
+    })();
 
     function playNextInQueue() {
       return playNextAyah();
@@ -6322,6 +6503,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     function _sleepLabel() {
       if (!_sleep) return '';
       if (_sleep.mode === 'ayah') return ' · ⏱ ' + (isKk() ? 'қалды ' : 'осталось ') + Math.max(0, _sleep.total - _sleep.played);
+      if (_sleep.mode === 'surah') return ' · ⏱ ' + (isKk() ? 'сүре соңына дейін' : 'до конца суры');
       var m = Math.max(0, Math.ceil((_sleep.deadline - Date.now()) / 60000));
       return ' · ⏱ ' + m + (isKk() ? ' мин' : ' мин');
     }
@@ -6340,7 +6522,10 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     // вызывается в конце КАЖДОГО проигранного аята; true — таймер остановил плеер
     function _sleepOnAyahEnd() {
       if (!_sleep) return false;
-      if (_sleep.mode === 'ayah') {
+      if (_sleep.mode === 'surah') {
+        var _si = audioQueue && audioQueue[audioQueueIdx];
+        if (_si && (_si.whole || (_si.surah && +_si.ayah >= (SURAH_AYAH_COUNTS[+_si.surah] || 0)))) { _sleepStop(isKk() ? 'Таймер: сүре аяқталды' : 'Таймер: сура дослушана'); return true; }
+      } else if (_sleep.mode === 'ayah') {
         _sleep.played++;
         if (_sleep.played >= _sleep.total) { _sleepStop(isKk() ? 'Таймер: аяттар аяқталды' : 'Таймер: нужное число аятов прослушано'); return true; }
       } else if (Date.now() >= _sleep.deadline) {
@@ -6354,7 +6539,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       if (!pn || pn.style.display === 'none') return;
       var kk = isKk();
       var trimOn = !(state.settings && state.settings.trimSilence === false);
-      var h = '<div class="sl-row"><select id="sleep-mode"><option value="min">' + (kk ? 'Минут' : 'Минуты') + '</option><option value="ayah">' + (kk ? 'Аяттар' : 'Аяты') + '</option></select>' +
+      var h = '<div class="sl-row"><select id="sleep-mode"><option value="min">' + (kk ? 'Минут' : 'Минуты') + '</option><option value="ayah">' + (kk ? 'Аяттар' : 'Аяты') + '</option><option value="surah">' + (kk ? 'Сүре соңына дейін' : 'До конца суры') + '</option></select>' +
         '<input type="number" id="sleep-val" min="1" max="9999" value="' + ((_sleep && _sleep.mode === 'ayah') ? _sleep.total : 10) + '">' +
         '<button type="button" class="btn-player" id="sleep-start">' + (kk ? 'Бастау' : 'Старт') + '</button>' +
         (_sleep ? '<button type="button" class="btn-player" id="sleep-cancel">' + (kk ? 'Өшіру' : 'Отмена') + '</button>' : '') + '</div>' +
@@ -6368,7 +6553,8 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         var v = parseInt(pn.querySelector('#sleep-val').value, 10);
         if (!v || v < 1) v = 1;
         var mode = pn.querySelector('#sleep-mode').value;
-        _sleep = mode === 'ayah' ? { mode: 'ayah', total: v, played: 0 } : { mode: 'min', total: v, deadline: Date.now() + v * 60000 };
+        _sleep = mode === 'surah' ? { mode: 'surah' } : mode === 'ayah' ? { mode: 'ayah', total: v, played: 0 } : { mode: 'min', total: v, deadline: Date.now() + v * 60000 };
+        try { plPaint(); } catch(e) {}
         if (_sleepTick) clearInterval(_sleepTick);
         _sleepTick = setInterval(function() { try { updateAudioSub(); } catch(e) {} }, 15000);
         toast(isKk() ? 'Таймер қосылды' : 'Таймер запущен');
@@ -6452,6 +6638,15 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     });
     audioEl.addEventListener('ended', () => {
       try { var _ce = audioQueue[audioQueueIdx]; if (_ce && _ce.ext) { _extEnded(_ce); return; } } catch(e) {}
+      // 7.21: пауза, чтобы повторить вслух (настройка «🔂 Повтор»)
+      if (!_plPausePass) {
+        var _pms = 0; try { _pms = plPauseMs(); } catch(e) {}
+        if (_pms > 0) {
+          try { var _tip = document.getElementById('pl-pausehint'); if (_tip) { _tip.textContent = isKk() ? '⏸ Енді дауыстап қайталаңыз…' : '⏸ Теперь повторите вслух…'; _tip.classList.add('on'); } } catch(e) {}
+          _plPauseWait = setTimeout(function() { _plPauseWait = null; try { var _t2 = document.getElementById('pl-pausehint'); if (_t2) _t2.classList.remove('on'); } catch(e) {} _plPausePass = true; try { audioEl.dispatchEvent(new Event('ended')); } finally { _plPausePass = false; } }, _pms);
+          return;
+        }
+      }
       try { rdOnAudioEnded(audioQueue[audioQueueIdx]); } catch(e) {}
       if (_sleepOnAyahEnd()) return;
       if (audioRepeatLeft > 1) {
