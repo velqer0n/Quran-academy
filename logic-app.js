@@ -887,7 +887,7 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
         'Словари': 'Сөздіктер', 'Поклонение': 'Ғибадат', 'Все слова': 'Барлық сөздер', 'Сохранить': 'Сақтау', 'удвоение': 'қосарлану', 'ā (долгий)': 'ā (ұзын)', 'Микат': 'Миқат', 'Аудио, мин': 'Аудио, мин', 'Азан (аудио)': 'Азан (аудио)',
         'Ещё': 'Тағы', 'Закладки': 'Бетбелгілер', 'Прогресс': 'Үлгерім',
         'Слова в карточках': 'Карточкадағы сөздер', 'По нажатию': 'Басқанда', 'Сразу': 'Бірден',
-        'Планы чтения': 'Оқу жоспарлары', 'Азкары и дуа': 'Зікірлер мен дұғалар', 'Нажмите — открыть в разделе «Дуа и зикры» →': 'Басыңыз — «Дұғалар мен зікірлер» бөлімінде ашу →',
+        'Планы чтения': 'Оқу жоспарлары', 'Хатм и план': 'Хатым және жоспар', 'Азкары и дуа': 'Зікірлер мен дұғалар', 'Нажмите — открыть в разделе «Дуа и зикры» →': 'Басыңыз — «Дұғалар мен зікірлер» бөлімінде ашу →',
         'Мой словарь': 'Сөздігім', 'Темы аятов': 'Аят тақырыптары',
         '99 имён Аллаха': 'Алланың 99 есімі', 'Статистика': 'Статистика',
         'Короткие уроки': 'Қысқа сабақтар', 'Настройки': 'Баптаулар',
@@ -2144,12 +2144,10 @@ async function fetchTafsir(surah, ayah) {
       var _kkTabs = (typeof isKk === 'function') ? isKk() : (state.settings && state.settings.lang === 'kk');
       if (kind === 'myreading') {
         tabs = _kkTabs ? [
-          { id: 'plans', label: 'Жоспарлар' },
-          { id: 'khatm', label: 'Хатым' },
+          { id: 'plans', label: 'Хатым және жоспар' },
           { id: 'progress', label: 'Үлгерім' }
         ] : [
-          { id: 'plans', label: 'Планы' },
-          { id: 'khatm', label: 'Хатм' },
+          { id: 'plans', label: 'Хатм и план' },
           { id: 'progress', label: 'Прогресс' }
         ];
       } else if (kind === 'data') {
@@ -2273,11 +2271,12 @@ async function fetchTafsir(surah, ayah) {
       if (name === 'qdict') { state.dictMode = 'quran'; return 'dict'; }
       if (name === 'myreading') {
         // build 6.38: «Папки» теперь отдельная вкладка внизу; «Моё чтение» открывается с планов
-        if (!state.myReadingTab || state.myReadingTab === 'bookmarks') state.myReadingTab = 'plans';
+        if (!state.myReadingTab || state.myReadingTab === 'bookmarks' || state.myReadingTab === 'khatm') state.myReadingTab = 'plans';
         return state.myReadingTab;
       }
       if (name === 'bookmarks') return name;
-      if (name === 'plans' || name === 'khatm' || name === 'progress') {
+      if (name === 'khatm') { state.myReadingTab = 'plans'; return 'plans'; }
+      if (name === 'plans' || name === 'progress') {
         state.myReadingTab = name;
         return name;
       }
@@ -6453,6 +6452,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
     });
     audioEl.addEventListener('ended', () => {
       try { var _ce = audioQueue[audioQueueIdx]; if (_ce && _ce.ext) { _extEnded(_ce); return; } } catch(e) {}
+      try { rdOnAudioEnded(audioQueue[audioQueueIdx]); } catch(e) {}
       if (_sleepOnAyahEnd()) return;
       if (audioRepeatLeft > 1) {
         audioRepeatLeft--;
@@ -12701,8 +12701,7 @@ function renderMistakes() {
       const bar = '<div style="margin-top:0.5rem;display:flex;gap:0.3rem;justify-content:center;flex-wrap:wrap">' +
         ib('data-mouth-play="' + ch + '" data-main="1"', '▶', kk ? 'Дыбыс + қозғалыс' : 'Звук + движение', kk ? 'Дыбыс пен қозғалысты көрсету' : 'Показать звук и движение') +
         ib('data-mouth-slow="' + ch + '"', '🐢', '', kk ? 'Қозғалыс 3 есе баяу' : 'Движение в 3 раза медленнее') + '</div>' +
-        (g && ch !== 'ا' ? '<div class="mouth-vowbar" style="margin-top:0.3rem;display:flex;gap:0.25rem;justify-content:center;flex-wrap:wrap;align-items:center"><span style="font-size:0.75rem;color:var(--text-muted)">' + (kk ? 'Дауысты дыбыспен:' : 'С огласовкой:') + '</span>' +
-          ['a', 'i', 'u'].map(function (v) { return '<button type="button" class="btn btn-sm" data-mouth-vow="' + v + '" data-ch="' + ch + '" style="font-family:Amiri,\'Scheherazade New\',serif;font-size:1.15rem;padding:0.1rem 0.6rem;line-height:1.5">' + ch + MOUTH_VOWELS[v].mark + '</button>'; }).join('') + '</div>' : '') +
+        // 7.19: кнопки «С огласовкой» убраны — звук был только голосом устройства, движение почти не отличалось
         '<div style="margin:0.35rem auto 0;max-width:340px;display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;color:var(--text-muted)"><span>⏱</span><input type="range" class="mouth-scrub" min="0" max="100" value="0" step="1" style="flex:1" aria-label="' + (kk ? 'Кадр бойынша қарау' : 'Смотреть кадр за кадром') + '"><span>' + (kk ? 'тартыңыз' : 'тяните') + '</span></div>' +
         '<div class="mouth-viewbar" style="margin-top:0.3rem;display:flex;gap:0.25rem;justify-content:center;flex-wrap:wrap;align-items:center">' +
         '<span style="font-size:0.75rem;color:var(--text-muted)">' + (kk ? 'Қосымша:' : 'Ещё вид:') + '</span>' +
@@ -17647,74 +17646,297 @@ function renderMistakes() {
 // @@MODULE app-05-plans-dictionary-search — Планы, азкары, словарь, печать суры, умный поиск, голосовой ввод
 
     
-    // ========== PLANS ==========
- // approx surah starts for simplicity - use juz from API later
-    // Map day -> approximate start surah for 30 juz plan (simplified: day n opens surah related to juz)
-    function startPlan(type) {
-      const today = new Date().toISOString().slice(0,10);
-      state.readingPlan = { type: type, startDate: today, day: 1, completed: [] };
-      saveState();
-      renderPlanStatus();
-      toast((typeof isKk === 'function' && isKk()) ? 'Жоспар басталды' : 'План запущен');
+    // ========== 7.19: «Хатм и план» — один экран вместо «Планов» и «Хатма»; прочитанное отмечается само ==========
+    // Учёт по аятам (6236 бит в state.khatm.b), объём — в долях джуза (30 джузов примерно равны по страницам).
+    function rdDay(d) { d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function rdAddDays(ds, n) { var d = new Date(ds + 'T12:00:00'); d.setDate(d.getDate() + n); return rdDay(d); }
+    function rdDiff(a, b) { return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000); }
+    var _rdIdx = null;
+    function rdIdx() {
+      if (_rdIdx) return _rdIdx;
+      var pre = [0];
+      for (var s = 1; s <= 114; s++) pre[s] = pre[s - 1] + (SURAH_AYAH_COUNTS[s] || 0);
+      var js = [];
+      Object.keys(MUSHAF_JUZ_START).forEach(function(k) { var p = k.split(':'); js[MUSHAF_JUZ_START[k]] = pre[+p[0] - 1] + (+p[1]) - 1; });
+      js[31] = pre[114];
+      _rdIdx = { pre: pre, total: pre[114], js: js };
+      return _rdIdx;
     }
-    function localizePlanCards() {
-      const kkPl = (typeof isKk === 'function') ? isKk() : (state.settings && state.settings.lang === 'kk');
-      const map = [
-        ['plan-juz', kkPl?'Күніне 1 жүз':'1 джуз в день', kkPl?'30 күнде хатым':'Хатм за 30 дней'],
-        ['plan-page', kkPl?'Күніне 4 бет':'4 страницы в день', kkPl?'Шамамен 40 күнде хатым':'Хатм примерно за 40 дней'],
-        ['plan-ramadan', kkPl?'Рамазан (1 жүз)':'Рамадан (1 джуз)', kkPl?'30 күн — толық хатым':'30 дней — полный хатм']
-      ];
-      map.forEach(([id, title, sub]) => {
-        const cardEl = document.getElementById(id);
-        if (!cardEl) return;
-        const strongEl = cardEl.querySelector('strong');
-        const metaEl = cardEl.querySelector('.surah-meta');
-        if (strongEl) strongEl.textContent = title;
-        if (metaEl) metaEl.textContent = sub;
+    function rdG(s, a) { return rdIdx().pre[s - 1] + a - 1; }
+    function rdSA(g) { var I = rdIdx(), s = 1; while (s < 114 && I.pre[s] <= g) s++; return [s, g - I.pre[s - 1] + 1]; }
+    function rdJuzOf(g) { var js = rdIdx().js; for (var j = 30; j >= 1; j--) if (g >= js[j]) return j; return 1; }
+    function rdK() {
+      if (!state.khatm || typeof state.khatm !== 'object') state.khatm = { juz: {} };
+      var k = state.khatm;
+      if (!k.juz) k.juz = {};
+      if (!k.days || typeof k.days !== 'object') k.days = {};
+      return k;
+    }
+    var _rdBits = null, _rdBitsB = null;
+    function rdBits() {
+      var k = rdK();
+      if (_rdBits && k.b === _rdBitsB) return _rdBits;
+      var I = rdIdx(); _rdBits = new Uint8Array(I.total);
+      try { if (k.b) { var bin = atob(k.b); for (var i = 0; i < I.total; i++) _rdBits[i] = (bin.charCodeAt(i >> 3) >> (i & 7)) & 1; } } catch(e) {}
+      _rdBitsB = k.b;
+      return _rdBits;
+    }
+    function rdSaveBits() {
+      var I = rdIdx(), n = Math.ceil(I.total / 8), arr = new Uint8Array(n), s = '';
+      for (var i = 0; i < I.total; i++) if (_rdBits[i]) arr[i >> 3] |= 1 << (i & 7);
+      for (var j = 0; j < n; j++) s += String.fromCharCode(arr[j]);
+      rdK().b = btoa(s); _rdBitsB = rdK().b;
+    }
+    function rdJuzSize(j) { var I = rdIdx(); return I.js[j + 1] - I.js[j]; }
+    function rdJuzCount(j) { var I = rdIdx(), B = rdBits(), c = 0; for (var g = I.js[j]; g < I.js[j + 1]; g++) c += B[g]; return c; }
+    function rdDoneJ() { var s = 0; for (var j = 1; j <= 30; j++) s += rdJuzCount(j) / rdJuzSize(j); return s; }
+    function rdFirstUnread(from) { var B = rdBits(), I = rdIdx(); for (var g = from || 0; g < I.total; g++) if (!B[g]) return g; return -1; }
+    // отметить/снять диапазон глобальных индексов (включительно); src: 'read' | 'listen' | 'manual'
+    function rdMark(g1, g2, on, src) {
+      var B = rdBits(), I = rdIdx(), k = rdK(), added = 0, addJ = 0, touched = {}, kk = isKk();
+      g1 = Math.max(0, g1); g2 = Math.min(I.total - 1, g2);
+      for (var g = g1; g <= g2; g++) {
+        if (!!B[g] === !!on) continue;
+        B[g] = on ? 1 : 0;
+        var j = rdJuzOf(g); touched[j] = 1;
+        if (on) { added++; addJ += 1 / rdJuzSize(j); }
+      }
+      var tj = Object.keys(touched);
+      if (!tj.length) return 0;
+      rdSaveBits();
+      var today = rdDay();
+      if (on && src !== 'migrate') {
+        k.days[today] = (k.days[today] || 0) + added;
+        if (!k.tj || k.tj.d !== today) k.tj = { d: today, j: 0 };
+        k.tj.j += addJ;
+        if (!k.startDate) k.startDate = today;
+        k.lastDate = today;
+      }
+      tj.forEach(function(j) {
+        var full = rdJuzCount(+j) === rdJuzSize(+j), was = k.juz[j] === true;
+        k.juz[j] = full;
+        if (on && full && !was && src !== 'manual') { try { toast(kk ? j + '-жүз оқылды — мәшәллаһ!' : 'Джуз ' + j + ' прочитан — машаАллах!'); } catch(e) {} }
       });
+      if (on && !k.doneAt && rdFirstUnread(0) < 0) { k.doneAt = today; try { toast(kk ? 'Хатым аяқталды — Аллаһ қабыл етсін!' : 'Хатм завершён — да примет Аллах!'); } catch(e) {} }
+      try { saveState(); } catch(e) {}
+      return added;
     }
-    function renderPlanStatus() {
-      try { injectMyReadingTabs('plans'); } catch(e) {}
-      try { localizePlanCards(); } catch(e) {}
-
-      const el = document.getElementById('plan-status');
-      if (!el) return;
-      const kkPS = (typeof isKk === 'function') ? isKk() : (state.settings && state.settings.lang === 'kk');
-      if (!state.readingPlan) {
-        el.innerHTML = '<p style="color:var(--text-muted)">'+(kkPS?'Жоғарыдан жоспар таңдаңыз. Оқыған сайын күндерді белгілеңіз.':'Выберите план выше. Отмечайте дни по мере чтения.')+'</p>';
+    function rdMarkJuz(j, on, src) { var I = rdIdx(); rdMark(I.js[j], I.js[j + 1] - 1, on, src || 'manual'); }
+    // старые отметки джузов (прежний «Хатм», вкладка Рамадана) и старый план → в новый учёт
+    function rdSync() {
+      var k = rdK();
+      if (!k.v2) {
+        k.v2 = 1;
+        var old = Object.keys(k.juz).filter(function(j) { return k.juz[j] === true; });
+        old.forEach(function(j) { rdMarkJuz(+j, true, 'migrate'); });
+        try {
+          var rp = state.readingPlan;
+          if (rp && rp.startDate && !k.plan) k.plan = { start: rp.startDate, days: rp.type === 'page' ? 150 : 30 };
+          state.readingPlan = null;
+        } catch(e) {}
+        try { saveState(); } catch(e) {}
         return;
       }
-      const p = state.readingPlan;
-      const day = p.day || 1;
-      const labels = kkPS
-        ? { juz: 'Күніне 1 жүз', page: 'Күніне 4 бет', ramadan: 'Рамазан' }
-        : { juz: '1 джуз/день', page: '4 стр/день', ramadan: 'Рамадан' };
-      el.innerHTML = '<strong>'+(kkPS?'Белсенді жоспар: ':'Активный план: ')+(labels[p.type]||p.type)+'</strong><br>' +
-        (kkPS?'Күн ':'День ')+'<b>'+day+'</b> · '+(kkPS?'басталды ':'начат ')+formatDateRu(p.startDate) +
-        '<div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap">' +
-        '<button class="btn btn-sm btn-primary" id="btn-plan-done">'+(kkPS?'✓ Күн орындалды':'✓ День выполнен')+'</button>' +
-        '<button class="btn btn-sm" id="btn-plan-open">'+(kkPS?'Күнделікті сүрені ашу':'Открыть суру дня')+'</button>' +
-        '<button class="btn btn-sm" id="btn-plan-reset" style="color:var(--danger)">'+(kkPS?'Жоспарды нөлдеу':'Сбросить план')+'</button></div>';
-      document.getElementById('btn-plan-done')?.addEventListener('click', () => {
-        p.completed = p.completed || [];
-        p.completed.push(p.day);
-        p.day = Math.min(30, (p.day||1)+1);
-        saveState();
-        renderPlanStatus();
-        toast(kkPS ? ('Керемет! '+(p.day-1)+'-күн белгіленді') : ('Отлично! День '+ (p.day-1) +' отмечен'));
-      });
-      document.getElementById('btn-plan-open')?.addEventListener('click', () => {
-        // simplified: day maps to surah roughly
-        const s = Math.min(114, Math.max(1, Math.round(p.day * 114 / 30)));
-        openSurah(s);
-      });
-      document.getElementById('btn-plan-reset')?.addEventListener('click', () => {
-        if (confirm(kkPS ? 'Жоспарды нөлдеу керек пе?' : 'Сбросить план?')) { state.readingPlan = null; saveState(); renderPlanStatus(); }
-      });
+      for (var j = 1; j <= 30; j++) {
+        var full = rdJuzCount(j) === rdJuzSize(j);
+        if (k.juz[j] === true && !full) rdMarkJuz(j, true, 'migrate');      // отметили во вкладке Рамадана
+        else if (k.juz[j] === false && full) rdMarkJuz(j, false, 'migrate'); // сняли там же
+      }
     }
-    document.getElementById('plan-juz')?.addEventListener('click', () => startPlan('juz'));
-    document.getElementById('plan-page')?.addEventListener('click', () => startPlan('page'));
-    document.getElementById('plan-ramadan')?.addEventListener('click', () => startPlan('ramadan'));
+    function rdPlanInfo() {
+      var k = rdK(), p = k.plan; if (!p || !p.start || !p.days) return null;
+      var today = rdDay(), end = rdAddDays(p.start, p.days - 1);
+      var left = Math.max(1, rdDiff(today, end) + 1);
+      var done = rdDoneJ(), todayJ = (k.tj && k.tj.d === today) ? k.tj.j : 0;
+      var before = Math.max(0, done - todayJ);
+      var target = Math.max(0, (30 - before) / left);
+      var elapsed = Math.min(p.days, Math.max(0, rdDiff(p.start, today)));
+      var expected = 30 * elapsed / p.days;
+      return { end: end, left: left, day: Math.min(p.days, rdDiff(p.start, today) + 1), done: done, todayJ: todayJ, target: target, diff: before - expected, over: rdDiff(today, end) < 0 };
+    }
+    // сегодняшняя порция: с первого непрочитанного аята, пока не наберётся остаток нормы
+    function rdTodayRange(need) {
+      var B = rdBits(), I = rdIdx(), g0 = rdFirstUnread(0);
+      if (g0 < 0 || need <= 0) return null;
+      var sum = 0, g = g0, last = g0;
+      for (; g < I.total; g++) { if (B[g]) continue; sum += 1 / rdJuzSize(rdJuzOf(g)); last = g; if (sum >= need - 1e-9) break; }
+      return [g0, last];
+    }
+    function rdSaLabel(g) { var sa = rdSA(g), nm = typeof surahNameLocal === 'function' ? String(surahNameLocal(sa[0]) || '').replace(/\s*\(\d+\)\s*$/, '') : ''; return (nm ? nm + ' ' : '') + sa[0] + ':' + sa[1]; }
+    function rdJ(v, kk) { // «≈ 1 джуз (20 стр.)», «≈ 8 стр.»
+      var pages = Math.max(1, Math.round(v * 20)), pg = pages + (kk ? ' бет' : ' стр.');
+      if (v < 0.95) return '≈ ' + pg;
+      var n = Math.round(v * 10) / 10, w;
+      if (kk) w = ' жүз';
+      else if (n % 1) w = ' джуза';
+      else { var m10 = n % 10, m100 = n % 100; w = (m10 === 1 && m100 !== 11) ? ' джуз' : (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) ? ' джуза' : ' джузов'; }
+      return '≈ ' + String(n).replace('.', ',') + w + ' (' + pg + ')';
+    }
+    function rdDaysStats() {
+      var d = rdK().days, now = new Date(), has = function(ds) { return (d[ds] || 0) > 0; };
+      var wd = (now.getDay() + 6) % 7, mon = new Date(now); mon.setDate(now.getDate() - wd);
+      var week = [], w = 0;
+      for (var i = 0; i < 7; i++) { var x = new Date(mon); x.setDate(mon.getDate() + i); var ds = rdDay(x); week.push({ ds: ds, on: has(ds), fut: i > wd }); if (has(ds)) w++; }
+      var ym = rdDay(now).slice(0, 7), y = String(now.getFullYear());
+      var dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      var diy = (new Date(now.getFullYear(), 1, 29).getMonth() === 1) ? 366 : 365;
+      var m = 0, yr = 0;
+      Object.keys(d).forEach(function(ds) { if (!has(ds)) return; if (ds.slice(0, 7) === ym) m++; if (ds.slice(0, 4) === y) yr++; });
+      return { week: week, w: w, m: m, dim: dim, y: yr, diy: diy };
+    }
+    var _rdOpenJuz = 0;
+    function renderPlanStatus() {
+      try { injectMyReadingTabs('plans'); } catch(e) {}
+      var el = document.getElementById('rd-body'); if (!el) return;
+      var kk = isKk(), k = rdK();
+      try { rdSync(); } catch(e) {}
+      var I = rdIdx(), done = rdDoneJ(), pct = Math.floor(done / 30 * 1000) / 10, P = rdPlanInfo(), next = rdFirstUnread(0);
+      var h = '';
+      // 1) сегодня / выбор цели
+      if (next >= 0 && P) {
+        var need = Math.max(0, P.target - P.todayJ), rng = rdTodayRange(need), tp = P.target > 0 ? Math.min(100, Math.round(P.todayJ / P.target * 100)) : 100;
+        var st = P.over ? (kk ? 'Мерзім өтті — асықпай жалғастырыңыз немесе жоспарды өзгертіңіз.' : 'Срок прошёл — продолжайте без спешки или поменяйте план.')
+          : Math.abs(P.diff) < 0.15 ? (kk ? 'Кестеде келесіз 👍' : 'Вы в графике 👍')
+          : P.diff > 0 ? (kk ? 'Озып келесіз: ' : 'Опережаете: ') + rdJ(P.diff, kk)
+          : (kk ? 'Артта: ' + rdJ(-P.diff, kk) + ' — норма қайта есептелді, асықпаңыз.' : 'Отстаёте на ' + rdJ(-P.diff, kk) + ' — норма пересчитана, без спешки.');
+        h += '<div class="card rd-today"><div class="rd-h"><b>' + (kk ? 'Бүгін' : 'Сегодня') + '</b><span>' + (kk ? P.day + '-күн, барлығы ' + k.plan.days : 'день ' + P.day + ' из ' + k.plan.days) + '</span></div>';
+        if (rng) {
+          h += '<div class="rd-portion">' + rdJ(need, kk) + '</div>' +
+            '<div class="rd-range">' + rdSaLabel(rng[0]) + ' → ' + rdSaLabel(rng[1]) + '</div>' +
+            '<div class="rd-bar"><i style="width:' + tp + '%"></i></div>' +
+            '<div class="rd-btns"><button type="button" class="btn btn-primary" data-rd-read="' + rng[0] + '">▶ ' + (kk ? 'Оқу' : 'Читать') + '</button>' +
+            '<button type="button" class="btn" data-rd-listen="' + rng[0] + '">🎧 ' + (kk ? 'Тыңдау' : 'Слушать') + '</button>' +
+            '<button type="button" class="btn" data-rd-markrange="' + rng[0] + ',' + rng[1] + '">✓ ' + (kk ? 'Оқыдым' : 'Прочитал(а)') + '</button></div>';
+        } else {
+          h += '<div class="rd-portion">✓ ' + (kk ? 'Бүгінгі норма орындалды' : 'Норма на сегодня выполнена') + '</div>' +
+            '<div class="rd-bar"><i style="width:100%"></i></div>' +
+            '<div class="rd-btns"><button type="button" class="btn" data-rd-read="' + next + '">▶ ' + (kk ? 'Әрі қарай оқу' : 'Читать дальше') + '</button></div>';
+        }
+        h += '<div class="rd-note">' + st + '</div>' +
+          '<div class="rd-note">' + (kk ? 'Аяқталуы: ' : 'Завершение: ') + formatDateRu(P.end) + ' · <button type="button" class="btn-link" data-rd-replan="1">' + (kk ? 'жоспарды өзгерту' : 'изменить план') + '</button></div></div>';
+      } else if (next >= 0) {
+        h += rdGoalHtml(kk, !!k.plan);
+        if (next > 0) h += '<div class="card rd-cont"><b>' + (kk ? 'Тоқтаған жерден' : 'С места, где остановились') + '</b><div class="rd-range">' + rdSaLabel(next) + '</div><div class="rd-btns"><button type="button" class="btn btn-primary" data-rd-read="' + next + '">▶ ' + (kk ? 'Оқу' : 'Читать') + '</button><button type="button" class="btn" data-rd-listen="' + next + '">🎧 ' + (kk ? 'Тыңдау' : 'Слушать') + '</button></div></div>';
+      } else {
+        h += '<div class="card rd-done"><b>🌿 ' + (kk ? 'Хатым аяқталды — мәшәллаһ!' : 'Хатм завершён — машаАллах!') + '</b><div class="rd-note">' + (kk ? 'Аллаһ қабыл етсін. Жаңа айналымды бастауға болады.' : 'Да примет Аллах. Можно начать новый круг.') + '</div>' +
+          '<div class="rd-btns"><button type="button" class="btn btn-primary" data-rd-newcycle="1">↻ ' + (kk ? 'Жаңа хатым' : 'Новый хатм') + '</button></div></div>';
+      }
+      // 2) прогресс хатма + карта джузов
+      h += '<div class="card rd-khatm"><div class="rd-h"><b>📖 ' + (kk ? 'Хатым' : 'Хатм') + (k.cycles ? ' · ' + (kk ? (k.cycles + 1) + '-айналым' : (k.cycles + 1) + '-й круг') : '') + '</b><span>' + String(Math.floor(done * 10) / 10).replace('.', ',') + ' / 30 ' + (kk ? 'жүз' : 'джузов') + ' · ' + String(pct).replace('.', ',') + '%</span></div>' +
+        '<div class="rd-bar"><i style="width:' + pct + '%"></i></div>' +
+        '<div class="rd-grid">';
+      for (var j = 1; j <= 30; j++) {
+        var c = rdJuzCount(j), n = rdJuzSize(j), jp = Math.round(c / n * 100);
+        h += '<button type="button" class="rd-j' + (jp >= 100 ? ' full' : '') + (_rdOpenJuz === j ? ' on' : '') + (next >= 0 && rdJuzOf(next) === j ? ' cur' : '') + '" data-rd-juz="' + j + '" style="--p:' + jp + '%" aria-label="' + (kk ? j + '-жүз, ' : 'Джуз ' + j + ', ') + jp + '%"><b>' + j + '</b><small>' + (jp && jp < 100 ? jp + '%' : (jp >= 100 ? '✓' : '')) + '</small></button>';
+      }
+      h += '</div>';
+      if (_rdOpenJuz) {
+        var oj = _rdOpenJuz, oc = rdJuzCount(oj), on = rdJuzSize(oj), first = rdFirstUnread(I.js[oj]);
+        if (first >= I.js[oj + 1]) first = -1;
+        h += '<div class="rd-jdet"><b>' + (kk ? oj + '-жүз' : 'Джуз ' + oj) + '</b> · ' + rdSaLabel(I.js[oj]) + ' → ' + rdSaLabel(I.js[oj + 1] - 1) + '<div class="rd-note">' + (kk ? 'Оқылды: ' : 'Прочитано: ') + oc + ' / ' + on + ' ' + (kk ? 'аят' : 'аятов') + '</div>' +
+          '<div class="rd-btns"><button type="button" class="btn btn-sm btn-primary" data-rd-read="' + (first >= 0 ? first : I.js[oj]) + '">▶ ' + (first >= 0 && first > I.js[oj] ? (kk ? 'Жалғастыру' : 'Продолжить') : (kk ? 'Ашу' : 'Открыть')) + '</button>' +
+          (oc < on ? '<button type="button" class="btn btn-sm" data-rd-mjuz="' + oj + '">✓ ' + (kk ? 'Толық оқылды' : 'Прочитан весь') + '</button>' : '') +
+          (oc > 0 ? '<button type="button" class="btn btn-sm" data-rd-ujuz="' + oj + '">↺ ' + (kk ? 'Белгілерді алу' : 'Снять отметки') + '</button>' : '') + '</div></div>';
+      }
+      h += '<div class="rd-note">' + (kk ? 'Өзі белгіленеді: экранда оқыған немесе тыңдаған аяттар. Жүзді басыңыз — толығырақ.' : 'Отмечается само: аяты, которые вы прочитали на экране или прослушали. Нажмите джуз — подробнее.') + '</div></div>';
+      // 3) дни с Кораном — не подряд, а сколько дней из недели/месяца/года
+      var D = rdDaysStats(), dn = kk ? ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сн', 'Жк'] : ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      var row = function(lab, a, b) { return '<div class="rd-drow"><span>' + lab + '</span><span class="rd-bar"><i style="width:' + Math.round(a / b * 100) + '%"></i></span><b>' + a + ' ' + (kk ? '/ ' : 'из ') + b + '</b></div>'; };
+      h += '<div class="card rd-days"><div class="rd-h"><b>📅 ' + (kk ? 'Құранмен күндер' : 'Дни с Кораном') + '</b></div>' +
+        '<div class="rd-week">' + D.week.map(function(x, i) { return '<span class="' + (x.on ? 'on' : '') + (x.fut ? ' fut' : '') + '"><i></i><small>' + dn[i] + '</small></span>'; }).join('') + '</div>' +
+        row(kk ? 'Осы апта' : 'Эта неделя', D.w, 7) + row(kk ? 'Осы ай' : 'Этот месяц', D.m, D.dim) + row(kk ? 'Осы жыл' : 'Этот год', D.y, D.diy) +
+        '<div class="rd-note">' + (kk ? 'Қатарынан болуы міндетті емес — ең бастысы тұрақтылық. Аз болса да, үзбей.' : 'Не обязательно подряд — главное постоянство. Пусть понемногу, но регулярно.') + '</div></div>';
+      if (done > 0) h += '<div class="rd-foot"><button type="button" class="btn btn-sm btn-quiet" data-rd-reset="1" style="color:var(--danger)">' + (kk ? 'Хатымды нөлдеу' : 'Сбросить хатм') + '</button></div>';
+      el.innerHTML = h;
+    }
+    function rdGoalHtml(kk, hadPlan) {
+      var opts = [[15, kk ? 'күніне 2 жүз' : '2 джуза в день'], [30, kk ? 'күніне 1 жүз · Рамазан' : '1 джуз в день · Рамадан'], [60, kk ? 'күніне жарты жүз' : 'полджуза в день'], [90, kk ? 'күніне ≈ 7 бет' : '≈ 7 стр. в день'], [365, kk ? 'күніне ≈ 2 бет' : '≈ 2 стр. в день']];
+      return '<div class="card rd-goal"><div class="rd-h"><b>🎯 ' + (kk ? 'Хатым мақсаты' : 'Цель хатма') + '</b>' + (hadPlan ? '<button type="button" class="btn-link" data-rd-cancel="1">' + (kk ? 'жоспарсыз' : 'без плана') + '</button>' : '') + '</div>' +
+        '<div class="rd-opts">' + opts.map(function(o) { return '<button type="button" class="rd-opt" data-rd-plan="' + o[0] + '"><b>' + o[0] + ' ' + (kk ? 'күн' : (o[0] === 365 ? 'дней · год' : 'дней')) + '</b><small>' + o[1] + '</small></button>'; }).join('') +
+        '<label class="rd-opt rd-own"><b>' + (kk ? 'Өз мерзімім' : 'Свой срок') + '</b><input type="date" id="rd-own-date" min="' + rdAddDays(rdDay(), 1) + '"></label></div>' +
+        '<div class="rd-note">' + (kk ? 'Норма қалған көлем мен күндерге қарай есептеледі; бір күн өткізіп алсаңыз — асықтырмай қайта есептеледі. Жоспарсыз да оқылғаны өзі белгіленеді.' : 'Норма считается по оставшемуся объёму и дням; пропустили день — спокойно пересчитается. Без плана прочитанное тоже отмечается само.') + '</div></div>';
+    }
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t || !t.closest('#rd-body')) return;
+      var kk = isKk(), k = rdK(), b;
+      var open = function(g, listen) { var sa = rdSA(+g); try { if (listen) loadSurahQueue(sa[0], 'surah', sa[1]); else openSurah(sa[0], sa[1]); } catch(er) {} };
+      if ((b = t.closest('[data-rd-read]'))) { open(b.getAttribute('data-rd-read'), false); return; }
+      if ((b = t.closest('[data-rd-listen]'))) { open(b.getAttribute('data-rd-listen'), true); return; }
+      if ((b = t.closest('[data-rd-markrange]'))) { var r = b.getAttribute('data-rd-markrange').split(','); rdMark(+r[0], +r[1], true, 'manual'); renderPlanStatus(); return; }
+      if ((b = t.closest('[data-rd-juz]'))) { var j = +b.getAttribute('data-rd-juz'); _rdOpenJuz = _rdOpenJuz === j ? 0 : j; renderPlanStatus(); return; }
+      if ((b = t.closest('[data-rd-mjuz]'))) { rdMarkJuz(+b.getAttribute('data-rd-mjuz'), true); renderPlanStatus(); return; }
+      if ((b = t.closest('[data-rd-ujuz]'))) { rdMarkJuz(+b.getAttribute('data-rd-ujuz'), false); renderPlanStatus(); return; }
+      if ((b = t.closest('[data-rd-plan]'))) { k.plan = { start: rdDay(), days: +b.getAttribute('data-rd-plan') }; try { saveState(); } catch(er) {} toast(kk ? 'Жоспар басталды' : 'План запущен'); renderPlanStatus(); return; }
+      if (t.closest('[data-rd-replan]')) { var el = document.getElementById('rd-body'); if (el) { el.insertAdjacentHTML('afterbegin', rdGoalHtml(kk, true)); el.querySelector('.rd-goal').scrollIntoView({ behavior: 'smooth', block: 'start' }); } return; }
+      if (t.closest('[data-rd-cancel]')) { k.plan = null; try { saveState(); } catch(er) {} renderPlanStatus(); return; }
+      if (t.closest('[data-rd-newcycle]')) { k.cycles = (k.cycles || 0) + 1; k.b = ''; _rdBits = null; k.juz = {}; k.doneAt = null; k.tj = null; k.startDate = null; if (k.plan) k.plan = { start: rdDay(), days: k.plan.days }; try { saveState(); } catch(er) {} renderPlanStatus(); return; }
+      if (t.closest('[data-rd-reset]')) {
+        if (!confirm(kk ? 'Хатымның барлық белгісін өшіру керек пе? (Құранмен күндер сақталады)' : 'Стереть все отметки хатма? (дни с Кораном сохранятся)')) return;
+        k.b = ''; _rdBits = null; k.juz = {}; k.doneAt = null; k.tj = null; k.startDate = null; try { saveState(); } catch(er) {} renderPlanStatus(); return;
+      }
+    });
+    document.addEventListener('change', function(e) {
+      if (!e.target || e.target.id !== 'rd-own-date' || !e.target.value) return;
+      var days = rdDiff(rdDay(), e.target.value) + 1; if (days < 2) return;
+      rdK().plan = { start: rdDay(), days: days }; try { saveState(); } catch(er) {}
+      toast(isKk() ? 'Жоспар басталды' : 'План запущен'); renderPlanStatus();
+    });
+    // авто-учёт в читалке: аят засчитан, если он был на экране достаточно долго (≈0,5 с на слово, от 2 до 25 с)
+    var _rdIO = null, _rdVis = new Map(), _rdTick = null, _rdQ = [];
+    function rdNeedMs(el) { var tx = el.querySelector('.ayah-text'); var w = tx ? (tx.textContent || '').trim().split(/\s+/).length : 6; return Math.min(25000, Math.max(2000, w * 500)); }
+    function rdReaderActive() { var v = document.getElementById('view-reader'); return !!(v && v.classList.contains('active')) && !document.hidden; }
+    function rdTrackReader() {
+      if (typeof IntersectionObserver === 'undefined') return;
+      var list = document.getElementById('ayah-list'); if (!list) return;
+      if (_rdIO) _rdIO.disconnect();
+      _rdVis.clear();
+      var vh = function() { return window.innerHeight || 700; };
+      _rdIO = new IntersectionObserver(function(ents) {
+        var now = Date.now();
+        ents.forEach(function(en) {
+          var el = en.target, vis = en.isIntersecting && (en.intersectionRatio >= 0.5 || en.intersectionRect.height >= vh() * 0.5);
+          if (vis && !_rdVis.has(el)) _rdVis.set(el, now);
+          else if (!vis && _rdVis.has(el)) { el._rdAcc = (el._rdAcc || 0) + (now - _rdVis.get(el)); _rdVis.delete(el); rdCheck(el); }
+        });
+      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+      list.querySelectorAll('.ayah[data-ayah]').forEach(function(el) { if (!el._rdDone) _rdIO.observe(el); });
+      if (!_rdTick) _rdTick = setInterval(rdTickFn, 1500);
+    }
+    function rdCheck(el) {
+      if (el._rdDone || (el._rdAcc || 0) < rdNeedMs(el)) return;
+      var s = +(state && state.currentSurah), a = +el.getAttribute('data-ayah');
+      if (!s || !a || !el.closest('#ayah-list')) return;
+      el._rdDone = true; try { _rdIO && _rdIO.unobserve(el); } catch(e) {}
+      _rdQ.push(rdG(s, a));
+    }
+    function rdTickFn() {
+      var now = Date.now(), act = rdReaderActive();
+      _rdVis.forEach(function(t0, el) {
+        if (act) el._rdAcc = (el._rdAcc || 0) + (now - t0);
+        _rdVis.set(el, now);
+        if (act) rdCheck(el);
+      });
+      if (_rdQ.length && (_rdQ.length >= 5 || !act || (now - (rdTickFn._last || 0)) > 8000)) {
+        rdTickFn._last = now;
+        var q = _rdQ.splice(0).sort(function(x, y) { return x - y; }), i = 0;
+        while (i < q.length) { var a = q[i], b = a; while (i + 1 < q.length && q[i + 1] <= b + 1) { i++; b = q[i]; } rdMark(a, b, true, 'read'); i++; }
+      }
+    }
+    (function() {
+      var list = document.getElementById('ayah-list');
+      if (!list || typeof MutationObserver !== 'function') return;
+      var tm = null;
+      new MutationObserver(function() { clearTimeout(tm); tm = setTimeout(function() { try { rdTrackReader(); } catch(e) {} }, 400); }).observe(list, { childList: true });
+    })();
+    // прослушанный до конца аят (или целая сура) тоже засчитывается
+    function rdOnAudioEnded(item) {
+      try {
+        if (!item || item.ext || !item.surah) return;
+        var s = +item.surah, a = +item.ayah || 1;
+        if (item.whole) rdMark(rdG(s, a), rdG(s, SURAH_AYAH_COUNTS[s]), true, 'listen');
+        else if (item.ayah) rdMark(rdG(s, a), rdG(s, a), true, 'listen');
+      } catch(e) {}
+    }
 
     // build 6.02: разделы «Азкары и дуа» и «Дуа-конструктор» удалены — их заменил «Дуа и зикры» (Хисн аль-муслим)
 
@@ -17915,168 +18137,8 @@ function renderMistakes() {
     }
 
 
-    function renderKhatm() {
-      try { injectMyReadingTabs('khatm'); } catch(e) {}
-
-      const el = document.getElementById('khatm-body');
-      if (!el) return;
-      const kkK = (typeof isKk === 'function') ? isKk() : (state.settings && state.settings.lang === 'kk');
-      if (!state.khatm) state.khatm = { juz: {} };
-      if (!state.khatm.juz) state.khatm.juz = {};
-      const doneMap = state.khatm.juz;
-      const doneList = Object.keys(doneMap).filter(function(k){ return doneMap[k]; }).map(Number).sort(function(a,b){ return a-b; });
-      const done = doneList.length;
-      const pct = Math.round(done / 30 * 100);
-      // next unread juz
-      var nextJuz = 1;
-      for (var n = 1; n <= 30; n++) { if (!doneMap[n]) { nextJuz = n; break; } }
-      if (done >= 30) nextJuz = null;
-      // pace: average days between marks if history exists
-      var lastDate = state.khatm.lastDate || null;
-      var startDate = state.khatm.startDate || null;
-      if (!startDate && done > 0) {
-        state.khatm.startDate = new Date().toISOString().slice(0,10);
-        startDate = state.khatm.startDate;
-      }
-      var etaText = '';
-      if (done > 0 && done < 30 && startDate) {
-        try {
-          var start = new Date(startDate + 'T00:00:00');
-          var daysPassed = Math.max(1, Math.round((Date.now() - start.getTime()) / 86400000));
-          var rate = done / daysPassed; // juz per day
-          if (rate > 0) {
-            var daysLeft = Math.ceil((30 - done) / rate);
-            var eta = new Date(Date.now() + daysLeft * 86400000);
-            etaText = kkK
-              ? ('Шамамен ' + daysLeft + ' күн · ' + formatDateRu(eta))
-              : ('≈ ' + daysLeft + ' дн. · ' + formatDateRu(eta));
-          }
-        } catch(e) {}
-      }
-      var range = (typeof JUZ_SURAH_RANGE !== 'undefined' && nextJuz) ? JUZ_SURAH_RANGE[nextJuz] : null;
-      function juzLabel(j) {
-        var r = (typeof JUZ_SURAH_RANGE !== 'undefined') ? JUZ_SURAH_RANGE[j] : null;
-        if (!r) return '';
-        var a = (typeof surahNameLocal === 'function') ? surahNameLocal(r[0]) : ('сура ' + r[0]);
-        var b = (typeof surahNameLocal === 'function') ? surahNameLocal(r[1]) : ('сура ' + r[1]);
-        if (r[0] === r[1]) return a;
-        return a + ' – ' + b;
-      }
-      var html = '';
-      // Progress
-      html += '<div class="card" style="border-color:var(--accent)">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:0.5rem;flex-wrap:wrap">';
-      html += '<b>'+(kkK?'Хатым үлгерімі':'Прогресс хатма')+'</b>';
-      html += '<span style="color:var(--accent);font-weight:600">'+done+' / 30 · '+pct+'%</span>';
-      html += '</div>';
-      html += '<div style="height:10px;background:var(--border);border-radius:5px;margin:0.55rem 0 0.35rem;overflow:hidden"><div style="height:10px;width:'+pct+'%;background:var(--accent);border-radius:5px;transition:width .25s"></div></div>';
-      if (done >= 30) {
-        html += '<div class="ayah-translation" style="margin-top:0.35rem">'+(kkK?'Мәшәллаһ! Хатым аяқталды. Жаңа айналымды бастауға болады.':'Машáллах! Хатм завершён. Можно начать новый круг.')+'</div>';
-      } else if (etaText) {
-        html += '<div style="font-size:0.85rem;color:var(--text-muted)">'+(kkK?'Болжамды аяқталу: ':'Ожидаемое завершение: ')+etaText+'</div>';
-      } else if (done === 0) {
-        html += '<div style="font-size:0.85rem;color:var(--text-muted)">'+(kkK?'Бірінші жүзді белгілеңіз — есеп осыдан басталады.':'Отметьте первый джуз — отсчёт начнётся с этого дня.')+'</div>';
-      }
-      html += '</div>';
-
-      // Today / continue
-      if (nextJuz) {
-        html += '<div class="card">';
-        html += '<b>'+(kkK?'Бүгінгі ұсыныс':'На сегодня')+'</b>';
-        html += '<div class="ayah-translation" style="margin:0.35rem 0">'+(kkK?'Келесі оқылмаған жүз: ':'Следующий непрочитанный джуз: ')+'<b>'+nextJuz+'</b>';
-        html += ' <span style="color:var(--text-muted)">('+juzLabel(nextJuz)+')</span></div>';
-        html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.4rem">';
-        html += '<button type="button" class="btn btn-sm btn-primary" data-khatm-open="'+nextJuz+'">'+(kkK?'Оқуды бастау':'Открыть чтение')+'</button>';
-        html += '<button type="button" class="btn btn-sm" data-khatm-mark="'+nextJuz+'">'+(kkK?'✓ Оқылды':'✓ Прочитано')+'</button>';
-        html += '</div></div>';
-      }
-
-      // Pace tips
-      html += '<div class="card" style="font-size:0.9rem">';
-      html += '<b>'+(kkK?'Қарқын':'Темп')+'</b>';
-      html += '<div class="ayah-translation" style="margin-top:0.35rem">';
-      html += kkK
-        ? '30 күнде — күніне 1 жүз · 15 күнде — 2 жүз · 60 күнде — жарты жүз. Жоспарды «Моё чтение → Планы» ішінен де таңдауға болады.'
-        : 'За 30 дней — 1 джуз/день · за 15 дней — 2 джуза · за 60 дней — по полджуза. План можно выбрать и во вкладке «Моё чтение → Планы».';
-      html += '</div></div>';
-
-      // Grid
-      html += '<div style="margin:0.75rem 0 0.35rem;font-weight:600">'+(kkK?'Жүздер картасы':'Карта джузов')+'</div>';
-      html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.4rem">';
-      for (var i = 1; i <= 30; i++) {
-        var on = !!doneMap[i];
-        var isNext = (nextJuz === i);
-        var cls = 'btn btn-sm';
-        if (on) cls += ' btn-primary';
-        var style = isNext && !on ? 'border:2px solid var(--accent);font-weight:700' : '';
-        var title = juzLabel(i);
-        html += '<button type="button" class="'+cls+'" data-juz="'+i+'" title="'+title.replace(/"/g,'&quot;')+'" style="'+style+'">'+i+'</button>';
-      }
-      html += '</div>';
-      html += '<p style="color:var(--text-muted);font-size:0.82rem;margin:0.55rem 0">'+(kkK
-        ? 'Басыңыз — оқылды деп белгілеу / алу. Жасыл (немесе акцент) — дайын. Қоршалған — келесі ұсыныс. Ұзақ басу (немесе «Оқуды бастау») — жүздің басынан сүрені ашады.'
-        : 'Нажмите — отметить / снять прочитанным. Акцент — готово. Обводка — следующий. «Открыть чтение» — сура с начала джуза.')+'</p>';
-
-      // List of remaining / done summary
-      if (done > 0 && done < 30) {
-        var left = [];
-        for (var x = 1; x <= 30; x++) if (!doneMap[x]) left.push(x);
-        html += '<div class="card" style="font-size:0.88rem">';
-        html += '<b>'+(kkK?'Қалды: ':'Осталось: ')+left.length+'</b>';
-        html += '<div style="color:var(--text-muted);margin-top:0.25rem">'+left.join(', ')+'</div></div>';
-      }
-
-      // Actions
-      html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem">';
-      if (done > 0) {
-        html += '<button type="button" class="btn btn-sm" data-khatm-reset style="color:var(--danger)">'+(kkK?'Хатымды нөлдеу':'Сбросить хатм')+'</button>';
-      }
-      if (done < 30) {
-        html += '<button type="button" class="btn btn-sm" data-khatm-mark-next>'+(kkK?'Келесіні белгілеу':'Отметить следующий')+'</button>';
-      }
-      html += '<button type="button" class="btn btn-sm" data-go="plans">'+(kkK?'Оқу жоспарлары':'Планы чтения')+'</button>';
-      html += '</div>';
-
-      el.innerHTML = html;
-
-      function toggleJuz(n) {
-        var was = !!state.khatm.juz[n];
-        state.khatm.juz[n] = !was;
-        if (!was) {
-          state.khatm.lastDate = new Date().toISOString().slice(0,10);
-          if (!state.khatm.startDate) state.khatm.startDate = state.khatm.lastDate;
-        }
-        saveState();
-        renderKhatm();
-      }
-      function openJuz(n) {
-        var r = (typeof JUZ_SURAH_RANGE !== 'undefined') ? JUZ_SURAH_RANGE[n] : [1,1];
-        var s = r[0] || 1;
-        try { openSurah(s); } catch(e) { try { showView('home'); } catch(e2) {} }
-      }
-      el.querySelectorAll('[data-juz]').forEach(function(b){
-        b.addEventListener('click', function(){ toggleJuz(+b.dataset.juz); });
-      });
-      el.querySelectorAll('[data-khatm-open]').forEach(function(b){
-        b.addEventListener('click', function(){ openJuz(+b.dataset.khatmOpen); });
-      });
-      el.querySelectorAll('[data-khatm-mark]').forEach(function(b){
-        b.addEventListener('click', function(){ toggleJuz(+b.dataset.khatmMark); });
-      });
-      var bn = el.querySelector('[data-khatm-mark-next]');
-      if (bn && nextJuz) bn.addEventListener('click', function(){ toggleJuz(nextJuz); });
-      var br = el.querySelector('[data-khatm-reset]');
-      if (br) br.addEventListener('click', function(){
-        if (confirm(kkK ? 'Барлық 30 жүз белгісін өшіру керек пе?' : 'Сбросить все отметки 30 джузов?')) {
-          state.khatm = { juz: {} };
-          saveState();
-          renderKhatm();
-        }
-      });
-      el.querySelectorAll('[data-go]').forEach(function(b){
-        b.addEventListener('click', function(){ try { showView(b.dataset.go); } catch(e) {} });
-      });
-    }
+    // 7.19: «Хатм» объединён с планами в один экран
+    function renderKhatm() { try { showView('plans'); } catch(e) {} }
 
     function renderAyahDay() {
       const el = document.getElementById('ayahday-body');
@@ -28042,7 +28104,7 @@ bKk:
         myreading: 'Моё чтение — личный трекинг Корана.\n\n• Вкладки: закладки (папки, переход к аяту), планы чтения (джуз/страницы), карта хатма, прогресс заучивания.\n• Всё в одном разделе меню «Ещё» · Коран.',
         data: 'Данные — кэш и бэкап.\n\n• Вкладка «Кэш»: офлайн-суры, хадисы, тафсиры, очистка.\n• Вкладка «Экспорт / импорт»: сохранение закладок, словаря, прогресса, настроек в файл.',
         khatm: 'Входит в «Моё чтение» → вкладка «Хатм».\n\n• Карта по джузам/сурам, отметки прогресса чтения.',
-        plans: 'Входит в «Моё чтение» → вкладка «Планы».\n\n• План джуз/день, страницы и др.\n• Отслеживание хатма по расписанию.',
+        plans: 'Входит в «Моё чтение» → вкладка «Хатм и план».\n\n• Цель хатма (15/30/60/90/365 дней или свой срок), порция на сегодня, карта 30 джузов; прочитанное и прослушанное отмечается само.\n• Отслеживание хатма по расписанию.',
         progress: 'Входит в «Моё чтение» → вкладка «Прогресс».\n\n• Выученные аяты и суры, доля от всего Корана.',
         ramadan: 'Рамадан.\n\n• О Рамадане: история, достоинства, три ашры.\n• Трекер хатма (страницы/джузы).\n• Чеклист подготовки.\n• Последние 10 ночей и и\'тикаф.\n• Дуа: нийя, новолуние, ифтар, Лайлятуль-Кадр.\n• Расширенный фикх: кому обязателен пост, закят аль-фитр, таравих.\n• Данные только на устройстве.',
         hajj: 'Хадж и умра.\n\n• Краткий порядок обрядов для ознакомления.\n• Не заменяет уроки группы и руководство.\n• Детали — к знающему или официальному мануалу.',
@@ -28090,7 +28152,7 @@ bKk:
         myreading: 'Менің оқуым — Құранды жеке қадағалау.\n\n• Қойындылар: бетбелгілер (қалталар, аятқа өту), оқу жоспарлары (жүз/беттер), хатым картасы, жаттау үлгерімі.\n• Барлығы «Тағы» мәзірінің бір бөлімінде · Құран.',
         data: 'Деректер — кэш және сақтық көшірме.\n\n• «Кэш» қойындысы: офлайн сүрелер, хадистер, тәфсирлер, тазалау.\n• «Экспорт / импорт» қойындысы: бетбелгілерді, сөздікті, үлгерімді, баптауларды файлға сақтау.',
         khatm: '«Менің оқуым» → «Хатым» қойындысына кіреді.\n\n• Жүздер/сүрелер бойынша карта, оқу үлгерімінің белгілері.',
-        plans: '«Менің оқуым» → «Жоспарлар» қойындысына кіреді.\n\n• Жүз/күн, беттер және т.б. бойынша жоспар.\n• Хатымды кесте бойынша қадағалау.',
+        plans: '«Менің оқуым» → «Хатым және жоспар» қойындысына кіреді.\n\n• Хатым мақсаты (15/30/60/90/365 күн не өз мерзіміңіз), бүгінгі үлес, 30 жүз картасы; оқылғаны мен тыңдалғаны өзі белгіленеді.б. бойынша жоспар.\n• Хатымды кесте бойынша қадағалау.',
         progress: '«Менің оқуым» → «Үлгерім» қойындысына кіреді.\n\n• Жаттаған аяттар мен сүрелер, бүкіл Құранға шаққандағы үлесі.',
         ramadan: 'Рамазан.\n\n• Рамазан туралы: тарихы, артықшылықтары, үш ашыра.\n• Хатым трекері (беттер/жүздер).\n• Дайындық чек-парағы.\n• Соңғы 10 түн және итикаф.\n• Дұғалар: ниет, жаңа ай, ауызашар, Ләйләтул-Қадр.\n• Кеңейтілген фиқһ: кімге ораза парыз, зекят әл-фитр, тарауих.\n• Деректер тек құрылғыда.',
         hajj: 'Қажылық пен умра.\n\n• Танысу үшін ғұрыптардың қысқаша реті.\n• Топтағы сабақтар мен жетекшілікті алмастырмайды.\n• Егжей-тегжейлер — білетін адамға немесе ресми нұсқаулыққа.',
