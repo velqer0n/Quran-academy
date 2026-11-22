@@ -3929,11 +3929,63 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var v = document.getElementById('view-settings'); if (!v) return;
       v.classList.toggle('set-home-mode', !!on);
       var bb = document.getElementById('set-backbar');
-      try { setGroupView(); } catch(e) {}
+      try { setGroupView(); spEnhance(); document.querySelectorAll('#view-settings select.sp-hidden').forEach(function(s) { if (s._spPaint) s._spPaint(); }); } catch(e) {}
       if (on) { setHomeRender(); if (bb) bb.innerHTML = ''; return; }
       var it = SET_HOME.filter(function(x) { return x.cat === cat; })[0], kk = isKk();
       if (bb) bb.innerHTML = '<button type="button" class="btn btn-quiet sh-back" data-sh-back="1">‹ ' + (kk ? 'Баптаулар' : 'Настройки') + '</button><b>' + (it ? it.ico + ' ' + (kk ? it.kk : it.ru) : '') + '</b>';
       try { window.scrollTo(0, 0); } catch(e) {}
+    }
+    // ===== 7.31: строки настроек «Название · значение ›» с окошком выбора вместо выпадающих списков; «Сбросить раздел» =====
+    function spLabelOf(row) { var sp = row.querySelector(':scope > span, :scope > label'); if (!sp) return ''; var c = sp.cloneNode(true); c.querySelectorAll('small, br').forEach(function(x) { x.remove(); }); return c.textContent.trim(); }
+    function spHintOf(row) { var sm = row.querySelector(':scope > span small'); return sm ? sm.textContent.trim() : ''; }
+    function spCurText(sel) { var o = sel.options[sel.selectedIndex]; return o ? o.textContent.trim() : ''; }
+    function spEnhance(root) {
+      (root || document).querySelectorAll('#view-settings .set-cat .setting-row select').forEach(function(sel) {
+        if (sel._sp || sel.multiple || sel.style.display === 'none' || sel.id === 'setting-theme') return;
+        var row = sel.closest('.setting-row'); if (!row) return;
+        sel._sp = true; sel.classList.add('sp-hidden');
+        var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'sp-val';
+        btn.innerHTML = '<span class="sp-v"></span><span class="sp-chev" aria-hidden="true">›</span>';
+        sel.parentNode.insertBefore(btn, sel.nextSibling);
+        row.classList.add('sp-row');
+        var paint = function() { btn.querySelector('.sp-v').textContent = spCurText(sel); };
+        paint();
+        sel.addEventListener('change', paint);
+        try { new MutationObserver(paint).observe(sel, { childList: true, subtree: true, attributes: true }); } catch(e) {}
+        sel._spPaint = paint;
+        btn.addEventListener('click', function() {
+          var title = spLabelOf(row) || '', hint = spHintOf(row);
+          var opts = [], grp = '';
+          Array.prototype.forEach.call(sel.querySelectorAll('option, optgroup'), function(o) {
+            if (o.tagName === 'OPTGROUP') { opts.push('<div class="pl-lbl2" style="margin-top:0.4rem">' + o.label.replace(/</g, '&lt;') + '</div>'); return; }
+            if (o.disabled && !o.value) return;
+            opts.push('<button type="button" class="pl-opt' + (o.selected ? ' on' : '') + '" data-spv="' + String(o.value).replace(/"/g, '&quot;') + '"' + (o.disabled ? ' disabled' : '') + '><b>' + (o.selected ? '✓ ' : '') + o.textContent.trim().replace(/</g, '&lt;') + '</b></button>');
+          });
+          plPop(title.replace(/</g, '&lt;'), (hint ? '<div class="rd-note" style="margin:-0.2rem 0 0.5rem">' + hint.replace(/</g, '&lt;') + '</div>' : '') + '<div class="pl-opts">' + opts.join('') + '</div>', function(ov, close) {
+            ov.querySelectorAll('[data-spv]').forEach(function(b) { b.addEventListener('click', function() {
+              sel.value = b.getAttribute('data-spv'); sel.dispatchEvent(new Event('change', { bubbles: true })); paint(); close();
+            }); });
+          });
+        });
+      });
+      // «Сбросить раздел» — к значениям по умолчанию из разметки (кроме «Безопасность» и «Офлайн»)
+      (root || document).querySelectorAll('#view-settings .set-cat').forEach(function(pn) {
+        var cat = pn.getAttribute('data-set-panel');
+        if (!cat || pn._spReset || cat === 'security' || cat === 'offline' || cat === 'presets' || !pn.querySelector('select.sp-hidden')) return;
+        pn._spReset = true;
+        var kk = isKk(), b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-sm sp-reset';
+        b.textContent = '↺ ' + (kk ? 'Бөлімді әдепкіге қайтару' : 'Сбросить раздел к стандартным');
+        b.addEventListener('click', function() {
+          if (!confirm(kk ? 'Бұл бөлімнің баптауларын әдепкі мәндерге қайтару керек пе?' : 'Вернуть настройки этого раздела к стандартным?')) return;
+          var n = 0;
+          pn.querySelectorAll('select.sp-hidden').forEach(function(sel) {
+            var def = Array.prototype.filter.call(sel.options, function(o) { return o.defaultSelected; })[0] || sel.options[0];
+            if (def && sel.value !== def.value) { sel.value = def.value; sel.dispatchEvent(new Event('change', { bubbles: true })); if (sel._spPaint) sel._spPaint(); n++; }
+          });
+          toast(n ? (kk ? 'Қайтарылды: ' + n : 'Сброшено: ' + n) : (kk ? 'Бәрі әдепкі күйде' : 'Всё уже стандартное'));
+        });
+        pn.appendChild(b);
+      });
     }
     // «Внешний вид» — по блокам (Тема / Фон / Кнопки и размер / Дополнительно); узлы переносятся, логика по id не меняется
     function setGroupView() {
