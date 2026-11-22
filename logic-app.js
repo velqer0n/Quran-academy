@@ -5551,8 +5551,13 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           var onMeta = function() { audioEl.removeEventListener('loadedmetadata', onMeta); try { audioEl.currentTime = t; } catch(e) {} };
           audioEl.addEventListener('loadedmetadata', onMeta);
         } else if (item.resumeFrac > 0) {
-          var onMetaF = function() { audioEl.removeEventListener('loadedmetadata', onMetaF); try { if (audioEl.duration > 0) audioEl.currentTime = item.resumeFrac * audioEl.duration; } catch(e) {} item.resumeFrac = null; };
-          audioEl.addEventListener('loadedmetadata', onMetaF);
+          // 7.24: длина у mp3 бывает ещё неизвестна в loadedmetadata — ждём, пока появится настоящая
+          var onMetaF = function() {
+            var d = audioEl.duration; if (!(d > 0 && isFinite(d)) || item.resumeFrac == null) return;
+            ['loadedmetadata', 'durationchange', 'canplay'].forEach(function(ev) { audioEl.removeEventListener(ev, onMetaF); });
+            try { audioEl.currentTime = item.resumeFrac * d; } catch(e) {} item.resumeFrac = null;
+          };
+          ['loadedmetadata', 'durationchange', 'canplay'].forEach(function(ev) { audioEl.addEventListener(ev, onMetaF); });
         }
         if (item.hold) { item.hold = false; try { audioEl.pause(); } catch(e) {} return; }
         var pp = audioEl.play();
@@ -5575,6 +5580,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         if (a !== item.ayah) {
           item.ayah = a;
           try { highlightPlayingAyah(); } catch(e) {}
+          try { plNowUpdate(item); } catch(e) {}
           try { updateAudioSub(); } catch(e) {}
           try { if (state.lastAudio) { state.lastAudio.ayah = a; localStorage.setItem('quran_last_audio_v1', JSON.stringify(state.lastAudio)); } } catch(e) {}
         }
@@ -5665,14 +5671,23 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (on && !item.whole) startWholeSurah(item.surah, item.ayah || 1, { hold: !playing });
       else if (!on && item.whole) {
         var _wm = audioPlayMode === 'surah-loop' ? 'surah-loop' : 'surah';
-        if (playing) loadSurahQueue(item.surah, _wm, item.ayah || 1);
-        else Promise.resolve(loadSurahQueue(item.surah, _wm, item.ayah || 1, { noPlay: true })).then(function() {
+        var _ga = _wholeGuessAyah(item); // 7.24: без разметки — примерный аят по доле времени, а не всегда первый
+        if (playing) loadSurahQueue(item.surah, _wm, _ga);
+        else Promise.resolve(loadSurahQueue(item.surah, _wm, _ga, { noPlay: true })).then(function() {
           window._audioHoldOnce = true; setTimeout(function() { window._audioHoldOnce = false; }, 4000);
           playQueueItem(audioQueueIdx);
         });
       }
     }
     // build 6.38: смена чтеца целых сур (Абкар / Лухайдан) — с тем же местом, а не с начала; на паузе остаётся на паузе
+    function _wholeGuessAyah(item) {
+      try {
+        if (item._tm && item._tm.length) return item.ayah || 1;
+        var cnt = SURAH_AYAH_COUNTS[+item.surah] || 1, d = audioEl.duration;
+        if (d > 0 && isFinite(d)) return Math.max(1, Math.min(cnt, Math.floor(audioEl.currentTime / d * cnt) + 1));
+      } catch(e) {}
+      return item.ayah || 1;
+    }
     function applyWholeReciterChange() {
       var item = audioQueue[audioQueueIdx];
       if (!item || !item.whole || !item.surah) return;
@@ -5682,7 +5697,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       // build 6.94: то же место у нового чтеца — по разметке аятов, а если её нет у одного из двух — по доле времени
       if (audioEl && audioEl.ended) { startWholeSurah(item.surah, 1, { hold: true }); return; }
       var frac = null;
-      try { if (!(item._tm && item._tm.length && r.timings) && audioEl.duration > 0) frac = audioEl.currentTime / audioEl.duration; } catch(e) {}
+      try { if (!(item._tm && item._tm.length && r.timings) && audioEl.duration > 0 && isFinite(audioEl.duration)) frac = audioEl.currentTime / audioEl.duration; } catch(e) {}
       startWholeSurah(item.surah, frac != null ? 1 : (item.ayah || 1), { hold: !playing, resumeFrac: frac });
     }
     // выбрали чтеца «по аятам», когда играет «Целиком»: если у него есть целые суры — остаёмся в режиме «Целиком»
@@ -5776,7 +5791,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         ['☰ Кезек', 'Келесіде не ойнайды: ↑↓ ретін ауыстыру, ✕ алып тастау, 🔁 шеңбермен, 🔀 араластыру. Сүрелер тізіміндегі «⋯», аят мәзірі және қалталардан «▶ Келесі болып» / «＋ Кезекке» арқылы қосылады. Қалта = плейлист: «▶ Бәрін тыңдау», «🔀 Араластыру».'],
         ['🎙 Қари', 'Аят мәтінінің астындағы батырма — қариді ауыстыру, сол жерден жалғасады.'],
         ['⏪ 10 · 10 ⏩', '«Толық» режимінде және дұғаларда — 10 секунд артқа/алға.'],
-        ['⋯', 'Сүрені ашу, қариді ауыстыру, жүктеу, «аят ойнамайды», осы көмек, плеерді жабу.'],
+        ['⋯', 'Сүрені ашу, жүктеу, «аят ойнамайды», осы көмек, плеерді жабу.'],
         ['✕', 'Плеерді жабу.']
       ] : [
         ['Мини-плеер', 'Строка внизу: ▶ — играть/пауза, ⏭ — следующий аят. Нажмите на строку — плеер откроется целиком. Смахните влево/вправо — следующий/предыдущий аят. Тонкая полоска сверху — где вы в суре.'],
@@ -5791,7 +5806,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         ['☰ Очередь', 'Что сыграет дальше: ↑↓ — порядок, ✕ — убрать, 🔁 — по кругу, 🔀 — перемешать. Добавлять — «▶ Следующим» / «＋ В очередь» в списке сур (⋯), в меню аята и в папках. Папка = плейлист: «▶ Слушать всё», «🔀 Перемешать».'],
         ['🎙 Чтец', 'Кнопка под текстом аята — сменить чтеца, продолжит с того же места.'],
         ['⏪ 10 · 10 ⏩', 'В режиме «Целиком» и в дуа — 10 секунд назад/вперёд.'],
-        ['⋯', 'Открыть суру, сменить чтеца, скачать, «аят не играет», эта справка, закрыть плеер.'],
+        ['⋯', 'Открыть суру, скачать, «аят не играет», эта справка, закрыть плеер.'],
         ['✕', 'Закрыть плеер.']
       ];
       var ov = document.createElement('div');
@@ -5862,8 +5877,13 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var ab = document.getElementById('audio-collapse'); if (ab) ab.textContent = '⌄';
     }
     // текущий аят крупно — в полном плеере
-    function plRecName() {
-      try { var id = state.settings && state.settings.reciter, r = (typeof RECITER_LIST !== 'undefined' ? RECITER_LIST : []).find(function(x) { return x.id === id; }); return r ? String(isKk() && r.nameKk ? r.nameKk : (r.name || r.ru || id)).replace(/\s*\(.*\)\s*$/, '') : ''; } catch(e) { return ''; }
+    function plRecName(item) {
+      try {
+        var kk = isKk(), r;
+        if (item && item.whole) { r = wholeById(item.wholeId); return r ? String(kk ? (r.kk || r.ru) : r.ru).replace(/\s*\(.*\)\s*$/, '') : ''; } // 7.24: у «Целиком» свой чтец
+        var id = state.settings && state.settings.reciter; r = (typeof RECITER_LIST !== 'undefined' ? RECITER_LIST : []).find(function(x) { return x.id === id; });
+        return r ? String(kk ? (r.kk || r.ru || id) : (r.ru || id)).replace(/\s*\(.*\)\s*$/, '') : '';
+      } catch(e) { return ''; }
     }
     function plNowUpdate(item) {
       var el = document.getElementById('pl-now'), wh = document.getElementById('pl-where'); if (!el || !wh) return;
@@ -5872,11 +5892,17 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var s = +item.surah, a = +item.ayah || 0, cnt = SURAH_AYAH_COUNTS[s] || 0;
       var nm = (typeof surahNameLocal === 'function') ? String(surahNameLocal(s) || s).replace(/\s*\(\d+\)\s*$/, '') : String(s);
       wh.innerHTML = '<span>' + nm + (item.whole ? ' · ' + (kk ? 'толық' : 'целиком') : (a ? ' · ' + (kk ? a + '-аят / ' + cnt : 'аят ' + a + ' из ' + cnt) : '')) + '</span>' +
-        '<button type="button" class="pl-rec" data-pl-rec="1" title="' + (kk ? 'Қариді ауыстыру' : 'Сменить чтеца') + '">🎙 ' + (plRecName() || (kk ? 'Қари' : 'Чтец')) + '</button>';
-      var key = s + ':' + (item.whole ? 0 : a);
+        '<button type="button" class="pl-rec" data-pl-rec="1" title="' + (kk ? 'Қариді ауыстыру' : 'Сменить чтеца') + '">🎙 ' + (plRecName(item) || (kk ? 'Қари' : 'Чтец')) + '</button>';
+      var hasTm = !!(item.whole && item._tm && item._tm.length);
+      var key = s + ':' + (item.whole ? (hasTm ? 'w' + a : 'all') : a);
       if (el.dataset.k === key) return;
       el.dataset.k = key;
-      if (item.whole || !a) { el.innerHTML = '<div class="pl-now-big">' + nm + '</div>'; return; }
+      if (!a && !item.whole) { el.innerHTML = '<div class="pl-now-big">' + nm + '</div>'; return; }
+      if (item.whole && !hasTm) { // 7.24: разметки аятов нет — вся сура текстом, прокручивается
+        el.innerHTML = '<div class="pl-now-big">' + nm + '</div>';
+        try { fetchSurah(s).then(function(d) { if (el.dataset.k !== key || !d || !d.ayahs) return; el.innerHTML = '<div class="pl-now-all arabic" dir="rtl" lang="ar">' + d.ayahs.map(function(x) { return String(x.text || '').replace(/</g, '&lt;') + ' <span class="pl-now-n">﴿' + (typeof toArabicDigits === 'function' ? toArabicDigits(x.number) : x.number) + '﴾</span>'; }).join(' ') + '</div><div class="pl-now-tr">' + (kk ? 'Бұл қаридің аят белгілері жоқ — бүкіл сүре көрсетілген.' : 'У этого чтеца нет разметки аятов — показана вся сура.') + '</div>'; }).catch(function() {}); } catch(e) {}
+        return;
+      }
       var put = function(ar, tr) { if (el.dataset.k !== key) return; el.innerHTML = '<div class="pl-now-ar arabic" dir="rtl" lang="ar">' + ar + '</div>' + (tr ? '<div class="pl-now-tr">' + tr + '</div>' : ''); };
       var dom = (+(state && state.currentSurah) === s) && document.querySelector('#ayah-list .ayah[data-ayah="' + a + '"]');
       if (dom) { var at = dom.querySelector('.ayah-text'), tt = dom.querySelector('.ayah-translation'); put(at ? at.textContent.trim() : '', tt ? tt.textContent.trim() : ''); return; }
@@ -5952,7 +5978,6 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var kk = isKk(), it = audioQueue && audioQueue[audioQueueIdx], hasS = !!(it && it.surah && !it.ext);
       var L = [];
       if (hasS) L.push({ v: 'open', l: kk ? '📖 Сүрені ашу' : '📖 Открыть суру', s: kk ? 'оқу бетінде, осы аятта' : 'в читалке, на этом аяте' });
-      L.push({ v: 'rec', l: kk ? '🎙 Қариді ауыстыру' : '🎙 Сменить чтеца' });
       L.push({ v: 'dl', l: kk ? '📥 Жүктеу' : '📥 Скачать', s: kk ? 'аят, сүре не дұға — телефонға' : 'аят, суру или дуа — на телефон' });
       if (hasS) L.push({ v: 'miss', l: kk ? '🚩 Бұл аят ойнамайды' : '🚩 Этот аят не играет', s: kk ? 'келесі жолы басқа қари ұсынылады' : 'в следующий раз предложим другого чтеца' });
       L.push({ v: 'help', l: kk ? '❓ Плеерді қалай қолдану' : '❓ Как пользоваться плеером' });
@@ -7655,6 +7680,13 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         if (p[0] === 'study') nt.textContent = (kk ? 'Сөзді басқанда — Quran.com дауысы (біреу, ауыспайды). Таңдау — аятты толық тыңдау үшін: ' : 'При нажатии на слово звучит голос Quran.com (один, не меняется). Выбор — для аята целиком: ') + nm(by[p[0]]) + '.' + hl;
         else nt.textContent = hl.trim();
         nt.style.color = noHl ? '#d97706' : 'var(--text-muted)';
+      });
+      // 7.24: в «Таджвиде» и «По словам» список свёрнут — по факту подсветка слов только у аль-Хусари
+      ['study', 'tajweed'].forEach(function(k) {
+        var id = by[k] || 'ar.husary', hl = id === 'ar.husary';
+        var c = document.querySelector('[data-rc-cur="' + k + '"]'); if (c) c.textContent = nm(id);
+        var tg = document.querySelector('[data-rc-tag="' + k + '"]'); if (tg) { tg.textContent = hl ? (kk ? 'сөздер жарықтанады' : 'подсветка слов') : (kk ? 'тек дыбыс' : 'только звук'); tg.classList.toggle('rc-warn', !hl); }
+        var sm = document.querySelector('[data-rc-sum="' + k + '"]'); if (sm) sm.textContent = kk ? 'Басқа қари (тек дыбыс, сөздер жарықтанбайды)' : 'Другой чтец (только звук, без подсветки слов)';
       });
       var hs = document.getElementById('home-reciter-select');
       var host2 = hs && hs.closest('.card');
@@ -27938,7 +27970,8 @@ bKk:
         // Первая запись CHANGELOG_LOG всегда самая новая (см. журнал) —
         // достаточно найти самое первое совпадение "v: '...'" после начала
         // самого массива, не разбирая весь файл целиком.
-        var arrIdx = text.indexOf('CHANGELOG_LOG = [');
+        // 7.24: ищем настоящее объявление массива — с серии 7 такой же текст есть в комментарии вверху файла, и проверка молча сдавалась
+        var arrIdx = text.search(/const\s+CHANGELOG_LOG\s*=\s*\[/);
         if (arrIdx === -1) return;
         var m = /v:\s*'([\d.]+)'/.exec(text.slice(arrIdx, arrIdx + 500));
         if (!m) return;

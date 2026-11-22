@@ -4970,3 +4970,12 @@ html.no-scroll, html.no-scroll body { overflow: hidden !important; overscroll-be
 .plq-static { cursor: default; }
 .plq-static i { margin-left: auto; }
 .plq-add { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); font-weight: 700; }
+
+/* ===== 7.24 ===== */
+.rc-line { font-size: 0.9rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.rc-tag { font-size: 0.72rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.rc-tag.rc-warn { background: color-mix(in srgb, #f59e0b 18%, transparent); color: #d97706; }
+.rc-other { margin-top: 0.35rem; }
+.rc-other summary { cursor: pointer; font-size: 0.8rem; color: var(--text-muted); min-height: 32px; display: flex; align-items: center; }
+.pl-now-all { font-size: calc(1.25rem * var(--ar-scale, 1)); line-height: 2.1; text-align: justify; color: var(--text); }
+.pl-now-n { color: var(--accent); font-size: 0.85em; }

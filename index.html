@@ -275,12 +275,13 @@
            «Учёба» (Теория/Практика). Из «Практика» этот пункт убран. -->
       <div id="home-study-pane" style="display:none">
         <!-- build 6.09: свой чтец для «Озвучки» -->
-        <div class="card" style="margin-bottom:0.7rem;padding:0.6rem 0.75rem">
-          <span style="font-size:0.85rem;color:var(--text-muted)">🎧 Чтец для «Озвучки»</span>
+        <div class="card rc-card" style="margin-bottom:0.7rem;padding:0.6rem 0.75rem">
+          <div class="rc-line">🎧 <b data-rc-cur="study">Махмуд аль-Хусари</b> <span class="rc-tag" data-rc-tag="study">подсветка слов</span></div>
+          <details class="rc-other"><summary data-rc-sum="study">Другой чтец (только звук)</summary>
           <div style="display:flex;gap:0.4rem;margin-top:0.35rem">
             <select id="study-reciter-select" style="flex:1;min-width:0;padding:0.45rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
             <button type="button" class="btn btn-sm" data-reciter-preview="study-reciter-select" title="Послушать">▶</button>
-          </div>
+          </div></details>
         </div>
         <div id="home-wbw-surahs"></div>
         <details id="home-fav-ayahs" class="card" style="margin-top:0.7rem;padding:0.6rem 0.75rem"><summary style="cursor:pointer;font-weight:600">⭐ Избранные аяты по словам</summary>
@@ -289,12 +290,13 @@
       </div>
       <div id="home-tajweed-pane" style="display:none">
         <!-- build 6.09: свой чтец для «Таджвида» -->
-        <div class="card" style="margin-bottom:0.7rem;padding:0.6rem 0.75rem">
-          <span style="font-size:0.85rem;color:var(--text-muted)">🎧 Чтец для «Таджвида»</span>
+        <div class="card rc-card" style="margin-bottom:0.7rem;padding:0.6rem 0.75rem">
+          <div class="rc-line">🎧 <b data-rc-cur="tajweed">Махмуд аль-Хусари</b> <span class="rc-tag" data-rc-tag="tajweed">подсветка слов</span></div>
+          <details class="rc-other"><summary data-rc-sum="tajweed">Другой чтец (только звук)</summary>
           <div style="display:flex;gap:0.4rem;margin-top:0.35rem">
             <select id="tajweed-reciter-select" style="flex:1;min-width:0;padding:0.45rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
             <button type="button" class="btn btn-sm" data-reciter-preview="tajweed-reciter-select" title="Послушать">▶</button>
-          </div>
+          </div></details>
         </div>
         <div id="home-tajweed-colors"></div>
       </div>
