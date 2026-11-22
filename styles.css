@@ -5019,3 +5019,27 @@ body.btn-icons .audio-bar .pl-act { min-width: 46px; min-height: 46px; border-ra
 .bv-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; min-height: 52px; padding: 0.5rem 0.65rem; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .bv-opt small { font-size: 0.72rem; color: var(--text-muted); }
 .bv-opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+/* ===== 7.27: фон приложения ===== */
+#app-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--bg); }
+#app-bg .bg-img, #app-bg .bg-pat, #app-bg .bg-dim { position: absolute; inset: 0; }
+#app-bg .bg-img { background-size: cover; background-position: center; }
+#app-bg .bg-pat { background: var(--accent); opacity: 0.14; -webkit-mask-size: 64px; mask-size: 64px; -webkit-mask-repeat: repeat; mask-repeat: repeat; }
+#app-bg .bg-dim { background: var(--bg); opacity: var(--bg-dim, 0.55); transition: opacity .3s; }
+body.bg-reading #app-bg .bg-dim { opacity: max(var(--bg-dim, 0.55), 0.88); }
+.bg-g-dawn { background: linear-gradient(170deg, color-mix(in srgb, var(--accent) 35%, var(--bg)) 0%, var(--bg) 55%, color-mix(in srgb, #f59e0b 22%, var(--bg)) 100%) !important; }
+.bg-g-night { background: radial-gradient(ellipse at 70% 15%, color-mix(in srgb, var(--accent) 30%, var(--bg)) 0%, var(--bg) 60%), linear-gradient(180deg, color-mix(in srgb, #1e3a8a 35%, var(--bg)), var(--bg)) !important; }
+body.has-bg { background: transparent !important; }
+body.has-bg .card, body.has-bg .surah-item, body.has-bg .rule-card { background: color-mix(in srgb, var(--bg-card) 86%, transparent); }
+body.bg-photo .view > h2, body.bg-photo .section-title { text-shadow: 0 1px 6px color-mix(in srgb, var(--bg) 80%, transparent); }
+.bg-grid { display: grid; grid-auto-flow: column; grid-auto-columns: 92px; gap: 0.45rem; overflow-x: auto; padding-bottom: 0.3rem; scroll-snap-type: x proximity; }
+.bg-th { position: relative; height: 122px; border-radius: 12px; border: 2px solid var(--border); background-color: var(--bg); background-size: cover; background-position: center; cursor: pointer; overflow: hidden; scroll-snap-align: start; padding: 0; color: var(--text); font: inherit; }
+.bg-th.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); }
+.bg-th span { position: absolute; left: 0; right: 0; bottom: 0; padding: 0.25rem 0.3rem; font-size: 0.66rem; line-height: 1.2; background: color-mix(in srgb, var(--bg) 78%, transparent); text-align: center; }
+.bg-th i { position: absolute; inset: 0 0 1.4rem; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 1.6rem; color: var(--text-muted); }
+.bg-th-pat::before { content: ''; position: absolute; inset: 0; background: var(--accent); opacity: 0.35; -webkit-mask-image: var(--pat); mask-image: var(--pat); -webkit-mask-size: 40px; mask-size: 40px; }
+.bg-th.on::after { content: '✓'; position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; }
+.bg-dim-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; }
+.bg-dim-row input { flex: 1; accent-color: var(--accent); }
+.bg-note { font-size: 0.75rem; color: var(--text-muted); }
+.pt-method-note { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.45; }

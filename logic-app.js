@@ -1129,7 +1129,7 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
     }
 
 function applySettings() {
-      try { applyBtnView(); } catch(e) {}
+      try { applyBtnView(); applyBg(); } catch(e) {}
       try {
         const railSel = document.getElementById('setting-ayah-rail');
         if (railSel) railSel.value = (state.settings && state.settings.ayahRailSide) || 'right';
@@ -3222,7 +3222,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (name === 'changelog') try { renderChangelog(); } catch(e) {}
       if (name === 'legaldocs') try { renderLegalDocs(); } catch(e) { console.warn('legaldocs', e); }
       if (name === 'sources') { try { renderSources(); } catch(e) { console.warn('sources', e); } try { _appendLegalLinks(document.getElementById('sources-body')); } catch(e) {} }
-      if (name === 'settings') try { applyTheme(); renderSettingsExtraData(); renderBtnViewSetting(); } catch(e) {}
+      if (name === 'settings') try { applyTheme(); renderSettingsExtraData(); renderBtnViewSetting(); renderBgSetting(); } catch(e) {}
       if (name === 'help') try { renderHelp(); } catch(e) {}
       if (name === 'account' || name === 'login' || name === 'register' || name === 'forgot') try { renderAuth(name); } catch(e) {}
       if (name === 'stats') try { renderStats(); } catch(e) {}
@@ -3784,6 +3784,102 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       }, 400);
     }, { passive: true });
     // 7.26: кнопка «значок + подпись»; вид (оба / только значки) — Настройки → «Вид кнопок» (body.btn-icons)
+    // ===== 7.27: фон приложения — фото, узоры (цвет темы), своё фото; затемнение под тему, в читалке фон приглушён =====
+    const BG_LIST = [
+      { id: 'none', ru: 'Без фона', kk: 'Фонсыз' },
+      { id: 'p-stars', ru: 'Узор-звёзды', kk: 'Жұлдыз өрнек', pat: 'stars' },
+      { id: 'p-lattice', ru: 'Решётка', kk: 'Тор өрнек', pat: 'lattice' },
+      { id: 'g-dawn', ru: 'Рассвет', kk: 'Таң', grad: 'dawn' },
+      { id: 'g-night', ru: 'Ночь', kk: 'Түн', grad: 'night' },
+      { id: 'medina', ru: 'Медина', kk: 'Мәдина', img: 1 },
+      { id: 'bluemosque', ru: 'Голубая мечеть', kk: 'Көк мешіт', img: 1 },
+      { id: 'zayed', ru: 'Мечеть шейха Зайда', kk: 'Шейх Зайд мешіті', img: 1 },
+      { id: 'zayed-dusk', ru: 'Шейх Зайд вечером', kk: 'Шейх Зайд кешке', img: 1 },
+      { id: 'shahalam', ru: 'Шах-Алам ночью', kk: 'Шах-Алам түнде', img: 1 },
+      { id: 'kl', ru: 'Куала-Лумпур', kk: 'Куала-Лумпур', img: 1 },
+      { id: 'own', ru: 'Своё фото', kk: 'Өз суретім', own: 1 }
+    ];
+    const BG_PAT = {
+      stars: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.2'%3E%3Cpath d='M30 8l6 16 16 6-16 6-6 16-6-16-16-6 16-6z'/%3E%3Cpath d='M30 14l11 5 5 11-5 11-11 5-11-5-5-11 5-11z'/%3E%3Ccircle cx='0' cy='0' r='6'/%3E%3Ccircle cx='60' cy='0' r='6'/%3E%3Ccircle cx='0' cy='60' r='6'/%3E%3Ccircle cx='60' cy='60' r='6'/%3E%3C/g%3E%3C/svg%3E\")",
+      lattice: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.1'%3E%3Cpath d='M24 0l12 12-12 12-12-12zM0 24l12 12-12 12M48 24l-12 12 12 12M24 24l12 12-12 12-12-12z'/%3E%3Ccircle cx='24' cy='12' r='3'/%3E%3Ccircle cx='24' cy='36' r='3'/%3E%3C/g%3E%3C/svg%3E\")"
+    };
+    function bgCur() { var v = state.settings && state.settings.bg; return BG_LIST.some(function(b) { return b.id === v; }) ? v : 'none'; }
+    function bgOwnUrl() { try { return localStorage.getItem('qa_bg_own') || ''; } catch(e) { return ''; } }
+    function applyBg() {
+      try {
+        var id = bgCur(), b = BG_LIST.filter(function(x) { return x.id === id; })[0] || BG_LIST[0];
+        var el = document.getElementById('app-bg');
+        if (id === 'none' || (b.own && !bgOwnUrl())) { document.body.classList.remove('has-bg', 'bg-photo'); if (el) el.remove(); return; }
+        if (!el) { el = document.createElement('div'); el.id = 'app-bg'; el.setAttribute('aria-hidden', 'true'); el.innerHTML = '<div class="bg-img"></div><div class="bg-pat"></div><div class="bg-dim"></div>'; document.body.insertBefore(el, document.body.firstChild); }
+        var img = el.querySelector('.bg-img'), pat = el.querySelector('.bg-pat');
+        var photo = !!(b.img || b.own);
+        img.style.backgroundImage = b.img ? 'url(bg/' + b.id + '.webp)' : (b.own ? 'url(' + bgOwnUrl() + ')' : '');
+        img.className = 'bg-img' + (b.grad ? ' bg-g-' + b.grad : '');
+        pat.style.display = b.pat ? '' : 'none';
+        if (b.pat) { pat.style.webkitMaskImage = BG_PAT[b.pat]; pat.style.maskImage = BG_PAT[b.pat]; }
+        var dim = state.settings && state.settings.bgDim != null ? +state.settings.bgDim : 0.55;
+        document.documentElement.style.setProperty('--bg-dim', photo ? dim : 0);
+        document.body.classList.add('has-bg'); document.body.classList.toggle('bg-photo', photo);
+      } catch(e) {}
+    }
+    // в читалке и при чтении — фон сильнее приглушён, чтобы арабский текст читался
+    (function() {
+      var vr = document.getElementById('view-reader'); if (!vr || typeof MutationObserver !== 'function') return;
+      var sync = function() { document.body.classList.toggle('bg-reading', vr.classList.contains('active')); };
+      new MutationObserver(sync).observe(vr, { attributes: true, attributeFilter: ['class'] }); sync();
+    })();
+    function renderBgSetting() {
+      var el = document.getElementById('bg-setting'); if (!el) return;
+      var kk = isKk(), cur = bgCur(), own = bgOwnUrl();
+      var thumb = function(b) {
+        var st = b.img ? "background-image:url('bg/" + b.id + "-t.webp')" : (b.own && own ? "background-image:url('" + own + "')" : '');
+        return '<button type="button" class="bg-th' + (b.id === cur ? ' on' : '') + (b.pat ? ' bg-th-pat' : '') + (b.grad ? ' bg-g-' + b.grad : '') + (b.own ? ' bg-th-own' : '') + '" data-bg="' + b.id + '" style="' + st + '"' + (b.pat ? ' data-pat="' + b.pat + '"' : '') + '>' +
+          (b.own && !own ? '<i>📷</i>' : '') + (b.id === 'none' ? '<i>∅</i>' : '') + '<span>' + (kk ? b.kk : b.ru) + '</span></button>';
+      };
+      var dim = state.settings && state.settings.bgDim != null ? +state.settings.bgDim : 0.55;
+      var isPhoto = BG_LIST.some(function(b) { return b.id === cur && (b.img || b.own); });
+      el.innerHTML = '<span>' + (kk ? 'Фон' : 'Фон') + '</span><div class="bg-grid">' + BG_LIST.map(thumb).join('') + '</div>' +
+        (isPhoto ? '<label class="bg-dim-row"><span>' + (kk ? 'Фонды күңгірттеу' : 'Приглушить фон') + '</span><input type="range" id="bg-dim" min="0.25" max="0.85" step="0.05" value="' + dim + '"></label>' : '') +
+        (own ? '<button type="button" class="btn btn-sm" data-bg-own-new="1">📷 ' + (kk ? 'Басқа сурет' : 'Другое фото') + '</button>' : '') +
+        '<input type="file" id="bg-own-file" accept="image/*" hidden>' +
+        '<div class="bg-note">' + (kk ? 'Оқу бетінде фон бәсеңдейді — мәтін оқылуы үшін. Өз суретіңіз тек осы телефонда сақталады. Мешіт суреттері — Unsplash.' : 'В читалке фон приглушается — чтобы текст читался. Своё фото хранится только на этом телефоне. Фото мечетей — Unsplash.') + '</div>';
+      el.querySelectorAll('[data-pat]').forEach(function(b) { var p = BG_PAT[b.getAttribute('data-pat')]; b.style.setProperty('--pat', p); });
+    }
+    function bgPickOwn() { var f = document.getElementById('bg-own-file'); if (f) f.click(); }
+    document.addEventListener('click', function(e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-bg],[data-bg-own-new]'); if (!b) return;
+      if (b.hasAttribute('data-bg-own-new')) { bgPickOwn(); return; }
+      var id = b.getAttribute('data-bg');
+      if (id === 'own' && !bgOwnUrl()) { bgPickOwn(); return; }
+      state.settings.bg = id; try { saveState(); } catch(er) {}
+      applyBg(); renderBgSetting();
+    });
+    document.addEventListener('input', function(e) {
+      if (!e.target || e.target.id !== 'bg-dim') return;
+      state.settings.bgDim = +e.target.value; document.documentElement.style.setProperty('--bg-dim', state.settings.bgDim);
+    });
+    document.addEventListener('change', function(e) {
+      if (e.target && e.target.id === 'bg-dim') { try { saveState(); } catch(er) {} return; }
+      if (!e.target || e.target.id !== 'bg-own-file' || !e.target.files || !e.target.files[0]) return;
+      var kk = isKk(), fr = new FileReader();
+      fr.onload = function() {
+        var im = new Image();
+        im.onload = function() {
+          try {
+            var sc = Math.min(1, 1100 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+            c.width = Math.round(im.width * sc); c.height = Math.round(im.height * sc);
+            c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+            var url = c.toDataURL('image/jpeg', 0.8);
+            try { localStorage.setItem('qa_bg_own', url); } catch(er) { toast(kk ? 'Сурет тым үлкен — басқасын таңдаңыз' : 'Фото слишком большое — выберите другое'); return; }
+            state.settings.bg = 'own'; try { saveState(); } catch(er) {}
+            applyBg(); renderBgSetting(); toast(kk ? 'Фон орнатылды' : 'Фон установлен');
+          } catch(er) { toast(kk ? 'Суретті ашу мүмкін болмады' : 'Не удалось открыть фото'); }
+        };
+        im.onerror = function() { toast(kk ? 'Суретті ашу мүмкін болмады' : 'Не удалось открыть фото'); };
+        im.src = fr.result;
+      };
+      fr.readAsDataURL(e.target.files[0]);
+    });
     function applyBtnView() { try { document.body.classList.toggle('btn-icons', !!(state.settings && state.settings.btnView === 'icons')); } catch(e) {} }
     function renderBtnViewSetting() {
       var el = document.getElementById('btnview-setting'); if (!el) return;
@@ -29319,6 +29415,41 @@ bKk:
       return String(w.getHours()).padStart(2, '0') + ':' + String(w.getMinutes()).padStart(2, '0');
     }
 
+    // 7.27: выбор метода — сначала рекомендуемый для страны, коротко «чем отличается» и разница с ДУМК сегодня
+    const PT_METHOD_REC = { KZ: 'DUMK', RU: 'Russia', UZ: 'Uzbekistan', TR: 'Turkey', SA: 'UmmAlQura', EG: 'Egypt' };
+    const PT_METHOD_NOTE = {
+      DUMK: ['Официальные времена Духовного управления мусульман Казахстана (muftyat.kz) — как в мечетях Казахстана.', 'Қазақстан мұсылмандары діни басқармасының ресми уақыты (muftyat.kz) — Қазақстан мешіттеріндегідей.'],
+      MWL: ['Распространённый международный расчёт (Европа, Азия). Фаджр раньше, Иша позже, чем у ДУМК.', 'Кең таралған халықаралық есеп (Еуропа, Азия). Таң ДУМК-дан ертерек, құптан кешірек.'],
+      Russia: ['ДУМ России и Татарстана.', 'Ресей мен Татарстан ДУМ-ы.'],
+      Uzbekistan: ['ДУМ Узбекистана.', 'Өзбекстан ДУМ-ы.'],
+      ISNA: ['Северная Америка.', 'Солтүстік Америка.'],
+      Egypt: ['Египет, часть Африки и Ближнего Востока.', 'Мысыр, Африка мен Таяу Шығыстың бір бөлігі.'],
+      UmmAlQura: ['Саудовская Аравия. Иша — через 90 минут после Магриба.', 'Сауд Арабиясы. Құптан — ақшамнан 90 минуттан кейін.'],
+      Karachi: ['Пакистан, Индия, Бангладеш.', 'Пәкістан, Үндістан, Бангладеш.'],
+      Turkey: ['Турция (Diyanet).', 'Түркия (Diyanet).'],
+      Singapore: ['Сингапур, Малайзия, Индонезия.', 'Сингапур, Малайзия, Индонезия.']
+    };
+    function ptMethodOptionsHtml(country, methodKey, tL) {
+      var kk = isKk(), rec = PT_METHOD_REC[country] || 'MWL', opt = function(k) { return '<option value="' + k + '" ' + (k === methodKey ? 'selected' : '') + '>' + (tL ? tL(PRAYER_METHODS[k].name) : PRAYER_METHODS[k].name) + '</option>'; };
+      return '<optgroup label="' + (kk ? '★ Еліңіз үшін ұсынылады' : '★ Рекомендуется для вашей страны') + '">' + opt(rec) + '</optgroup>' +
+        '<optgroup label="' + (kk ? 'Басқа әдістер' : 'Другие методы') + '">' + Object.keys(PRAYER_METHODS).filter(function(k) { return k !== rec; }).map(opt).join('') + '</optgroup>';
+    }
+    function ptMethodNoteHtml(loc, methodKey, country) {
+      var kk = isKk(), n = PT_METHOD_NOTE[methodKey], h = '';
+      if (n) h += kk ? n[1] : n[0];
+      try {
+        if (methodKey !== 'DUMK' && loc && loc.lat != null && (country === 'KZ' || !country)) {
+          var a = resolveDayTimes(+loc.lat, +loc.lon, new Date(), 'DUMK'), b = resolveDayTimes(+loc.lat, +loc.lon, new Date(), methodKey);
+          var mm = function(x) { var p = String(x || '').split(':'); return p.length === 2 ? (+p[0]) * 60 + (+p[1]) : null; };
+          if (a && b) {
+            var d = function(k, lab) { var x = mm(a[k]), y = mm(b[k]); if (x == null || y == null) return ''; var v = y - x; return lab + ' ' + (v > 0 ? '+' : (v < 0 ? '−' : '±')) + Math.abs(v) + ' мин'; };
+            var parts = [d('fajr', kk ? 'Таң' : 'Фаджр'), d('isha', kk ? 'Құптан' : 'Иша')].filter(Boolean);
+            if (parts.length) h += '<br><b>' + (kk ? 'Бүгін ДУМК-пен айырмасы: ' : 'Разница с ДУМК сегодня: ') + parts.join(', ') + '</b>';
+          }
+        }
+      } catch(e) {}
+      return h ? '<div class="pt-method-note">' + h + '</div>' : '';
+    }
     function calcPrayerTimes(lat, lon, date, methodKey) {
       // PrayTimes-совместимый расчёт; tz — фиксированный по стране/долготе
       date = date || new Date();
@@ -30386,8 +30517,8 @@ bKk:
             '</select>' +
             '<label style="display:block;margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted)">'+tLabel('Метод')+'</label>' +
             '<select id="pt-method" style="width:100%;padding:0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
-            Object.keys(PRAYER_METHODS).map(function(k){ return '<option value="'+k+'" '+(k===methodKey?'selected':'')+'>'+tLabel(PRAYER_METHODS[k].name)+'</option>'; }).join('') +
-            '</select>' +
+            ptMethodOptionsHtml(country, methodKey, tLabel) +
+            '</select>' + ptMethodNoteHtml(loc, methodKey, country) +
             '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem">' +
             '<button type="button" class="btn btn-sm btn-primary" id="pt-geo">'+tLabel('📍 Моё место')+'</button>' +
             '<button type="button" class="btn btn-sm" id="pt-save-loc">'+tLabel('Сохранить')+'</button></div>' +
