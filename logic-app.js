@@ -3421,7 +3421,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
               <div class="surah-info">
                 <div class="surah-name"><span>${nameRu}</span>${morphListBadge}</div>
                 <div class="surah-meta">${s.revelationType === 'Meccan' ? (isKk() ? 'Мекке' : 'Мекка') : (s.revelationType === 'Medinan' ? (isKk() ? 'Медине' : 'Медина') : '')}${s.revelationType ? ' · ' : ''}${ayahCount} ${isKk() ? 'аят' : 'аятов'}${learnedCount ? ' · ' + (isKk() ? 'жатталды ' : 'выучено ') + learnedCount + '/' + ayahCount : ''}</div>
-                <div class="surah-more-row" style="display:none"><button type="button" class="btn btn-sm surah-fold-btn" data-surah="${s.number}" title="${isKk() ? 'Қалтаға қосу…' : 'В папку…'}" style="margin-right:0.3rem">📁 ${isKk() ? 'Қалтаға' : 'В папку'}</button><button type="button" class="btn btn-sm surah-offline-btn" data-surah="${s.number}" data-ayahs="${ayahCount}" title="Скачать аудио суры офлайн" style="padding:0.15rem 0.5rem;font-size:0.75rem">⬇️ Офлайн</button></div>
+                <div class="surah-more-row" style="display:none"><button type="button" class="btn btn-sm" data-plq-add="surah:${s.number}" data-plq-next="1" style="margin-right:0.3rem">▶ ${isKk() ? 'Келесі болып' : 'Следующей'}</button><button type="button" class="btn btn-sm" data-plq-add="surah:${s.number}" style="margin-right:0.3rem">＋ ${isKk() ? 'Кезекке' : 'В очередь'}</button><button type="button" class="btn btn-sm surah-fold-btn" data-surah="${s.number}" title="${isKk() ? 'Қалтаға қосу…' : 'В папку…'}" style="margin-right:0.3rem">📁 ${isKk() ? 'Қалтаға' : 'В папку'}</button><button type="button" class="btn btn-sm surah-offline-btn" data-surah="${s.number}" data-ayahs="${ayahCount}" title="Скачать аудио суры офлайн" style="padding:0.15rem 0.5rem;font-size:0.75rem">⬇️ Офлайн</button></div>
               </div>
               ${s.name ? `<div class="surah-ar arabic" dir="rtl" lang="ar">${s.name}</div>` : ''}
               <button type="button" class="btn btn-sm surah-more-btn" aria-label="${isKk() ? 'Тағы' : 'Ещё'}">⋯</button>
@@ -3897,6 +3897,8 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
                   ${typeof isAyahInHifz==='function' && isAyahInHifz(num, a.number) ? ('📅 ' + (getHifzNextLabel(num, a.number) || 'хифз')) : '📅 Учить'}
                 </button>
                 <button type="button" class="btn btn-sm btn-fold-ayah" data-s="${num}" data-a="${a.number}" title="${isKk() ? 'Қалтаға қосу…' : 'В папку…'}">📁</button>
+                <button type="button" class="btn btn-sm" data-plq-add="ayah:${num}:${a.number}" data-plq-next="1" title="${isKk() ? 'Келесі болып ойнату' : 'Сыграть следующим'}">▶ ${isKk() ? 'Келесі' : 'Следующим'}</button>
+                <button type="button" class="btn btn-sm" data-plq-add="ayah:${num}:${a.number}" title="${isKk() ? 'Кезекке қосу' : 'Добавить в очередь'}">＋ ${isKk() ? 'Кезекке' : 'В очередь'}</button>
                 ${(typeof relatedDuaForAyah === 'function' && (relatedDuaForAyah(num, a.number).length || relatedSinsForAyah(num, a.number).length))
                   ? ('<button type="button" class="btn btn-sm btn-cross-ayah" data-s="'+num+'" data-a="'+a.number+'" title="Связанные разделы">🔗</button>')
                   : ''}
@@ -4907,6 +4909,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           if (_hisnRepLeft > 1) { _hisnRepLeft--; hisnPlay(key, true, true); return; }
           if (_hisnQueue.length) { hisnPlay(_hisnQueue.shift(), true); return; }
           if (window._extLoop) { hisnPlay(key, true, false); return; }
+          try { if (plqAdvance()) return; } catch(e) {}
           hisnStop();
           try { document.getElementById('audio-play-pause').textContent = '▶'; document.getElementById('audio-sub').textContent = _extT('Готово', 'Дайын'); } catch(e) {}
         };
@@ -5342,6 +5345,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           playQueueItem(audioQueueIdx + 1);
           return true;
         }
+        if (manual !== true) { try { if (plqAdvance()) return true; } catch(e) {} }
         return false;
       }
       if (audioQueue.length && audioQueueIdx < audioQueue.length - 1) {
@@ -5362,6 +5366,8 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
           return true;
         }
       }
+      // 7.22: общая очередь — раньше, чем «дальше по Корану»
+      if (manual !== true) { try { if (plqAdvance()) return true; } catch(e) {} }
       // build 6.35: «После суры → дальше сама»
       try {
         const _cp = currentPlayPos();
@@ -5581,6 +5587,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (!manual) { // автоконец файла
         if (audioPlayMode === 'surah-loop') { playQueueItem(0); return true; }
         _clearPos(item.surah);
+        try { if (plqAdvance()) return true; } catch(e) {}
         if (afterSurahNext() && item.surah < 114) { playNextSurah(); return true; }
         return false;
       }
@@ -5766,6 +5773,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         ['1×', 'Жылдамдық: басыңыз — 0,5×-тен 2×-ге дейін таңдайсыз.'],
         ['🔂 Қайталау', 'Әр аятты ×2…×10 қайталау, дауыстап қайталауға үзіліс (2/5/10 с не аят ұзақтығындай) және «аяттан аятқа дейін» үзінді — жаттауға.'],
         ['⏱ Таймер', 'Ұйқы таймері: минут, аят саны немесе «сүре соңына дейін».'],
+        ['☰ Кезек', 'Келесіде не ойнайды: ↑↓ ретін ауыстыру, ✕ алып тастау, 🔁 шеңбермен, 🔀 араластыру. Сүрелер тізіміндегі «⋯», аят мәзірі және қалталардан «▶ Келесі болып» / «＋ Кезекке» арқылы қосылады. Қалта = плейлист: «▶ Бәрін тыңдау», «🔀 Араластыру».'],
         ['🎙 Қари', 'Аят мәтінінің астындағы батырма — қариді ауыстыру, сол жерден жалғасады.'],
         ['⏪ 10 · 10 ⏩', '«Толық» режимінде және дұғаларда — 10 секунд артқа/алға.'],
         ['⋯', 'Сүрені ашу, қариді ауыстыру, жүктеу, «аят ойнамайды», осы көмек, плеерді жабу.'],
@@ -5780,6 +5788,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         ['1×', 'Скорость: нажмите — выберите от 0,5× до 2×.'],
         ['🔂 Повтор', 'Повторять каждый аят ×2…×10, пауза, чтобы повторить вслух (2/5/10 с или как длина аята), и отрывок «с аята по аят» — для заучивания.'],
         ['⏱ Таймер', 'Таймер сна: минуты, число аятов или «до конца суры».'],
+        ['☰ Очередь', 'Что сыграет дальше: ↑↓ — порядок, ✕ — убрать, 🔁 — по кругу, 🔀 — перемешать. Добавлять — «▶ Следующим» / «＋ В очередь» в списке сур (⋯), в меню аята и в папках. Папка = плейлист: «▶ Слушать всё», «🔀 Перемешать».'],
         ['🎙 Чтец', 'Кнопка под текстом аята — сменить чтеца, продолжит с того же места.'],
         ['⏪ 10 · 10 ⏩', 'В режиме «Целиком» и в дуа — 10 секунд назад/вперёд.'],
         ['⋯', 'Открыть суру, сменить чтеца, скачать, «аят не играет», эта справка, закрыть плеер.'],
@@ -5982,6 +5991,112 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var wasVis = bar.classList.contains('visible');
       try { new MutationObserver(function() { var v = bar.classList.contains('visible'); if (v && !wasVis && !bar.classList.contains('collapsed')) { var c = document.getElementById('audio-collapse'); if (c) c.click(); } wasVis = v; }).observe(bar, { attributes: true, attributeFilter: ['class'] }); } catch(e) {}
     })();
+
+    // ===== 7.22: общая очередь — «▶ Следующим», «＋ В очередь», папки как плейлисты; сначала доигрывает текущее =====
+    // элемент: { t: 'surah', s } | { t: 'ayah', s, a } | { t: 'dua', key, title }
+    var PLQ = { list: [], loop: false, cur: null, name: '' };
+    (function() { try { var o = JSON.parse(localStorage.getItem('quran_plq_v1') || 'null'); if (o && Array.isArray(o.list)) { PLQ.list = o.list.filter(function(x) { return x && x.t; }).slice(0, 500); PLQ.loop = !!o.loop; PLQ.name = o.name || ''; } } catch(e) {} })();
+    function plqSave() { try { localStorage.setItem('quran_plq_v1', JSON.stringify({ list: PLQ.list, loop: PLQ.loop, name: PLQ.name })); } catch(e) {} try { plqPaintBtn(); } catch(e) {} }
+    function plqNm(s) { return (typeof surahNameLocal === 'function') ? String(surahNameLocal(s) || s).replace(/\s*\(\d+\)\s*$/, '') : String(s); }
+    function plqLabel(x) {
+      var kk = isKk();
+      if (!x) return '';
+      if (x.t === 'surah') return '📖 ' + plqNm(x.s);
+      if (x.t === 'ayah') return '🔹 ' + plqNm(x.s) + ' ' + x.s + ':' + x.a;
+      if (x.t === 'dua') return '🤲 ' + (x.title || (kk ? 'Дұға' : 'Дуа'));
+      return '';
+    }
+    function plqIdle() {
+      var bar = document.getElementById('audio-bar');
+      // свободен: плеер скрыт, нечего играть, доиграл, или стоит на паузе в самом начале (не поставлен на паузу посреди)
+      return !bar || !bar.classList.contains('visible') || !audioQueue.length || audioEl.ended || (audioEl.paused && audioEl.currentTime < 0.3);
+    }
+    function plqPlay(x) {
+      if (!x) return;
+      PLQ.cur = x;
+      try {
+        if (x.t === 'surah') { if (typeof wholeModeOn === 'function' && wholeModeOn() && typeof startWholeSurah === 'function') startWholeSurah(x.s, 1, {}); else loadSurahQueue(x.s, 'surah', 1); }
+        else if (x.t === 'ayah') loadSurahQueue(x.s, 'surah', x.a, { endAyah: x.a });
+        else if (x.t === 'dua' && typeof hisnPlay === 'function') { try { _hisnQueue = []; } catch(e) {} hisnPlay(x.key, false); }
+      } catch(e) {}
+    }
+    // вызывается, когда текущее доиграло само; true — включили следующее из очереди
+    function plqAdvance() {
+      if (!PLQ.list.length) { if (PLQ.cur) { PLQ.cur = null; try { toast(isKk() ? 'Кезек аяқталды' : 'Очередь закончилась'); } catch(e) {} } return false; }
+      var x = PLQ.list.shift();
+      if (PLQ.loop) PLQ.list.push(x);
+      plqSave();
+      setTimeout(function() { plqPlay(x); }, 250);
+      return true;
+    }
+    function plqAdd(items, next, name) {
+      items = (items || []).filter(function(x) { return x && x.t; }); if (!items.length) return;
+      var kk = isKk();
+      if (plqIdle()) {
+        var first = items.shift();
+        if (next) PLQ.list = items.concat(PLQ.list); else PLQ.list = PLQ.list.concat(items);
+        if (name) PLQ.name = name;
+        plqSave(); plqPlay(first);
+        toast(kk ? 'Ойнатылуда' + (PLQ.list.length ? ' · кезекте ' + PLQ.list.length : '') : 'Играет' + (PLQ.list.length ? ' · в очереди ' + PLQ.list.length : ''));
+        return;
+      }
+      if (next) PLQ.list = items.concat(PLQ.list); else PLQ.list = PLQ.list.concat(items);
+      if (name) PLQ.name = name;
+      plqSave();
+      toast(next ? (kk ? 'Келесі болып ойнайды' : 'Сыграет следующим') : (kk ? 'Кезекке қосылды: ' : 'Добавлено в очередь: ') + (next ? '' : items.length));
+    }
+    function plqPaintBtn() {
+      var b = document.getElementById('pl-queue-btn'); if (!b) return;
+      var n = PLQ.list.length, kk = isKk();
+      b.innerHTML = '☰ ' + (kk ? 'Кезек' : 'Очередь') + (n ? ' <b>' + n + '</b>' : '');
+      b.classList.toggle('on', n > 0);
+    }
+    function plqSheetHtml() {
+      var kk = isKk(), cw = audioQueue && audioQueue[audioQueueIdx];
+      var now = cw ? (cw.ext ? '🤲 ' + (cw.title || '') : (cw.surah ? plqNm(+cw.surah) + (cw.whole ? '' : ' ' + cw.surah + ':' + cw.ayah) : (cw.title || ''))) : '—';
+      var rows = PLQ.list.map(function(x, i) {
+        return '<div class="plq-row"><button type="button" class="plq-go" data-plq-go="' + i + '"><i>' + (i + 1) + '</i>' + plqLabel(x) + '</button>' +
+          '<button type="button" class="plq-b" data-plq-up="' + i + '"' + (i ? '' : ' disabled') + ' aria-label="↑">↑</button>' +
+          '<button type="button" class="plq-b" data-plq-down="' + i + '"' + (i < PLQ.list.length - 1 ? '' : ' disabled') + ' aria-label="↓">↓</button>' +
+          '<button type="button" class="plq-b" data-plq-del="' + i + '" aria-label="' + (kk ? 'Алып тастау' : 'Убрать') + '">✕</button></div>';
+      }).join('');
+      return '<div class="plq-now"><small>' + (kk ? 'Қазір ойнап тұр' : 'Сейчас играет') + '</small><b>' + now + '</b></div>' +
+        '<div class="pl-lbl2">' + (kk ? 'Келесі' : 'Далее') + (PLQ.name ? ' · ' + PLQ.name.replace(/</g, '&lt;') : '') + ' (' + PLQ.list.length + ')</div>' +
+        (rows ? '<div class="plq-list">' + rows + '</div>' : '<div class="rd-note">' + (kk ? 'Кезек бос. Сүрелер тізіміндегі «⋯», аят мәзірі және қалталардан «▶ Келесі болып» не «＋ Кезекке» арқылы қосыңыз.' : 'Очередь пуста. Добавляйте «▶ Следующим» или «＋ В очередь» из списка сур (⋯), меню аята и папок.') + '</div>') +
+        '<div class="pl-chiprow" style="margin-top:0.6rem">' +
+          '<button type="button" class="rd-pc' + (PLQ.loop ? ' on' : '') + '" data-plq-loop="1">🔁 ' + (kk ? 'Шеңбермен' : 'По кругу') + '</button>' +
+          (PLQ.list.length > 1 ? '<button type="button" class="rd-pc" data-plq-shuf="1">🔀 ' + (kk ? 'Араластыру' : 'Перемешать') + '</button>' : '') +
+          (PLQ.list.length ? '<button type="button" class="rd-pc" data-plq-clear="1">🗑 ' + (kk ? 'Тазарту' : 'Очистить') + '</button>' : '') + '</div>' +
+        '<div class="rd-note">' + (kk ? 'Алдымен ағымдағысы аяқталады, содан кейін — тізім бойынша. Тізімдегі жолды басыңыз — дәл қазір ойнайды.' : 'Сначала доиграет текущее, потом — по списку. Нажмите на строку — сыграет сейчас.') + '</div>';
+    }
+    function plqOpen() {
+      var kk = isKk();
+      plPop('☰ ' + (kk ? 'Ойнату кезегі' : 'Очередь воспроизведения'), '<div id="plq-body">' + plqSheetHtml() + '</div>', function(ov) {
+        ov.addEventListener('click', function(e) {
+          var t = e.target.closest ? e.target.closest('[data-plq-go],[data-plq-up],[data-plq-down],[data-plq-del],[data-plq-loop],[data-plq-shuf],[data-plq-clear]') : null; if (!t) return;
+          var i;
+          if (t.hasAttribute('data-plq-go')) { i = +t.getAttribute('data-plq-go'); var x = PLQ.list.splice(i, 1)[0]; plqSave(); plqPlay(x); }
+          else if (t.hasAttribute('data-plq-up')) { i = +t.getAttribute('data-plq-up'); if (i > 0) { var a = PLQ.list[i]; PLQ.list[i] = PLQ.list[i - 1]; PLQ.list[i - 1] = a; plqSave(); } }
+          else if (t.hasAttribute('data-plq-down')) { i = +t.getAttribute('data-plq-down'); if (i < PLQ.list.length - 1) { var b2 = PLQ.list[i]; PLQ.list[i] = PLQ.list[i + 1]; PLQ.list[i + 1] = b2; plqSave(); } }
+          else if (t.hasAttribute('data-plq-del')) { PLQ.list.splice(+t.getAttribute('data-plq-del'), 1); plqSave(); }
+          else if (t.hasAttribute('data-plq-loop')) { PLQ.loop = !PLQ.loop; plqSave(); }
+          else if (t.hasAttribute('data-plq-shuf')) { PLQ.list = shuffle(PLQ.list.slice()); plqSave(); }
+          else if (t.hasAttribute('data-plq-clear')) { PLQ.list = []; PLQ.name = ''; plqSave(); }
+          var bd = ov.querySelector('#plq-body'); if (bd) bd.innerHTML = plqSheetHtml();
+        });
+      });
+    }
+    document.getElementById('pl-queue-btn')?.addEventListener('click', plqOpen);
+    try { plqPaintBtn(); } catch(e) {}
+    // «▶ Следующим / ＋ В очередь» по всему сайту: data-plq-add="surah:67" | "ayah:67:12", data-plq-next="1" — следующим
+    document.addEventListener('click', function(e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-plq-add]'); if (!b) return;
+      e.preventDefault(); e.stopPropagation();
+      var p = String(b.getAttribute('data-plq-add')).split(':'), x = null;
+      if (p[0] === 'surah' && +p[1]) x = { t: 'surah', s: +p[1] };
+      else if (p[0] === 'ayah' && +p[1] && +p[2]) x = { t: 'ayah', s: +p[1], a: +p[2] };
+      if (x) plqAdd([x], b.getAttribute('data-plq-next') === '1');
+    }, true);
 
     function playNextInQueue() {
       return playNextAyah();
@@ -34730,7 +34845,7 @@ function renderDict() {
         '<span class="fs-main"><b class="fs-name">' + fsEsc(fsName(it)) + (it.k === 'ayah' && fsAyahLearned(it) ? ' ✓' : '') + '</b>' + arab + (sub ? '<span class="fs-sub">' + fsEsc(sub) + '</span>' : '') + '</span>' +
         (function () {
           if (it.k !== 'folder' || FSUI.selMode || withPath) return '';
-          var pr = fsFolderProgress(it.id); if (!pr) return '';
+          if (!fsPlayable(it.id).length) return ''; // 7.22: суры и дуа тоже слушаются, не только аяты
           return '<button type="button" class="fs-play" data-act="playall" data-id="' + it.id + '" aria-label="' + fsT('Слушать подряд', 'Қатарынан тыңдау') + '">▶</button>';
         })() +
         (FSUI.selMode ? '' : '<button type="button" class="fs-more" data-act="menu" data-id="' + it.id + '" aria-label="' + fsT('Меню', 'Мәзір') + '">⋮</button>') +
@@ -34877,6 +34992,8 @@ function renderDict() {
       if (act === 'go') { FSUI.cur = id || null; FSUI.temp = null; fsRenderBody(); return; }
       if (act === 'prefs') { fsPrefsDialog(id); return; }
       if (act === 'playall') { fsPlayFolder(id); return; }
+      if (act === 'playshuf') { fsPlayFolder(id, 'shuffle'); return; }
+      if (act === 'playadd') { fsPlayFolder(id, 'add'); return; }
       if (act === 'clear') { fsClearFolder(id); return; }
       if (act === 'share') { fsShareFolder(id); return; }
       if (act === 'tpl') { fsTemplatesMenu(); return; }
@@ -34926,6 +35043,18 @@ function renderDict() {
         { ico: '✏️', label: fsT('Редактировать', 'Өңдеу'), fn: function() { it.k === 'folder' ? fsEditFolder(id) : fsRenameItem(id); } },
         { ico: '⭐', label: pinned ? fsT('Убрать из закреплённых', 'Бекітуден алу') : fsT('Закрепить', 'Бекіту'), fn: function() { fsSetPin(id, !pinned); fsRenderBody(); } }];
       if (it.k !== 'folder') acts.push({ ico: '🕘', label: fsT('История файла', 'Файл тарихы'), fn: function() { fsFileHistoryDialog(id); } });
+      // 7.22: слушать — в общую очередь
+      (function() {
+        var px = it.k === 'folder' ? null : (it.k === 'ayah' && it.d ? { t: 'ayah', s: +it.d.s, a: +it.d.a } : it.k === 'surah' && it.d ? { t: 'surah', s: +it.d.s } : it.k === 'dua' && it.d && it.d.hisn ? { t: 'dua', key: it.d.hisn, title: it.d.title || fsName(it) } : null);
+        if (it.k === 'folder' && fsPlayable(id).length) {
+          acts.push({ ico: '▶', label: fsT('Слушать всё', 'Бәрін тыңдау'), fn: function() { fsPlayFolder(id); } });
+          acts.push({ ico: '🔀', label: fsT('Слушать вперемешку', 'Араластырып тыңдау'), fn: function() { fsPlayFolder(id, 'shuffle'); } });
+          acts.push({ ico: '＋', label: fsT('Всю папку в очередь', 'Бүкіл қалтаны кезекке'), fn: function() { fsPlayFolder(id, 'add'); } });
+        } else if (px) {
+          acts.push({ ico: '▶', label: fsT('Сыграть следующим', 'Келесі болып ойнату'), fn: function() { plqAdd([px], true); } });
+          acts.push({ ico: '＋', label: fsT('В очередь', 'Кезекке қосу'), fn: function() { plqAdd([px], false); } });
+        }
+      })();
       if (!sys) {
         acts.push({ ico: '📥', label: fsT('Переместить', 'Жылжыту'), fn: function() { fsMoveDialog([id]); } });
         acts.push({ ico: '🗑', label: fsT('Удалить', 'Жою'), danger: true, fn: function() { fsDeleteWithUndo([id]); } });
@@ -35479,7 +35608,7 @@ function renderDict() {
       if (!FSUI.cur) return '';
       var txt = '🌐 ' + fsTrLabel(pf.tr || fsGlobalTr()) + ' · 🎧 ' + fsRecLabel(pf.rec || fsGlobalRec());
       var tag = pf.temp ? ' <i>(' + fsT('временно', 'уақытша') + ')</i>' : (pf.saved ? '' : ' <i>(' + fsT('общие настройки', 'жалпы баптаулар') + ')</i>');
-      return '<div class="fs-prefs"><span>' + fsEsc(txt) + tag + '</span><span>' + (fsFolderAyahs(FSUI.cur).length ? '<button type="button" class="fs-chip" data-act="playall" data-id="' + FSUI.cur + '">▶ ' + fsT('Слушать', 'Тыңдау') + '</button> ' : '') + '<button type="button" class="fs-chip" data-act="prefs" data-id="' + FSUI.cur + '">⚙ ' + fsT('Перевод и чтец', 'Аударма және қари') + '</button>' +
+      return '<div class="fs-prefs"><span>' + fsEsc(txt) + tag + '</span><span>' + (fsPlayable(FSUI.cur).length ? '<button type="button" class="fs-chip" data-act="playall" data-id="' + FSUI.cur + '">▶ ' + fsT('Слушать всё', 'Бәрін тыңдау') + '</button><button type="button" class="fs-chip" data-act="playshuf" data-id="' + FSUI.cur + '">🔀 ' + fsT('Перемешать', 'Араластыру') + '</button><button type="button" class="fs-chip" data-act="playadd" data-id="' + FSUI.cur + '">＋ ' + fsT('В очередь', 'Кезекке') + '</button> ' : '') + '<button type="button" class="fs-chip" data-act="prefs" data-id="' + FSUI.cur + '">⚙ ' + fsT('Перевод и чтец', 'Аударма және қари') + '</button>' +
         (fsAllChildren(FSUI.cur).length ? ' <button type="button" class="fs-chip" data-act="share" data-id="' + FSUI.cur + '">📤 ' + fsT('Поделиться', 'Бөлісу') + '</button> <button type="button" class="fs-chip fs-danger" data-act="clear" data-id="' + FSUI.cur + '">🧹 ' + fsT('Очистить', 'Тазалау') + '</button>' : '') + '</span></div>';
     }
     function fsPrefsDialog(fid, onDone) {
@@ -35841,10 +35970,27 @@ function renderDict() {
       au.play().then(fsPlPaint).catch(function() { fsPlPaint(); });
       fsPlPaint();
     }
-    function fsPlayFolder(fid) {
-      var list = fsFolderAyahs(fid);
-      if (!list.length) { toast(fsT('В папке нет аятов', 'Қалтада аят жоқ')); return; }
-      fsPlStop(); FSPL.list = list; FSPL.on = true; fsPlGo(0);
+    // 7.22: папка = плейлист в общем плеере (аяты, целые суры, дуа — по порядку папки, с подпапками)
+    function fsPlayable(fid) {
+      var out = [];
+      (function walk(id) { fsChildren(id).forEach(function(c) {
+        if (c.k === 'folder') walk(c.id);
+        else if (c.k === 'ayah' && c.d && c.d.s && c.d.a) out.push({ t: 'ayah', s: +c.d.s, a: +c.d.a });
+        else if (c.k === 'surah' && c.d && c.d.s) out.push({ t: 'surah', s: +c.d.s });
+        else if (c.k === 'dua' && c.d && c.d.hisn) out.push({ t: 'dua', key: c.d.hisn, title: c.d.title || fsName(c) });
+      }); })(fid);
+      return out;
+    }
+    function fsPlayFolder(fid, mode) {
+      var list = fsPlayable(fid);
+      if (!list.length) { toast(fsT('В папке нечего слушать (аяты, суры, дуа)', 'Қалтада тыңдайтын ештеңе жоқ (аят, сүре, дұға)')); return; }
+      fsPlStop();
+      var it = FS.items.get(fid), nm = it ? fsName(it) : '';
+      if (mode === 'shuffle') list = shuffle(list.slice());
+      if (mode === 'add' || mode === 'next') { plqAdd(list, mode === 'next', nm); return; }
+      PLQ.list = []; PLQ.loop = false; PLQ.name = nm; plqSave();
+      plqAdd(list, false, nm);
+      if (!plqIdle()) { var first = PLQ.list.shift(); plqSave(); plqPlay(first); }
     }
 
     // ---------- разложить аяты по сурам ----------

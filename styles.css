@@ -4939,3 +4939,14 @@ main::after { content: ''; display: block; height: var(--player-h, 0px); pointer
 #audio-mode-cycle { display: none !important; }
 #pl-range-slot input { width: 4.2rem; min-height: 40px; padding: 0.3rem 0.5rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; }
 #pl-range-slot button { min-height: 40px; padding: 0.3rem 0.9rem; border-radius: 999px; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--text); font: inherit; cursor: pointer; }
+
+/* ===== 7.22: очередь ===== */
+.audio-bar .pl-chips #pl-queue-btn b { display: inline-block; min-width: 1.2rem; padding: 0 0.3rem; margin-left: 0.15rem; border-radius: 999px; background: var(--accent); color: #fff; font-size: 0.72rem; }
+.plq-now { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.55rem 0.7rem; border-radius: 12px; background: color-mix(in srgb, var(--accent) 12%, transparent); margin-bottom: 0.6rem; }
+.plq-now small { font-size: 0.72rem; color: var(--text-muted); }
+.plq-list { display: grid; gap: 0.3rem; max-height: 45vh; overflow-y: auto; }
+.plq-row { display: flex; align-items: center; gap: 0.25rem; }
+.plq-go { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.45rem; min-height: 44px; padding: 0.35rem 0.6rem; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-size: 0.88rem; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plq-go i { font-style: normal; color: var(--text-muted); font-size: 0.75rem; min-width: 1.2rem; }
+.plq-b { flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+.plq-b:disabled { opacity: 0.35; cursor: default; }
