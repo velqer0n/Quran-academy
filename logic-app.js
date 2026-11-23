@@ -66673,7 +66673,8 @@ function startApp() {
         var PAUSE = /[،؛؟.,;:!?\n\r()\[\]«»"﴾﴿۝\-—–\u0007]/;
         var s = String(input);
         // остановка по знакам мусхафа: ۗ (лучше остановиться), ۚ (можно), ۘ (обязательно); ۖ — лучше продолжить, ۛ/ۙ — без остановки
-        if (KZ) s = s.replace(/\s*[\u06D7\u06DA\u06D8]\s*/g, ' \u0007 ');
+        s = s.replace(/\s*[\u06D7\u06DA\u06D8]\s*/g, ' \u0007 ');
+        s = s.replace(/[\u0621-\u064A]\u06DF/g, '');
         s = s.replace(/\u0640([\u064B-\u0652]*)\u0654/g, '\u0623$1')
           .replace(/[ـؐ-ؚۖ-ۜ۞۟-۠ۢ-ۤۧ-ۭؕ]/g, '')
           .replace(/ۡ/g, 'ْ').replace(/ٓ/g, 'ٓ');
@@ -66833,7 +66834,7 @@ function startApp() {
               if (i === 0 && !x.wasla) { // начальный алиф с огласовкой / без hamza-знака
                 t = vowelTr(v) || '';
               } else if (x.wasla && i === 0) { t = prevV ? '' : (vowelTr(v) || 'и'); }
-              else if (v && /an|un|in/.test(v)) { t = tanwinTr(v); if (pausal) t = v === 'an' ? 'а' : ''; }
+              else if (v && /an|un|in/.test(v)) { t = tanwinTr(v); if (pausal) t = v === 'an' ? 'аа' : ''; }
               else if (v) { t = vowelTr(v); }
               else {
                 // долгое «а» после фатхи; «молчащий» алиф — после «ـوا» и после танвина
@@ -66861,7 +66862,7 @@ function startApp() {
               if (c === 'ؤ' || c === 'ئ') hz = '’';
               var vt = vowelTr(v);
               if (pausal && v && v.length === 1) vt = '';
-              if (pausal && v === 'an') vt = 'а';
+              if (pausal && v === 'an') vt = 'аа';
               else if (!pausal && v && v.length === 2) vt += 'н';
               t = hz + vt + (x.sh ? '' : '');
               if (!v && x.sk) t = hz;
@@ -66875,7 +66876,7 @@ function startApp() {
             }
             if (c === 'و') {
               if (x.dag && !v) { res += 'а'; prevVow = 'a'; continue; }
-              if (v) { t = (x.sh ? W + W : W) + vowelTr(v) + (v.length === 2 && !pausal ? 'н' : ''); if (pausal && v.length === 1) t = (x.sh ? W + W : W); if (pausal && v === 'an') t = (x.sh ? W + W : W) + 'а'; }
+              if (v) { t = (x.sh ? W + W : W) + vowelTr(v) + (v.length === 2 && !pausal ? 'н' : ''); if (pausal && v.length === 1) t = (x.sh ? W + W : W); if (pausal && v === 'an') t = (x.sh ? W + W : W) + 'аа'; if (x.dag && v === 'a' && !pausal) t += 'а'; }
               else if (pv && pv.v === 'u' && !x.sh) { t = 'у'; }
               else if (pv && pv.v === 'a' && !x.sh) { t = 'у'; /* ау */ t = (nx ? 'у' : 'у'); res += 'у'; prevVow = ''; continue; }
               else t = W;
@@ -66884,7 +66885,7 @@ function startApp() {
             if (c === 'ى' && x.sk) c = 'ي';
             if (c === 'ي' || c === 'ى') {
               if (c === 'ى' && !v) { if (pv && pv.v === 'i') { res += 'и'; prevVow = 'i'; continue; } if (pv && pv.v === 'an') { prevVow = 'an'; continue; } res += 'а'; prevVow = 'a'; continue; }
-              if (v) { t = (x.sh ? 'йй' : 'й') + vowelTr(v) + (v.length === 2 && !pausal ? 'н' : ''); if (pausal && v.length === 1) t = (x.sh ? 'йй' : 'й'); if (pausal && v === 'an') t = (x.sh ? 'йй' : 'й') + 'а'; if (!pausal && x.ly && v === 'i') t += 'и'; if (!pausal && x.lw && v === 'u') t += 'у'; }
+              if (v) { t = (x.sh ? 'йй' : 'й') + vowelTr(v) + (v.length === 2 && !pausal ? 'н' : ''); if (pausal && v.length === 1) t = (x.sh ? 'йй' : 'й'); if (pausal && v === 'an') t = (x.sh ? 'йй' : 'й') + 'аа'; if (x.dag && v === 'a' && !pausal) t += 'а'; if (!pausal && x.ly && v === 'i') t += 'и'; if (!pausal && x.lw && v === 'u') t += 'у'; }
               else if (pv && pv.v === 'i') { t = 'и'; }
               else if (pv && pv.v === 'a') { t = 'й'; }
               else t = 'й';
@@ -66892,6 +66893,7 @@ function startApp() {
             }
             var cc = C[c];
             if (cc === undefined) { continue; }
+            if (!v && !x.sk && !x.sh && c !== 'ن' && c !== 'م' && nx && nx.sh && C[nx.c] !== undefined && 'دتطذثظبلقك'.indexOf(c) >= 0) { prevVow = ''; continue; }
             var base = cc;
             var doubled = x.sh && !x.artAssim;
             if (doubled) base = cc + cc;
@@ -66900,7 +66902,7 @@ function startApp() {
             // пауза: огласовка на конце отпадает
             if (pausal) {
               if (v === 'a' || v === 'u' || v === 'i') vt2 = x.dag ? vt2 : '';
-              else if (v === 'an') vt2 = 'а';
+              else if (v === 'an') vt2 = 'аа';
               else if (v === 'un' || v === 'in') vt2 = '';
             } else if (v && v.length === 2) vt2 += 'н';
             // долгая гласная после буквы: следующий ا/و/ي без огласовки уже выдаст «а/у/и» сам
@@ -66936,9 +66938,10 @@ function startApp() {
             // 7.40: после идгама удвоенная первая буква слова переходит к предыдущему: «ми рраббика» → «мир-раббика»
             if (idg[k] && /\s$/.test(out)) { var dm = /^([рлмнйуРЛМНЙУ])([рлмнйу])/.exec(r.t); if (dm && dm[1].toLowerCase() === dm[2]) { out = out.replace(/\s+$/, '') + dm[2] + '-'; r.t = dm[1] + r.t.slice(2); } }
             var dd = /^([бвгджзклмнпрстфхшщйһқғ])\1/i.exec(r.t.toLowerCase() === r.t ? r.t : r.t.charAt(0).toLowerCase() + r.t.slice(1));
-            if (dd && /^[\u0621-\u064A]\u0651/.test(tk.replace(/^[\u064B-\u0652]+/, ''))) {
+            if (dd && /^[\u0621-\u064A][\u064B-\u0650]?\u0651/.test(tk)) {
               var oe = out.replace(/\s+$/, '');
               if (oe && oe.slice(-1).toLowerCase() === dd[1] && /\s$/.test(out)) { out = oe + '-'; r.t = r.t.slice(1); }
+              else if (oe && /\s$/.test(out) && /[دتطذثظبلق]$/.test(prevTk) && /[дтзсблк\u0303]$/.test(oe) && !/[аиуә]$/.test(oe)) { out = oe.replace(/[дтзсблк]\u0303?$/, '') + dd[1] + '-'; r.t = r.t.slice(1); }
               else if (afterPause) r.t = r.t.charAt(0) + r.t.slice(2);
             }
             if (!afterPause && /н\s+$/.test(out) && /^[لرمن]\u0651/.test(tk.replace(/^([لرمن])[\u064E-\u0650](\u0651)/, '$1$2')) && /(?:[\u064B-\u064D]|ن\u0652?)[اى]?$/.test(prevTk)) {
@@ -66981,6 +66984,10 @@ function startApp() {
         s = s.replace(/(аа|ии|уу|[аиуә])\s+(лл[аә](?:з\u0303?|т)[иі])/g, function (m, v, w) { return v.charAt(0) + '-' + w; });
         // «кх» (ق + ه) по-русски читается как одна буква — разделяем: «такхар» → «так-хар»
         s = s.replace(/кх/g, 'к-х');
+        s = s.replace(/(аа|ии|уу)(?=-Лл)/g, function (m) { return m.charAt(0); });
+        // долгая гласная перед словом с алиф-васла (начинается с двух согласных): «лаа нфисаама» → «ла-нфисаама»
+        s = s.replace(/(аа|ии|уу|[аә])\s+(?=(?!дж)[бвгджзйклмнпрстфхцчшщһқғңъ]\u0303?[бвгджзйклмнпрстфхцчшщһқғңъ])/g, function (m, v) { return v.charAt(0) + '-'; });
+        s = s.replace(/н\s+б/g, 'м-б').replace(/нб/g, 'мб').replace(/н\s+Б/g, 'м-Б');
         return s;
       }
       var cache = {};
