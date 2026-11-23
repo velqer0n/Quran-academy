@@ -5170,3 +5170,6 @@ body { overscroll-behavior-y: none; }
 .fs-nowbar { margin: 0 0 0.6rem; padding: 0.45rem 0.75rem; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-weight: 600; font-size: 0.88rem; }
 .mushaf-auzu { text-align: center; font-size: 1.05em; opacity: 0.8; margin: 0.3rem 0 0.1rem; }
 .wbw-zero-ar { font-size: calc(1.45rem * var(--ar-scale, 1)); line-height: 2; text-align: right; margin-top: 0.4rem; }
+.fs-ord { display: inline-flex; gap: 0.3rem; margin-left: auto; }
+.fs-ob { min-width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-size: 1.05rem; cursor: pointer; }
+.fs-orderbar { border: 1px dashed var(--accent); border-radius: 10px; padding: 0.4rem 0.6rem; }

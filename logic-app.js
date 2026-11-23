@@ -6575,14 +6575,41 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         '<div class="pl-chiprow" style="margin-top:0.6rem">' +
           '<button type="button" class="rd-pc' + (PLQ.loop ? ' on' : '') + '" data-plq-loop="1">🔁 ' + (kk ? 'Шеңбермен' : 'По кругу') + '</button>' +
           (PLQ.list.length > 1 ? '<button type="button" class="rd-pc" data-plq-shuf="1">🔀 ' + (kk ? 'Араластыру' : 'Перемешать') + '</button>' : '') +
-          (PLQ.list.length ? '<button type="button" class="rd-pc" data-plq-clear="1">🗑 ' + (kk ? 'Тазарту' : 'Очистить') + '</button>' : '') + '</div>' +
+          (PLQ.list.length ? '<button type="button" class="rd-pc" data-plq-clear="1">🗑 ' + (kk ? 'Тазарту' : 'Очистить') + '</button>' : '') +
+          ((PLQ.list.length || PLQ.cur) ? '<button type="button" class="rd-pc" data-plq-tofolder="1">📁 ' + (kk ? 'Қалта ретінде сақтау' : 'Сохранить как папку') + '</button>' : '') + '</div>' +
         '<div class="rd-note">' + (kk ? 'Алдымен ағымдағысы аяқталады, содан кейін — тізім бойынша. Тізімдегі жолды басыңыз — дәл қазір ойнайды.' : 'Сначала доиграет текущее, потом — по списку. Нажмите на строку — сыграет сейчас.') + '</div>';
+    }
+    // 7.44: текущая очередь (что играет + далее) → новая папка
+    function plqToFolder() {
+      var kk = isKk(), rest = PLQ.list.slice(), same = function (a, b) { return a && b && a.t === b.t && a.s === b.s && a.a === b.a && a.key === b.key; };
+      if (PLQ.loop && rest.length && same(rest[rest.length - 1], PLQ.cur)) rest.pop();
+      var items = (PLQ.cur ? [PLQ.cur] : []).concat(rest).filter(function (x) { return x && (x.t === 'ayah' || x.t === 'surah' || x.t === 'dua'); });
+      if (!items.length) { toast(kk ? 'Кезек бос' : 'Очередь пуста'); return; }
+      var d = new Date(), def = (kk ? 'Кезек ' : 'Очередь ') + String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0');
+      var go = function (name) {
+        try {
+          if (typeof fsInit === 'function' && !FS.ready) { fsInit().then(function () { go(name); }); return; }
+          var f = fsCreate({ k: 'folder', p: null, n: name || def }); if (!f) return;
+          items.forEach(function (x, i) {
+            var o = { p: f.id, o: i * 10 };
+            if (x.t === 'surah') { o.k = 'surah'; o.d = { s: x.s }; }
+            else if (x.t === 'ayah') { o.k = 'ayah'; o.d = { s: x.s, a: x.a }; }
+            else { o.k = 'dua'; o.d = { hisn: x.key, title: x.title || '' }; o.n = x.title || ''; }
+            fsCreate(o);
+          });
+          toast((kk ? 'Қалта жасалды: ' : 'Папка создана: ') + (name || def) + ' · ' + items.length);
+        } catch (e) { toast(kk ? 'Сақтау мүмкін болмады' : 'Не удалось сохранить'); }
+      };
+      try { var pp = document.getElementById('pl-pop'); if (pp) { if (pp._close) pp._close(); pp.remove(); } } catch (e) {}
+      if (typeof fsPrompt === 'function') fsPrompt(kk ? 'Қалта атауы' : 'Название папки', def, function (v) { go(String(v || '').trim() || def); });
+      else { var n = prompt(kk ? 'Қалта атауы:' : 'Название папки:', def); if (n != null) go(n.trim() || def); }
     }
     function plqOpen() {
       var kk = isKk();
       plPop('☰ ' + (kk ? 'Ойнату кезегі' : 'Очередь воспроизведения'), '<div id="plq-body">' + plqSheetHtml() + '</div>', function(ov) {
         ov.addEventListener('click', function(e) {
-          var t = e.target.closest ? e.target.closest('[data-plq-go],[data-plq-up],[data-plq-down],[data-plq-del],[data-plq-loop],[data-plq-shuf],[data-plq-clear]') : null; if (!t) return;
+          var t = e.target.closest ? e.target.closest('[data-plq-go],[data-plq-up],[data-plq-down],[data-plq-del],[data-plq-loop],[data-plq-shuf],[data-plq-clear],[data-plq-tofolder]') : null; if (!t) return;
+          if (t.hasAttribute('data-plq-tofolder')) { plqToFolder(); return; }
           var i;
           if (t.hasAttribute('data-plq-go')) { i = +t.getAttribute('data-plq-go'); var x = PLQ.list.splice(i, 1)[0]; plqSave(); plqPlay(x); }
           else if (t.hasAttribute('data-plq-up')) { i = +t.getAttribute('data-plq-up'); if (i > 0) { var a = PLQ.list[i]; PLQ.list[i] = PLQ.list[i - 1]; PLQ.list[i - 1] = a; plqSave(); } }
@@ -34917,6 +34944,7 @@ function renderDict() {
         if (mode === 'name_desc') return fsName(b).localeCompare(fsName(a), 'ru', { numeric: true });
         if (mode === 'date') return (b.c || 0) - (a.c || 0);
         if (mode === 'date_old') return (a.c || 0) - (b.c || 0);
+        if (mode === 'num') { var na = a.d && a.d.s ? (+a.d.s) * 1000 + (+a.d.a || 0) : 1e9, nb = b.d && b.d.s ? (+b.d.s) * 1000 + (+b.d.a || 0) : 1e9; return (na - nb) || fsName(a).localeCompare(fsName(b), 'ru', { numeric: true }); }
         if (mode === 'type') return (a.k < b.k ? -1 : a.k > b.k ? 1 : 0) || fsName(a).localeCompare(fsName(b), 'ru', { numeric: true });
         return ((a.o || 0) - (b.o || 0)) || ((b.c || 0) - (a.c || 0));
       });
@@ -35920,11 +35948,12 @@ function renderDict() {
         (FSUI.selMode ? '<span class="fs-chk">' + (sel ? '✔' : '') + '</span>' : '') + ico +
         '<span class="fs-main"><b class="fs-name">' + fsEsc(fsName(it)) + (it.k === 'ayah' && fsAyahLearned(it) ? ' ✓' : '') + '</b>' + arab + (sub ? '<span class="fs-sub">' + fsEsc(sub) + '</span>' : '') + '</span>' +
         (function () {
-          if (it.k !== 'folder' || FSUI.selMode || withPath) return '';
+          if (it.k !== 'folder' || FSUI.selMode || FSUI.order || withPath) return '';
           if (!fsPlayable(it.id).length) return ''; // 7.22: суры и дуа тоже слушаются, не только аяты
           return '<button type="button" class="fs-play" data-act="playall" data-id="' + it.id + '" aria-label="' + fsT('Слушать подряд', 'Қатарынан тыңдау') + '">▶</button>';
         })() +
-        (FSUI.selMode ? '' : '<button type="button" class="fs-more" data-act="menu" data-id="' + it.id + '" aria-label="' + fsT('Меню', 'Мәзір') + '">⋮</button>') +
+        (FSUI.order && !withPath ? '<span class="fs-ord"><button type="button" class="fs-ob" data-act="oup" data-id="' + it.id + '" aria-label="↑">↑</button><button type="button" class="fs-ob" data-act="odown" data-id="' + it.id + '" aria-label="↓">↓</button></span>' :
+        (FSUI.selMode ? '' : '<button type="button" class="fs-more" data-act="menu" data-id="' + it.id + '" aria-label="' + fsT('Меню', 'Мәзір') + '">⋮</button>')) +
         (function () {
           if (it.k !== 'folder' || withPath) return '';
           var pr = fsFolderProgress(it.id); if (!pr || !pr.done) return '';
@@ -36057,6 +36086,7 @@ function renderDict() {
         if (FSUI.sel.has(id)) FSUI.sel.delete(id); else FSUI.sel.add(id);
         fsRenderBody(); return;
       }
+      if (FSUI.order) return;
       if (FSUI.q.trim()) {
         FSUI.q = ''; var qi = document.getElementById('fs-q'); if (qi) qi.value = '';
         if (it.k === 'folder') { FSUI.cur = it.id; fsRecentPush(it.id); fsRenderBody(); return; }
@@ -36092,11 +36122,30 @@ function renderDict() {
       var nb = document.getElementById('fs-nowbar');
       var show = c && cur && PLQ.total && (FSUI.cur || null) === (PLQ.fid === undefined ? '__' : PLQ.fid);
       if (!show) { if (nb) nb.remove(); return; }
-      var pos = Math.max(1, PLQ.total - PLQ.list.length);
+      var pos = PLQ.loop ? 0 : Math.max(1, PLQ.total - PLQ.list.length);
       if (!nb) { nb = document.createElement('div'); nb.id = 'fs-nowbar'; nb.className = 'fs-nowbar'; body.insertBefore(nb, body.firstChild); }
-      nb.textContent = '▶ ' + fsT('Играет: ', 'Ойнатылуда: ') + pos + fsT(' из ', ' / ') + PLQ.total;
+      nb.textContent = PLQ.loop ? '🔁 ' + fsT('Играет по кругу · пунктов: ', 'Шеңбермен ойнатылуда · тармақ: ') + PLQ.total : '▶ ' + fsT('Играет: ', 'Ойнатылуда: ') + pos + fsT(' из ', ' / ') + PLQ.total;
+    }
+    // 7.44: свой порядок — стрелки ↑↓ у каждого пункта; «Слушать всё» играет в этом порядке
+    function fsOrderStart() {
+      if (fsUiGet('sort', 'manual') !== 'manual') {
+        var cur = fsChildren(FSUI.cur); fsUiSet('sort', 'manual');
+        cur.forEach(function (x, i) { x.o = i * 10; x.u = Date.now(); fsSave(x); });
+      }
+      FSUI.order = true; FSUI.selMode = false; fsRenderBody();
+    }
+    function fsOrderMove(id, dir) {
+      var arr = fsChildren(FSUI.cur), i = arr.findIndex(function (x) { return x.id === id; }), j = i + dir;
+      if (i < 0 || j < 0 || j >= arr.length || (arr[i].k === 'folder') !== (arr[j].k === 'folder')) return;
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+      arr.forEach(function (x, k) { if (x.o !== k * 10) { x.o = k * 10; x.u = Date.now(); fsSave(x); } });
+      fsRenderBody();
     }
     function fsAct(act, id, el) {
+      if (act === 'order') { fsOrderStart(); return; }
+      if (act === 'order-done') { FSUI.order = false; fsRenderBody(); return; }
+      if (act === 'oup' || act === 'odown') { fsOrderMove(id, act === 'oup' ? -1 : 1); return; }
+      if (act === 'playloop') { fsPlayFolder(id, 'loop'); return; }
       if (act === 'go') { FSUI.cur = id || null; FSUI.temp = null; fsRenderBody(); return; }
       if (act === 'prefs') { fsPrefsDialog(id); return; }
       if (act === 'playall') { fsPlayFolder(id); return; }
@@ -36277,7 +36326,7 @@ function renderDict() {
     }
     function fsMoreMenu() {
       var view = fsUiGet('view', 'list'), sort = fsUiGet('sort', 'manual');
-      var sortName = { manual: fsT('вручную', 'қолмен'), name: fsT('по имени А→Я', 'аты бойынша А→Я'), name_desc: fsT('по имени Я→А', 'аты бойынша Я→А'), date: fsT('по дате: новые сверху', 'күні бойынша: жаңалары жоғарыда'), date_old: fsT('по дате: старые сверху', 'күні бойынша: ескілері жоғарыда'), type: fsT('по типу', 'түрі бойынша') };
+      var sortName = { manual: fsT('вручную (свой порядок)', 'қолмен (өз ретім)'), num: fsT('по номеру суры и аята', 'сүре мен аят нөмірі бойынша'), name: fsT('по имени А→Я', 'аты бойынша А→Я'), name_desc: fsT('по имени Я→А', 'аты бойынша Я→А'), date: fsT('по дате: новые сверху', 'күні бойынша: жаңалары жоғарыда'), date_old: fsT('по дате: старые сверху', 'күні бойынша: ескілері жоғарыда'), type: fsT('по типу', 'түрі бойынша') };
       var mark = function(on) { return on ? '✓ ' : ''; };
       var acts = [
         { ico: view === 'grid' ? '▦' : '☰', label: fsT('Вид: ', 'Түрі: ') + (view === 'grid' ? fsT('сетка', 'тор') : fsT('список', 'тізім')), fn: function() {
@@ -36719,7 +36768,8 @@ function renderDict() {
       if (!FSUI.cur) return '';
       var txt = '🌐 ' + fsTrLabel(pf.tr || fsGlobalTr()) + ' · 🎧 ' + fsRecLabel(pf.rec || fsGlobalRec());
       var tag = pf.temp ? ' <i>(' + fsT('временно', 'уақытша') + ')</i>' : (pf.saved ? '' : ' <i>(' + fsT('общие настройки', 'жалпы баптаулар') + ')</i>');
-      return '<div class="fs-prefs"><span>' + fsEsc(txt) + tag + '</span><span>' + (fsPlayable(FSUI.cur).length ? '<button type="button" class="fs-chip" data-act="playall" data-id="' + FSUI.cur + '">▶ ' + fsT('Слушать всё', 'Бәрін тыңдау') + '</button><button type="button" class="fs-chip" data-act="playshuf" data-id="' + FSUI.cur + '">🔀 ' + fsT('Перемешать', 'Араластыру') + '</button><button type="button" class="fs-chip" data-act="playadd" data-id="' + FSUI.cur + '">＋ ' + fsT('В очередь', 'Кезекке') + '</button> ' : '') + '<button type="button" class="fs-chip" data-act="prefs" data-id="' + FSUI.cur + '">⚙ ' + fsT('Перевод и чтец', 'Аударма және қари') + '</button>' +
+      if (FSUI.order) return '<div class="fs-prefs fs-orderbar"><span>↕ ' + fsT('Свой порядок: двигайте стрелками ↑↓', 'Өз ретіңіз: ↑↓ бағыттауыштарымен жылжытыңыз') + '</span><span><button type="button" class="fs-chip on" data-act="order-done">✓ ' + fsT('Готово', 'Дайын') + '</button></span></div>';
+      return '<div class="fs-prefs"><span>' + fsEsc(txt) + tag + '</span><span>' + (fsPlayable(FSUI.cur).length ? '<button type="button" class="fs-chip" data-act="playloop" data-id="' + FSUI.cur + '">🔁 ' + fsT('Повторять', 'Қайталау') + '</button> ' : '') + (fsAllChildren(FSUI.cur).length > 1 ? '<button type="button" class="fs-chip" data-act="order" data-id="' + FSUI.cur + '">↕ ' + fsT('Порядок', 'Рет') + '</button> ' : '') + (fsPlayable(FSUI.cur).length ? '<button type="button" class="fs-chip" data-act="playall" data-id="' + FSUI.cur + '">▶ ' + fsT('Слушать всё', 'Бәрін тыңдау') + '</button><button type="button" class="fs-chip" data-act="playshuf" data-id="' + FSUI.cur + '">🔀 ' + fsT('Перемешать', 'Араластыру') + '</button><button type="button" class="fs-chip" data-act="playadd" data-id="' + FSUI.cur + '">＋ ' + fsT('В очередь', 'Кезекке') + '</button> ' : '') + '<button type="button" class="fs-chip" data-act="prefs" data-id="' + FSUI.cur + '">⚙ ' + fsT('Перевод и чтец', 'Аударма және қари') + '</button>' +
         (fsAllChildren(FSUI.cur).length ? ' <button type="button" class="fs-chip" data-act="share" data-id="' + FSUI.cur + '">📤 ' + fsT('Поделиться', 'Бөлісу') + '</button> <button type="button" class="fs-chip fs-danger" data-act="clear" data-id="' + FSUI.cur + '">🧹 ' + fsT('Очистить', 'Тазалау') + '</button>' : '') + '</span></div>';
     }
     function fsPrefsDialog(fid, onDone) {
@@ -37099,9 +37149,10 @@ function renderDict() {
       var it = FS.items.get(fid), nm = it ? fsName(it) : '';
       if (mode === 'shuffle') list = shuffle(list.slice());
       if (mode === 'add' || mode === 'next') { plqAdd(list, mode === 'next', nm); return; }
-      PLQ.list = list.slice(1); PLQ.loop = false; PLQ.name = nm; PLQ.fid = fid; PLQ.total = list.length; plqSave();
+      var loop = mode === 'loop';
+      PLQ.list = loop ? list.slice(1).concat([list[0]]) : list.slice(1); PLQ.loop = loop; PLQ.name = nm; PLQ.fid = fid; PLQ.total = list.length; plqSave();
       plqPlay(list[0]);
-      try { toast(fsT('Играет: 1 из ', 'Ойнатылуда: 1 / ') + list.length); } catch (e) {}
+      try { toast(loop ? fsT('🔁 Папка по кругу: ', '🔁 Қалта шеңбермен: ') + list.length : fsT('Играет: 1 из ', 'Ойнатылуда: 1 / ') + list.length); } catch (e) {}
       setTimeout(function () { try { fsMarkPlaying(); } catch (e) {} }, 400);
     }
 
