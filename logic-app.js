@@ -66643,14 +66643,38 @@ function startApp() {
         if (!input) return '';
         var KZ = lang === 'kk';
         var C = {
-          'ب': 'б', 'ت': 'т', 'ث': 'с', 'ج': KZ ? 'ж' : 'дж', 'ح': KZ ? 'һ' : 'х', 'خ': 'х', 'د': 'д', 'ذ': 'з', 'ر': 'р', 'ز': 'з',
+          'ب': 'б', 'ت': 'т', 'ث': 'с', 'ج': KZ ? 'ж' : 'дж', 'ح': 'х', 'خ': 'х', 'د': 'д', 'ذ': 'з', 'ر': 'р', 'ز': 'з',
           'س': 'с', 'ش': 'ш', 'ص': 'с', 'ض': 'д', 'ط': 'т', 'ظ': 'з', 'ع': '‘', 'غ': KZ ? 'ғ' : 'г', 'ف': 'ф', 'ق': KZ ? 'қ' : 'к',
           'ك': 'к', 'ل': 'л', 'م': 'м', 'ن': 'н', 'ه': KZ ? 'һ' : 'х'
         };
+        // 7.40: казахская транскрипция — буквы по системе asyldin.kz (мечеть «Һибатулла Тарази», ҚМДБ):
+        // ح → х, ع → ъ, ذ → з̃, ث → с̃; гласная «а/ә» — по таджвиду: после твёрдых букв (ص ض ط ظ خ غ ق) и после ر с фатхой — «а»,
+        // после ع — «ъа» (как у них), иначе «ә». Твёрдые буквы помечаем временно (\uE001…), чтобы потом выбрать гласную.
+        if (KZ) { C['ص'] = '\uE001'; C['ض'] = '\uE002'; C['ط'] = '\uE003'; C['ظ'] = '\uE004'; C['خ'] = '\uE005'; C['ع'] = 'ъ'; C['ذ'] = 'з\u0303'; C['ث'] = 'с\u0303'; }
+        function kzWord(r) {
+          if (!KZ || !r) return r;
+          r = r.replace(/[аА]а+/g, function (m) { return m.charAt(0); });             // долгое «а» одной буквой (как у них); «ии», «уу» — двумя
+          r = r.replace(/’(?=[аиуАИУ])/g, '');                                           // хамза с гласной не пишется, с сукуном — «’»
+          r = r.replace(/ль(?=-)/g, 'л').replace(/у{4,}/g, 'ууу');                                                 // артикль «әл-»
+          var out = '', prev = '';
+          for (var i = 0; i < r.length; i++) {
+            var ch = r.charAt(i);
+            if (ch === 'а' || ch === 'А') {
+              var hard = /[\uE001-\uE005қғърҚҒЪР]/.test(prev);
+              out += hard ? ch : (ch === 'А' ? 'Ә' : 'ә');
+            } else out += ch;
+            if (ch !== '\u0303') prev = ch;
+          }
+          out = out.replace(/([рР])ахмән/g, '$1ахман').replace(/([хХ])әқ/g, '$1ақ');   // «Рахман», «хақ», «Исхақ» — принятое написание
+          return out.replace(/\uE001/g, 'с').replace(/\uE002/g, 'д').replace(/\uE003/g, 'т').replace(/\uE004/g, 'з').replace(/\uE005/g, 'х');
+        }
         var W = KZ ? 'у' : 'в';
         var SUN = 'تثدذرزسشصضطظلن';
-        var PAUSE = /[،؛؟.,;:!?\n\r()\[\]«»"﴾﴿۝\-—–]/;
-        var s = String(input).replace(/\u0640([\u064B-\u0652]*)\u0654/g, '\u0623$1')
+        var PAUSE = /[،؛؟.,;:!?\n\r()\[\]«»"﴾﴿۝\-—–\u0007]/;
+        var s = String(input);
+        // остановка по знакам мусхафа: ۗ (лучше остановиться), ۚ (можно), ۘ (обязательно); ۖ — лучше продолжить, ۛ/ۙ — без остановки
+        if (KZ) s = s.replace(/\s*[\u06D7\u06DA\u06D8]\s*/g, ' \u0007 ');
+        s = s.replace(/\u0640([\u064B-\u0652]*)\u0654/g, '\u0623$1')
           .replace(/[ـؐ-ؚۖ-ۜ۞۟-۠ۢ-ۤۧ-ۭؕ]/g, '')
           .replace(/ۡ/g, 'ْ').replace(/ٓ/g, 'ٓ');
         s = s.replace(/صلى\s+ا?للـ?ه\s+عليه\s+و?سلم/g, 'صَلَّى اللَّهُ عَلَيْهِ وَسَلَّمَ')
@@ -66661,6 +66685,15 @@ function startApp() {
                return /مرات|مرة|ثلاث|اصبح|امسى|سبع|مائة|عشر|واحد|الكسل|يفعل/.test(b) ? ' ' : g;
              })
              .replace(/[\u0001\u0002]/g, ' ');
+        // 7.40: буквы в начале сур (الٓمٓ, يسٓ, حمٓ, كٓهيعٓصٓ…) — названиями букв; раньше пропадали или выходили арабскими
+        var MQL = KZ ? { 'ا': 'әлиф', 'ل': 'ләм', 'م': 'миим', 'ص': 'сад', 'ر': 'ра', 'ك': 'кәф', 'ه': 'һә', 'ي': 'йә', 'ع': 'ъайн', 'ط': 'та', 'س': 'сиин', 'ح': 'ха', 'ق': 'қаф', 'ن': 'нуун' }
+                     : { 'ا': 'алиф', 'ل': 'лаам', 'م': 'миим', 'ص': 'саад', 'ر': 'раа', 'ك': 'кааф', 'ه': 'хаа', 'ي': 'йаа', 'ع': '‘айн', 'ط': 'таа', 'س': 'сиин', 'ح': 'хаа', 'ق': 'кааф', 'ن': 'нуун' };
+        var MQS = { 'الم': 1, 'المص': 1, 'الر': 1, 'المر': 1, 'كهيعص': 1, 'طه': 1, 'طسم': 1, 'طس': 1, 'يس': 1, 'ص': 1, 'حم': 1, 'عسق': 1, 'ق': 1, 'ن': 1 };
+        s = s.replace(/(^|[\s﴿])([اﻻلمصركهيعطسحقن\u0653]+)(?=[\s﴾]|$)/g, function (m, a, w) {
+          var bare = w.replace(/\u0653/g, ''); if (!MQS[bare]) return m;
+          var nm = bare.split('').map(function (c) { return MQL[c]; }).join(' ');
+          return a + ' ' + nm.charAt(0).toUpperCase() + nm.slice(1) + ' \u0007 ';
+        });
         s = s.replace(/﴿?الم﴾?/g, ' Алиф лаам миим ');
         // слова и разделители
         var tokens = s.match(/[\u0621-\u0655\u0670\u0671\u06E5\u06E6]+|[^\u0621-\u0655\u0670\u0671\u06E5\u06E6]+/g) || [];
@@ -66677,13 +66710,14 @@ function startApp() {
           return tk;
         });
         // «ٱلنَّ»: нун с сукуном перед ي ر م ل و ن с шаддой — идгам (нун не произносится отдельно)
+        var idg = {};
         for (var q = 0; q < tokens.length - 2; q++) {
           if (/^[\u0621-\u0652]+$/.test(tokens[q]) && /^\s+$/.test(tokens[q + 1]) && /^[\u0621-\u0652]+$/.test(tokens[q + 2])) {
             var w1 = tokens[q], w2 = tokens[q + 2];
-            if (/ن(\u0652)?$/.test(w1) && /^[يرملون][\u064B-\u0650]?\u0651/.test(w2) || /ن(\u0652)?$/.test(w1) && /^[يرملون]\u0651/.test(w2)) tokens[q] = w1.replace(/ن\u0652?$/, '');
+            if (/ن(\u0652)?$/.test(w1) && /^[يرملون][\u064B-\u0650]?\u0651/.test(w2) || /ن(\u0652)?$/.test(w1) && /^[يرملون]\u0651/.test(w2)) { tokens[q] = w1.replace(/ن\u0652?$/, ''); idg[q + 2] = true; }
           }
         }
-        var out = '', prevEndsVowel = false;
+        var out = '', prevEndsVowel = false, afterPause = true, prevTk = '';
         function isMark(c) { return (c >= '\u064B' && c <= '\u0655') || c === '\u0670' || c === '\u06E5' || c === '\u06E6'; }
         function units(w) {
           var u = [], i = 0;
@@ -66734,6 +66768,7 @@ function startApp() {
             if (am[1] && bare !== 'الله') {
               var pu = rest.shift();
               pre = (pu.c === 'و' ? W : C[pu.c]) + (vowelTr(pu.v) || (pu.c === 'ب' || pu.c === 'ل' ? 'и' : 'а'));
+              if (!am[2] && am[3] === 'لله' && pu.c !== 'ل' && pu.c !== 'ب' && pu.c !== 'ت') pre += 'ли';
               elide = true;
             } else if (bare === 'لله') {
               var pl = rest.shift(); pre = 'ли'; elide = true;
@@ -66750,6 +66785,7 @@ function startApp() {
               if (cv && !pause) core += vowelTr(cv) + (cv.length === 2 ? 'н' : '');
               else if (cv === 'an') core += 'а';
             }
+            if (KZ) { core = core.replace(/^(-?)А(?=лла)/, '$1\uE00E').replace(/([лЛ])ла/, '$1л\uE00F'); core = core.replace(/ххумма/, 'һумма'); core = core.replace(/^([УуФфКк])а(?=ли)/, function (m, c) { return c + 'ә'; }); }
             return { t: core, endsV: !pause && (mem || !!last.v) };
           }
           var res = '', i = 0, n = u.length, prevVow = '';
@@ -66761,7 +66797,7 @@ function startApp() {
           var artAt = -1, prefUnit = null;
           if (isArt(0)) artAt = 0;
           else if (n > 3 && 'وفبك'.indexOf(u[0].c) >= 0 && u[0].v && isArt(1)) { artAt = 1; prefUnit = u[0]; }
-          else if (n > 2 && u[0].c === 'ل' && (u[0].v === 'i' || !u[0].v) && u[1].c === 'ل' && u[1].sk && u[2] && !u[1].sh) { artAt = 1; prefUnit = u[0]; artNoAlif = true; }
+          else if (n > 2 && u[0].c === 'ل' && (u[0].v === 'i' || !u[0].v) && u[1].c === 'ل' && u[2] && !u[1].sh && (u[1].sk || (!u[1].v && u[2].sh && SUN.indexOf(u[2].c) >= 0))) { artAt = 1; prefUnit = u[0]; artNoAlif = true; }
           var artNoAlif = artAt === 1 && prefUnit && prefUnit.c === 'ل' && u[1].c === 'ل';
           // «ал» + лям с шаддой: аль-ля.. (الَّذِي)
           var artSh = artAt < 0 && u[0].c === 'ا' && u[1] && u[1].c === 'ل' && u[1].sh && u[0].v === '' ;
@@ -66792,7 +66828,7 @@ function startApp() {
             var v = x.v;
             var t = '';
             // пауза: короткий падежный огласовка на последней букве слова отбрасывается
-            var pausal = pause && last;
+            var pausal = pause && (last || (v === 'an' && i === n - 2 && (u[n - 1].c === 'ا' || u[n - 1].c === 'ى') && !u[n - 1].v));
             if (c === 'ا') {
               if (i === 0 && !x.wasla) { // начальный алиф с огласовкой / без hamza-знака
                 t = vowelTr(v) || '';
@@ -66826,6 +66862,7 @@ function startApp() {
               var vt = vowelTr(v);
               if (pausal && v && v.length === 1) vt = '';
               if (pausal && v === 'an') vt = 'а';
+              else if (!pausal && v && v.length === 2) vt += 'н';
               t = hz + vt + (x.sh ? '' : '');
               if (!v && x.sk) t = hz;
               if (x.dag) t += 'аа';
@@ -66837,7 +66874,8 @@ function startApp() {
               res += t; prevVow = v; continue;
             }
             if (c === 'و') {
-              if (v) { t = (x.sh ? W + W : W) + vowelTr(v) + (v.length === 2 && !pausal ? 'н' : ''); if (pausal && v.length === 1) t = (x.sh ? W + W : W); if (pausal && v === 'an') t = W + 'а'; }
+              if (x.dag && !v) { res += 'а'; prevVow = 'a'; continue; }
+              if (v) { t = (x.sh ? W + W : W) + vowelTr(v) + (v.length === 2 && !pausal ? 'н' : ''); if (pausal && v.length === 1) t = (x.sh ? W + W : W); if (pausal && v === 'an') t = (x.sh ? W + W : W) + 'а'; }
               else if (pv && pv.v === 'u' && !x.sh) { t = 'у'; }
               else if (pv && pv.v === 'a' && !x.sh) { t = 'у'; /* ау */ t = (nx ? 'у' : 'у'); res += 'у'; prevVow = ''; continue; }
               else t = W;
@@ -66845,8 +66883,8 @@ function startApp() {
             }
             if (c === 'ى' && x.sk) c = 'ي';
             if (c === 'ي' || c === 'ى') {
-              if (c === 'ى' && !v) { if (pv && pv.v === 'i') { res += 'и'; prevVow = 'i'; continue; } res += 'а'; prevVow = 'a'; continue; }
-              if (v) { t = (x.sh ? 'йй' : 'й') + vowelTr(v) + (v.length === 2 && !pausal ? 'н' : ''); if (pausal && v.length === 1) t = (x.sh ? 'йй' : 'й'); if (pausal && v === 'an') t = 'йа'; }
+              if (c === 'ى' && !v) { if (pv && pv.v === 'i') { res += 'и'; prevVow = 'i'; continue; } if (pv && pv.v === 'an') { prevVow = 'an'; continue; } res += 'а'; prevVow = 'a'; continue; }
+              if (v) { t = (x.sh ? 'йй' : 'й') + vowelTr(v) + (v.length === 2 && !pausal ? 'н' : ''); if (pausal && v.length === 1) t = (x.sh ? 'йй' : 'й'); if (pausal && v === 'an') t = (x.sh ? 'йй' : 'й') + 'а'; if (!pausal && x.ly && v === 'i') t += 'и'; if (!pausal && x.lw && v === 'u') t += 'у'; }
               else if (pv && pv.v === 'i') { t = 'и'; }
               else if (pv && pv.v === 'a') { t = 'й'; }
               else t = 'й';
@@ -66875,6 +66913,7 @@ function startApp() {
             if (nx && nx.c === 'ى' && v === 'a') addLong = 'а';
             if (x.lw) addLong = 'у'; if (x.ly) addLong = 'и';
             res += base + vt2;
+            if ((x.lw || x.ly) && !pausal) res += addLong;
             if (x.dag) res += 'а';
             if (x.dag && pausal) { /* дагерный алиф сохраняется и в паузе */ }
             prevVow = v;
@@ -66884,7 +66923,7 @@ function startApp() {
             }
           }
           var endsV = /[аиуяюёэ]$/.test(res) && !pause;
-          return { t: res, endsV: endsV };
+          return { t: kzWord(res), endsV: endsV };
         }
 
         for (var k = 0; k < tokens.length; k++) {
@@ -66892,16 +66931,39 @@ function startApp() {
           if (/^[\u0621-\u0655\u0670\u0671\u06E5\u06E6]+$/.test(tk)) {
             var nextTok = tokens[k + 1] || '';
             var pause = (!opts.full && k === tokens.length - 1) || PAUSE.test(nextTok.replace(/[ \t]/g, '').charAt(0) || '') || /[\n\r]/.test(nextTok);
+            if (!afterPause && /\s$/.test(out) && /^ٱ/.test(tk) && /[\u064B-\u064D][اى]?$/.test(prevTk) && /н\s+$/.test(out)) { out = out.replace(/н\s+$/, 'ни '); prevEndsVowel = true; }
             var r = word(tk, pause, prevEndsVowel);
+            // 7.40: после идгама удвоенная первая буква слова переходит к предыдущему: «ми рраббика» → «мир-раббика»
+            if (idg[k] && /\s$/.test(out)) { var dm = /^([рлмнйуРЛМНЙУ])([рлмнйу])/.exec(r.t); if (dm && dm[1].toLowerCase() === dm[2]) { out = out.replace(/\s+$/, '') + dm[2] + '-'; r.t = dm[1] + r.t.slice(2); } }
+            var dd = /^([бвгджзклмнпрстфхшщйһқғ])\1/i.exec(r.t.toLowerCase() === r.t ? r.t : r.t.charAt(0).toLowerCase() + r.t.slice(1));
+            if (dd && /^[\u0621-\u064A]\u0651/.test(tk.replace(/^[\u064B-\u0652]+/, ''))) {
+              var oe = out.replace(/\s+$/, '');
+              if (oe && oe.slice(-1).toLowerCase() === dd[1] && /\s$/.test(out)) { out = oe + '-'; r.t = r.t.slice(1); }
+              else if (afterPause) r.t = r.t.charAt(0) + r.t.slice(2);
+            }
+            if (!afterPause && /н\s+$/.test(out) && /^[لرمن]\u0651/.test(tk.replace(/^([لرمن])[\u064E-\u0650](\u0651)/, '$1$2')) && /(?:[\u064B-\u064D]|ن\u0652?)[اى]?$/.test(prevTk)) {
+              var c0 = r.t.charAt(0).toLowerCase(); out = out.replace(/н\s+$/, c0 + '-'); if (r.t.charAt(1) === c0) r.t = r.t.charAt(0) + r.t.slice(2);
+            }
+            if (!afterPause && /\s$/.test(out) && /^[وي][\u064E-\u0650]/.test(tk) && /(?:[\u064B-\u064D]|ن\u0652?)[اى]?$/.test(prevTk)) {
+              var w0 = r.t.charAt(0).toLowerCase(); if (/н\s+$/.test(out)) out = out.replace(/н\s+$/, w0 + '-');
+            }
             if (r.t.charAt(0) === '-' && /\s$/.test(out)) out = out.replace(/\s+$/, ''); out += r.t; prevEndsVowel = r.endsV && !pause;
+            afterPause = pause; prevTk = tk;
           } else {
-            if (PAUSE.test(tk)) prevEndsVowel = false;
+            tk = tk.replace(/\u0007/g, ' ');
+            if (PAUSE.test(tk) || /\u0007/.test(tokens[k])) { prevEndsVowel = false; afterPause = true; }
             if (/^\s*$/.test(tk)) out += ' ';
             else out += tk.replace(/[﴾﴿۝]/g, '').replace(/[()\[\]«»"]/g, '').replace(/[،]/g, ',').replace(/[؟]/g, '?').replace(/[؛]/g, ';');
           }
         }
         out = out.replace(/\s+/g, ' ').replace(/ ([,.;:?!])/g, '$1').trim();
         out = tlFix(out);
+        if (KZ) {
+          // Аллаһ: после «и» — мягко (лилләһи, бисми-лләһи), иначе твёрдо (Аллаһу, ъибәда-ллаһи)
+          out = out.replace(/\uE00F/g, function (m, pos) { var b = out.slice(0, pos).replace(/[лЛ\-\s\uE00E]+$/, ''); return /[иИ]$/.test(b) ? 'ә' : 'а'; }).replace(/\uE00E/g, 'А');
+          // гласная прямо перед твёрдым «ллаһ» тоже твёрдая: «инна-ллаһа», «уаллаһу» (как в asyldin.kz)
+          out = out.replace(/ә(-?[лЛ]лаһ)/g, 'а$1').replace(/Ә(-?[лЛ]лаһ)/g, 'А$1');
+        }
         out = out.replace(/(^|[.!?]\s+)([а-яёәғқңөұүһі])/g, function (m, a, b) { return a + b.toUpperCase(); });
         return out;
       }
@@ -66914,9 +66976,9 @@ function startApp() {
         // танвин уже съеден, а «м» удвоено: «бишай’и ммин» → «бишай’им-мин»
         s = s.replace(new RegExp('([' + V + '])\\s+мм(?=[' + V + '])', 'g'), '$1м-м');
         // долгая гласная перед артиклем/слиянием («-ль-», «-с-», «-д-»…) читается коротко: «фии-ль-» → «фи-ль-», «Ихдинаа-с-» → «Ихдина-с-»
-        s = s.replace(/(аа|ии|уу)(?=-(?:ль|[бвгджзйклмнпрстфхцчшщһқғң]{1,2})-)/g, function (m) { return m.charAt(0); });
+        s = s.replace(/(аа|ии|уу)(?=-(?:ль|[бвгджзйклмнпрстфхцчшщһқғңъ]\u0303?[бвгджзйклмнпрстфхцчшщһқғңъ]?\u0303?)-)/g, function (m) { return m.charAt(0); });
         // «ٱلَّذِى/ٱلَّتِى» после гласной — через дефис, долгая гласная короткая: «Иллаа ллазиина» → «Илла-ллазиина»
-        s = s.replace(/(аа|ии|уу|[аиу])\s+(лла[зт][иі])/g, function (m, v, w) { return v.charAt(0) + '-' + w; });
+        s = s.replace(/(аа|ии|уу|[аиуә])\s+(лл[аә](?:з\u0303?|т)[иі])/g, function (m, v, w) { return v.charAt(0) + '-' + w; });
         // «кх» (ق + ه) по-русски читается как одна буква — разделяем: «такхар» → «так-хар»
         s = s.replace(/кх/g, 'к-х');
         return s;
