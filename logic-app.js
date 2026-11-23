@@ -67334,6 +67334,8 @@ function pushSettingsHtml() {
     '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">' + chips + '</div></div>' +
     '<div class="setting-row"><span>' + L('Времена всего дня в уведомлении (одно на день, заменяется)', 'Хабарламада күннің барлық уақыты (күніне біреу, ауысып отырады)') + '</span>' +
     '<button type="button" class="btn btn-sm ' + (st.pushToday !== false ? 'btn-primary' : '') + '" id="pn-today">' + (st.pushToday !== false ? L('Вкл', 'Қосулы') : L('Выкл', 'Өшірулі')) + '</button></div>' +
+    (qaLN() ? '<div class="setting-row"><span>' + L('Времена дня в шторке — закреплённое уведомление (приложение)', 'Күн уақыттары шторкада — бекітілген хабарлама (қосымша)') + '</span>' +
+      '<button type="button" class="btn btn-sm ' + (st.appDayBar !== false ? 'btn-primary' : '') + '" id="pn-appbar">' + (st.appDayBar !== false ? L('Вкл', 'Қосулы') : L('Выкл', 'Өшірулі')) + '</button></div>' : '') +
     '<div class="setting-row"><span>' + L('Тихие часы (без уведомлений)', 'Тыныш уақыт (хабарламасыз)') + '</span>' +
     '<button type="button" class="btn btn-sm ' + (st.quietOn ? 'btn-primary' : '') + '" id="pn-quiet">' + (st.quietOn ? L('Вкл', 'Қосулы') : L('Выкл', 'Өшірулі')) + '</button></div>' +
     (st.quietOn ? '<div class="setting-row"><span>' + L('С / до', 'Бастап / дейін') + '</span><span style="display:flex;gap:0.3rem">' +
@@ -67418,6 +67420,7 @@ async function pushDiag() {
   let paint = function() { out.innerHTML = '<ul class="pn-diag">' + rows.join('') + '</ul>'; };
   const ua = navigator.userAgent || '', wv = !!(window.WebToApk || window.Capacitor) || /; wv\)/.test(ua) || /Version\/[\d.]+ Chrome\/[\d.]+ Mobile/.test(ua) && /Android/.test(ua);
   const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  if (qaLN()) { try { var _ar = await appNotifSync(true), _pd = await qaLN().getPending(); ok(_ar.ok, L('Уведомления приложения (местные, без интернета)', 'Қосымша хабарламалары (жергілікті, интернетсіз)'), _ar.ok ? L('запланировано: ', 'жоспарланды: ') + (((_pd && _pd.notifications) || []).length) + (_ar.bar ? L(' · времена дня в шторке', ' · күн уақыттары шторкада') : '') : _ar.why); } catch (e) { ok(false, L('Уведомления приложения', 'Қосымша хабарламалары'), String(e && e.message || e)); } }
   ok(null, L('Где открыт сайт', 'Сайт қайда ашық'), wv ? L('внутри приложения (APK, WebView)', 'қосымша ішінде (APK, WebView)') : standalone ? L('установлен как приложение (ярлык)', 'қосымша ретінде орнатылған') : L('в браузере', 'браузерде'));
   ok('serviceWorker' in navigator, 'Service Worker');
   ok('Notification' in window, L('Уведомления (Notification)', 'Хабарламалар (Notification)'), 'Notification' in window ? L('разрешение: ', 'рұқсат: ') + Notification.permission : '');
@@ -67449,6 +67452,62 @@ async function pushDiag() {
   paint();
 }
 document.addEventListener('click', function(e) { if (e.target && e.target.closest && e.target.closest('#pn-diag')) pushDiag(); });
+// ===== 7.45: уведомления о намазе в приложении (APK): через встроенные в приложение местные уведомления —
+// работают без интернета и при закрытом приложении. Закреплённое уведомление с временами дня (как в Sajda) +
+// напоминания на 7 дней вперёд; при каждом заходе расписание дополняется до 7 дней.
+function qaLN() { try { var C = window.Capacitor, P = C && C.Plugins; return (P && P.LocalNotifications) || null; } catch (e) { return null; } }
+var APPN_IDS = { bar: 70000, from: 71000, to: 71999 };
+function appNotifDay(dayOffset) {
+  var loc = state.prayerLoc || state.prayerLocSaved; if (!loc || loc.lat == null || typeof resolveDayTimes !== 'function') return null;
+  var mk = (state.settings && state.settings.prayerMethod) || 'DUMK', day0 = new Date(Date.now() + (dayOffset || 0) * 86400000);
+  var t; try { t = resolveDayTimes(+loc.lat, +loc.lon, day0, mk); } catch (e) { return null; }
+  if (!t) return null;
+  var kk = (typeof isKk === 'function') && isKk();
+  var K = [['fajr', 'Фадж', 'Таң', 'Фаджр', 'Таң'], ['sunrise', 'Восх', 'Күн', 'Восход', 'Күн шығу'], ['dhuhr', 'Зухр', 'Бес', 'Зухр', 'Бесін'], ['asr', 'Аср', 'Екін', 'Аср', 'Екінті'], ['maghrib', 'Магр', 'Ақш', 'Магриб', 'Ақшам'], ['isha', 'Иша', 'Құп', 'Иша', 'Құптан']];
+  var p = K.filter(function (x) { return t[x[0]] && t[x[0]] !== '--:--'; }).map(function (x) { return { s: (kk ? x[2] : x[1]) + ' ' + t[x[0]], f: (kk ? x[4] : x[3]), tm: t[x[0]] }; });
+  if (!p.length) return null;
+  var ptz = getPlaceTz(+loc.lat, +loc.lon, day0), wall = ptWall(day0, ptz);
+  return { l1: p.slice(0, 3).map(function (x) { return x.s; }).join(' · '), l2: p.slice(3).map(function (x) { return x.s; }).join(' · '),
+    col: p.map(function (x) { return x.f + '   ' + x.tm; }).join('\n'), city: loc.city || '', ptz: ptz, wall: wall };
+}
+var _appnBusy = false, _appnLast = 0;
+async function appNotifSync(ask) {
+  var LN = qaLN(), kk = (typeof isKk === 'function') && isKk(), st = state.settings || {};
+  if (!LN) return { ok: false, why: kk ? 'бұл — қосымша емес (браузер)' : 'это не приложение (браузер)' };
+  if (_appnBusy) return { ok: false, why: 'busy' }; _appnBusy = true;
+  try {
+    var wantBar = st.appDayBar !== false, wantRem = !!st.prayerNotif;
+    var perm = await LN.checkPermissions();
+    if (perm.display !== 'granted' && (wantBar || wantRem) && ask) perm = await LN.requestPermissions();
+    if (perm.display !== 'granted') return { ok: false, why: kk ? 'хабарламаға рұқсат жоқ' : 'нет разрешения на уведомления' };
+    try { if (ask && LN.checkExactNotificationSetting) { var ex = await LN.checkExactNotificationSetting(); if (ex && ex.exact_alarm && ex.exact_alarm !== 'granted' && LN.changeExactNotificationSetting) await LN.changeExactNotificationSetting(); } } catch (e) {}
+    try { await LN.createChannel({ id: 'qa-prayer', name: kk ? 'Намаз еске салғышы' : 'Напоминания о намазе', importance: 4, visibility: 1, vibration: true }); } catch (e) {}
+    try { await LN.createChannel({ id: 'qa-day', name: kk ? 'Күннің намаз уақыттары' : 'Времена намаза на день', importance: 2, visibility: 1, vibration: false }); } catch (e) {}
+    // старое расписание сайта — убрать (кроме закреплённого, его заменим)
+    try { var pend = await LN.getPending(); var old = ((pend && pend.notifications) || []).filter(function (n) { return +n.id >= APPN_IDS.bar && +n.id <= APPN_IDS.to; }).map(function (n) { return { id: +n.id }; }); if (old.length) await LN.cancel({ notifications: old }); } catch (e) {}
+    var list = [];
+    if (wantRem && typeof pushBuildSchedule === 'function') {
+      pushBuildSchedule().slice(0, 200).forEach(function (x, i) {
+        var lines = String(x.body || '').split('\n');
+        list.push({ id: APPN_IDS.from + i, title: x.title, body: lines[0] || '', largeBody: x.body || '', channelId: 'qa-prayer', autoCancel: true, schedule: { at: new Date(x.t), allowWhileIdle: true } });
+      });
+    }
+    var d0 = wantBar ? appNotifDay(0) : null;
+    if (d0) {
+      var bar = { id: APPN_IDS.bar, title: d0.l1, body: d0.l2, largeBody: d0.col + (d0.city ? '\n' + d0.city : ''), summaryText: d0.city, channelId: 'qa-day', ongoing: true, autoCancel: false };
+      await LN.schedule({ notifications: [bar] });           // показать сразу
+      var d1 = appNotifDay(1);                                 // и в полночь сменить на завтра
+      if (d1) { var mid = ptReal(new Date(d1.wall.getFullYear(), d1.wall.getMonth(), d1.wall.getDate(), 0, 1, 0, 0), d1.ptz); list.push({ id: APPN_IDS.bar, title: d1.l1, body: d1.l2, largeBody: d1.col + (d1.city ? '\n' + d1.city : ''), summaryText: d1.city, channelId: 'qa-day', ongoing: true, autoCancel: false, schedule: { at: mid, allowWhileIdle: true } }); }
+    } else { try { await LN.cancel({ notifications: [{ id: APPN_IDS.bar }] }); } catch (e) {} }
+    if (list.length) await LN.schedule({ notifications: list });
+    _appnLast = Date.now();
+    return { ok: true, n: list.length, bar: !!d0 };
+  } catch (e) { return { ok: false, why: String(e && e.message || e) }; }
+  finally { _appnBusy = false; }
+}
+// при каждом заходе — дополнить расписание до 7 дней вперёд и обновить закреплённое уведомление
+setTimeout(function () { if (qaLN()) appNotifSync(false); }, 4000);
+document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && qaLN() && Date.now() - _appnLast > 20 * 60000) appNotifSync(false); });
 async function pushUnsub() {
   try {
     if (!('serviceWorker' in navigator)) return;
@@ -67460,17 +67519,19 @@ async function pushUnsub() {
 }
 (function pushUiInit() {
   let tm = null;
-  function later() { clearTimeout(tm); tm = setTimeout(function() { try { saveState(); schedulePrayerNotifications(); pushSync(); } catch (e) {} }, 600); }
+  function later() { clearTimeout(tm); tm = setTimeout(function() { try { saveState(); schedulePrayerNotifications(); pushSync(); if (qaLN()) appNotifSync(true); } catch (e) {} }, 600); }
   function rerender() { try { if (typeof renderPrayerTimes === 'function') renderPrayerTimes(); } catch (e) {} }
   document.addEventListener('click', function(ev) {
-    const t = ev.target && ev.target.closest ? ev.target.closest('[data-pn-prayer],#pn-quiet,#pn-sound,#pt-notif,#pn-today') : null;
+    const t = ev.target && ev.target.closest ? ev.target.closest('[data-pn-prayer],#pn-quiet,#pn-sound,#pt-notif,#pn-today,#pn-appbar') : null;
     if (!t) return;
     const st = state.settings;
-    if (t.id === 'pt-notif') { setTimeout(function() { pushSync(); }, 1200); return; }
+    if (t.id === 'pt-notif') { setTimeout(function() { pushSync(); if (qaLN()) appNotifSync(true); }, 1200); return; }
     if (t.dataset.pnPrayer) {
       st.pushPrayers = st.pushPrayers || {};
       const k = t.dataset.pnPrayer; st.pushPrayers[k] = !pushPrayerOn(k);
       t.classList.toggle('btn-primary', st.pushPrayers[k]);
+    } else if (t.id === 'pn-appbar') {
+      st.appDayBar = (st.appDayBar === false); t.classList.toggle('btn-primary', st.appDayBar !== false); t.textContent = st.appDayBar !== false ? ((typeof isKk === 'function' && isKk()) ? 'Қосулы' : 'Вкл') : ((typeof isKk === 'function' && isKk()) ? 'Өшірулі' : 'Выкл');
     } else if (t.id === 'pn-today') {
       st.pushToday = (st.pushToday === false); t.classList.toggle('btn-primary', st.pushToday !== false);
       t.textContent = st.pushToday !== false ? (isKk() ? 'Қосулы' : 'Вкл') : (isKk() ? 'Өшірулі' : 'Выкл');
