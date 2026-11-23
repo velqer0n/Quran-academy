@@ -33647,9 +33647,18 @@ function renderDict() {
       try {
         var ua = navigator.userAgent || '', h = document.documentElement;
         if (/Android/i.test(ua)) h.classList.add('is-android');
-        if (/; wv\)/.test(ua) || (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone) h.classList.add('in-app');
+        if (qaInApp()) h.classList.add('in-app');
       } catch (e) {}
     })();
+    // внутри приложения: признак WebView в подписи (конструктор его убирает), мост приложения (WebToApk / Capacitor) или ярлык
+    function qaInApp() {
+      try {
+        var ua = navigator.userAgent || '';
+        return !!(window.WebToApk || (window.Capacitor && (!window.Capacitor.isNativePlatform || window.Capacitor.isNativePlatform())) || /; wv\)/.test(ua) ||
+          (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone);
+      } catch (e) { return false; }
+    }
+    window.addEventListener('load', function() { try { if (qaInApp()) { document.documentElement.classList.add('in-app'); if (typeof renderMoreFooter === 'function') renderMoreFooter(); } } catch (e) {} });
     let deferredPrompt = null;
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
@@ -67196,7 +67205,7 @@ async function pushDiag() {
   const kk = (typeof isKk === 'function') && isKk(), L = function(r, q) { return kk ? q : r; };
   const rows = [], ok = function(b, lab, note) { rows.push('<li>' + (b === true ? '✅' : b === false ? '❌' : '⚠️') + ' ' + lab + (note ? ' — <small>' + note + '</small>' : '') + '</li>'); };
   let paint = function() { out.innerHTML = '<ul class="pn-diag">' + rows.join('') + '</ul>'; };
-  const ua = navigator.userAgent || '', wv = /; wv\)/.test(ua) || /Version\/[\d.]+ Chrome\/[\d.]+ Mobile/.test(ua) && /Android/.test(ua);
+  const ua = navigator.userAgent || '', wv = !!(window.WebToApk || window.Capacitor) || /; wv\)/.test(ua) || /Version\/[\d.]+ Chrome\/[\d.]+ Mobile/.test(ua) && /Android/.test(ua);
   const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
   ok(null, L('Где открыт сайт', 'Сайт қайда ашық'), wv ? L('внутри приложения (APK, WebView)', 'қосымша ішінде (APK, WebView)') : standalone ? L('установлен как приложение (ярлык)', 'қосымша ретінде орнатылған') : L('в браузере', 'браузерде'));
   ok('serviceWorker' in navigator, 'Service Worker');
