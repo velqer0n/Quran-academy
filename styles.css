@@ -5147,3 +5147,9 @@ body.uif-on .section-title, body.uif-on .card h3, body.uif-on .rule-card h3, bod
 .pn-diag { list-style: none; padding: 0.5rem 0.6rem; margin: 0.4rem 0 0; border: 1px solid var(--border); border-radius: 12px; font-size: 0.85rem; line-height: 1.55; }
 .pn-diag small { color: var(--text-muted); }
 .pn-diag-ua { margin-top: 0.3rem; word-break: break-all; }
+
+/* ===== 7.38: скачать приложение (APK) — только на Android и не внутри самого приложения ===== */
+.apk-only { display: none !important; }
+html.is-android:not(.in-app) .apk-only { display: revert !important; }
+html.in-app .install-any { display: none !important; }
+html.is-android:not(.in-app) button.apk-only { display: inline-flex !important; }

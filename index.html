@@ -627,9 +627,11 @@
       </div>
       <p id="more-edit-hint" style="display:none;color:var(--text-muted);font-size:0.85rem;margin-bottom:0.5rem">Порядок: ↑↓ ←→. «Группы» — показать/скрыть заголовки. В режиме порядка группы двигаются кнопками ↑↓ группа.</p>
       <div id="more-menu"></div>
-      <div class="card" id="more-install-card" style="margin-top:1rem">
+      <div class="card install-any" id="more-install-card" style="margin-top:1rem">
+        <button type="button" class="btn btn-sm btn-primary btn-install-apk apk-only" style="width:100%">📲 Скачать приложение для Android (APK)</button>
+        <p class="apk-only" style="font-size:0.8rem;color:var(--text-muted);margin:0.4rem 0 0.6rem">Файл около 10 МБ. Откройте его после скачивания; если телефон спросит — разрешите установку из этого источника. Приложение открывает сайт и обновляется вместе с ним.</p>
         <button type="button" class="btn btn-sm btn-install-pwa" style="width:100%">Установить (как приложение / на экран)</button>
-        <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.4rem">На Android: Chrome → меню ⋮ → «Установить приложение» / «На экран».</p>
+        <p class="pwa-hint" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.4rem">На Android: Chrome → меню ⋮ → «Установить приложение» / «На экран». На iPhone: Safari → «Поделиться» → «На экран Домой».</p>
       </div>
       <footer id="more-footer" class="site-footer"></footer>
     </div>
@@ -1539,7 +1541,8 @@
           <button class="btn btn-sm" id="btn-import">Импорт</button>
           <input type="file" id="import-file" accept="application/json" style="display:none"/>
           <button class="btn btn-sm" id="btn-remind">Напоминание</button>
-          <button type="button" class="btn btn-sm btn-install-pwa">Установить приложение</button>
+          <button type="button" class="btn btn-sm btn-primary btn-install-apk apk-only install-any">📲 Скачать приложение (APK)</button>
+          <button type="button" class="btn btn-sm btn-install-pwa install-any">Установить через браузер</button>
         </div>
         <div class="card" id="settings-offline-card" style="margin-top:1rem;border-color:var(--accent)">
           <b>📥 Подготовить сайт к офлайну</b>

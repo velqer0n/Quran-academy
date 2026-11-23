@@ -16,6 +16,8 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = req.url;
   if (!/^https?:/.test(url)) return;
+  // 7.38: APK (10 МБ) воркером не кэшируем — только скачивание
+  if (/\.apk(\?|$)/.test(url)) return;
   // аккаунты/чат — только сеть, не кэшируем чужие данные
   if (url.includes('supabase.co')) return;
   // build 6.35: суры целиком (десятки МБ) не кэшируем воркером

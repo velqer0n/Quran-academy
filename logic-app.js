@@ -14184,7 +14184,12 @@ function renderMistakes() {
       const ver = (typeof CHANGELOG_LOG !== 'undefined' && CHANGELOG_LOG[0]) ? CHANGELOG_LOG[0].v : '';
       const ic = document.getElementById('more-install-card');
       const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone;
-      if (ic) ic.style.display = standalone ? 'none' : '';
+      if (ic) ic.style.display = (standalone || document.documentElement.classList.contains('in-app')) ? 'none' : '';
+      if (ic) { var b1 = ic.querySelector('.btn-install-apk'), p1 = ic.querySelector('p.apk-only'), b2 = ic.querySelector('.btn-install-pwa'), p2 = ic.querySelector('.pwa-hint');
+        if (b1) b1.textContent = kk ? '📲 Android үшін қосымшаны жүктеу (APK)' : '📲 Скачать приложение для Android (APK)';
+        if (p1) p1.textContent = kk ? 'Файл шамамен 10 МБ. Жүктелген соң ашыңыз; телефон сұраса — осы көзден орнатуға рұқсат беріңіз. Қосымша сайтты ашады және сайтпен бірге жаңарады.' : 'Файл около 10 МБ. Откройте его после скачивания; если телефон спросит — разрешите установку из этого источника. Приложение открывает сайт и обновляется вместе с ним.';
+        if (b2) b2.textContent = kk ? 'Браузер арқылы орнату' : 'Установить через браузер';
+        if (p2) p2.textContent = kk ? 'Android: Chrome → ⋮ мәзірі → «Қосымшаны орнату». iPhone: Safari → «Бөлісу» → «Басты экранға».' : 'На Android: Chrome → меню ⋮ → «Установить приложение» / «На экран». На iPhone: Safari → «Поделиться» → «На экран Домой».'; }
       const L = function (id, ru, k) { return '<button type="button" data-foot="' + id + '">' + (kk ? k : ru) + '</button>'; };
       f.innerHTML =
         '<div class="sf-brand">📖 Quran Academy</div>' +
@@ -33636,8 +33641,15 @@ function renderDict() {
     // ========== PWA + APK INSTALL ==========
     // Ссылка на APK: GitHub Releases, свой хостинг или путь на Pages.
     // Пустая строка — кнопка покажет подсказку, как собрать APK.
-    var APK_URL = (window.APK_URL || localStorage.getItem('quran_apk_url') || '').trim();
+    var APK_URL = (window.APK_URL || 'quran-academy.apk').trim(); // 7.38: настоящее приложение для Android (собрано через конструктор, открывает этот сайт)
 
+    (function () { // 7.38: Android / уже внутри приложения (APK или ярлык) — для кнопок «Скачать приложение»
+      try {
+        var ua = navigator.userAgent || '', h = document.documentElement;
+        if (/Android/i.test(ua)) h.classList.add('is-android');
+        if (/; wv\)/.test(ua) || (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone) h.classList.add('in-app');
+      } catch (e) {}
+    })();
     let deferredPrompt = null;
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
@@ -33656,16 +33668,13 @@ function renderDict() {
       }
     }
     function handleInstallApk() {
-      var url = (window.APK_URL || localStorage.getItem('quran_apk_url') || APK_URL || '').trim();
-      if (!url) {
-        toast('APK ещё не выложен. Соберите app-debug.apk и укажите ссылку (APK_URL / localStorage quran_apk_url)', 4000);
-        return;
-      }
-      toast('Скачивание APK…', 1500);
+      var url = (window.APK_URL || APK_URL || '').trim();
+      if (!url) return;
+      toast(isKk() ? 'APK жүктелуде… Жүктелген соң файлды ашыңыз' : 'Скачивание APK… после загрузки откройте файл', 3500);
       try {
         var a = document.createElement('a');
         a.href = url;
-        a.download = 'Koran-Izuchenie.apk';
+        a.download = 'Quran-Academy.apk';
         a.rel = 'noopener';
         a.target = '_blank';
         document.body.appendChild(a);
