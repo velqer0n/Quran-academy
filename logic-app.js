@@ -3227,7 +3227,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (name === 'changelog') try { renderChangelog(); } catch(e) {}
       if (name === 'legaldocs') try { renderLegalDocs(); } catch(e) { console.warn('legaldocs', e); }
       if (name === 'sources') { try { renderSources(); } catch(e) { console.warn('sources', e); } try { _appendLegalLinks(document.getElementById('sources-body')); } catch(e) {} }
-      if (name === 'settings') try { applyTheme(); renderSettingsExtraData(); renderBtnViewSetting(); renderBgSetting(); renderThemePickerList(); try { fzVals(); } catch(e2) {} if (!window._setKeepPanel) setHomeMode(true); window._setKeepPanel = false; } catch(e) {}
+      if (name === 'settings') try { applyTheme(); renderSettingsExtraData(); renderBtnViewSetting(); renderBgSetting(); renderThemePickerList(); try { fzVals(); } catch(e2) {} try { renderAppScreenSettings(); } catch(e3) {} if (!window._setKeepPanel) setHomeMode(true); window._setKeepPanel = false; } catch(e) {}
       if (name === 'help') try { renderHelp(); } catch(e) {}
       if (name === 'account' || name === 'login' || name === 'register' || name === 'forgot') try { renderAuth(name); } catch(e) {}
       if (name === 'stats') try { renderStats(); } catch(e) {}
@@ -44931,7 +44931,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         const now = new Date();
         const todayLocal = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
         const dow = now.getDay(); // 5 = пятница
-        const name = ((state.settings && state.settings.dhGreetingName) || '').trim();
+        const name = ''; // 7.46: имя в приветствии убрано (поле из настроек тоже)
         let special = null;
         try {
           const yearEvents = (typeof HIJRI_EVENTS !== 'undefined') ? (HIJRI_EVENTS[now.getFullYear()] || []) : [];
@@ -45059,7 +45059,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       el.innerHTML =
         greetingBar +
         widgets +
-        todayCard + favCard + timeCard +
+        favCard + timeCard +
         visDh.filter(function(id){ return DH_CAROUSEL.indexOf(id) < 0; })
           .map(function(id){
             var isCollapsed = collapsedDh.indexOf(id) >= 0;
@@ -45163,6 +45163,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
         try { localStorage.setItem('quran_dh_greet_collapsed', hide ? '1' : '0'); } catch(e) {}
       });
       el.querySelector('[data-go-greeting-name]')?.addEventListener('click', function(ev){
+        return; // 7.46: имени больше нет — переход к полю не нужен
         if (ev.target.closest('[data-dh-greet-toggle]')) return;
         try {
           showView('settings');
@@ -67455,6 +67456,91 @@ document.addEventListener('click', function(e) { if (e.target && e.target.closes
 // ===== 7.45: уведомления о намазе в приложении (APK): через встроенные в приложение местные уведомления —
 // работают без интернета и при закрытом приложении. Закреплённое уведомление с временами дня (как в Sajda) +
 // напоминания на 7 дней вперёд; при каждом заходе расписание дополняется до 7 дней.
+// ===== 7.46: приложение — обновление потягиванием (по умолчанию выключено), экран не гаснет, «Поделиться» =====
+(function () {
+  // приложение спрашивает страницу при каждом касании, можно ли обновлять потягиванием; отвечаем «нет» после его проверки
+  window.addEventListener('touchstart', function () {
+    try { if (window.WebToApk && typeof window.WebToApk.__pullRefreshEligible === 'function' && !(state.settings && state.settings.appPullRefresh === true)) setTimeout(function () { try { window.WebToApk.__pullRefreshEligible(false); } catch (e) {} }, 0); } catch (e) {}
+  }, true);
+  // «Поделиться»: встроенный браузер приложения его не умеет — берём «Поделиться» самого приложения
+  try {
+    var C = window.Capacitor, SH = C && C.Plugins && C.Plugins.Share;
+    if (SH && !navigator.share) navigator.share = function (d) { d = d || {}; return SH.share({ title: d.title || '', text: d.text || '', url: d.url || undefined, dialogTitle: d.title || '' }); };
+  } catch (e) {}
+  // не гасить экран, пока открыта сура или играет плеер (по выбору в настройках)
+  var lock = null, kaOn = false;
+  function want() {
+    try { if (!(state.settings && state.settings.keepAwake)) return false; var top = (typeof viewStack !== 'undefined' && viewStack.length) ? viewStack[viewStack.length - 1] : ''; return document.visibilityState === 'visible' && (top === 'reader' || (typeof audioEl !== 'undefined' && audioEl && !audioEl.paused)); } catch (e) { return false; }
+  }
+  function apply() {
+    var w = want(), KA = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.KeepAwake;
+    if (w === kaOn && (!w || KA || lock)) return;
+    kaOn = w;
+    try {
+      if (KA) { w ? KA.keepAwake() : KA.allowSleep(); return; }
+      if (w && navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { lock = l; l.addEventListener('release', function () { lock = null; }); }).catch(function () { kaOn = false; });
+      else if (!w && lock) { lock.release(); lock = null; }
+    } catch (e) {}
+  }
+  setInterval(apply, 3000);
+  document.addEventListener('visibilitychange', function () { kaOn = false; lock = null; apply(); });
+  window.qaKeepAwakeApply = apply;
+})();
+// раздел «📱 Экран и приложение» в «Настройки → Дополнительно»
+function renderAppScreenSettings() {
+  var pn = document.querySelector('#view-settings .set-cat[data-set-panel="other"]'); if (!pn) return;
+  var box = document.getElementById('app-screen-set');
+  if (!box) { box = document.createElement('div'); box.id = 'app-screen-set'; box.className = 'set-grp-body'; var hb = pn.querySelector(':scope > b'); pn.insertBefore(box, hb ? hb.nextSibling : pn.firstChild); }
+  var kk = (typeof isKk === 'function') && isKk(), st = state.settings || {}, inApp = document.documentElement.classList.contains('in-app') && !!window.WebToApk;
+  var row = function (id, lab, note, on) { return '<div class="setting-row" style="flex-wrap:wrap"><span style="flex:1;min-width:60%">' + lab + (note ? '<small style="display:block;color:var(--text-muted);font-size:0.74rem;margin-top:0.15rem">' + note + '</small>' : '') + '</span><button type="button" class="btn btn-sm ' + (on ? 'btn-primary' : '') + '" data-appset="' + id + '">' + (on ? (kk ? 'Қосулы' : 'Вкл') : (kk ? 'Өшірулі' : 'Выкл')) + '</button></div>'; };
+  box.innerHTML = '<b style="display:block;margin:0.3rem 0 0.2rem">📱 ' + (kk ? 'Экран және қосымша' : 'Экран и приложение') + '</b>' +
+    row('keepAwake', kk ? 'Оқығанда және тыңдағанда экран сөнбесін' : 'Не гасить экран при чтении и прослушивании', kk ? 'Сүре ашық тұрғанда не ойнатқыш ойнағанда' : 'Пока открыта сура или играет плеер', !!st.keepAwake) +
+    (inApp ? row('appPullRefresh', kk ? 'Жоғарыдан тартып жаңарту' : 'Обновление потягиванием вниз', kk ? 'Әдепкіде өшірулі — уақытты қарау үшін тартқанда бет жаңармайды. Жаңарту — жоғарғы 🔄 батырмасы.' : 'По умолчанию выключено — потянуть вниз, чтобы посмотреть время, страница не обновится. Обновить — кнопкой 🔄 вверху.', st.appPullRefresh === true) : '') +
+    (inApp && window.AppMint && window.AppMint.widget ? '<div class="setting-row" style="flex-wrap:wrap"><span style="flex:1;min-width:60%">' + (kk ? 'Басты экрандағы намаз уақыттары виджеті' : 'Виджет времён намаза на главный экран') + '<small style="display:block;color:var(--text-muted);font-size:0.74rem;margin-top:0.15rem">' + (kk ? 'Сынақ түрінде' : 'Пробная версия') + '</small></span><button type="button" class="btn btn-sm" data-appset="widget">' + (kk ? 'Қою' : 'Поставить') + '</button></div><div id="app-widget-st" class="rd-note"></div>' : '');
+}
+document.addEventListener('click', function (e) {
+  var b = e.target && e.target.closest && e.target.closest('[data-appset]'); if (!b) return;
+  var k = b.getAttribute('data-appset');
+  if (k === 'widget') { qaWidgetUpdate(true); return; }
+  if (!state.settings) state.settings = {};
+  state.settings[k] = !(k === 'appPullRefresh' ? state.settings[k] === true : !!state.settings[k]);
+  try { saveState(); } catch (er) {}
+  try { window.qaKeepAwakeApply && window.qaKeepAwakeApply(); } catch (er) {}
+  renderAppScreenSettings();
+});
+// виджет на главный экран: таблица времён (картинка, которую рисует сайт), следующий намаз выделен
+function qaWidgetImage() {
+  var d = appNotifDay(0); if (!d) return null;
+  var loc = state.prayerLoc || state.prayerLocSaved, kk = (typeof isKk === 'function') && isKk();
+  var t; try { t = resolveDayTimes(+loc.lat, +loc.lon, new Date(), (state.settings && state.settings.prayerMethod) || 'DUMK'); } catch (e) { return null; }
+  var K = [['fajr', 'Фаджр', 'Таң'], ['sunrise', 'Восход', 'Күн'], ['dhuhr', 'Зухр', 'Бесін'], ['asr', 'Аср', 'Екінті'], ['maghrib', 'Магриб', 'Ақшам'], ['isha', 'Иша', 'Құптан']];
+  var cv = document.createElement('canvas'), W = 720, H = 300; cv.width = W; cv.height = H; var g = cv.getContext('2d');
+  var cs = getComputedStyle(document.body), bg = cs.getPropertyValue('--bg-card').trim() || '#ffffff', fg = cs.getPropertyValue('--text').trim() || '#111', ac = cs.getPropertyValue('--accent').trim() || '#0f9f6e', mu = cs.getPropertyValue('--text-muted').trim() || '#666';
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  var now = new Date(), wall = d.wall, nowMin = wall.getHours() * 60 + wall.getMinutes(), nextI = -1;
+  K.forEach(function (x, i) { var hm = String(t[x[0]] || '').split(':'); if (nextI < 0 && hm.length === 2 && (+hm[0]) * 60 + (+hm[1]) > nowMin) nextI = i; });
+  g.fillStyle = mu; g.font = '600 26px system-ui, sans-serif'; g.textAlign = 'left'; g.fillText((d.city || '') + ' · ' + wall.getDate() + '.' + String(wall.getMonth() + 1).padStart(2, '0'), 24, 44);
+  var cw = (W - 24) / 6;
+  K.forEach(function (x, i) {
+    var cx = 12 + i * cw;
+    if (i === nextI) { g.fillStyle = ac; g.beginPath(); if (g.roundRect) g.roundRect(cx + 4, 70, cw - 8, 200, 18); else g.rect(cx + 4, 70, cw - 8, 200); g.fill(); }
+    g.textAlign = 'center'; g.fillStyle = i === nextI ? '#fff' : mu; g.font = '600 23px system-ui, sans-serif'; g.fillText(kk ? x[2] : x[1], cx + cw / 2, 130);
+    g.fillStyle = i === nextI ? '#fff' : fg; g.font = '700 33px system-ui, sans-serif'; g.fillText(t[x[0]] || '--:--', cx + cw / 2, 200);
+  });
+  try { return cv.toDataURL('image/png'); } catch (e) { return null; }
+}
+function qaWidgetUpdate(user) {
+  var W = window.AppMint && window.AppMint.widget, st = document.getElementById('app-widget-st'), kk = (typeof isKk === 'function') && isKk();
+  if (!W) return;
+  var img = qaWidgetImage(); if (!img) { if (st) st.textContent = kk ? 'Намаз уақыттары әзірге жоқ — алдымен қаланы таңдаңыз.' : 'Нет времён намаза — сначала выберите город в «Намаз».'; return; }
+  var card = { title: kk ? 'Намаз уақыттары' : 'Время намаза', bgImage: img };
+  W.set(card).then(function (r) {
+    try { localStorage.setItem('qa_widget_on', '1'); } catch (e) {}
+    if (user) { if (st) st.textContent = (kk ? 'Жауап: ' : 'Ответ приложения: ') + JSON.stringify(r); return W.requestPin().then(function (p) { if (st) st.textContent += ' · ' + (kk ? 'бекіту: ' : 'закрепление: ') + JSON.stringify(p); }).catch(function (e) { if (st) st.textContent += ' · ' + String(e && e.message || e); }); }
+  }).catch(function (e) { if (st) st.textContent = (kk ? 'Қате: ' : 'Ошибка: ') + String(e && e.message || e); });
+}
+// при заходе — обновить виджет, если он уже поставлен
+setTimeout(function () { try { if (window.AppMint && window.AppMint.widget && localStorage.getItem('qa_widget_on') === '1') qaWidgetUpdate(false); } catch (e) {} }, 5000);
 function qaLN() { try { var C = window.Capacitor, P = C && C.Plugins; return (P && P.LocalNotifications) || null; } catch (e) { return null; } }
 var APPN_IDS = { bar: 70000, from: 71000, to: 71999 };
 function appNotifDay(dayOffset) {
