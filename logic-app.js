@@ -3605,7 +3605,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         if (!pages.length || pages[pages.length - 1].p !== pg) pages.push({ p: pg, items: [] });
         pages[pages.length - 1].items.push(a);
       });
-      const bism = (state.settings && state.settings.zeroAyah === false ? '' : '<div class="mushaf-auzu arabic" dir="rtl">أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَٰنِ ٱلرَّجِيمِ</div>') + ((num !== 1 && num !== 9) ? '<div class="mushaf-bism arabic">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</div>' : '');
+      const bism = (num !== 1 || (state.settings && state.settings.zeroAyah === false) ? '' : '<div class="mushaf-auzu arabic" dir="rtl">أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَٰنِ ٱلرَّجِيمِ</div>') + ((num !== 1 && num !== 9) ? '<div class="mushaf-bism arabic">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</div>' : '');
       list.innerHTML = '<div class="mushaf-hint">' + (kk ? 'Аятты басыңыз — сол жерден әдеттегі көрініс ашылады' : 'Нажмите на аят — откроется обычный вид на этом месте') + '</div>' +
         pages.map(function (pg, i) {
           return '<div class="mushaf-page">' + (pg.p ? '<div class="mushaf-page-no">' + (kk ? 'бет ' : 'стр. ') + pg.p + '</div>' : '') +
@@ -3650,7 +3650,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     function mushafHeadHtml(s, d) {
       const nm = (d && d.meta && d.meta.name) || '';
       return '<div class="mushaf-shead"><span class="arabic" dir="rtl">' + nm + '</span>' + (isKk() ? s + '-сүре' : 'Сура ' + s) + '</div>' +
-        (state.settings && state.settings.zeroAyah === false ? '' : '<div class="mushaf-auzu arabic" dir="rtl">أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَٰنِ ٱلرَّجِيمِ</div>') + ((s !== 1 && s !== 9) ? '<div class="mushaf-bism arabic" dir="rtl">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</div>' : '');
+        (s !== 1 || (state.settings && state.settings.zeroAyah === false) ? '' : '<div class="mushaf-auzu arabic" dir="rtl">أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَٰنِ ٱلرَّجِيمِ</div>') + ((s !== 1 && s !== 9) ? '<div class="mushaf-bism arabic" dir="rtl">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</div>' : '');
     }
     function mushafFailHtml(s) {
       return '<div class="card" style="text-align:center">' + (isKk() ? s + '-сүре жүктелмеді — интернет жоқ сияқты. Баптауларда Құранды офлайнға жүктеп алсаңыз, интернетсіз де оқылады.' : 'Сура ' + s + ' не загрузилась — похоже, нет интернета. Если скачать Коран для офлайна в настройках, мусхаф будет читаться и без сети.') + '</div>';
@@ -5622,7 +5622,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       bism: { ar: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ', ru: 'С именем Аллаха, Милостивого, Милосердного.', kk: 'Аллаһтың атымен, Рахымды, Мейірімді.' }
     };
     // в суре: а‘узу + басмала; в аль-Фатихе басмала — 1-й аят, в ат-Таубе басмалы нет — только а‘узу
-    function zeroLines(s) { s = +s; return (s === 1 || s === 9) ? [ZERO_TXT.auzu] : [ZERO_TXT.auzu, ZERO_TXT.bism]; }
+    function zeroLines(s) { s = +s; return s === 1 ? [ZERO_TXT.auzu] : (s === 9 ? [] : [ZERO_TXT.bism]); }
     // в плеере — то, что сейчас звучит: перед аль-Фатихой а‘узу, перед остальными басмала
     function zeroPlayLines(s) { return +s === 1 ? [ZERO_TXT.auzu] : [ZERO_TXT.bism]; }
     function zeroLineHtml(z, cls) {
@@ -5633,6 +5633,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     }
     function zeroAyahCardHtml(s) {
       if (state.settings && state.settings.zeroAyah === false) return '';
+      if (!zeroLines(s).length) return '';
       var kk = isKk();
       return '<div class="ayah-zero" data-zero="' + s + '"><div class="ayah-num" title="' + (kk ? 'Аят санына кірмейді' : 'Не считается аятом') + '">0</div>' +
         zeroLines(s).map(function (z) { return zeroLineHtml(z); }).join('<div class="az-sep"></div>') +
@@ -9959,7 +9960,7 @@ function speakLetter(ch, name, ttsOnly) {
           (hasAudio ? '<button type="button" class="btn btn-sm btn-primary" id="wbw-all-play-surah" style="margin-top:0.55rem">▶ Слушать всю суру</button>' : '') +
         '</div>';
       // 7.42: нулевой аят (а‘узу, басмала) и здесь
-      try { if (typeof zeroLines === 'function' && !(state.settings && state.settings.zeroAyah === false)) html += '<div class="card ayah-zero-card" style="margin-bottom:0.7rem"><b style="font-size:0.85rem;color:var(--text-muted)">' + (isKk() ? 'Аят 0 · санға кірмейді' : 'Аят 0 · не считается') + '</b>' +
+      try { if (typeof zeroLines === 'function' && zeroLines(n).length && !(state.settings && state.settings.zeroAyah === false)) html += '<div class="card ayah-zero-card" style="margin-bottom:0.7rem"><b style="font-size:0.85rem;color:var(--text-muted)">' + (isKk() ? 'Аят 0 · санға кірмейді' : 'Аят 0 · не считается') + '</b>' +
         zeroLines(n).map(function (z) { return zeroLineHtml(z, { ar: 'arabic wbw-zero-ar', tl: 'ayah-translit', tr: 'ayah-translation' }); }).join('<div class="az-sep" style="height:0.5rem"></div>') +
         '<button type="button" class="btn btn-sm btn-play-zero" data-s="' + n + '" style="margin-top:0.5rem">' + _bl('▶', isKk() ? 'Тыңдау' : 'Слушать') + '</button></div>'; } catch (e) {}
       ayahs.forEach(ay => {
@@ -24822,12 +24823,11 @@ function renderDictation(area) {
       // build 6.15: страницы, вкладки, буквы и слова — раньше больших списков, чтобы лимит результатов их не вытеснял
       try { searchPagesAndTerms(qNorm, matchText, add); } catch(e) { console.warn('search extra', e); }
       // Surahs
-      if (typeof SURAH_META !== 'undefined') {
-        SURAH_META.forEach((s, i) => {
-          const n = i + 1;
-          const blob = (s.name + ' ' + (s.nameRu||'') + ' ' + (s.translation||'') + ' ' + n).toLowerCase();
-          if (matchText(blob)) add('Сура', n + '. ' + (s.nameRu || s.name), s.translation || '', () => { showView('home'); setTimeout(() => { try { openSurah(n); } catch(e) {} }, 100); });
-        });
+      // 7.43: суры — по русскому и казахскому названию и номеру (раньше искал по несуществующему SURAH_META и не находил ни одной)
+      for (let n = 1; n <= 114; n++) {
+        const ru = (typeof SURAH_RU !== 'undefined' && SURAH_RU[n]) || '', kz = (typeof SURAH_KK !== 'undefined' && SURAH_KK[n]) || '';
+        const blob = (ru + ' ' + kz + ' ' + ru.replace(/^(аль|ал|ан|ар|ас|ат|аш|ад|аз|ах|әл|ән|әр|әс|әт)[-\s]?/i, '') + ' ' + n).toLowerCase();
+        if (matchText(blob)) hits.unshift({ cat: isKk() ? 'Сүре' : 'Сура', title: n + '. ' + (isKk() ? (kz || ru) : (ru || kz)), snippet: (SURAH_AYAH_COUNTS && SURAH_AYAH_COUNTS[n] ? SURAH_AYAH_COUNTS[n] + (isKk() ? ' аят' : ' аятов') : ''), go: () => { showView('home'); setTimeout(() => { try { openSurah(n); } catch(e) {} }, 100); } });
       }
       // Kabair
       if (typeof KABAIR_55 !== 'undefined') {
@@ -37099,9 +37099,10 @@ function renderDict() {
       var it = FS.items.get(fid), nm = it ? fsName(it) : '';
       if (mode === 'shuffle') list = shuffle(list.slice());
       if (mode === 'add' || mode === 'next') { plqAdd(list, mode === 'next', nm); return; }
-      PLQ.list = []; PLQ.loop = false; PLQ.name = nm; PLQ.fid = fid; PLQ.total = list.length; plqSave();
-      plqAdd(list, false, nm);
-      if (!plqIdle()) { var first = PLQ.list.shift(); plqSave(); plqPlay(first); }
+      PLQ.list = list.slice(1); PLQ.loop = false; PLQ.name = nm; PLQ.fid = fid; PLQ.total = list.length; plqSave();
+      plqPlay(list[0]);
+      try { toast(fsT('Играет: 1 из ', 'Ойнатылуда: 1 / ') + list.length); } catch (e) {}
+      setTimeout(function () { try { fsMarkPlaying(); } catch (e) {} }, 400);
     }
 
     // ---------- разложить аяты по сурам ----------
