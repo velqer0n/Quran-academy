@@ -5144,3 +5144,6 @@ body.uif-on .section-title, body.uif-on .card h3, body.uif-on .rule-card h3, bod
 .ms-name input { width: 100%; box-sizing: border-box; min-height: 46px; padding: 0.55rem 0.75rem; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; font-size: 1rem; }
 .ms-name .ms-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.6rem; }
 .ms-rest summary { font-size: 0.8rem; color: var(--accent); cursor: pointer; padding: 0.2rem 0 0.1rem 0.2rem; }
+.pn-diag { list-style: none; padding: 0.5rem 0.6rem; margin: 0.4rem 0 0; border: 1px solid var(--border); border-radius: 12px; font-size: 0.85rem; line-height: 1.55; }
+.pn-diag small { color: var(--text-muted); }
+.pn-diag-ua { margin-top: 0.3rem; word-break: break-all; }

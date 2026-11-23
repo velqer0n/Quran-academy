@@ -67106,6 +67106,7 @@ function pushSettingsHtml() {
       '<input type="time" id="pn-qt" value="' + (st.quietTo || '05:00') + '" style="padding:0.3rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"></span></div>' : '') +
     '<div class="setting-row"><span>' + L('Звук уведомления', 'Хабарлама дыбысы') + '</span>' +
     '<button type="button" class="btn btn-sm ' + (st.pushSound !== false ? 'btn-primary' : '') + '" id="pn-sound">' + (st.pushSound !== false ? L('Вкл', 'Қосулы') : L('Выкл', 'Өшірулі')) + '</button></div>' +
+    '<button type="button" class="btn btn-sm" id="pn-diag" style="margin-top:0.35rem">🔍 ' + L('Проверить уведомления', 'Хабарламаларды тексеру') + '</button><div id="pn-diag-out"></div>' +
     '<div class="ayah-translation" id="pn-status" style="font-size:calc(0.78rem * var(--ru-scale, 1));margin-top:0.25rem;min-height:1.1rem">' +
     L('Уведомления приходят и при закрытом сайте (аккаунт не нужен). На iPhone — только если добавить сайт на экран «Домой».', 'Хабарламалар сайт жабық болса да келеді (аккаунт керек емес). iPhone-да — сайтты «Басты экранға» қосқанда ғана.') + '</div>';
 }
@@ -67174,6 +67175,45 @@ async function pushSync(forceAsk) {
     else stEl(kk ? '✓ Фондық хабарлама қосулы' : '✓ Фоновые уведомления включены');
   } catch (e) { stEl((kk ? 'Қате: ' : 'Ошибка: ') + (e && e.message || e)); }
 }
+// 7.36: проверка по пунктам — что из уведомлений работает на этом устройстве / в этой сборке (APK, браузер, ярлык)
+async function pushDiag() {
+  const out = document.getElementById('pn-diag-out'); if (!out) return;
+  const kk = (typeof isKk === 'function') && isKk(), L = function(r, q) { return kk ? q : r; };
+  const rows = [], ok = function(b, lab, note) { rows.push('<li>' + (b === true ? '✅' : b === false ? '❌' : '⚠️') + ' ' + lab + (note ? ' — <small>' + note + '</small>' : '') + '</li>'); };
+  let paint = function() { out.innerHTML = '<ul class="pn-diag">' + rows.join('') + '</ul>'; };
+  const ua = navigator.userAgent || '', wv = /; wv\)/.test(ua) || /Version\/[\d.]+ Chrome\/[\d.]+ Mobile/.test(ua) && /Android/.test(ua);
+  const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  ok(null, L('Где открыт сайт', 'Сайт қайда ашық'), wv ? L('внутри приложения (APK, WebView)', 'қосымша ішінде (APK, WebView)') : standalone ? L('установлен как приложение (ярлык)', 'қосымша ретінде орнатылған') : L('в браузере', 'браузерде'));
+  ok('serviceWorker' in navigator, 'Service Worker');
+  ok('Notification' in window, L('Уведомления (Notification)', 'Хабарламалар (Notification)'), 'Notification' in window ? L('разрешение: ', 'рұқсат: ') + Notification.permission : '');
+  ok('PushManager' in window, L('Фоновые push (PushManager)', 'Фондық push (PushManager)'));
+  if ('Notification' in window && Notification.permission === 'denied') ok(false, L('Уведомления запрещены', 'Хабарламаларға тыйым салынған'), L('разрешите в настройках телефона: Приложения → это приложение/браузер → Уведомления', 'телефон баптауларында рұқсат етіңіз: Қосымшалар → осы қосымша/браузер → Хабарламалар'));
+  const uaRow = '<li class="pn-diag-ua"><small>' + ua.replace(/</g, '&lt;').slice(0, 160) + '</small></li>';
+  paint = function() { out.innerHTML = '<ul class="pn-diag">' + rows.join('') + uaRow + '</ul>'; };
+  paint();
+  try {
+    if ('Notification' in window && Notification.permission === 'default') { const p = await Notification.requestPermission(); rows.push('<li>➡️ ' + L('разрешение после запроса: ', 'сұраудан кейін: ') + p + '</li>'); paint(); }
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await Promise.race([navigator.serviceWorker.ready, new Promise(function(r) { setTimeout(function() { r(null); }, 4000); })]);
+    ok(!!reg, L('Service Worker запущен', 'Service Worker іске қосылды')); paint(); if (!reg) return;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try { await reg.showNotification('Quran Academy', { body: L('Пробное уведомление — если вы его видите, показ работает', 'Сынақ хабарлама — көріп тұрсаңыз, көрсету жұмыс істейді'), tag: 'qa-test', icon: 'icon-192.png' }); ok(true, L('Пробное уведомление отправлено (должно появиться)', 'Сынақ хабарлама жіберілді (пайда болуы керек)')); }
+      catch (e) { ok(false, L('Пробное уведомление', 'Сынақ хабарлама'), String(e && e.message || e)); }
+      paint();
+    }
+    if ('PushManager' in window && reg.pushManager && Notification.permission === 'granted') {
+      let sub = null;
+      try { sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: pushB64ToU8(PUSH_VAPID_PUBLIC) }); ok(!!sub, L('Подписка на фоновые push', 'Фондық push жазылымы')); }
+      catch (e) { ok(false, L('Подписка на фоновые push', 'Фондық push жазылымы'), String(e && e.message || e)); }
+      paint();
+      if (sub) { const sb = (typeof getSb === 'function') ? getSb() : null; ok(!!sb, L('Связь с сервером (Supabase)', 'Сервермен байланыс (Supabase)'), sb ? '' : L('нет', 'жоқ')); paint();
+        if (sb && state.settings && state.settings.prayerNotif) { try { await pushSync(); ok(true, L('Расписание намазов записано на сервер', 'Намаз кестесі серверге жазылды'), (document.getElementById('pn-status') || {}).textContent || ''); } catch (e) { ok(false, L('Запись на сервер', 'Серверге жазу'), String(e)); } paint(); }
+        else if (sb) { ok(null, L('Уведомления о намазе выключены', 'Намаз хабарламалары өшірулі'), L('включите их выше, затем проверьте снова', 'жоғарыда қосып, қайта тексеріңіз')); paint(); } }
+    }
+  } catch (e) { ok(false, L('Ошибка проверки', 'Тексеру қатесі'), String(e && e.message || e)); paint(); }
+  paint();
+}
+document.addEventListener('click', function(e) { if (e.target && e.target.closest && e.target.closest('#pn-diag')) pushDiag(); });
 async function pushUnsub() {
   try {
     if (!('serviceWorker' in navigator)) return;
