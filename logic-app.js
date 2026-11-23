@@ -31805,6 +31805,7 @@ let body = '';
 
         function schedulePrayerNotifications() {
       if (!state.settings || !state.settings.prayerNotif) return;
+      try { if (typeof qaLN === 'function' && qaLN()) return; } catch (e) {} // 7.47: в приложении — только уведомления приложения, без дубля
       const loc = state.prayerLoc || state.prayerLocSaved;
       if (!loc || loc.lat == null) return;
       try {
@@ -67421,7 +67422,8 @@ async function pushDiag() {
   let paint = function() { out.innerHTML = '<ul class="pn-diag">' + rows.join('') + '</ul>'; };
   const ua = navigator.userAgent || '', wv = !!(window.WebToApk || window.Capacitor) || /; wv\)/.test(ua) || /Version\/[\d.]+ Chrome\/[\d.]+ Mobile/.test(ua) && /Android/.test(ua);
   const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
-  if (qaLN()) { try { var _ar = await appNotifSync(true), _pd = await qaLN().getPending(); ok(_ar.ok, L('Уведомления приложения (местные, без интернета)', 'Қосымша хабарламалары (жергілікті, интернетсіз)'), _ar.ok ? L('запланировано: ', 'жоспарланды: ') + (((_pd && _pd.notifications) || []).length) + (_ar.bar ? L(' · времена дня в шторке', ' · күн уақыттары шторкада') : '') : _ar.why); } catch (e) { ok(false, L('Уведомления приложения', 'Қосымша хабарламалары'), String(e && e.message || e)); } }
+  if (qaLN()) { try { var _dl = null; try { _dl = await qaLN().getDeliveredNotifications(); } catch (e2) {} var _shown = ((_dl && _dl.notifications) || []).map(function (n) { return +n.id; }); ok(_shown.indexOf(APPN_IDS.bar) >= 0, L('Закреплённое уведомление с временами в шторке', 'Шторкадағы бекітілген хабарлама'), L('сейчас в шторке уведомлений приложения: ', 'қазір шторкада: ') + _shown.length + (_dl ? '' : L(' (не удалось узнать)', ' (білу мүмкін болмады)'))); } catch (e) {}
+    try { var _ar = await appNotifSync(true), _pd = await qaLN().getPending(); ok(_ar.ok, L('Уведомления приложения (местные, без интернета)', 'Қосымша хабарламалары (жергілікті, интернетсіз)'), _ar.ok ? L('запланировано: ', 'жоспарланды: ') + (((_pd && _pd.notifications) || []).length) + (_ar.bar ? L(' · времена дня в шторке', ' · күн уақыттары шторкада') : '') : _ar.why); } catch (e) { ok(false, L('Уведомления приложения', 'Қосымша хабарламалары'), String(e && e.message || e)); } }
   ok(null, L('Где открыт сайт', 'Сайт қайда ашық'), wv ? L('внутри приложения (APK, WebView)', 'қосымша ішінде (APK, WebView)') : standalone ? L('установлен как приложение (ярлык)', 'қосымша ретінде орнатылған') : L('в браузере', 'браузерде'));
   ok('serviceWorker' in navigator, 'Service Worker');
   ok('Notification' in window, L('Уведомления (Notification)', 'Хабарламалар (Notification)'), 'Notification' in window ? L('разрешение: ', 'рұқсат: ') + Notification.permission : '');
@@ -67570,7 +67572,7 @@ async function appNotifSync(ask) {
     try { await LN.createChannel({ id: 'qa-prayer', name: kk ? 'Намаз еске салғышы' : 'Напоминания о намазе', importance: 4, visibility: 1, vibration: true }); } catch (e) {}
     try { await LN.createChannel({ id: 'qa-day', name: kk ? 'Күннің намаз уақыттары' : 'Времена намаза на день', importance: 2, visibility: 1, vibration: false }); } catch (e) {}
     // старое расписание сайта — убрать (кроме закреплённого, его заменим)
-    try { var pend = await LN.getPending(); var old = ((pend && pend.notifications) || []).filter(function (n) { return +n.id >= APPN_IDS.bar && +n.id <= APPN_IDS.to; }).map(function (n) { return { id: +n.id }; }); if (old.length) await LN.cancel({ notifications: old }); } catch (e) {}
+    try { var pend = await LN.getPending(); var old = ((pend && pend.notifications) || []).filter(function (n) { return +n.id >= APPN_IDS.from && +n.id <= APPN_IDS.to; }).map(function (n) { return { id: +n.id }; }); if (old.length) await LN.cancel({ notifications: old }); } catch (e) {}
     var list = [];
     if (wantRem && typeof pushBuildSchedule === 'function') {
       pushBuildSchedule().slice(0, 200).forEach(function (x, i) {
@@ -67587,7 +67589,8 @@ async function appNotifSync(ask) {
     } else { try { await LN.cancel({ notifications: [{ id: APPN_IDS.bar }] }); } catch (e) {} }
     if (list.length) await LN.schedule({ notifications: list });
     _appnLast = Date.now();
-    return { ok: true, n: list.length, bar: !!d0 };
+    window._appnRes = { ok: true, n: list.length, bar: !!d0, at: new Date().toLocaleTimeString() };
+    return window._appnRes;
   } catch (e) { return { ok: false, why: String(e && e.message || e) }; }
   finally { _appnBusy = false; }
 }
