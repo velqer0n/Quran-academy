@@ -32921,6 +32921,11 @@ function renderDict() {
         bgDim: [kk ? 'Фонды күңгірттеу' : 'Затемнение фона', function(v) { return Math.round(+v * 100) + '%'; }], ayahRailSide: [kk ? 'Аят батырмалары' : 'Кнопки у аята', function(v) { return v === 'left' ? (kk ? 'сол жақта' : 'слева') : (kk ? 'оң жақта' : 'справа'); }],
         audioPlayMode: [kk ? 'Ойнату тәртібі' : 'Режим воспроизведения', function(v) { return ({ single: kk ? 'бір аят' : 'один аят', surah: kk ? 'сүре' : 'сура', next: kk ? 'келесі сүре' : 'следующая сура', stop: kk ? 'тоқтау' : 'стоп', random: kk ? 'кездейсоқ' : 'случайно' })[v] || String(v); }],
         answerFeedback: [kk ? 'Жауаптан кейін' : 'После ответа', function() { return kk ? 'өзгертілген' : 'изменено'; }], reciterBy: [kk ? '«Дыбыстау» / «Тәжуид» қарилері' : 'Чтецы «Озвучки» / «Таджвида»', function(v) { var n = function(id) { return _msName(typeof RECITER_LIST !== 'undefined' ? RECITER_LIST : [], id) || '—'; }; v = v || {}; return n(v.study) + ' / ' + n(v.tajweed); }],
+        arLineHeight: [kk ? 'Араб жол аралығы' : 'Межстрочный интервал арабского', function(v) { return String(v); }], bigText: [kk ? 'Ірі мәтін' : 'Крупный текст', yn],
+        madhhab: [kk ? 'Мәзһаб' : 'Мазхаб', function(v) { return String(v); }], textMode: [kk ? 'Мәтін режимі' : 'Режим текста', function(v) { return String(v); }],
+        pushSound: [kk ? 'Хабарлама дыбысы' : 'Звук уведомлений', yn], pushToday: [kk ? 'Күннің уақыттары хабарламада' : 'Времена дня в уведомлении', yn], quietOn: [kk ? 'Тыныш уақыт' : 'Тихие часы', yn],
+        pushPrayers: [kk ? 'Қай намаздар туралы' : 'О каких намазах напоминать', function() { return kk ? 'өзгертілген' : 'изменено'; }],
+        allowChatThemeOverride: [kk ? 'Чат тақырыбын өзгерту' : 'Своя тема в чатах', yn], chatThemeDefault: [kk ? 'Чат тақырыбы' : 'Тема чатов', function(v) { return String(v); }],
         widgetTahajjud: [kk ? 'Тәһажжуд виджеті' : 'Виджет тахаджуда', yn], widgetDuha: [kk ? 'Духа виджеті' : 'Виджет духа', yn], prayerAdhan: [kk ? 'Азан' : 'Азан', yn], prayerMethod: [kk ? 'Намаз уақыты әдісі' : 'Метод времени намаза', function(v) { return String(v); }]
       };
     }
@@ -32936,20 +32941,21 @@ function renderDict() {
         if (MS_SKIP.test(k) || /pin|lock|pass|token|secret|key$/i.test(k)) return;
         if (k === 'reciterBy') { var _d = 'ar.husary', _v = vals[k] || {}, _b = base[k] || { study: _d, tajweed: _d }; if ((_v.study || _d) === (_b.study || _d) && (_v.tajweed || _d) === (_b.tajweed || _d)) return; }
         else if (_msEq(vals[k], base[k])) return;
-        var lb = L[k] || [isKk() ? 'Басқа баптау' : 'Другая настройка', function() { return isKk() ? 'өзгертілген' : 'изменено'; }];
+        if (!L[k]) { other++; return; }
+        var lb = L[k];
         var f = function(v) { var s = null; try { s = lb[1](v); } catch(e) {} return s == null ? (v === undefined ? '—' : String(v)) : s; };
-        out.push({ k: k, l: lb[0], from: f(base[k]), to: f(vals[k]), o: !L[k] });
+        out.push({ k: k, l: lb[0], from: f(base[k]), to: f(vals[k]) });
       });
       var ord = Object.keys(L); out.sort(function(a, b) { return (a.o ? 999 : ord.indexOf(a.k)) - (b.o ? 999 : ord.indexOf(b.k)); });
       return { list: out, other: other };
     }
     function msDiffHtml(d, arrows) {
       var kk = isKk(), esc = function(s) { return String(s).replace(/</g, '&lt;'); };
-      if (!d.list.length) return '<div class="rd-note">' + (kk ? 'Бәрі әдепкідей' : 'Всё как по умолчанию') + '</div>';
+      if (!d.list.length && !d.other) return '<div class="rd-note">' + (kk ? 'Бәрі әдепкідей' : 'Всё как по умолчанию') + '</div>';
       var li = function(x) { return '<li><span>' + esc(x.l) + ':</span> ' + (arrows && !x.o ? '<s>' + esc(x.from) + '</s> → ' : '') + '<b>' + esc(x.to) + '</b></li>'; };
-      var L = d.list, top = L.slice(0, 8), rest = L.slice(8);
+      var L = d.list, top = L.slice(0, 8), rest = L.slice(8), oth = d.other ? '<div class="rd-note">' + (kk ? 'Және ' + d.other + ' ұсақ баптау (тізімге кірмейді)' : 'И ещё ' + d.other + ' мелких настроек (в списке не показаны)') + '</div>' : '';
       return '<ul class="ms-diff">' + top.map(li).join('') + '</ul>' +
-        (rest.length ? '<details class="ms-rest"><summary>' + (kk ? '+ тағы ' + rest.length + ' — көрсету' : '+ ещё ' + rest.length + ' — показать') + '</summary><ul class="ms-diff">' + rest.map(li).join('') + '</ul></details>' : '');
+        (rest.length ? '<details class="ms-rest"><summary>' + (kk ? '+ тағы ' + rest.length + ' — көрсету' : '+ ещё ' + rest.length + ' — показать') + '</summary><ul class="ms-diff">' + rest.map(li).join('') + '</ul></details>' : '') + oth;
     }
     function msAsk(p) {
       var kk = isKk(), d = msDiff(p.values, msSnap());
