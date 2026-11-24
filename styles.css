@@ -363,43 +363,6 @@
     .chat-msg-card.msg-mentioned {
       border-color: var(--accent);
     }
-    /* build 4.112: тема переписки — применяется через класс body.chat-themed
-       (ставится/снимается из _applyChatTheme при открытии чата) и CSS-
-       переменные --chat-theme-bg/--chat-theme-mine/--chat-theme-theirs.
-       Затрагивает только сам экран переписки (список сообщений и карточки
-       внутри него), общий фон и цвета остального сайта не трогает вообще —
-       поэтому переопределения тут узко нацелены только на #pchat-list,
-       #dm-body/#dm-list, #grpc-list и карточки сообщений внутри них. */
-    body.chat-themed #pchat-list,
-    body.chat-themed #dm-list,
-    body.chat-themed #grpc-list {
-      background: var(--chat-theme-bg);
-      border-radius: var(--r-md);
-      transition: background 0.3s;
-    }
-    /* build 6.57: все темы переписки тёмные, а на светлых темах сайта текст сообщений, время и имена оставались тёмными (сливались с фоном) —
-       внутри списка переписки переопределяем цвета на светлые, пока включена тема чата */
-    body.chat-themed #pchat-list,
-    body.chat-themed #dm-list,
-    body.chat-themed #grpc-list {
-      --text: #f1f5f9;
-      --text-muted: #b9c4d8;
-      --arabic: #e2e8f0;
-      --accent: #6ee7b7;
-      --border: rgba(255, 255, 255, 0.2);
-      --bg: rgba(0, 0, 0, 0.3);
-      --bg-card: rgba(0, 0, 0, 0.24);
-      --bg-hover: rgba(255, 255, 255, 0.14);
-      color: var(--text);
-    }
-    body.chat-themed .chat-msg-card.msg-mine {
-      background: var(--chat-theme-mine) !important;
-      border-color: var(--chat-theme-mine) !important;
-    }
-    body.chat-themed .chat-msg-card.msg-theirs {
-      background: var(--chat-theme-theirs) !important;
-      border-color: var(--chat-theme-theirs) !important;
-    }
     /* build 4.74: текст сообщения был обычным выделяемым текстом
        (user-select: text), поэтому долгое удержание параллельно с нашим
        собственным меню действий (см. _bindLongPressReveal) ещё и запускало

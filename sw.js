@@ -25,7 +25,7 @@ self.addEventListener('fetch', e => {
   // build 6.35: суры целиком (десятки МБ) не кэшируем воркером
   if (url.includes('cdn.mp3quran.net')) return;
   // 7.54: аудио чтецов и слов хранит сам сайт (своя база) — копия в кэше воркера была лишней и занимала место вдвое
-  if (/everyayah\.com|qurancdn\.com|verses\.quran\.com/.test(url)) return;
+  if (/everyayah\.com|qurancdn\.com|verses\.quran\.com|tarteel\.ai/.test(url)) return;
   // Аудио плеер просит файл кусками (Range). Записи «Дуа и зикры» храним
   // целиком: при первом прослушивании докачиваем файл в фоне, потом
   // отдаём нужный кусок из кэша — так они играют и без интернета.

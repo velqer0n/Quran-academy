@@ -988,22 +988,8 @@
       { id:'calendar', icon:'📅', label:'Духовный календарь', group:'life' },
       { id:'family', icon:'👨‍👩‍👧‍👦', label:'Права семьи', group:'life' },
       { id:'sadaqa', icon:'🤲', label:'Садака', group:'life' },
-      { id:'ask', icon:'📝', label:'Черновик вопроса', group:'online' }, // build 6.76: к вопросам в Онлайне
-      { id:'account', icon:'👤', label:'Мой аккаунт', group:'online' },
-      { id:'myqa', icon:'❓', label:'Мои вопросы/ответы', group:'online' },
-      { id:'forum', icon:'💬', label:'Форум', group:'online' },
-      { id:'publicchat', icon:'💭', label:'Общий чат', group:'online' },
-      { id:'groups', icon:'👥', label:'Группа', group:'online' },
-      { id:'friends', icon:'🧑\u200d🤝\u200d🧑', label:'Друзья', group:'online' },
-      { id:'usersearch', icon:'🔍', label:'Поиск', group:'online' },
-      { id:'myreports', icon:'📋', label:'Мои жалобы', group:'online' },
-      { id:'dmlist', icon:'✉️', label:'Личные сообщения', group:'online' },
-      { id:'notifications', icon:'🔔', label:'Уведомления', group:'online' },
-      { id:'storagelimits', icon:'📊', label:'Хранилище', group:'online' },
-      { id:'feedback', icon:'💡', label:'Идеи и баги', group:'online' },
-      { id:'stats', icon:'📊', label:'Статистика', group:'online' },
-      { id:'registration', icon:'👥', label:'Регистрация', group:'admin' },
-      { id:'reports', icon:'🚩', label:'Жалобы', group:'admin' },
+      { id:'ask', icon:'📝', label:'Черновик вопроса', group:'life' }, // build 6.76: к вопросам в Онлайне
+      { id:'stats', icon:'📊', label:'Статистика', group:'quran' },
       { id:'data', icon:'🗄️', label:'Данные', group:'system' },
       { id:'help', icon:'❓', label:'Справка', group:'system' },
       { id:'settings', icon:'⚙️', label:'Настройки', group:'system' },
@@ -1018,8 +1004,6 @@
       { id:'quran', label:'Коран', hidden:false },
       { id:'games', label:'Проверь себя', hidden:false },
       { id:'life', label:'Жизнь', hidden:false },
-      { id:'online', label:'Онлайн', hidden:false },
-      { id:'admin', label:'Админ', hidden:false },
       { id:'system', label:'Сайт', hidden:false }
     ];
 

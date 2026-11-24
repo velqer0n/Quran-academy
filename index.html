@@ -198,16 +198,8 @@
         <button type="button" class="lock-btn-header" id="btn-header-theme" title="Сменить тему">🌓</button>
         <button type="button" class="lock-btn-header" id="btn-header-bookmarks" title="Папки" style="display:none">📁</button>
         <button type="button" class="lock-btn-header" id="btn-header-cache" title="Офлайн и кэш" style="display:none">📥</button>
-        <button type="button" class="lock-btn-header" id="btn-header-account" title="Мой аккаунт" style="display:none">👤</button>
         <button type="button" class="lock-btn-header" id="btn-header-fontsize" title="Быстрые настройки" aria-label="Быстрые настройки"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="7" cy="18" r="2.2" fill="currentColor"/></svg></button>
         <button type="button" class="lock-btn-header" id="btn-header-update" title="Обновить сайт" style="position:relative">🔄<span id="hdr-update-badge" style="display:none;position:absolute;top:0.1rem;right:0.1rem;width:0.5rem;height:0.5rem;border-radius:50%;background:var(--danger)"></span></button>
-        <button type="button" class="lock-btn-header" id="btn-header-dmlist" title="Личные сообщения" style="display:none">✉️</button>
-        <button type="button" class="lock-btn-header" id="btn-header-friends" title="Друзья" style="display:none">🧑‍🤝‍🧑</button>
-        <button type="button" class="lock-btn-header" id="btn-header-notifications" title="Уведомления" style="display:none">🔔</button>
-        <button type="button" class="lock-btn-header" id="btn-header-publicchat" title="Общий чат" style="display:none">💭</button>
-        <button type="button" class="lock-btn-header" id="btn-header-groups" title="Групповые чаты" style="display:none">👥</button>
-        <button type="button" class="lock-btn-header" id="btn-header-forum" title="Форум" style="display:none">💬</button>
-        <button type="button" class="lock-btn-header" id="btn-header-myqa" title="Мои вопросы/ответы" style="display:none">❓</button>
         <button type="button" class="lock-btn-header" id="btn-header-stats" title="Статистика" style="display:none">📊</button>
         <button type="button" class="lock-btn-header" id="btn-header-prayertimes" title="Время намаза и кибла" style="display:none">🕐</button>
       </div>
@@ -216,7 +208,6 @@
         <button data-view="home">Суры</button>
         <button data-view="study">Учёба</button>
         <button data-view="bookmarks">Папки</button>
-        <button data-view="online">Онлайн</button>
         <button data-view="more">Ещё</button>
       </nav>
     </div>
@@ -605,20 +596,6 @@
     </div>
 
     <!-- ONLINE (build 4.47): общение/соцсеть — переехало сюда из «Ещё» отдельной вкладкой -->
-    <div id="view-online" class="view">
-      <h2 class="section-title">Онлайн</h2>
-      <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem;align-items:center;justify-content:flex-end">
-        <button type="button" class="btn btn-sm" id="online-layout-toggle" style="margin-top:-2.6rem">⋯ Вид</button>
-        <div id="online-layout-row" style="display:none;flex-wrap:wrap;gap:0.35rem;width:100%">
-          <button type="button" class="btn btn-sm" id="online-layout-list">Список</button>
-          <button type="button" class="btn btn-sm" id="online-layout-grid">Сетка 2</button>
-          <button type="button" class="btn btn-sm" id="online-layout-grid3">Сетка 3</button>
-          <button type="button" class="btn btn-sm" id="online-edit-order">Порядок</button>
-        </div>
-      </div>
-      <p id="online-edit-hint" style="display:none;color:var(--text-muted);font-size:0.85rem;margin-bottom:0.5rem">Порядок: ↑↓ ←→.</p>
-      <div id="online-body"></div>
-    </div>
 
     <!-- MORE (bookmarks, progress, settings combined for mobile) -->
     <div id="view-more" class="view">
@@ -766,124 +743,23 @@
     </div>
 
 
-    <div id="view-registration" class="view">
-      <h2 class="section-title">Регистрация</h2>
-      <div id="registration-body"></div>
-    </div>
-
-    <div id="view-reports" class="view">
-      <h2 class="section-title">🚩 Жалобы</h2>
-      <div id="reports-body"></div>
-    </div>
-
-    <div id="view-notifications" class="view">
-      <h2 class="section-title">Уведомления</h2>
-      <div id="notifications-body"></div>
-    </div>
-
-    <div id="view-storagelimits" class="view">
-      <h2 class="section-title">📊 Хранилище</h2>
-      <div id="storagelimits-body"></div>
-    </div>
-
-    <div id="view-feedback" class="view">
-      <h2 class="section-title">💡 Идеи и баги</h2>
-      <div id="feedback-body"></div>
-    </div>
-
-    <div id="view-myqa" class="view">
-      <h2 class="section-title">Мои вопросы/ответы</h2>
-      <div id="myqa-body"></div>
-    </div>
-
-    <div id="view-forum" class="view">
-      <h2 class="section-title">Форум</h2>
-      <div id="forum-body"></div>
-    </div>
-
-    <div id="view-publicchat" class="view">
-      <div class="chat-topbar">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">
-          <h2 class="section-title" style="margin-bottom:0">Общий чат</h2>
-          <div style="display:flex;gap:0.35rem">
-            <button type="button" id="pchat-select-toggle" class="btn btn-sm" title="Выбрать несколько сообщений">☑️</button>
-            <button type="button" id="pchat-sched-list-btn" class="btn btn-sm" title="Запланированные сообщения">🕒</button>
-            <button type="button" id="pchat-export-btn" class="btn btn-sm" title="Экспорт переписки">⬇️</button>
-            <button type="button" id="pchat-search-toggle" class="btn btn-sm" title="Поиск по переписке">🔍</button>
-          </div>
-        </div>
-        <div id="pchat-search-panel" style="display:none;margin-top:0.5rem"></div>
-      </div>
-      <div id="pchat-pinned" style="display:none;margin:0.5rem 0"></div>
-      <div id="publicchat-body"></div>
-    </div>
-
-    <div id="view-dmlist" class="view">
-      <h2 class="section-title">Личные сообщения</h2>
-      <div id="dmlist-body"></div>
-    </div>
-
-    <div id="view-dm" class="view">
-      <div class="chat-topbar">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">
-          <h2 class="section-title" id="dm-title" style="margin-bottom:0">Переписка</h2>
-          <div style="display:flex;gap:0.35rem">
-            <button type="button" id="dm-sched-list-btn" class="btn btn-sm" title="Запланированные сообщения">🕒</button>
-            <button type="button" id="dm-theme-btn" class="btn btn-sm" title="Тема переписки">🎨</button>
-            <button type="button" id="dm-autodelete-btn" class="btn btn-sm" title="Автоудаление сообщений">⏳</button>
-            <button type="button" id="dm-clear-btn" class="btn btn-sm" title="Очистить переписку" style="color:#c62828;border-color:#c62828">🧹</button>
-            <button type="button" id="dm-export-btn" class="btn btn-sm" title="Экспорт переписки">⬇️</button>
-            <button type="button" id="dm-search-toggle" class="btn btn-sm" title="Поиск по переписке">🔍</button>
-          </div>
-        </div>
-        <div id="dm-partner-status" style="font-size:0.82rem;color:var(--text-muted);margin:0.15rem 0 0"></div>
-        <div id="dm-search-panel" style="display:none;margin-top:0.5rem"></div>
-      </div>
-      <div id="dm-pinned" style="display:none;margin:0.5rem 0"></div>
-      <div id="dm-body"></div>
-    </div>
-
-    <div id="view-friends" class="view">
-      <h2 class="section-title">Друзья</h2>
-      <div id="friends-body"></div>
-    </div>
-
-    <div id="view-usersearch" class="view">
-      <h2 class="section-title">🔍 Поиск</h2>
-      <div id="usersearch-body"></div>
-    </div>
-
-    <div id="view-chatsearch" class="view">
-      <h2 class="section-title">🔎 Поиск по перепискам</h2>
-      <div id="chatsearch-body"></div>
-    </div>
-
-    <div id="view-blockedlist" class="view">
-      <h2 class="section-title">🚫 Заблокированные мной</h2>
-      <div id="blockedlist-body"></div>
-    </div>
-
-    <div id="view-myreports" class="view">
-      <h2 class="section-title">📋 Мои жалобы</h2>
-      <div id="myreports-body"></div>
-    </div>
-
-    <div id="view-groups" class="view">
-      <h2 class="section-title">Групповые чаты</h2>
-      <div id="groups-body"></div>
-    </div>
 
 
-    <div id="view-groupchat" class="view">
-      <div class="chat-topbar">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">
-          <h2 class="section-title" id="groupchat-title" style="margin-bottom:0">Групповой чат</h2>
-          <button type="button" id="grpc-search-toggle" class="btn btn-sm" title="Поиск по переписке">🔍</button>
-        </div>
-        <div id="grpc-search-panel" style="display:none;margin-top:0.5rem"></div>
-      </div>
-      <div id="groupchat-body"></div>
-    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     <div id="view-lessons" class="view">
       <h2 class="section-title" data-i18n="lessons">Короткие уроки</h2>
@@ -957,22 +833,6 @@
     </div>
 
     <!-- AUTH / ACCOUNT -->
-    <div id="view-account" class="view">
-      <h2 class="section-title" data-i18n="account_title">Мой аккаунт</h2>
-      <div id="account-body"></div>
-    </div>
-    <div id="view-login" class="view">
-      <h2 class="section-title" data-i18n="login_title">Вход</h2>
-      <div id="login-body"></div>
-    </div>
-    <div id="view-register" class="view">
-      <h2 class="section-title" data-i18n="register_title">Регистрация</h2>
-      <div id="register-body"></div>
-    </div>
-    <div id="view-forgot" class="view">
-      <h2 class="section-title">Забыли пароль</h2>
-      <div id="forgot-body"></div>
-    </div>
 
     <!-- SETTINGS -->
     <div id="view-settings" class="view">
@@ -1700,10 +1560,6 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
       Папки
     </button>
-    <button data-view="online">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l1.586-1.586z"/></svg>
-      Онлайн
-    </button>
     <button data-view="more">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
       Ещё
@@ -1802,7 +1658,6 @@
 
 
   <!-- build 5.72: данные вынесены в отдельные файлы для более лёгкого редактирования -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>window.qaBoot&&qaBoot(7)</script>
   <script src="data-changelog.js"></script>
   <script>window.qaBoot&&qaBoot(8)</script>
