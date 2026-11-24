@@ -988,10 +988,8 @@
       { id:'calendar', icon:'📅', label:'Духовный календарь', group:'life' },
       { id:'family', icon:'👨‍👩‍👧‍👦', label:'Права семьи', group:'life' },
       { id:'sadaqa', icon:'🤲', label:'Садака', group:'life' },
-      { id:'ask', icon:'📝', label:'Черновик вопроса', group:'life' }, // build 6.76: к вопросам в Онлайне
       { id:'stats', icon:'📊', label:'Статистика', group:'quran' },
       { id:'data', icon:'🗄️', label:'Данные', group:'system' },
-      { id:'help', icon:'❓', label:'Справка', group:'system' },
       { id:'settings', icon:'⚙️', label:'Настройки', group:'system' },
       { id:'legaldocs', icon:'⚖', label:'Документы', group:'system' },
       { id:'changelog', icon:'🆕', label:'Обновления', group:'system' },

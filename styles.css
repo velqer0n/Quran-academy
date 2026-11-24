@@ -5276,3 +5276,92 @@ html.ptr-off.ptr-top { touch-action: pan-x pan-y; }
 .dh-tog i:after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s}
 .dh-tog input:checked+i{background:var(--accent)}
 .dh-tog input:checked+i:after{transform:translateX(18px)}
+
+/* 7.56: новый Курс — карта глав и урок по шагам */
+.c2-home{display:flex;flex-direction:column;gap:0.6rem}
+.c2-hello p{color:var(--text-muted);font-size:0.9rem;margin:0.35rem 0 0.6rem}
+.c2-hrow{display:flex;gap:0.5rem;flex-wrap:wrap}.c2-hrow .btn{flex:1}
+.c2-cont{display:flex;flex-direction:column;gap:0.2rem;width:100%;text-align:left;border:0;border-radius:18px;padding:0.9rem 1rem;background:linear-gradient(135deg,var(--accent),var(--accent-hover,#059669));color:#fff;font:inherit;cursor:pointer;box-shadow:var(--shadow-md)}
+.c2-cont b{font-size:1.08rem}
+.c2-cont-l{font-size:0.75rem;opacity:0.85}
+.c2-cont-go{align-self:flex-start;margin-top:0.35rem;background:rgba(0,0,0,0.22);border-radius:10px;padding:0.35rem 0.8rem;font-weight:700}
+.c2-cont-sm{margin-bottom:0.6rem}
+.c2-ch{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:0 0.7rem}
+.c2-ch>summary{display:flex;align-items:center;gap:0.6rem;padding:0.7rem 0;cursor:pointer;list-style:none}
+.c2-ch>summary::-webkit-details-marker{display:none}
+.c2-chn{width:1.9rem;height:1.9rem;border-radius:50%;background:var(--bg-hover);color:var(--text-muted);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex:none}
+.c2-ch.done .c2-chn{background:var(--accent);color:#fff}
+.c2-ch.cur .c2-chn{background:var(--warning);color:#1a1200}
+.c2-cht{flex:1;display:flex;flex-direction:column}.c2-cht small{color:var(--text-muted)}
+.c2-chev{color:var(--text-muted);transition:transform .2s}.c2-ch[open] .c2-chev{transform:rotate(90deg)}
+.c2-path{border-left:2px dashed var(--border);margin:0 0 0.7rem 0.9rem;padding-left:0.8rem;display:flex;flex-direction:column;gap:0.35rem}
+.c2-les{display:flex;align-items:center;gap:0.55rem;width:100%;text-align:left;border:1px solid transparent;border-radius:12px;padding:0.55rem 0.6rem;background:var(--bg-hover);color:var(--text);font:inherit;font-size:0.92rem;cursor:pointer}
+.c2-les.d{opacity:0.7}.c2-les.now{background:color-mix(in srgb,var(--accent) 16%,transparent);border-color:var(--accent)}
+.c2-li{width:1.3rem;text-align:center;flex:none}
+.c2-test{align-self:flex-start;margin-top:0.2rem}
+.c2-top{display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem}
+.c2-x{border:0;background:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;padding:0.2rem 0.4rem}
+.c2-pb{flex:1;height:10px;border-radius:5px;background:var(--bg-hover);overflow:hidden}.c2-pb i{display:block;height:100%;background:var(--accent);border-radius:5px;transition:width .3s}
+.c2-cnt{font-size:0.8rem;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.c2-step{display:flex;flex-direction:column;gap:0.8rem;padding-bottom:9rem}
+.c2-rev{align-self:flex-start;font-size:0.75rem;color:var(--warning);font-weight:700}
+.c2-q{font-size:1.15rem;font-weight:700;line-height:1.35}
+.c2-ar{font-family:'Amiri','Scheherazade New','Noto Naskh Arabic',serif;direction:rtl;unicode-bidi:isolate}
+.c2-ar-in{font-family:'Amiri','Scheherazade New','Noto Naskh Arabic',serif;font-size:1.2em;unicode-bidi:isolate}
+.c2-big{display:flex;flex-direction:column;align-items:center;gap:0.2rem;font-size:3.2rem;line-height:1.5;padding:0.4rem 0;border:0;background:none;color:var(--text);font-family:inherit}
+.c2-big small{font-size:0.8rem;color:var(--text-muted)}
+.c2-huge{font-size:4.5rem}
+.c2-small-ar{font-size:1.7rem}
+.c2-tap{cursor:pointer}
+.c2-play{align-self:center;width:5.5rem;height:5.5rem;border-radius:50%;border:2px solid var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent);font-size:2rem;cursor:pointer}
+.c2-opts{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem}
+.c2-opts.c2-col{grid-template-columns:1fr}
+.c2-opt{border:2px solid var(--border);border-radius:14px;background:var(--bg-card);color:var(--text);font:inherit;font-size:1.02rem;padding:0.85rem 0.7rem;cursor:pointer;min-height:3.2rem}
+.c2-opt .c2-ar{font-size:1.6rem}
+.c2-big-opt{font-size:2.3rem;padding:0.6rem}.c2-big-opt .c2-ar{font-size:2.4rem}
+.c2-opt.ok{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}
+.c2-opt.no{border-color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,transparent)}
+.c2-opt:disabled{cursor:default;opacity:1}
+.c2-fb{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 4.2rem);z-index:40;padding:0.9rem 1rem 1rem;border-top:2px solid var(--accent);background:var(--bg-card);box-shadow:0 -6px 20px rgba(0,0,0,0.18);display:flex;flex-direction:column;gap:0.45rem;max-width:720px;margin:0 auto}
+.c2-fb.good b{color:var(--accent)}.c2-fb.bad{border-top-color:var(--warning)}.c2-fb.bad b{color:var(--warning)}
+.c2-fb .btn{width:100%;margin-top:0.2rem}
+.c2-why{font-size:0.85rem;color:var(--text-muted);line-height:1.45}
+.c2-next{width:100%}
+.c2-skip{align-self:center;background:none;border:0;color:var(--text-muted)}
+.c2-info{display:flex;flex-direction:column;align-items:center;gap:0.6rem;text-align:center}
+.c2-info p{font-size:1.02rem;line-height:1.55;margin:0}
+.c2-ico{font-size:2.4rem}
+.c2-rule{text-align:left}
+.c2-meet{display:flex;flex-direction:column;align-items:center;gap:0.4rem;text-align:center}
+.c2-meet .c2-big{font-size:4.6rem}
+.c2-nm{font-size:1.25rem;font-weight:700}
+.c2-tip{margin:0;line-height:1.5;color:var(--text)}
+.c2-forms{display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;width:100%;margin-top:0.3rem}
+.c2-forms div{background:var(--bg-hover);border-radius:10px;padding:0.4rem 0.2rem;display:flex;flex-direction:column;align-items:center}
+.c2-forms .c2-ar{font-size:1.9rem;line-height:1.5}.c2-forms small{font-size:0.68rem;color:var(--text-muted)}
+.c2-ref{margin-top:0.2rem}
+.c2-sylrow{display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap}
+.c2-syl{display:flex;flex-direction:column;align-items:center;border:1px solid var(--border);border-radius:12px;background:var(--bg-card);color:var(--text);padding:0.35rem 0.8rem;font:inherit;cursor:pointer}
+.c2-syl .c2-ar{font-size:2rem;line-height:1.5}.c2-syl small{color:var(--text-muted)}
+.c2-first,.c2-tiles,.c2-slot{display:flex;gap:0.45rem;justify-content:center;flex-wrap:wrap}
+.c2-tile{min-width:3.4rem;border:2px solid var(--border);border-radius:12px;background:var(--bg-card);color:var(--text);padding:0.3rem 0.6rem;cursor:pointer}
+.c2-tile .c2-ar{font-size:2.2rem;line-height:1.5}.c2-tile:disabled{opacity:0.35}
+.c2-tile.ok{border-color:var(--accent)}.c2-tile.no{border-color:var(--danger)}
+.c2-slot{min-height:4rem;border:2px dashed var(--border);border-radius:14px;align-items:center;font-size:2.4rem}
+.c2-clear{align-self:center}
+.c2-ayah{font-family:'Amiri','Scheherazade New','Noto Naskh Arabic',serif;font-size:1.7rem;line-height:2.2;text-align:center}
+.c2-words{display:flex;flex-wrap:wrap;gap:0.35rem;justify-content:center}
+.c2-w{display:inline-flex;flex-direction:column;align-items:center;border:1px solid var(--border);border-radius:10px;background:var(--bg-card);color:var(--text);padding:0.15rem 0.5rem;cursor:pointer;font:inherit}
+.c2-w .c2-ar{font-size:1.75rem;line-height:1.7}.c2-w small{font-size:0.7rem;color:var(--text-muted);font-family:system-ui,sans-serif;max-width:7rem}
+.c2-wf.ok{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}.c2-wf.no{border-color:var(--danger)}
+.c2-ayref{font-size:0.8rem;color:var(--text-muted);text-align:center;font-family:system-ui,sans-serif;line-height:1.4}
+.c2-recrow{display:flex;flex-wrap:wrap;gap:0.4rem;justify-content:center}
+.c2-end{display:flex;flex-direction:column;gap:0.7rem;text-align:center;padding-bottom:2rem}
+.c2-end h3{margin:0}.c2-end p{color:var(--text-muted);margin:0}
+.c2-endico{font-size:2.6rem}
+.c2-endw{display:flex;flex-direction:column;align-items:center;gap:0.2rem}
+.c2-mut{font-size:0.8rem;color:var(--text-muted)}
+.c2-chip{display:inline-block;background:var(--bg-hover);border-radius:20px;padding:0.1rem 0.7rem;margin:0.3rem 0.2rem 0;font-size:1.5rem}
+.c2-insp{text-align:center}.c2-insp-ar{font-size:1.4rem;line-height:1.9}
+.c2-later{background:none;border:0;color:var(--text-muted)}
+.c2-lt{flex:1}.c2-rep{font-size:0.72rem;color:var(--accent);white-space:nowrap}
