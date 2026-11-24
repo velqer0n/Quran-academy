@@ -5238,3 +5238,19 @@ html.ptr-off.ptr-top { touch-action: pan-x pan-y; }
 .wr-digits .arabic { font-size: 1.7rem; line-height: 1.5; } .wr-digits small { color: var(--text-muted); font-size: 0.75rem; }
 .wr-wq > .arabic { font-family: 'Amiri', 'Scheherazade New', serif; font-size: 3.2rem !important; width: 64px !important; line-height: 1.1 !important; overflow: visible; }
 .wr-wq > div { text-align: left; flex: 1; }
+
+/* ===== 7.52: губы спереди — окошком в углу схемы рта ===== */
+.mouth-stage { position: relative; display: block; max-width: 420px; margin: 0 auto; }
+.mouth-stage > svg { display: block; width: 100%; height: auto; }
+.mouth-pip { position: absolute; left: 4px; top: 4px; width: 29%; padding: 0; border-radius: 12px; overflow: hidden; border: 2px solid var(--border); background: var(--bg-card, var(--bg)); box-shadow: 0 3px 10px rgba(0,0,0,0.18); cursor: pointer; z-index: 2; }
+.mouth-pip svg { display: block; width: 100%; height: auto; }
+.mouth-pip-lab { position: absolute; right: 3px; bottom: 2px; font-size: 0.8rem; opacity: 0.85; }
+/* нажали на окошко — губы крупно, разрез маленьким */
+.pip-big .mouth-pip { position: relative; left: 0; top: 0; width: 100%; border-width: 1px; box-shadow: none; }
+.pip-big .mouth-stage > svg { position: absolute; left: 4px; top: 4px; width: 32%; z-index: 3; border: 2px solid var(--border); border-radius: 12px; background: var(--bg-card, var(--bg)); box-shadow: 0 3px 10px rgba(0,0,0,0.18); }
+/* широкий экран и телефон боком — обе картинки рядом */
+@media (min-width: 700px), (orientation: landscape) and (min-width: 560px) {
+  .mouth-stage { display: flex; gap: 0.6rem; align-items: flex-start; max-width: 760px; }
+  .mouth-stage > svg, .pip-big .mouth-stage > svg { position: static; width: 58%; border: none; box-shadow: none; }
+  .mouth-pip, .pip-big .mouth-pip { position: static; width: 42%; box-shadow: none; border-width: 1px; }
+}

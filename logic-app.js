@@ -13828,8 +13828,7 @@ function renderMistakes() {
         '<div style="margin:0.35rem auto 0;max-width:340px;display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;color:var(--text-muted)"><span>⏱</span><input type="range" class="mouth-scrub" min="0" max="100" value="0" step="1" style="flex:1" aria-label="' + (kk ? 'Кадр бойынша қарау' : 'Смотреть кадр за кадром') + '"><span>' + (kk ? 'тартыңыз' : 'тяните') + '</span></div>' +
         '<div class="mouth-viewbar" style="margin-top:0.3rem;display:flex;gap:0.25rem;justify-content:center;flex-wrap:wrap;align-items:center">' +
         '<span style="font-size:0.75rem;color:var(--text-muted)">' + (kk ? 'Қосымша:' : 'Ещё вид:') + '</span>' +
-        (g ? ib('data-mouth-view="front" data-ch="' + ch + '" aria-pressed="' + (dv === 'front') + '"', '👄', kk ? 'алдынан' : 'спереди', kk ? 'Алдынан' : 'Вид спереди', dv === 'front') +
-             ib('data-mouth-view="top" data-ch="' + ch + '" aria-pressed="' + (dv === 'top') + '"', '👅', kk ? 'тіл үстінен' : 'язык сверху', kk ? 'Тіл үстінен' : 'Язык сверху', dv === 'top') : '') +
+        (g ? ib('data-mouth-view="top" data-ch="' + ch + '" aria-pressed="' + (dv === 'top') + '"', '👅', kk ? 'тіл үстінен' : 'язык сверху', kk ? 'Тіл үстінен' : 'Язык сверху', dv === 'top') : '') +
         (pair ? ib('data-mouth-cmp="' + ch + '"', '⚖', (kk ? 'мен ' : 'с ') + pair, kk ? 'Ұқсас әріппен салыстыру' : 'Сравнить с похожей буквой') : '') +
         ib('data-mouth-labels="' + ch + '" aria-pressed="' + (labOn ? 'true' : 'false') + '"', '🏷', (kk ? 'Жазулар' : 'Подписи') + (labOn ? ' ✓' : ''), kk ? 'Схемадағы жазулар' : 'Подписи на схеме', labOn) +
         '</div>';
@@ -13842,10 +13841,11 @@ function renderMistakes() {
       return '<div class="mouth-wrap" style="text-align:center;direction:ltr;unicode-bidi:isolate;font-family:system-ui,-apple-system,\'Segoe UI\',Roboto,sans-serif">' +
         likeHtml +
         '<div style="font-weight:700;font-size:0.84rem;color:' + col + ';margin:0.2rem 0">' + (kk ? 'Аймақ: ' : 'Зона: ') + t.how + '</div>' +
-        svg + bar +
+        // 7.52: губы спереди — окошком в углу схемы, двигаются вместе с ней; нажатие меняет местами; на широком экране — рядом
+        (g ? '<div class="mouth-stage">' + svg + '<button type="button" class="mouth-pip" data-mouth-pip="1" title="' + (kk ? 'Ерін алдынан — басыңыз, үлкейтеді' : 'Губы спереди — нажмите, чтобы увеличить') + '">' + mouthView2Svg(ch, 'front', { animate: !reduce }) + '<span class="mouth-pip-lab">👄</span></button></div>' : svg) + bar +
         (g ? mouthStepsHtml(info, kk) : '') +
         '<div class="mouth-cmp"></div>' +
-        '<div class="mouth-v2" style="margin-top:0.4rem">' + (dv ? mouthView2Svg(ch, dv, { animate: !reduce }) : '') + '</div>' +
+        '<div class="mouth-v2" style="margin-top:0.4rem">' + (dv && !(g && dv === 'front') ? mouthView2Svg(ch, dv, { animate: !reduce }) : '') + '</div>' +
         mouthTipsHtml(ch, info, kk) + more.replace('</summary>', '</summary>' + mistHtml + mouthConfuseText(ch, kk)) + '</div>';
     }
     // Запуск анимации: по кнопке «Показать звук» (вместе со звуком буквы) и при нажатии на обычные
@@ -13891,8 +13891,12 @@ function renderMistakes() {
       mouthPlay(svgEl);
       mouthStepsSync(svgEl);
       const w = svgEl && svgEl.closest && svgEl.closest('.mouth-wrap');
-      if (w) w.querySelectorAll('.mouth-v2 svg').forEach(mouthPlay);
+      if (w) w.querySelectorAll('.mouth-v2 svg, .mouth-pip svg').forEach(mouthPlay);
     }
+    document.addEventListener('click', function (e) {
+      var p = e.target && e.target.closest && e.target.closest('[data-mouth-pip]'); if (!p) return;
+      var w = p.closest('.mouth-wrap'); if (w) w.classList.toggle('pip-big');
+    });
     function mouthPlay(svgEl) {
       if (!svgEl) return;
       try {
