@@ -772,7 +772,7 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
         'Список': 'Тізім', 'Сетка 2': 'Тор 2', 'Сетка 3': 'Тор 3',
         'Изменить порядок': 'Ретін өзгерту', 'Готово': 'Дайын',
         'Путь': 'Жол', 'Буквы': 'Әріптер', 'Огласовки': 'Дауыстылар',
-        'Слоги': 'Буындар', 'Правила': 'Ережелер', 'Таджвид': 'Тәжуид', 'Махаридж': 'Махаридж', 'Сифат': 'Сипат',
+        'Слоги': 'Буындар', 'Правила': 'Ережелер', 'Таджвид': 'Тәжуид', 'Махаридж': 'Махаридж', 'Сифат': 'Сипат', 'Произношение': 'Айтылуы', '📍 Где звучит': '📍 Қай жерде естіледі', '🎚 Как звучит': '🎚 Қалай естіледі',
         'Суры': 'Сүрелер', 'Аяты': 'Аяттар', 'Ошибки': 'Қателер', '🎨 Цвета таджвида': '🎨 Тәжуид түстері',
         'Скачать хадисы': 'Хадис жүктеу', 'Скачанные': 'Жүктелгендер',
         'Зикр': 'Зікір', 'Моё чтение': 'Менің оқуым', 'Планы': 'Жоспарлар', 'Хатм': 'Хатым',
@@ -8785,6 +8785,9 @@ function speakLetter(ch, name, ttsOnly) {
     
     function switchAcademyTab(tab) {
       tab = tab || 'alphabet';
+      // 7.57: Махаридж и Сифат — один раздел «Произношение» с двумя вкладками
+      if (tab === 'pron') { try { tab = localStorage.getItem('qa_pron_sub') || 'makharij'; } catch (e) { tab = 'makharij'; } }
+      if (tab === 'makharij' || tab === 'sifat') { try { localStorage.setItem('qa_pron_sub', tab); } catch (e) {} }
       // build 6.71: вкладки перенесены — Путь → Курс, Суры/Аяты → «Суры → Озвучка», Цвета таджвида → «Суры → Таджвид», Ошибки → Тренировка
       if (tab === 'path') { showView('teacher'); return; }
       if (tab === 'surahs' || tab === 'ayahs') { showView('home'); try { showSurahHomeTab('study'); if (tab === 'ayahs') { const d = document.getElementById('home-fav-ayahs'); if (d) d.open = true; } } catch (e) {} return; }
@@ -8792,7 +8795,7 @@ function speakLetter(ch, name, ttsOnly) {
       if (tab === 'mistakes') { showView('games'); const mb = document.getElementById('games-mistakes-box'); if (mb) mb.open = true; try { renderMistakes(); } catch (e) {} return; }
       try { sessionStorage.setItem('quran_acad_tab', tab); localStorage.setItem('quran_acad_tab', tab); } catch(e) {}
       document.querySelectorAll('#academy-main-tabs button').forEach(b => {
-        const on = b.dataset.acadTab === tab;
+        const on = b.dataset.acadTab === tab || (b.dataset.acadTab === 'pron' && (tab === 'makharij' || tab === 'sifat'));
         b.classList.toggle('btn-primary', on);
       });
       ['path','alphabet','harakat','syllables','rules','tajweed','makharij','sifat','practice','surahs','ayahs','twcolor','srs','mistakes'].forEach(t => {
@@ -8805,8 +8808,9 @@ function speakLetter(ch, name, ttsOnly) {
       if (tab === 'syllables') try { renderSyllables(); } catch(e) {}
       if (tab === 'rules') try { if (typeof renderRules === 'function') renderRules(); } catch(e) {}
       if (tab === 'tajweed') try { if (typeof renderTajweed === 'function') renderTajweed(); } catch(e) {}
-      if (tab === 'makharij') try { if (typeof renderMakharij === 'function') renderMakharij(); } catch(e) {}
-      if (tab === 'sifat') try { renderSifat(); } catch(e) {}
+      if (tab === 'makharij') try { if (typeof renderMakharij === 'function') renderMakharij(); pronDecorate('makharij'); } catch(e) {}
+      if (tab === 'sifat') try { renderSifat(); pronDecorate('sifat'); } catch(e) {}
+      try { document.querySelectorAll('[data-pron]').forEach(function (b) { b.classList.toggle('btn-primary', b.getAttribute('data-pron') === tab); }); } catch (e) {}
       if (tab === 'practice') try { renderPractice(); } catch(e) {}
       if (tab === 'twcolor') try { renderTajweedColorView(document.getElementById('learn-twcolor')); } catch(e) {}
       if (tab === 'surahs') {
@@ -11845,10 +11849,10 @@ function speakLetter(ch, name, ttsOnly) {
               { a: ['Где обязательна гунна?', 'Гунна қай жерде міндетті?'], o: [['نّ и مّ', 'نّ және مّ'], ['لّ и رّ', 'لّ және رّ'], ['Везде', 'Барлық жерде']] }] },
         qalqala: { ref: 'Калькаля', tags: ['qalqalah'], meet: ['Буквы ق ط ب ج د (запомнить: قُطْبُ جَدٍّ) с сукуном звучат с лёгким «отскоком», без лишней гласной. При остановке на них отскок сильнее: أَحَدْ.', 'ق ط ب ج د әріптері (жаттау: قُطْبُ جَدٍّ) сукунмен жеңіл «серпіліп», артық дауыстысыз естіледі. Оларда тоқтағанда серпілу күштірек: أَحَدْ.'],
           cls: { a: ['Есть ли калькаля у этой буквы с сукуном?', 'Сукунды осы әріпте қалқаля бар ма?'], items: [['قْ', 0], ['طْ', 0], ['بْ', 0], ['جْ', 0], ['دْ', 0], ['سْ', 1], ['مْ', 1], ['لْ', 1], ['كْ', 1]], o: [['Да', 'Иә'], ['Нет', 'Жоқ']] } },
-        maddf: { ref: 'Мадд', tags: ['madd_muttasil', 'madd_munfasil', 'madd_6'], read: ['جَاءَ', 'ٱلسَّمَاءِ', 'سُوءَ', 'ٱلضَّآلِّينَ'], meet: ['Долгота тянется дольше 2 счётов, если после буквы долготы идёт хамза или сукун: хамза в том же слове (جَاءَ) — 4–5 счётов; в начале следующего слова (بِمَا أُنزِلَ) — 4–5; постоянный сукун или шадда (الضَّآلِّينَ) — 6.', 'Созылу әрпінен кейін һамза немесе сукун келсе, 2 есептен ұзағырақ созылады: бір сөз ішіндегі һамза (جَاءَ) — 4–5 есеп; келесі сөздің басындағы (بِمَا أُنزِلَ) — 4–5; тұрақты сукун не шәдда (الضَّآلِّينَ) — 6.'],
+        maddf: { ref: 'Мадд', tags: ['madd_muttasil', 'madd_munfasil', 'madd_6'], read: ['جَاءَ', 'ٱلسَّمَاءِ', 'سُوءَ', 'ٱلضَّآلِّينَ'], meet: ['Долгота тянется дольше 2 счётов, если после буквы долготы идёт хамза или сукун: хамза в том же слове (جَاءَ) — 4–5 счётов; в начале следующего слова (بِمَا أُنزِلَ) — 4–5 (так у Хафса по пути Шатыбии; по Тайибе допустимо и 2); постоянный сукун или шадда (الضَّآلِّينَ) — 6.', 'Созылу әрпінен кейін һамза немесе сукун келсе, 2 есептен ұзағырақ созылады: бір сөз ішіндегі һамза (جَاءَ) — 4–5 есеп; келесі сөздің басындағы (بِمَا أُنزِلَ) — 4–5 (Хафста Шатыбия жолымен; Тайиба жолымен 2 да болады); тұрақты сукун не шәдда (الضَّآلِّينَ) — 6.'],
           q: [{ a: ['Хамза в том же слове после долготы — сколько тянем?', 'Созылудан кейін сол сөздегі һамза — қанша созамыз?'], o: [['4–5 счётов', '4–5 есеп'], ['2 счёта', '2 есеп'], ['1 счёт', '1 есеп']] },
               { a: ['الضَّآلِّينَ: после долготы шадда — сколько тянем?', 'الضَّآلِّينَ: созылудан кейін шәдда — қанша созамыз?'], o: [['6 счётов', '6 есеп'], ['2 счёта', '2 есеп'], ['4 счёта', '4 есеп']] }] },
-        ra: { ref: 'Ра', meet: ['ر твёрдая (густая) с фатхой и даммой: رَبِّ, رُسُلُ. Мягкая с кясрой: رِجَالٌ. ر с сукуном берёт качество предыдущей огласовки: مَرْيَمَ — твёрдая, فِرْعَوْنَ — мягкая.', 'ر фатха мен даммада жуан: رَبِّ, رُسُلُ. Кәсрада жіңішке: رِجَالٌ. Сукунды ر алдыңғы қозғалыстың сапасын алады: مَرْيَمَ — жуан, فِرْعَوْنَ — жіңішке.'],
+        ra: { ref: 'Тяжёлые и лёгкие', meet: ['ر твёрдая (густая) с фатхой и даммой: رَبِّ, رُسُلُ. Мягкая с кясрой: رِجَالٌ. ر с сукуном берёт качество предыдущей огласовки: مَرْيَمَ — твёрдая, فِرْعَوْنَ — мягкая. Есть исключения (например, قِرْطَاسٍ — твёрдая) и правила для остановки — они в Справочнике.', 'ر фатха мен даммада жуан: رَبِّ, رُسُلُ. Кәсрада жіңішке: رِجَالٌ. Сукунды ر алдыңғы қозғалыстың сапасын алады: مَرْيَمَ — жуан, فِرْعَوْنَ — жіңішке. Ерекшеліктер (мысалы, قِرْطَاسٍ — жуан) және тоқтау ережелері бар — олар Анықтамалықта.'],
           cls: { a: ['Как звучит ر в этом слове?', 'Бұл сөзде ر қалай естіледі?'], items: [['رَبِّ', 0], ['رُسُلُ', 0], ['مَرْيَمَ', 0], ['قُرْآنٌ', 0], ['رِجَالٌ', 1], ['فِرْعَوْنَ', 1], ['رِزْقًا', 1]], o: [['Твёрдо', 'Жуан'], ['Мягко', 'Жіңішке']] } },
         waqf: { ref: 'Вакф', meet: ['Маленькие знаки над строкой подсказывают, где останавливаться: ۘ — обязательно остановиться, ۙ — не останавливаться, ۚ — можно, ۖ — лучше продолжить, ۗ — лучше остановиться, ۛ … ۛ — остановиться на одном из двух мест.', 'Жол үстіндегі кішкентай белгілер қай жерде тоқтауды көрсетеді: ۘ — міндетті түрде тоқтау, ۙ — тоқтамау, ۚ — тоқтауға болады, ۖ — жалғастырған жақсы, ۗ — тоқтаған жақсы, ۛ … ۛ — екі жердің бірінде тоқтау.'],
           cls: { a: ['Что значит этот знак?', 'Бұл белгі нені білдіреді?'], items: [['ۘ', 0], ['ۙ', 1], ['ۚ', 2], ['ۖ', 3], ['ۗ', 4], ['ۛ', 5]], o: [['Обязательно остановиться', 'Міндетті түрде тоқтау'], ['Не останавливаться', 'Тоқтамау'], ['Можно остановиться', 'Тоқтауға болады'], ['Лучше продолжить', 'Жалғастырған жақсы'], ['Лучше остановиться', 'Тоқтаған жақсы'], ['На одном из двух мест', 'Екі жердің бірінде']], big: 1 } }
@@ -11900,6 +11904,38 @@ function speakLetter(ch, name, ttsOnly) {
           return Array.from(c.slice(1)).every(function (m) { return mk[m] === true || /[ۖ-ۭٕٓٔ]/.test(m) && kn.rules.indexOf('waqf') >= 0; });
         });
       });
+    }
+    // 7.57: значение слова на языке интерфейса (казахское — короткий перевод с русского) и перевод аята с выделенным словом
+    function c2Mean(m) { if (!m) return ''; if (!isKk()) return m; try { return (typeof WBW_MEANING_KK !== 'undefined' && WBW_MEANING_KK[m]) || ''; } catch (e) { return ''; } }
+    function c2HlTr(tr, gloss) {
+      var esc = c2Esc(tr); if (!gloss) return esc;
+      var g = String(gloss).replace(/\(.*?\)|\[.*?\]|[«»—]/g, ' ').replace(/\s+/g, ' ').trim();
+      var STOP = { 'үшін': 1, 'олардың': 1, 'оларды': 1, 'оларға': 1, 'онымен': 1, 'және': 1, 'емес': 1, 'бірақ': 1, 'ендеше': 1, 'тағы': 1, 'тек': 1, 'қана': 1, 'и': 1, 'не': 1, 'а': 1, 'но': 1, 'же': 1 };
+      var cands = [g].concat(g.split(' ').filter(function (w) { return w.length >= 4 && !STOP[w.toLowerCase()]; }).sort(function (a, b) { return b.length - a.length; }));
+      if (g.length < 3 || STOP[g.toLowerCase()]) return esc;
+      // казахский — язык с окончаниями: сначала целиком, потом всё более короткая основа (не короче 4 букв и 60% слова)
+      for (var i = 0; i < cands.length; i++) {
+        var c = cands[i]; if (!c) continue;
+        var stems = [c];
+        if (c.indexOf(' ') < 0 && c.length >= 5) for (var L = c.length - 1; L >= Math.max(4, Math.ceil(c.length * 0.6)); L--) stems.push(c.slice(0, L));
+        for (var j = 0; j < stems.length; j++) {
+          var core = stems[j].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          // короткое (до 3 букв) — только целым словом; иначе — начало слова + любое окончание
+          var rx = new RegExp('(^|[\\s,.;:!?«»()—])(' + core + (stems[j].length <= 3 ? ')(?=$|[\\s,.;:!?«»()—])' : '[^\\s,.;:!?«»()—]*)'), 'i');
+          var m = rx.exec(esc);
+          if (m) { var st = m.index + m[1].length; return esc.slice(0, st) + '<mark class="c2-hl">' + m[2] + '</mark>' + esc.slice(st + m[2].length); }
+        }
+      }
+      return esc;
+    }
+    function c2AyahTrFill(el, s, a, gloss) {
+      if (!el) return;
+      try {
+        fetchSurah(s).then(function (d) {
+          var ay = d && (d.ayahs || []).find(function (x) { return +x.number === +a; });
+          if (ay && ay.translation) el.innerHTML = c2HlTr(ay.translation, gloss);
+        }).catch(function () {});
+      } catch (e) {}
     }
     function c2PlayWord(w) { try { _twPlayWords(w.s, w.a, [w.w], null, w.ar); } catch (e) { c2Say(w.ar); } }
 
@@ -12054,7 +12090,8 @@ function speakLetter(ch, name, ttsOnly) {
             if (words.length >= 3) {
               var tw = c2Pick(words, 1)[0];
               st.push({ k: 'listenword', w: tw, o: shuffle([tw].concat(c2Pick(words.filter(function (x) { return x.ar !== tw.ar; }), 2))).map(function (x) { return x.ar; }), key: 'S:' + lesson.s });
-              if (!isKk() && tw.m) { var mw = c2Pick(words.filter(function (x) { return x.m && x.ar !== tw.ar; }), 2); if (mw.length === 2) st.push({ k: 'meaning', w: tw, o: shuffle([tw.m].concat(mw.map(function (x) { return x.m; }))), key: 'S:' + lesson.s }); }
+              var twm = c2Mean(tw.m);
+              if (twm) { var mw = c2Pick(words.filter(function (x) { var mm = c2Mean(x.m); return mm && mm !== twm && x.ar !== tw.ar; }), 2); if (mw.length === 2) st.push({ k: 'meaning', w: tw, mean: twm, o: shuffle([twm].concat(mw.map(function (x) { return c2Mean(x.m); }))), key: 'S:' + lesson.s }); }
             }
           });
         } else {
@@ -12146,7 +12183,7 @@ function speakLetter(ch, name, ttsOnly) {
         case 'listenword':
           return h + '<div class="c2-q">' + c2T('Послушайте чтеца и выберите слово', 'Қариді тыңдап, сөзді таңдаңыз') + '</div><button type="button" class="c2-play" data-c2="word">🔊</button><div class="c2-opts c2-col">' + s.o.map(function (o) { return c2OptBtn(o, c2Ar(o)); }).join('') + '</div>';
         case 'meaning':
-          return h + '<div class="c2-q">Что значит это слово?</div><div class="c2-big c2-tap" data-c2="word">' + c2Ar(s.w.ar) + '<small>🔊</small></div><div class="c2-opts c2-col">' + s.o.map(function (o) { return c2OptBtn(o, c2Esc(o)); }).join('') + '</div>';
+          return h + '<div class="c2-q">' + c2T('Что значит это слово?', 'Бұл сөз нені білдіреді?') + '</div><div class="c2-big c2-tap" data-c2="word">' + c2Ar(s.w.ar) + '<small>🔊</small></div><div class="c2-opts c2-col">' + s.o.map(function (o) { return c2OptBtn(o, c2Esc(o)); }).join('') + '</div>';
         case 'build':
           return h + '<div class="c2-q">' + c2T('Соберите слог', 'Буынды құрастырыңыз') + '</div><button type="button" class="c2-play" data-c2="say" data-ar="' + c2Esc(s.ar) + '">🔊</button><div class="c2-slot" dir="rtl"></div><div class="c2-tiles" dir="rtl">' + s.tiles.map(function (t, i) { return '<button type="button" class="c2-tile" data-c2-t="' + i + '">' + c2Ar(t) + '</button>'; }).join('') + '</div><button type="button" class="btn btn-sm c2-clear" data-c2="clr">↺ ' + c2T('Заново', 'Қайтадан') + '</button>';
         case 'cls': {
@@ -12172,8 +12209,9 @@ function speakLetter(ch, name, ttsOnly) {
     function c2AyahHtml(s) {
       var ay = (wbwStudyAyahsFor(s.s) || []).find(function (x) { return x.ayah === s.a; });
       if (!ay) return '';
-      return '<div class="c2-ayah c2-words" dir="rtl">' + ay.words.map(function (w, i) { return '<button type="button" class="c2-w" data-c2="sayw" data-w="' + (i + 1) + '">' + c2Ar(w.ar) + (isKk() ? '' : '<small>' + c2Esc(w.meaning || '') + '</small>') + '</button>'; }).join('') + '</div>' +
+      return '<div class="c2-ayah c2-words" dir="rtl">' + ay.words.map(function (w, i) { var mn = c2Mean(w.meaning); return '<button type="button" class="c2-w" data-c2="sayw" data-w="' + (i + 1) + '">' + c2Ar(w.ar) + (mn ? '<small>' + c2Esc(mn) + '</small>' : '') + '</button>'; }).join('') + '</div>' +
         '<div class="c2-ayref">' + c2Esc(s.s + ':' + s.a) + (isKk() || !ay.fullTr ? '' : ' · ' + c2Esc(ay.fullTr)) + '</div>' +
+        (isKk() ? '<div class="c2-aytr" data-c2-tr></div>' : '') +
         '<button type="button" class="btn btn-sm" data-c2="sayall">🔊 ' + c2T('Весь аят', 'Толық аят') + '</button>';
     }
     function c2AfterRender(s) {
@@ -12183,6 +12221,7 @@ function speakLetter(ch, name, ttsOnly) {
       if (s.k === 'listenword') setTimeout(function () { c2PlayWord(s.w); }, 250);
       if (s.k === 'findrule') c2FillFind(s, root);
       if (s.k === 'build') { s._sel = []; }
+      if (s.k === 'ayah' && isKk()) c2AyahTrFill(root.querySelector('[data-c2-tr]'), s.s, s.a, '');
     }
     function c2FillFind(s, root) {
       var box = root.querySelector('[data-c2-ayah]');
@@ -12212,7 +12251,7 @@ function speakLetter(ch, name, ttsOnly) {
         case 'readsyl': case 'readword': ok = val === s.ans; right = s.ans; break;
         case 'listensyl': ok = val === s.ar; right = s.ar; break;
         case 'listenword': ok = val === s.w.ar; right = s.w.ar; break;
-        case 'meaning': ok = val === s.w.m; right = s.w.m; break;
+        case 'meaning': ok = val === (s.mean || s.w.m); right = s.mean || s.w.m; break;
         case 'cls': { var R = c2Rule(s.r).cls; ok = +val === s.ans; right = c2T(R.o[s.ans][0], R.o[s.ans][1]); break; }
         case 'noon': ok = val === s.ans; right = c2T(C2_NOON_NAMES[s.ans][0], C2_NOON_NAMES[s.ans][1]); why = c2T('Буквы: изхар ء ه ع ح غ خ · идгам ي ر م ل و ن · иклаб ب · ихфа — остальные 15.', 'Әріптер: изһар ء ه ع ح غ خ · идғам ي ر م ل و ن · иқлаб ب · ихфа — қалған 15.'); break;
         case 'findrule': ok = (s.hitNums || []).indexOf(+val) >= 0; right = c2T('подсвеченное слово', 'белгіленген сөз'); break;
@@ -12225,7 +12264,7 @@ function speakLetter(ch, name, ttsOnly) {
         var v = b.getAttribute('data-c2-a');
         b.disabled = true;
         var isRight = (s.k === 'choice' && v === '0') || (s.k === 'first' && v === '0') || (s.k === 'cls' && +v === s.ans) || (s.k === 'findrule' && (s.hitNums || []).indexOf(+v) >= 0) ||
-          (['listen', 'form', 'name', 'pair'].indexOf(s.k) >= 0 && v === s.ch) || (['readsyl', 'readword'].indexOf(s.k) >= 0 && v === s.ans) || (s.k === 'listensyl' && v === s.ar) || (s.k === 'listenword' && v === s.w.ar) || (s.k === 'meaning' && v === s.w.m) || (s.k === 'noon' && v === s.ans);
+          (['listen', 'form', 'name', 'pair'].indexOf(s.k) >= 0 && v === s.ch) || (['readsyl', 'readword'].indexOf(s.k) >= 0 && v === s.ans) || (s.k === 'listensyl' && v === s.ar) || (s.k === 'listenword' && v === s.w.ar) || (s.k === 'meaning' && v === (s.mean || s.w.m)) || (s.k === 'noon' && v === s.ans);
         if (isRight) b.classList.add('ok'); else if (b === btn) b.classList.add('no');
       });
       if (!ok && !s.rev2) { var cp = JSON.parse(JSON.stringify(s)); cp.rev2 = 1; delete cp.hitNums; C2.steps.push(cp); }
@@ -12239,9 +12278,17 @@ function speakLetter(ch, name, ttsOnly) {
       var fb = root.querySelector('.c2-fb');
       var praise = [c2T('Верно!', 'Дұрыс!'), c2T('Отлично!', 'Керемет!'), c2T('Так и есть!', 'Дәл солай!')][C2.n % 3];
       fb.className = 'c2-fb ' + (ok ? 'good' : 'bad');
-      fb.innerHTML = '<b>' + (ok ? praise : c2T('Почти!', 'Сәл қалды!')) + '</b>' + (!ok ? ' <span>' + c2T('Правильно: ', 'Дұрысы: ') + '<span class="c2-ar-in" dir="auto">' + c2Esc(right) + '</span></span>' + (why ? '<div class="c2-why">' + c2Esc(why) + '</div>' : '') + '<div class="c2-why">' + c2T('Это задание вернётся в конце урока.', 'Бұл тапсырма сабақ соңында қайта келеді.') + '</div>' : '') +
+      var isLet = ['listen', 'form', 'name', 'pair'].indexOf(s.k) >= 0;
+      var simil = isLet && ((C2_SIMILAR[s.ch] || '').indexOf(val) >= 0 || (C2_SIMILAR[val] || '').indexOf(s.ch) >= 0);
+      var badT = simil ? c2T('Почти — эти буквы похожи.', 'Сәл қалды — бұл әріптер ұқсас.') : (isLet ? c2T('Другая буква.', 'Басқа әріп.') : c2T('Неверно.', 'Дұрыс емес.'));
+      fb.innerHTML = '<b>' + (ok ? praise : badT) + '</b>' + (!ok ? ' <span>' + c2T('Правильно: ', 'Дұрысы: ') + '<span class="c2-ar-in" dir="auto">' + c2Esc(right) + '</span></span>' + (why ? '<div class="c2-why">' + c2Esc(why) + '</div>' : '') + '<div class="c2-why">' + c2T('Это задание вернётся в конце урока.', 'Бұл тапсырма сабақ соңында қайта келеді.') + '</div>' : '') +
         '<button type="button" class="btn btn-primary" data-c2="next">' + c2T('Дальше', 'Әрі қарай') + '</button>';
       fb.hidden = false;
+      // 7.57: в казахском — перевод аята с выделенным словом (для заданий со словами из аята)
+      if (isKk() && s.w && s.w.s && (s.k === 'listenword' || s.k === 'meaning')) {
+        var trDiv = document.createElement('div'); trDiv.className = 'c2-aytr'; fb.insertBefore(trDiv, fb.querySelector('.btn'));
+        c2AyahTrFill(trDiv, s.w.s, s.w.a, c2Mean(s.w.m));
+      }
       c2Save();
     }
     function c2Next() { C2.i++; c2Save(); c2Render(); try { window.scrollTo(0, 0); } catch (e) {} }
@@ -12260,7 +12307,7 @@ function speakLetter(ch, name, ttsOnly) {
       var insp = c2Inspire();
       var h = '<div class="c2-end"><div class="c2-endico">🌱</div>';
       if (l.type === 'surah') h += '<h3>' + c2T('Вы прочитали: ', 'Сіз оқыдыңыз: ') + c2Esc(c2Title(l)) + '</h3>';
-      else if (w) h += '<h3>' + c2T('Теперь вы можете прочитать', 'Енді сіз оқи аласыз') + '</h3><div class="card c2-endw"><button type="button" class="c2-big c2-tap" data-c2="endword">' + c2Ar(w.ar) + '<small>🔊</small></button>' + (isKk() ? '' : '<div>«' + c2Esc(w.m) + '»</div>') + '<div class="c2-mut">' + c2T('Коран, ', 'Құран, ') + w.s + ':' + w.a + '</div></div>';
+      else if (w) h += '<h3>' + c2T('Теперь вы можете прочитать', 'Енді сіз оқи аласыз') + '</h3><div class="card c2-endw"><button type="button" class="c2-big c2-tap" data-c2="endword">' + c2Ar(w.ar) + '<small>🔊</small></button>' + (c2Mean(w.m) ? '<div>«' + c2Esc(c2Mean(w.m)) + '»</div>' : '') + '<div class="c2-mut">' + c2T('Коран, ', 'Құран, ') + w.s + ':' + w.a + '</div><div class="c2-aytr" data-c2-tr></div></div>';
       else if (sylls) h += '<h3>' + c2T('Теперь вы читаете слоги', 'Енді сіз буындарды оқисыз') + '</h3><div class="card c2-endw"><button type="button" class="c2-big c2-tap" data-c2="say" data-ar="' + c2Esc(sylls) + '">' + c2Ar(sylls) + '<small>🔊</small></button></div>';
       else h += '<h3>' + c2T('Урок пройден', 'Сабақ өтілді') + '</h3>';
       if (learned) h += '<div class="card"><div class="c2-mut">' + c2T('В этом уроке', 'Осы сабақта') + '</div>' + learned + '</div>';
@@ -12269,6 +12316,7 @@ function speakLetter(ch, name, ttsOnly) {
         '<button type="button" class="btn c2-later" data-c2="home">' + c2T('На сегодня хватит', 'Бүгінге жетеді') + '</button></div>';
       C2.lesson = null; C2._endWord = w;
       root.innerHTML = h;
+      if (w) c2AyahTrFill(root.querySelector('[data-c2-tr]'), w.s, w.a, c2Mean(w.m));
     }
     // строки вдохновения — аяты (перевод смысла)
     var C2_INSPIRE = [
@@ -12385,7 +12433,10 @@ function speakLetter(ch, name, ttsOnly) {
       if (k === 'sayl') { c2SayLetter(b.getAttribute('data-ch')); return; }
       if (k === 'word' && cur && cur.w) { c2PlayWord(cur.w); return; }
       if (k === 'endword' && C2._endWord) { c2PlayWord(C2._endWord); return; }
-      if (k === 'sayw' && cur) { var ay = (wbwStudyAyahsFor(cur.s) || []).find(function (x) { return x.ayah === cur.a; }); var wn = +b.getAttribute('data-w'); try { _twPlayWords(cur.s, cur.a, [wn], null, ay && ay.words[wn - 1] ? ay.words[wn - 1].ar : ''); } catch (e3) {} return; }
+      if (k === 'sayw' && cur) { var ay = (wbwStudyAyahsFor(cur.s) || []).find(function (x) { return x.ayah === cur.a; }); var wn = +b.getAttribute('data-w'); try { _twPlayWords(cur.s, cur.a, [wn], null, ay && ay.words[wn - 1] ? ay.words[wn - 1].ar : ''); } catch (e3) {}
+        // 7.57: выделить слово в переводе аята
+        if (isKk() && ay && ay.words[wn - 1]) c2AyahTrFill(c2Root().querySelector('[data-c2-tr]'), cur.s, cur.a, c2Mean(ay.words[wn - 1].meaning));
+        return; }
       if (k === 'sayall' && cur) { var ay2 = (wbwStudyAyahsFor(cur.s) || []).find(function (x) { return x.ayah === cur.a; }); if (ay2) { try { _twPlayWords(cur.s, cur.a, ay2.words.map(function (w, i) { return i + 1; }), null, ay2.full || ''); } catch (e4) {} } return; }
       if (k === 'clr' && cur) { cur._sel = []; c2Root().querySelectorAll('[data-c2-t]').forEach(function (x) { x.disabled = false; }); var sl = c2Root().querySelector('.c2-slot'); if (sl) sl.innerHTML = ''; return; }
       if (k === 'recref' && cur) { try { _twPlayWords(cur.s, cur.a, [1, 2, 3, 4], null, cur.ar); } catch (e5) { c2Say(cur.ar); } return; }
@@ -15735,6 +15786,25 @@ function renderMistakes() {
     }
     // 6.103: правила без меток в разметке — проверенные вручную примеры из тех же 26 сур (слова можно послушать)
     const TW_MANUAL_EX = {
+      // 7.57: примеры для новых тем (позиции слов сверены с пословными данными)
+      'التفخيم والترقيق · Тяжёлые и лёгкие звуки': [
+        { s: 1, a: 2, w: [3], ru: 'رَبِّ — ر с фатхой: тяжёлая', kk: 'رَبِّ — фатхалы ر: жуан' },
+        { s: 1, a: 7, w: [5], ru: 'غَيْرِ — ر с кясрой: лёгкая', kk: 'غَيْرِ — кәсралы ر: жіңішке' },
+        { s: 91, a: 6, w: [1], ru: 'وَٱلْأَرْضِ — ر с сукуном после фатхи: тяжёлая', kk: 'وَٱلْأَرْضِ — фатхадан кейін сукунды ر: жуан' },
+        { s: 110, a: 3, w: [4], ru: 'وَٱسْتَغْفِرْهُ — ر с сукуном после кясры: лёгкая', kk: 'وَٱسْتَغْفِرْهُ — кәсрадан кейін сукунды ر: жіңішке' },
+        { s: 95, a: 8, w: [1, 2], ru: 'أَلَيْسَ ٱللَّهُ — после фатхи ل в «Аллах» тяжёлая', kk: 'أَلَيْسَ ٱللَّهُ — фатхадан кейін «Аллаһ» сөзіндегі ل жуан' },
+        { s: 1, a: 1, w: [1, 2], ru: 'بِسْمِ ٱللَّهِ — после кясры ل лёгкая', kk: 'بِسْمِ ٱللَّهِ — кәсрадан кейін ل жіңішке' },
+        { s: 1, a: 6, w: [2], ru: 'ٱلصِّرَٰطَ — ص и ط всегда тяжёлые', kk: 'ٱلصِّرَٰطَ — ص пен ط әрдайым жуан' }
+      ],
+      'الوقف والابتداء · Как останавливаться и начинать': [
+        { s: 112, a: 1, w: [4], ru: 'أَحَدٌ — на остановке «ахад»', kk: 'أَحَدٌ — тоқтағанда «ахад»' },
+        { s: 108, a: 1, w: [3], ru: 'ٱلْكَوْثَرَ — на остановке «аль-каусар»', kk: 'ٱلْكَوْثَرَ — тоқтағанда «әл-кәусар»' },
+        { s: 92, a: 14, w: [2], ru: 'نَارًا — танвин-фатха на остановке: «на̄ра̄»', kk: 'نَارًا — фатхалы тануин тоқтағанда: «нә̄рә̄»' },
+        { s: 90, a: 13, w: [2], ru: 'رَقَبَةٍ — ة на остановке: «ракаба(х)»', kk: 'رَقَبَةٍ — тоқтағанда ة: «рақаба(һ)»' }
+      ],
+      'اللحن · Ошибки в чтении': [
+        { s: 1, a: 7, w: [3], ru: 'أَنْعَمْتَ — «Ты облагодетельствовал»; с даммой на ت смысл стал бы «я»', kk: 'أَنْعَمْتَ — «Сен нығмет бердің»; ت даммамен болса, мағына «мен» болып кетеді' }
+      ],
       'إظهار · Изхар': [
         { s: 106, a: 4, w: [6, 7], ru: 'ن с сукуном + خ — нун читается ясно', kk: 'сукунды ن + خ — нун анық оқылады' },
         { s: 101, a: 11, w: [1, 2], ru: 'танвин + ح — «н» ясно', kk: 'тәнуин + ح — «н» анық' },
@@ -15996,6 +16066,56 @@ function renderMistakes() {
       SIF_SINGLE.forEach(function(s) { if (s.L.indexOf(ch) >= 0) out.push(s); });
       return out;
     }
+    // ===== 7.57: «Произношение» — карта точек, «где рождается звук», паспорт буквы =====
+    function pronT(ru, kk) { return isKk() ? kk : ru; }
+    function pronLetBtn(ch) { return '<button type="button" class="pron-let" data-pron-say="' + ch + '" lang="ar">' + ch + '</button>'; }
+    function pronMapHtml() {
+      return '<details class="card pron-card" open><summary><b>🗺 ' + pronT('Карта: 16 точек, где рождаются звуки', 'Карта: дыбыстар шығатын 16 нүкте') + '</b></summary>' +
+        '<div class="ayah-translation pron-note" dir="ltr">' + pronT('Нажмите букву — услышите её. Буквы одной точки звучат по-разному только из-за качеств (вкладка «Как звучит»). Ещё одна точка — нос (хайшум): там живёт гунна.', 'Әріпті басыңыз — естисіз. Бір нүктенің әріптері тек сипаттары арқылы ерекшеленеді («Қалай естіледі» қойындысы). Тағы бір нүкте — мұрын (хайшум): ғунна сонда.') + '</div>' +
+        '<div class="pron-map" dir="ltr">' + SIF_MAKHRAJ.map(function (m, i) { return '<div class="pron-pt"><span class="pron-n">' + (i + 1) + '</span><div class="pron-pt-t">' + (isKk() ? m.kk : m.ru) + '</div><div class="pron-lets" dir="rtl">' + Array.from(m.L).map(pronLetBtn).join('') + '</div></div>'; }).join('') + '</div></details>';
+    }
+    var _pronQ = null;
+    function pronQuizNew() {
+      var pool = Array.from(SIF_ALL).filter(function (c) { return c !== 'ا' && c !== 'ء'; });
+      var ch = pool[Math.floor(Math.random() * pool.length)];
+      var right = SIF_MAKHRAJ.findIndex(function (m) { return m.L.indexOf(ch) >= 0; });
+      var others = shuffle(SIF_MAKHRAJ.map(function (m, i) { return i; }).filter(function (i) { return i !== right && i !== 0; })).slice(0, 3);
+      _pronQ = { ch: ch, right: right, opts: shuffle([right].concat(others)), done: false };
+    }
+    function pronQuizHtml() {
+      if (!_pronQ) pronQuizNew();
+      var q = _pronQ;
+      return '<div class="card pron-card" data-pron-quiz><b>🎯 ' + pronT('Где рождается этот звук?', 'Бұл дыбыс қай жерде шығады?') + '</b>' +
+        '<div class="pron-qrow"><button type="button" class="pron-big" data-pron-say="' + q.ch + '" lang="ar">' + q.ch + ' <small>🔊</small></button></div>' +
+        '<div class="pron-opts" dir="ltr">' + q.opts.map(function (i) { var m = SIF_MAKHRAJ[i]; var cls = q.done ? (i === q.right ? ' ok' : (i === q.pick ? ' no' : '')) : ''; return '<button type="button" class="pron-opt' + cls + '" data-pron-a="' + i + '"' + (q.done ? ' disabled' : '') + '>' + (isKk() ? m.kk : m.ru) + '</button>'; }).join('') + '</div>' +
+        (q.done ? '<div class="pron-fb" dir="ltr">' + (q.pick === q.right ? '✅ ' + pronT('Верно!', 'Дұрыс!') : '↪ ' + pronT('Правильно: ', 'Дұрысы: ') + (isKk() ? SIF_MAKHRAJ[q.right].kk : SIF_MAKHRAJ[q.right].ru)) + ' · ' + pronT('Буквы этой точки: ', 'Осы нүктенің әріптері: ') + '<span lang="ar">' + Array.from(SIF_MAKHRAJ[q.right].L).join(' ') + '</span></div><button type="button" class="btn btn-sm btn-primary" data-pron-next="1">' + pronT('Следующая буква', 'Келесі әріп') + ' →</button>' : '') + '</div>';
+    }
+    var _pronPass = 'ب';
+    function pronPassportHtml() {
+      var ch = _pronPass, L = (typeof ARABIC_LETTERS !== 'undefined') ? ARABIC_LETTERS.find(function (x) { return x.ch === ch; }) : null;
+      var name = ch === 'ء' ? pronT('Хамза', 'Хамза') : (L ? (isKk() ? (L.nameKk || L.name) : L.name) : ch);
+      return '<div class="card pron-card" data-pron-pass-card><b>🪪 ' + pronT('Паспорт буквы: всё о звуке на одной карточке', 'Әріп паспорты: дыбыс туралы бәрі бір карточкада') + '</b>' +
+        '<div class="pron-pick" dir="rtl">' + Array.from(SIF_ALL).map(function (c) { return '<button type="button" class="pron-let' + (c === ch ? ' on' : '') + '" data-pron-pass="' + c + '" lang="ar">' + c + '</button>'; }).join('') + '</div>' +
+        '<div class="pron-pass" dir="ltr"><button type="button" class="pron-big" data-pron-say="' + ch + '" lang="ar">' + ch + ' <small>🔊</small></button><div class="pron-pass-b"><div class="pron-nm">' + name + '</div>' +
+        '<div class="pron-row"><span>📍</span><span>' + makhrajOf(ch) + '</span></div>' +
+        '<div class="pron-chips">' + sifOf(ch).map(function (s) { return '<span class="sif-chip sif-' + s.id + '">' + (isKk() ? s.kk : s.ru) + '</span>'; }).join('') + '</div></div></div></div>';
+    }
+    function pronDecorate(tab) {
+      var el = document.getElementById(tab === 'makharij' ? 'learn-makharij' : 'learn-sifat'); if (!el) return;
+      var old = el.querySelector(':scope > .pron-x'); if (old) old.remove();
+      var d = document.createElement('div'); d.className = 'pron-x';
+      d.innerHTML = tab === 'makharij' ? pronQuizHtml() + pronMapHtml() : pronPassportHtml();
+      el.insertBefore(d, el.firstChild);
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      var b = t.closest('[data-pron]'); if (b) { switchAcademyTab(b.getAttribute('data-pron')); return; }
+      var s = t.closest('[data-pron-say]'); if (s) { var c = s.getAttribute('data-pron-say'); try { if (!playLetterRec(c)) speakArText(c, 0.7); } catch (er) {} return; }
+      var a = t.closest('[data-pron-a]');
+      if (a && _pronQ && !_pronQ.done) { _pronQ.done = true; _pronQ.pick = +a.getAttribute('data-pron-a'); var box = t.closest('[data-pron-quiz]'); if (box) box.outerHTML = pronQuizHtml(); return; }
+      if (t.closest('[data-pron-next]')) { pronQuizNew(); var box2 = t.closest('[data-pron-quiz]'); if (box2) box2.outerHTML = pronQuizHtml(); try { var q = _pronQ; setTimeout(function () { if (!playLetterRec(q.ch)) speakArText(q.ch, 0.7); }, 150); } catch (er2) {} return; }
+      var p = t.closest('[data-pron-pass]'); if (p) { _pronPass = p.getAttribute('data-pron-pass'); var c2 = t.closest('[data-pron-pass-card]'); if (c2) c2.outerHTML = pronPassportHtml(); try { if (!playLetterRec(_pronPass)) speakArText(_pronPass, 0.7); } catch (er3) {} return; }
+    });
     function makhrajOf(ch) {
       var m = SIF_MAKHRAJ.find(function(x) { return x.L.indexOf(ch) >= 0; });
       if (!m) return '';
@@ -16529,7 +16649,9 @@ function renderMistakes() {
       { ru: 'Мадд — продление', kk: 'Мадд — созу', rules: ['مد · Мадд', 'أنواع المد · Виды мадда'] },
       { ru: 'Гунна, шадда, калькаля', kk: 'Ғунна, шәдда, қалқала', rules: ['غنة · Гунна', 'شدة · Шадда', 'قلقلة · Калькаля'] },
       { ru: 'Слияние букв и артикль ال', kk: 'Әріптердің қосылуы және ال артиклі', rules: ['إدغام المتماثلين والمتجانسين والمتقاربين · Идгам сходных букв', 'الحروف الشمسية والقمرية · Солнечные и лунные буквы'] },
-      { ru: 'Остановка (вакф)', kk: 'Тоқтау (уақф)', rules: ['الوقف · Вакф (знаки остановки)'] }
+      { ru: 'Тяжёлые и лёгкие звуки', kk: 'Жуан және жіңішке дыбыстар', rules: ['التفخيم والترقيق · Тяжёлые и лёгкие звуки'] },
+      { ru: 'Остановка (вакф)', kk: 'Тоқтау (уақф)', rules: ['الوقف · Вакф (знаки остановки)', 'الوقف والابتداء · Как останавливаться и начинать'] },
+      { ru: 'Особые места и ошибки', kk: 'Ерекше жерлер мен қателер', rules: ['مواضع خاصة · Особые места у Хафса', 'اللحن · Ошибки в чтении'] }
     ];
     function _twRuleCardHtml(r, ri, kk, open) {
       var title = kk ? (r.titleKk || r.title) : r.title;
@@ -27215,71 +27337,37 @@ bKk:
     var LEGAL_CONTACT_EMAIL = '';
     var LEGAL_UPDATED = '12.11.2026';
     var LEGAL_DOCS = {
+      // 7.57: онлайн-часть убрана — документы переписаны: без аккаунтов, чатов и серверной базы
       privacy: {
         t: ['Политика конфиденциальности', 'Құпиялылық саясаты'],
         ru: [
-          ['Кто мы', 'Quran Academy — учебное приложение для изучения Корана (сайт на GitHub Pages). Оператор — автор проекта.'],
-          ['Какие данные', 'Без аккаунта всё хранится только в вашем браузере (закладки, прогресс, настройки, кэш) — нам это не передаётся.\nС аккаунтом: никнейм, email, пароль (в зашифрованном виде у сервиса авторизации), уровень (ученик/учитель), синхронизируемые данные приложения, друзья, сообщения в личных и групповых чатах, форуме и вопросах, жалобы и блокировки, отметка «в сети».\nДля защиты сообщества сайт сохраняет тексты сообщений, остановленных или отмеченных автоматической проверкой, очки нарушений, паузы, предупреждения и тексты ваших обращений (апелляций) и переписку по жалобам (вопрос модерации и ваш ответ). Тексты видит администрация и модераторы, которых она назначает; очки видит только администрация. Очки со временем уменьшаются.'],
-          ['Где хранятся', 'Онлайн-часть работает на облачном сервисе Supabase; его серверы находятся за пределами Казахстана. Регистрируясь и принимая документы, вы соглашаетесь на такую обработку и передачу данных. Сайт размещён на GitHub Pages.'],
-          ['Сторонние сервисы', 'При открытии приложения ваш браузер обращается к сторонним сервисам, и они видят ваш IP-адрес: Google Fonts (шрифты), jsDelivr и cdnjs (библиотеки), YouTube (встроенные видео — только при открытии), alquran.cloud, api.quran.com, everyayah.com, mp3quran.net, qurancdn (текст, переводы и аудио Корана), muftyat.kz и aladhan.com (время намаза), OpenStreetMap, Overpass и Esri (карта и мечети рядом). Рекламы и аналитики в приложении нет.'],
-          ['Разрешения браузера', 'Геолокация — только по вашей кнопке (время намаза, кибла, мечети). Координаты хранятся на вашем устройстве и отправляются сервисам времени намаза и карты для расчёта; в нашу базу данных они не записываются.\nМикрофон — для проверки чтения: речь распознаёт ваш браузер, и в некоторых браузерах (например, Chrome) звук обрабатывается сервисом самого браузера.\nУведомления — только с вашего согласия.'],
-          ['Срок хранения и удаление', 'Данные аккаунта хранятся, пока аккаунт существует. В разделе «Аккаунт» есть кнопка «Удалить аккаунт и мои данные». Данные, которые лежат только в вашем браузере, удаляются очисткой данных сайта.'],
-          ['Ваши права', 'Вы можете узнать, какие ваши данные хранятся, исправить их (никнейм и пароль меняются в аккаунте), потребовать удаления и отозвать согласие — удалением аккаунта или обращением по контакту ниже.'],
-          ['Кто читает личные сообщения', 'Личные сообщения не защищены сквозным шифрованием: их проверяет автоматический фильтр. Администрация и модераторы, которых она назначает, читают личное сообщение только если фильтр его остановил или отметил, либо если на него пожаловались. Модератор не видит очки, не может банить и не читает остальную переписку. В приложении нет раздела для просмотра чужой личной переписки. Технически доступ к базе данных есть у оператора и у сервиса Supabase.'],
-          ['Безопасность', 'Мы принимаем разумные меры защиты, но ни один сервис не может гарантировать абсолютную безопасность. Не публикуйте в чатах пароли, паспортные и банковские данные.'],
-          ['Изменения', 'Текст может обновляться; дата последнего обновления указана вверху.']
+          ['Кто мы', 'Quran Academy — бесплатное учебное приложение для изучения Корана (сайт на GitHub Pages и приложение для Android). Оператор — автор проекта.'],
+          ['Что мы собираем', 'Ничего. Аккаунтов нет, на наш сервер ничего не отправляется. Закладки, прогресс, настройки, записи вашего голоса и скачанное хранятся только на вашем устройстве. Рекламы и аналитики нет.'],
+          ['Сторонние сервисы', 'Чтобы показать текст и звук, приложение обращается к сторонним сервисам, и они видят только запрос и ваш IP-адрес: alquran.cloud, api.quran.com, everyayah.com, mp3quran.net, qurancdn и tarteel (текст, переводы и аудио Корана), muftyat.kz и aladhan.com (время намаза), Google Fonts, jsDelivr и cdnjs (шрифты и библиотеки), YouTube (видео — только когда открываете), OpenStreetMap, Overpass и Esri (карта и мечети рядом).'],
+          ['Разрешения', 'Место — только по вашей кнопке (время намаза, кибла, мечети); координаты остаются на устройстве и отправляются только сервисам времени намаза и карты для расчёта.\nМикрофон — чтобы записать себя и сравнить с чтецом; запись хранится только на устройстве. В некоторых браузерах (например, Chrome) распознавание речи выполняет сервис самого браузера.\nУведомления — только с вашего согласия.'],
+          ['Удаление', 'Всё удаляется очисткой данных сайта или приложения, а скачанное — в «Ещё → Данные». Сохранить копию можно там же, в «Экспорт / импорт».'],
+          ['Изменения', 'Текст может обновляться; версия и дата указаны вверху.']
         ],
         kk: [
-          ['Біз кімбіз', 'Quran Academy — Құранды үйренуге арналған оқу қолданбасы (GitHub Pages сайты). Оператор — жоба авторы.'],
-          ['Қандай деректер', 'Аккаунтсыз барлығы тек браузеріңізде сақталады (бетбелгілер, прогресс, баптаулар, кэш) — бізге берілмейді.\nАккаунтпен: лақап ат, email, құпиясөз (авторизация сервисінде шифрланған түрде), деңгей (оқушы/мұғалім), қолданбаның синхрондалатын деректері, достар, жеке және топтық чаттардағы, форумдағы және сұрақтардағы хабарламалар, шағымдар мен бұғаттаулар, «желіде» белгісі.\nҚауымдастықты қорғау үшін сайт автоматты тексеру тоқтатқан немесе белгілеген хабарламалардың мәтінін, бұзушылық ұпайларын, кідірістер, ескертулер, апелляция мәтіндерін және шағымдар бойынша хат алмасуды (модерация сұрағы мен сіздің жауабыңыз) сақтайды. Мәтіндерді әкімшілік және ол тағайындайтын модераторлар көреді; ұпайларды тек әкімшілік көреді. Ұпайлар уақыт өте келе азаяды.'],
-          ['Қайда сақталады', 'Онлайн бөлім Supabase бұлттық сервисінде жұмыс істейді; оның серверлері Қазақстаннан тыс жерде орналасқан. Тіркеліп, құжаттарды қабылдай отырып, деректерді осылай өңдеуге және беруге келісесіз. Сайт GitHub Pages-те орналасқан.'],
-          ['Үшінші тарап сервистері', 'Қолданбаны ашқанда браузеріңіз үшінші тарап сервистеріне жүгінеді, олар IP-мекенжайыңызды көреді: Google Fonts (қаріптер), jsDelivr және cdnjs (кітапханалар), YouTube (кірістірілген бейнелер — тек ашқанда), alquran.cloud, api.quran.com, everyayah.com, mp3quran.net, qurancdn (Құран мәтіні, аудармалары және аудиосы), muftyat.kz және aladhan.com (намаз уақыты), OpenStreetMap, Overpass және Esri (карта және жақын мешіттер). Қолданбада жарнама мен аналитика жоқ.'],
-          ['Браузер рұқсаттары', 'Геолокация — тек сіздің батырмаңыз бойынша (намаз уақыты, құбыла, мешіттер). Координаттар құрылғыңызда сақталады және есептеу үшін намаз уақыты мен карта сервистеріне жіберіледі; біздің дерекқорға жазылмайды.\nМикрофон — оқуды тексеру үшін: сөзді браузеріңіз таниды, кейбір браузерлерде (мысалы, Chrome) дыбысты браузердің өз сервисі өңдейді.\nХабарландырулар — тек сіздің келісіміңізбен.'],
-          ['Сақтау мерзімі және жою', 'Аккаунт деректері аккаунт бар кезде сақталады. «Аккаунт» бөлімінде «Аккаунтты және деректерімді жою» батырмасы бар. Тек браузеріңізде жатқан деректер сайт деректерін тазалағанда жойылады.'],
-          ['Құқықтарыңыз', 'Қандай деректеріңіз сақталғанын білуге, оларды түзетуге (лақап ат пен құпиясөз аккаунтта өзгертіледі), жоюды талап етуге және келісімді қайтарып алуға болады — аккаунтты жою арқылы немесе төмендегі байланыс арқылы.'],
-          ['Жеке хабарламаларды кім оқиды', 'Жеке хабарламалар түпкілікті шифрланбаған: оларды автоматты сүзгі тексереді. Әкімшілік және ол тағайындайтын модераторлар жеке хабарламаны тек сүзгі оны тоқтатса немесе белгілесе, не оған шағымданса ғана оқиды. Модератор ұпайларды көрмейді, бан бере алмайды және қалған хат-хабарды оқымайды. Қолданбада біреудің жеке хат-хабарын қарайтын бөлім жоқ. Техникалық тұрғыдан дерекқорға оператордың және Supabase сервисінің қолы жетеді.'],
-          ['Қауіпсіздік', 'Біз қорғаудың орынды шараларын қолданамыз, бірақ ешбір сервис абсолютті қауіпсіздікке кепілдік бере алмайды. Чаттарда құпиясөзді, төлқұжат және банк деректерін жарияламаңыз.'],
-          ['Өзгерістер', 'Мәтін жаңартылуы мүмкін; соңғы жаңарту күні жоғарыда көрсетілген.']
+          ['Біз кімбіз', 'Quran Academy — Құранды үйренуге арналған тегін оқу қолданбасы (GitHub Pages сайты және Android қолданбасы). Оператор — жоба авторы.'],
+          ['Не жинаймыз', 'Ештеңе. Аккаунт жоқ, біздің серверге ештеңе жіберілмейді. Бетбелгілер, үлгерім, баптаулар, дауысыңыздың жазбалары және жүктелгендер тек құрылғыңызда сақталады. Жарнама мен аналитика жоқ.'],
+          ['Үшінші тарап сервистері', 'Мәтін мен дыбысты көрсету үшін қолданба үшінші тарап сервистеріне жүгінеді, олар тек сұранысты және IP-мекенжайыңызды көреді: alquran.cloud, api.quran.com, everyayah.com, mp3quran.net, qurancdn және tarteel (Құран мәтіні, аудармалары және аудиосы), muftyat.kz және aladhan.com (намаз уақыты), Google Fonts, jsDelivr және cdnjs (қаріптер мен кітапханалар), YouTube (бейне — тек ашқанда), OpenStreetMap, Overpass және Esri (карта және жақын мешіттер).'],
+          ['Рұқсаттар', 'Орналасу — тек сіздің батырмаңыз бойынша (намаз уақыты, құбыла, мешіттер); координаттар құрылғыда қалады және есептеу үшін тек намаз уақыты мен карта сервистеріне жіберіледі.\nМикрофон — өзіңізді жазып, қаримен салыстыру үшін; жазба тек құрылғыда сақталады. Кейбір браузерлерде (мысалы, Chrome) сөзді тануды браузердің өз сервисі орындайды.\nХабарландырулар — тек сіздің келісіміңізбен.'],
+          ['Жою', 'Барлығы сайттың не қолданбаның деректерін тазалау арқылы өшіріледі, ал жүктелгендер — «Тағы → Деректер» бөлімінде. Көшірмені сол жерде, «Экспорт / импорт» бөлімінде сақтауға болады.'],
+          ['Өзгерістер', 'Мәтін жаңартылуы мүмкін; нұсқасы мен күні жоғарыда көрсетілген.']
         ]
       },
       terms: {
-        t: ['Пользовательское соглашение', 'Пайдаланушы келісімі'],
+        t: ['Условия использования', 'Пайдалану шарттары'],
         ru: [
-          ['Назначение', 'Приложение учебное: оно помогает изучать Коран, чтение, молитву и основы религии. Оно не заменяет имама, муфтия или религиозного учёного.'],
-          ['Аккаунт', 'Вы указываете достоверные данные и храните пароль в тайне. Вы отвечаете за действия со своего аккаунта.'],
-          ['Ваш контент', 'Сообщения, вопросы, ответы и файлы, которые вы публикуете, остаются вашими; вы разрешаете показывать их другим пользователям в рамках приложения. Вы сами отвечаете за их содержание.'],
-          ['Что нельзя', 'Нарушать законы Республики Казахстан; публиковать то, что запрещено Правилами чатов; пытаться взломать приложение или чужие аккаунты; выдавать себя за другого человека.'],
-          ['Права администрации', 'Администрация может предупредить пользователя, удалить сообщение, временно ограничить или заблокировать аккаунт за нарушение правил или закона.'],
-          ['Без гарантий', 'Приложение предоставляется «как есть». Мы стараемся проверять тексты, но ошибки возможны; сервис может быть недоступен или изменён. Тексты религиозного содержания нужно сверять с авторитетными источниками.'],
-          ['Ответственность', 'В пределах, разрешённых законом, оператор не отвечает за ущерб от использования приложения, за контент пользователей и за работу сторонних сервисов.'],
-          ['Право и отзыв согласия', 'Применяется право Республики Казахстан. Согласие можно отозвать, удалив аккаунт.']
+          ['Назначение', 'Приложение бесплатное и учебное: помогает учиться читать Коран, понимать правила таджвида, молитву и основы религии. Оно не заменяет имама, муфтия и живого учителя.'],
+          ['Без гарантий', 'Приложение предоставляется «как есть». Мы стараемся проверять тексты и называем источники, но ошибки возможны; сторонние сервисы (аудио, время намаза) иногда бывают недоступны.'],
+          ['Ответственность', 'В пределах, разрешённых законом, оператор не отвечает за ущерб от использования приложения. Применяется право Республики Казахстан.']
         ],
         kk: [
-          ['Мақсаты', 'Қолданба оқу қолданбасы: ол Құранды, оқуды, намазды және діннің негіздерін үйренуге көмектеседі. Ол имамды, мүфтиді немесе дін ғалымын алмастырмайды.'],
-          ['Аккаунт', 'Сіз шынайы деректер көрсетесіз және құпиясөзді құпия ұстайсыз. Аккаунтыңыздан жасалған әрекеттерге өзіңіз жауап бересіз.'],
-          ['Сіздің контентіңіз', 'Сіз жариялаған хабарламалар, сұрақтар, жауаптар және файлдар сіздікі болып қалады; оларды қолданба шеңберінде басқа пайдаланушыларға көрсетуге рұқсат бересіз. Олардың мазмұнына өзіңіз жауап бересіз.'],
-          ['Не істеуге болмайды', 'Қазақстан Республикасының заңдарын бұзу; Чат ережелерінде тыйым салынғанды жариялау; қолданбаны немесе біреудің аккаунтын бұзуға әрекет ету; өзін басқа адам ретінде көрсету.'],
-          ['Әкімшілік құқықтары', 'Әкімшілік ереже немесе заңды бұзғаны үшін пайдаланушыға ескерту жасай алады, хабарламаны жоя алады, аккаунтты уақытша шектей немесе бұғаттай алады.'],
-          ['Кепілдіксіз', 'Қолданба «қалай бар, солай» беріледі. Біз мәтіндерді тексеруге тырысамыз, бірақ қателер болуы мүмкін; сервис қолжетімсіз болуы немесе өзгеруі мүмкін. Діни мазмұнды мәтіндерді сенімді дереккөздермен салыстыру керек.'],
-          ['Жауапкершілік', 'Заң рұқсат еткен шекте оператор қолданбаны пайдаланудан келген зиян үшін, пайдаланушылар контенті үшін және үшінші тарап сервистерінің жұмысы үшін жауап бермейді.'],
-          ['Құқық және келісімді қайтару', 'Қазақстан Республикасының құқығы қолданылады. Келісімді аккаунтты жою арқылы қайтарып алуға болады.']
-        ]
-      },
-      chatrules: {
-        t: ['Правила чатов', 'Чат ережелері'],
-        ru: [
-          ['Главное', 'Чат — это общение людей, а не площадка для споров. Вы сами отвечаете за то, что пишете.'],
-          ['Нельзя', '• оскорбления, мат, унижение;\n• угрозы и травля, особенно детей;\n• экстремизм, терроризм, оправдание насилия;\n• разжигание вражды — национальной, религиозной, между мазхабами;\n• пропаганда наркотиков, самоповреждения и самоубийства;\n• мошенничество, пирамиды, азартные игры;\n• чужие личные данные: телефоны, адреса, документы, фото без согласия;\n• порнография;\n• реклама, спам, посторонние ссылки;\n• выдавать себя за другого, распространять заведомо ложные сведения.'],
-          ['Что бывает за нарушение', 'Сайт проверяет сообщения автоматически и ведёт учёт нарушений в виде очков: их видит только администрация, со временем они уменьшаются.\n• Явный мат и оскорбления: сообщение не отправляется, после него нужно подождать 1 минуту; три такие попытки за час закрывают отправку на 1 час.\n• Опасное содержание — угроза человеку («убью тебя»), теракты, продажа наркотиков и оружия: сообщение не отправляется и передаётся на проверку человеку; писать в чаты нельзя до 3 часов или до решения проверяющего. Повторное такое сообщение в течение суток закрывает отправку до проверки.\n• Набор случайных букв: после нескольких таких сообщений подряд сайт попросит писать по делу.\n• Цитаты из Корана (с арабским текстом, сурой и аятом) автоматический фильтр не останавливает.\n• В «Избранном» (сообщения самому себе) мат не проверяется, но опасное содержание проверяется и там.\nЗа накопленные очки сайт выдаёт автоматическое предупреждение, а при большом их числе закрывает аккаунт до решения администрации (аккаунт не удаляется). Администрация может выдать предупреждение (оно видно вам при входе и действует 90 дней), удалить сообщение, временно ограничить или заблокировать аккаунт. Обычно: третье предупреждение администрации — блокировка на 24 часа, четвёртое — на 7 дней; при тяжёлых нарушениях меры могут быть строже, а блокировка — постоянной.\nЕсли задержанное сообщение — угроза человеку (но не теракт, наркотики или оружие), получатель в личке или создатель группы может пропустить его как шутку или пожаловаться. Остальное решает администрация.\nАвтоматическая проверка может ошибаться: если сообщение остановлено зря, его увидит проверяющий человек. Подробные советы — в разделе «Документы» → «Советы по безопасному общению».'],
-          ['Жалобы', 'Если вы увидели нарушение — нажмите «Пожаловаться» у сообщения. Администрация рассматривает жалобы.'],
-          ['Ваша ответственность', 'Заходя в чат, вы подтверждаете, что прочитали правила и сами отвечаете за свои сообщения.']
-        ],
-        kk: [
-          ['Басты ереже', 'Чат — адамдардың қарым-қатынасы, дау алаңы емес. Не жазғаныңыз үшін өзіңіз жауап бересіз.'],
-          ['Болмайды', '• балағат сөз, боқтау, қорлау;\n• қорқыту және қудалау, әсіресе балаларды;\n• экстремизм, терроризм, зорлық-зомбылықты ақтау;\n• өшпенділікті қоздыру — ұлттық, діни, мазхабтар арасындағы;\n• есірткіні, өзіне зиян келтіруді және өз-өзіне қол жұмсауды насихаттау;\n• алаяқтық, пирамидалар, құмар ойындар;\n• біреудің жеке деректері: телефон, мекенжай, құжаттар, келісімсіз фото;\n• порнография;\n• жарнама, спам, бөгде сілтемелер;\n• өзін басқа адам ретінде көрсету, жалған мәліметтер тарату.'],
-          ['Бұзғаны үшін не болады', 'Сайт хабарламаларды автоматты түрде тексереді және бұзушылықтарды ұпай түрінде есептейді: оларды тек әкімшілік көреді, уақыт өте келе азаяды.\n• Айқын балағат пен қорлау: хабарлама жіберілмейді, одан кейін 1 минут күту керек; бір сағат ішінде мұндай үш әрекет жіберуді 1 сағатқа жабады.\n• Қауіпті мазмұн — адамға қорқыту («өлтіремін»), терактілер, есірткі мен қару сату: хабарлама жіберілмейді және адамға тексеруге беріледі; чаттарға 3 сағатқа дейін немесе тексерушінің шешіміне дейін жазуға болмайды. Тәулік ішінде мұндай хабарлама қайталанса, жіберу тексеріліп болғанға дейін жабылады.\n• Кездейсоқ әріптер жиыны: осындай бірнеше хабарламадан кейін сайт іс жайында жазуды сұрайды.\n• Құраннан алынған дәйексөздерді (араб мәтінімен, сүремен және аятпен) автоматты сүзгі тоқтатпайды.\n• «Таңдаулыда» (өзіңізге жазған хабарламалар) балағат тексерілмейді, бірақ қауіпті мазмұн онда да тексеріледі.\nЖиналған ұпай үшін сайт автоматты ескерту береді, ал ұпай өте көп болса — аккаунтты әкімшіліктің шешіміне дейін жабады (аккаунт жойылмайды). Әкімшілік ескерту жасай алады (кірген кезде көрсетіледі, 90 күн күшінде), хабарламаны жоя алады, аккаунтты уақытша шектей немесе бұғаттай алады. Әдетте: әкімшіліктің үшінші ескертуі — 24 сағатқа, төртіншісі — 7 күнге бұғат; ауыр бұзушылықта шара қатаңырақ, бұғат тұрақты болуы мүмкін.\nҰсталған хабарлама адамға қорқыту болса (теракт, есірткі немесе қару емес), жеке хатта алушы немесе топты құрушы оны әзіл ретінде өткізіп жібере алады не шағымдана алады. Қалғанын әкімшілік шешеді.\nАвтоматты тексеру қателесуі мүмкін: хабарлама бекер тоқтатылса, оны тексеруші адам көреді. Толық кеңестер — «Құжаттар» бөлімінде, «Қауіпсіз сөйлесу кеңестері».'],
-          ['Шағымдар', 'Бұзушылықты көрсеңіз — хабарламадағы «Шағымдану» батырмасын басыңыз. Әкімшілік шағымдарды қарайды.'],
-          ['Сіздің жауапкершілігіңіз', 'Чатқа кіре отырып, ережелерді оқығаныңызды және хабарламаларыңыз үшін өзіңіз жауап беретініңізді растайсыз.']
+          ['Мақсаты', 'Қолданба тегін және оқуға арналған: Құранды оқуды, тәжуид ережелерін, намазды және діннің негіздерін үйренуге көмектеседі. Ол имамды, муфтийді және тірі ұстазды алмастырмайды.'],
+          ['Кепілдіксіз', 'Қолданба «қалай бар, солай» беріледі. Біз мәтіндерді тексеруге тырысамыз және дереккөздерді көрсетеміз, бірақ қателер болуы мүмкін; үшінші тарап сервистері (аудио, намаз уақыты) кейде қолжетімсіз болады.'],
+          ['Жауапкершілік', 'Заң рұқсат еткен шекте оператор қолданбаны пайдаланудан келген зиян үшін жауап бермейді. Қазақстан Республикасының құқығы қолданылады.']
         ]
       },
       disclaimer: {
@@ -27338,7 +27426,7 @@ bKk:
       var el = document.getElementById('legaldocs-body'); if (!el) return;
       var kk = isKk(), acc = legalAcceptedMap(), outd = legalOutdated();
       var cards = Object.keys(LEGAL_DOCS).map(function(k) {
-        var L = LEGAL_LOG[k], need = CONSENT_DOCS.indexOf(k) >= 0, status = '';
+        var L = LEGAL_LOG[k], need = false, status = '';
         if (need) {
           if (!acc) status = '<span style="color:var(--text-muted)">' + (kk ? 'Келісім чаттарға кіргенде сұралады' : 'Согласие запрашивается при входе в чаты') + '</span>';
           else if (outd.indexOf(k) >= 0) status = '<span style="color:var(--warning,#f59e0b)">⚠ ' + (kk ? 'Жаңа нұсқа бар (сіз қабылдаған: ' + _legalEsc(acc[k]) + ') — чаттарға кіргенде қабылдау керек' : 'Есть новая версия (вы приняли: ' + _legalEsc(acc[k]) + ') — нужно принять при входе в чаты') + '</span>';
@@ -27350,12 +27438,8 @@ bKk:
           (status ? '<div style="font-size:0.85rem;margin-top:0.3rem">' + status + '</div>' : '') +
           (L ? '<details style="margin-top:0.35rem"><summary style="cursor:pointer;color:var(--accent);font-size:0.85rem">' + (kk ? 'Өзгерістер тарихы' : 'История изменений') + '</summary>' + legalHistoryHtml(k, kk) + '</details>' : '') + '</div>';
       }).join('');
-      var tipsCard = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem"><b>🛡 ' + (kk ? 'Қауіпсіз сөйлесу кеңестері' : 'Советы по безопасному общению') + '</b>' +
-        '<button type="button" class="btn btn-sm" data-tips="1">' + (kk ? 'Оқу' : 'Читать') + '</button></div>' +
-        '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem">' + (kk ? 'Құжат емес, кеңес: келісім қайта сұралмайды' : 'Не документ, а советы: согласие заново не требуется') + '</div></div>';
-      el.innerHTML = '<p class="ayah-translation" style="margin:0 0 0.6rem">' + (kk
-        ? 'Мұнда барлық құжаттар, олардың нұсқасы және не өзгергені. Құжат жаңарса, чаттарға келесі кіргенде өзгерістер көрсетіліп, қайта келісім сұралады.'
-        : 'Здесь все документы, их версия и что изменилось. Если документ обновится, при следующем входе в чаты покажем изменения и попросим согласие ещё раз.') + '</p>' +
+      var tipsCard = '';
+      el.innerHTML = '<p class="ayah-translation" style="margin:0 0 0.6rem">' + (kk ? 'Мұнда барлық құжаттар, олардың нұсқасы және не өзгергені.' : 'Здесь все документы, их версия и что изменилось.') + '</p>' +
         cards + tipsCard + '<p class="ayah-translation" style="margin-top:0.7rem;font-size:0.85rem">' + _legalEsc(_legalContact(kk)) + '</p>';
     }
     // build 6.58: «Советы по безопасному общению» — не юридический документ, поэтому согласие заново не нужно

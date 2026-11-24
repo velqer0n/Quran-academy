@@ -5365,3 +5365,29 @@ html.ptr-off.ptr-top { touch-action: pan-x pan-y; }
 .c2-insp{text-align:center}.c2-insp-ar{font-size:1.4rem;line-height:1.9}
 .c2-later{background:none;border:0;color:var(--text-muted)}
 .c2-lt{flex:1}.c2-rep{font-size:0.72rem;color:var(--accent);white-space:nowrap}
+.c2-aytr{font-size:0.9rem;line-height:1.55;color:var(--text);margin-top:0.4rem;text-align:center}.c2-hl{background:color-mix(in srgb,var(--accent) 30%,transparent);color:inherit;border-radius:4px;padding:0 0.15rem}
+
+/* 7.57: «Произношение» */
+.pron-switch{display:flex;gap:0.4rem;margin:0 0 0.7rem}.pron-switch .btn{flex:1}
+.pron-card{margin-bottom:0.7rem}.pron-card>summary{cursor:pointer;list-style:none}.pron-card>summary::-webkit-details-marker{display:none}
+.pron-note{font-size:0.84rem;margin:0.4rem 0 0.6rem;text-align:left}
+.pron-map{display:grid;grid-template-columns:1fr;gap:0.4rem}
+.pron-pt{display:flex;align-items:center;gap:0.5rem;background:var(--bg-hover);border-radius:10px;padding:0.4rem 0.5rem}
+.pron-n{width:1.6rem;height:1.6rem;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex:none}
+.pron-pt-t{flex:1;font-size:0.82rem;line-height:1.35}
+.pron-lets{display:flex;gap:0.25rem;flex-wrap:wrap}
+.pron-let{min-width:2.3rem;border:1px solid var(--border);border-radius:9px;background:var(--bg-card);color:var(--text);font-family:'Amiri','Noto Naskh Arabic',serif;font-size:1.45rem;line-height:1.4;cursor:pointer;padding:0 0.3rem}
+.pron-let.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.pron-qrow{display:flex;justify-content:center;margin:0.5rem 0}
+.pron-big{border:2px solid var(--accent);border-radius:16px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--text);font-family:'Amiri','Noto Naskh Arabic',serif;font-size:2.8rem;line-height:1.4;padding:0.1rem 1.1rem;cursor:pointer}
+.pron-big small{font-size:0.9rem;font-family:system-ui,sans-serif}
+.pron-opts{display:grid;grid-template-columns:1fr;gap:0.4rem}
+.pron-opt{border:2px solid var(--border);border-radius:12px;background:var(--bg-card);color:var(--text);font:inherit;font-size:0.88rem;padding:0.6rem;text-align:left;cursor:pointer}
+.pron-opt.ok{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}.pron-opt.no{border-color:var(--danger)}
+.pron-fb{font-size:0.86rem;margin:0.5rem 0;line-height:1.45}
+.pron-pick{display:flex;flex-wrap:wrap;gap:0.25rem;margin:0.5rem 0}
+.pron-pass{display:flex;gap:0.7rem;align-items:flex-start;margin-top:0.4rem}
+.pron-pass-b{flex:1;display:flex;flex-direction:column;gap:0.35rem}
+.pron-nm{font-weight:700;font-size:1.05rem}
+.pron-row{display:flex;gap:0.35rem;font-size:0.85rem;line-height:1.4}
+.pron-chips{display:flex;flex-wrap:wrap;gap:0.3rem}.pron-chips .sif-chip{font-size:0.78rem}
