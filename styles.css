@@ -4884,7 +4884,7 @@ main::after { content: ''; display: block; height: var(--player-h, 0px); pointer
 .pl-now-tr { font-size: 0.88rem; line-height: 1.5; color: var(--text-muted); }
 .pl-now-big { font-size: 1.4rem; font-weight: 700; color: var(--text); }
 .pl-rec { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 999px; padding: 0.3rem 0.7rem; min-height: 36px; font: inherit; font-size: 0.8rem; cursor: pointer; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-pop { position: fixed; inset: 0; z-index: 10050; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; justify-content: center; }
+.pl-pop { position: fixed; inset: 0; z-index: 2000000; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; justify-content: center; }
 .pl-pop-card { width: 100%; max-width: 520px; max-height: 85vh; max-height: 85dvh; overflow-y: auto; background: var(--bg-card); color: var(--text); border-radius: 16px 16px 0 0; padding: 0.8rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -8px 30px rgba(0,0,0,0.35); animation: plUp .18s ease-out; }
 @keyframes plUp { from { transform: translateY(30px); opacity: 0.5; } to { transform: none; opacity: 1; } }
 .pl-pop-h { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
@@ -5503,3 +5503,26 @@ body.theme-dusk {
   --on-accent: #0b1f19;
 }
 body.theme-dusk header, body.theme-dusk .bottom-nav, body.theme-dusk .audio-bar { background: rgba(38, 48, 45, 0.95); }
+
+/* ===== 7.60: «Ещё» в новом стиле; перерисовка при возврате; своё окошко выбора ===== */
+body.qa-repaint { opacity: 0.999; }
+.qa-sel-opts .pl-opt b { font-weight: 500; }
+#view-more #more-quick-search { padding: 0.75rem 0.9rem 0.75rem 2.6rem !important; border-radius: 14px !important; border: 1px solid var(--border) !important; background: var(--bg-card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23889590' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 0.85rem center / 18px !important; color: var(--text); font-size: 0.95rem; }
+#view-more #more-quick-search::placeholder { color: var(--text-muted); }
+#more-menu .more-gh { grid-column: 1 / -1; width: 100%; display: flex; justify-content: space-between; align-items: center; margin: 1.15rem 0 0.5rem; font-size: 0.74rem; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 700; color: var(--text-muted); }
+#more-menu .more-item.more-tile { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; padding: 0.95rem 0.5rem 0.85rem !important; gap: 0.5rem; box-shadow: none; transition: transform 0.18s var(--ease), border-color 0.18s, box-shadow 0.18s; }
+#more-menu .more-item.more-tile:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: var(--shadow-sm); }
+#more-menu .more-item.more-tile:active { transform: scale(0.98); }
+#more-menu .more-tile .more-ico { width: 2.9rem; height: 2.9rem; border-radius: 14px; display: grid; place-items: center; font-size: 1.4rem; background: color-mix(in srgb, var(--accent) 13%, transparent); }
+#more-menu .more-tile .more-lbl { font-size: 0.82rem; font-weight: 600; line-height: 1.25; color: var(--text); }
+#more-menu:not(.more-grid):not(.more-grid-3) .more-item { display: flex; align-items: center; gap: 0.6rem; border-radius: 14px; padding: 0.8rem 0.9rem; margin-bottom: 0.4rem; font-weight: 600; }
+#more-menu:not(.more-grid):not(.more-grid-3) .more-item::after { content: "›"; margin-left: auto; color: var(--text-muted); font-size: 1.2rem; }
+body.more-editing #more-menu .more-item::after { content: none; }
+#more-menu .more-freq { gap: 0.5rem; margin-bottom: 0.2rem; }
+#more-menu .more-freq-btn { border-radius: 14px; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); background: color-mix(in srgb, var(--accent) 10%, var(--bg-card)); padding: 0.6rem 0.3rem; font-weight: 600; font-size: 0.78rem; color: var(--text); }
+#more-menu .more-freq-btn span { font-size: 1.3rem; }
+#view-more #more-install-card { border-radius: 18px; }
+@media (min-width: 900px) {
+  body.mode-desktop #more-menu.more-grid-3, body.mode-desktop #more-menu.more-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; gap: 0.7rem; }
+}
+@media (prefers-reduced-motion: reduce) { #more-menu .more-item.more-tile { transition: none; } }

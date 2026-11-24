@@ -5760,9 +5760,25 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     function wholeOnly(r) { return !!(r && !r.ayah); }
     function _lsGet(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch(e) { return d; } }
     function _lsSet(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
-    function wholeModeOn() { return _lsGet('quran_whole_mode_v1', '0') === '1'; }
+    // 7.60: сура одним файлом (без обрезки по аятам) — по умолчанию у всех чтецов, у которых есть целые суры.
+    // quran_whole_mode_v1 — желание пользователя («Целиком» включено, по умолчанию да); действует, только если
+    // у выбранного чтеца есть целые суры (или выбран чтец «только целые суры» — Абкар, Лухайдан).
+    function _wholeOnlySel() {
+      var f = _lsGet('quran_whole_only_sel_v1', null);
+      if (f !== null) return f === '1';
+      return _lsGet('quran_whole_mode_v1', '0') === '1' && wholeOnly(wholeById(_lsGet('quran_whole_reciter_v1', 'abkar')));
+    }
+    function _curSurahReciter() { try { return (state.settings.reciterBy && state.settings.reciterBy.surahs) || state.settings.reciter || ''; } catch (e) { return ''; } }
+    function wholeModeOn() {
+      if (_lsGet('quran_whole_mode_v1', '1') !== '1') return false;
+      try { if (_reciterCtx !== 'surahs') return false; } catch (e) {}
+      return _wholeOnlySel() || !!wholeForAyah(_curSurahReciter());
+    }
     function wholeById(id) { return WHOLE_RECITERS.filter(function(r) { return r.id === id; })[0] || WHOLE_RECITERS[0]; }
-    function wholeReciter() { return wholeById(_lsGet('quran_whole_reciter_v1', 'abkar')); }
+    function wholeReciter() {
+      if (_wholeOnlySel()) return wholeById(_lsGet('quran_whole_reciter_v1', 'abkar'));
+      return wholeForAyah(_curSurahReciter()) || wholeById(_lsGet('quran_whole_reciter_v1', 'abkar'));
+    }
     function afterSurahNext() { return _lsGet('quran_after_surah_v1', 'stop') === 'next'; }
     var _wholeTm = {};
     function fetchWholeTimings(r, surah) {
@@ -5933,15 +5949,21 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       // build 6.94: «Целиком» — целые суры ТОГО ЖЕ чтеца, что выбран по аятам (если у него они есть)
       if (on && !keepWhole) {
         var _cr = (state.settings && state.settings.reciter) || '', _m = wholeForAyah(_cr);
-        if (_m) _lsSet('quran_whole_reciter_v1', _m.id);
+        if (_m) { _lsSet('quran_whole_reciter_v1', _m.id); _lsSet('quran_whole_only_sel_v1', '0'); }
         else {
           toast(isKk() ? 'Бұл қаридің толық сүрелері жоқ — аятпен ойнатамын' : 'У этого чтеца нет целых сур — играю по аятам');
-          on = false;
+          return; // 7.60: желание «Целиком» не сбрасываем — у другого чтеца снова будет целиком
         }
       }
       _lsSet('quran_whole_mode_v1', on ? '1' : '0');
       paintPlayerMore();
       try { fillReciterSelects(); } catch(e) {}
+      _wholeResync();
+    }
+    // 7.60: играющую суру переводим в тот режим, который сейчас действует (целиком / по аятам)
+    function _wholeResync() {
+      var on = wholeModeOn();
+      try { paintPlayerMore(); } catch(e) {}
       var item = audioQueue[audioQueueIdx];
       if (!item || !item.surah || item.dua || item.adhkar) return;
       var playing = audioEl && !audioEl.paused && audioEl.src;
@@ -5984,16 +6006,23 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       var m = wholeForAyah(id);
       if (!m) return false;
       _lsSet('quran_whole_reciter_v1', m.id);
+      _lsSet('quran_whole_only_sel_v1', '0');
       try { paintPlayerMore(); } catch(e) {}
       applyWholeReciterChange();
       toast(isKk() ? 'Қари ауыстырылды (толық сүре)' : 'Чтец изменён (сура целиком)');
       return true;
     }
+    function _applyWholeFromAyah(id) {
+      var m = wholeForAyah(id); if (m) { _lsSet('quran_whole_reciter_v1', m.id); _lsSet('quran_whole_only_sel_v1', '0'); }
+      var it = audioQueue[audioQueueIdx];
+      if (it && it.whole) applyWholeReciterChange(); else _wholeResync();
+    }
     // выбор «целосурного» чтеца из общего списка чтецов: id вида whole:abkar
     function chooseWholeReciter(id) {
       var r = wholeById(id), kk = isKk();
       _lsSet('quran_whole_reciter_v1', r.id);
-      var was = wholeModeOn();
+      var was = wholeModeOn() && _wholeOnlySel();
+      _lsSet('quran_whole_only_sel_v1', '1');
       if (!was) setWholeMode(true, true); else { try { paintPlayerMore(); } catch(e) {} applyWholeReciterChange(); }
       try { fillReciterSelects(); } catch(e) {}
       toast(kk
@@ -6126,6 +6155,67 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       try { onOpen && onOpen(ov, close); } catch(e) {}
       return ov;
     }
+    // 7.60: все выпадающие списки — своим окошком в цвет темы. В приложении (APK) системный список Android
+    // всегда светлый и в старом стиле; CSS на него не действует. Свой список можно отключить у <select data-native>.
+    function qaSelOk(sel) {
+      return !!(sel && sel.tagName === 'SELECT' && !sel.multiple && !sel.disabled && !(sel.size > 1) && !sel.hasAttribute('data-native') && !sel.classList.contains('sp-hidden') && sel.options.length);
+    }
+    function qaSelTitle(sel) {
+      try {
+        var t = sel.getAttribute('aria-label') || sel.getAttribute('title') || '';
+        if (!t && sel.labels && sel.labels[0]) t = sel.labels[0].textContent;
+        if (!t && sel.id) { var l = document.querySelector('label[for="' + sel.id + '"]'); if (l) t = l.textContent; }
+        if (!t) { var row = sel.closest('.setting-row, label'); var sp = row && row.querySelector(':scope > span'); if (sp) t = sp.textContent; }
+        return String(t || '').replace(/\s+/g, ' ').trim().slice(0, 60) || (isKk() ? 'Таңдаңыз' : 'Выберите');
+      } catch (e) { return isKk() ? 'Таңдаңыз' : 'Выберите'; }
+    }
+    function qaSelPick(sel) {
+      var esc = function(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+      var opts = [];
+      Array.prototype.forEach.call(sel.querySelectorAll('option, optgroup'), function(o) {
+        if (o.tagName === 'OPTGROUP') { opts.push('<div class="pl-lbl2" style="margin-top:0.4rem">' + esc(o.label) + '</div>'); return; }
+        if (o.hidden || (o.disabled && !o.value && !o.textContent.trim())) return;
+        opts.push('<button type="button" class="pl-opt' + (o.selected ? ' on' : '') + '" data-qsv="' + o.index + '"' + (o.disabled ? ' disabled' : '') + '><b>' + (o.selected ? '✓ ' : '') + esc(o.textContent.trim() || '—') + '</b></button>');
+      });
+      plPop(esc(qaSelTitle(sel)), '<div class="pl-opts qa-sel-opts">' + opts.join('') + '</div>', function(ov, close) {
+        var on = ov.querySelector('.pl-opt.on'); if (on) try { on.scrollIntoView({ block: 'center' }); } catch (e) {}
+        ov.querySelectorAll('[data-qsv]').forEach(function(b) { b.addEventListener('click', function() {
+          var i = +b.getAttribute('data-qsv');
+          close();
+          if (sel.selectedIndex !== i) { sel.selectedIndex = i; sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); }
+        }); });
+      });
+    }
+    (function qaSelBoot() {
+      var arm = null, armT = 0;
+      var down = function(e) {
+        var sel = e.target && e.target.closest && e.target.closest('select');
+        if (!qaSelOk(sel)) return;
+        e.preventDefault(); arm = sel; armT = Date.now();
+      };
+      document.addEventListener('pointerdown', down, true);
+      document.addEventListener('mousedown', down, true);
+      document.addEventListener('click', function(e) {
+        var sel = e.target && e.target.closest && e.target.closest('select');
+        if (!qaSelOk(sel)) return;
+        e.preventDefault();
+        if (arm === sel && Date.now() - armT < 2000) { arm = null; try { sel.focus({ preventScroll: true }); } catch (er) {} qaSelPick(sel); }
+      }, true);
+    })();
+    // 7.60: возврат в приложение через несколько минут — принудительно перерисовываем страницу
+    // (в оболочке APK экран иногда оставался чёрным, пока его не тронешь)
+    (function qaResumeRepaint() {
+      var kick = function() {
+        try {
+          var b = document.body; if (!b) return;
+          b.classList.add('qa-repaint');
+          requestAnimationFrame(function() { requestAnimationFrame(function() { b.classList.remove('qa-repaint'); }); });
+        } catch (e) {}
+      };
+      document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'visible') kick(); });
+      window.addEventListener('pageshow', function(e) { if (e.persisted) kick(); });
+      window.addEventListener('focus', kick);
+    })();
     function plOpts(list, cur) { return '<div class="pl-opts">' + list.map(function(o) { return '<button type="button" class="pl-opt' + (o.v === cur ? ' on' : '') + '" data-pl-v="' + o.v + '"><b>' + o.l + '</b>' + (o.s ? '<small>' + o.s + '</small>' : '') + '</button>'; }).join('') + '</div>'; }
     function plModeKey() { return audioPlayMode === 'surah' ? (afterSurahNext() ? 'next' : 'stop') : audioPlayMode; }
     function plModeList(kk, whole) {
@@ -7105,7 +7195,18 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         try { localStorage.setItem('quran_audio_collapsed_v1', c ? '1' : '0'); } catch(e) {}
         syncMini();
       }
+      // 7.60: открытый плеер — отдельный шаг истории, чтобы системная «Назад» его сворачивала, а не уходила с экрана
+      var _plExp = false;
+      function syncHist() {
+        try {
+          var exp = bar.classList.contains('visible') && !bar.classList.contains('collapsed');
+          if (exp && !_plExp) { if (!(history.state && history.state.qaPlayer)) history.pushState(Object.assign({}, history.state || {}, { qaPlayer: 1 }), ''); }
+          else if (!exp && _plExp && history.state && history.state.qaPlayer) { window._qaSkipPop = true; history.back(); }
+          _plExp = exp;
+        } catch (e) {}
+      }
       function syncMini() {
+        syncHist();
         try { var vis = bar.classList.contains('visible'); document.body.classList.toggle('player-mini', bar.classList.contains('collapsed') && vis); document.body.classList.toggle('player-on', vis); } catch(e) {}
       }
       try { new MutationObserver(syncMini).observe(bar, { attributes: true, attributeFilter: ['class'] }); } catch(e) {}
@@ -7181,11 +7282,13 @@ document.getElementById('audio-stop').addEventListener('click', () => {
         if (String(id).indexOf('whole:') === 0) { chooseWholeReciter(String(id).slice(6)); return; }
         _reciterInit();
         if (wholeModeOn() && _wholeSwitchToReciter(id)) { state.settings.reciterBy[_reciterCtx] = id; state.settings.reciter = id; saveState(); try { fillReciterSelects(); } catch(e) {} return; }
-        if (wholeModeOn()) { state.settings.reciterBy[_reciterCtx] = id; state.settings.reciter = id; saveState(); setWholeMode(false); try { fillReciterSelects(); } catch(e) {} toast(isKk() ? 'Қари ауыстырылды' : 'Чтец изменён'); return; }
+        if (wholeModeOn()) { state.settings.reciterBy[_reciterCtx] = id; state.settings.reciter = id; _lsSet('quran_whole_only_sel_v1', '0'); saveState(); _wholeResync(); try { fillReciterSelects(); } catch(e) {} toast(isKk() ? 'Қари ауыстырылды' : 'Чтец изменён'); return; }
         state.settings.reciterBy[_reciterCtx] = id;
         state.settings.reciter = id;
         saveState();
         try { fillReciterSelects(); } catch(e) {}
+        // 7.60: у нового чтеца есть целые суры — сразу одним файлом
+        if (wholeModeOn()) { try { _applyWholeFromAyah(id); } catch(e) {} toast(isKk() ? 'Қари ауыстырылды (толық сүре)' : 'Чтец изменён (сура целиком)'); return; }
         audioQueue.forEach(function(it) {
           if (it && it.surah && it.ayah) { it.url = ayahAudioUrl(it.surah, it.ayah); it._recOverride = null; it._pickerShown = false; }
         });
@@ -8263,7 +8366,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
           if (t === 'surahs' && wholeModeOn()) {
             state.settings.reciterBy[t] = e.target.value; state.settings.reciter = e.target.value;
             if (_wholeSwitchToReciter(e.target.value)) { saveState(); _RECITER_SELECTS[t].forEach(function(id2) { const o = document.getElementById(id2); if (o && o !== el) o.value = e.target.value; }); return; }
-            setWholeMode(false);
+            _lsSet('quran_whole_only_sel_v1', '0');
           }
           state.settings.reciterBy[t] = e.target.value;
           if (_reciterCtx === t) state.settings.reciter = e.target.value;
@@ -8272,7 +8375,12 @@ document.getElementById('audio-stop').addEventListener('click', () => {
           toast(isKk() ? 'Қари өзгертілді' : 'Чтец изменён');
           try { paintReciterNotes(); } catch (err) {}
           _RECITER_SELECTS[t].forEach(function(id2) { const o = document.getElementById(id2); if (o && o !== el) o.value = e.target.value; });
-          if (_reciterCtx === t) { try { resyncAudioQueueReciter(); } catch (err) {} }
+          if (_reciterCtx === t) {
+            // 7.60: у нового чтеца есть целые суры — играющая сура переходит на один файл (и наоборот)
+            var _it = audioQueue[audioQueueIdx];
+            if (t === 'surahs' && _it && _it.surah && !_it.dua && !_it.adhkar && (!!_it.whole !== wholeModeOn())) { try { _wholeResync(); } catch (err) {} }
+            else { try { resyncAudioQueueReciter(); } catch (err) {} }
+          }
         });
       });
     });
@@ -46233,7 +46341,7 @@ c.addEventListener('click', () => {
         if (groupsOn && g !== lastG) {
           lastG = g;
           const gl = ({ system: 'Сайт', games: 'Проверь себя' })[g] || (typeof MORE_GROUP_LABELS !== 'undefined' && MORE_GROUP_LABELS[g]) || '';
-          if (gl) html += '<div class="surah-meta" style="margin:0.85rem 0 0.35rem;width:100%;grid-column:1/-1;display:flex;justify-content:space-between;align-items:center"><span>'+(typeof tLabel==='function'?tLabel(gl):gl)+'</span>' +
+          if (gl) html += '<div class="more-gh"><span>'+(typeof tLabel==='function'?tLabel(gl):gl)+'</span>' +
             (moreEditMode ? '<span><button type="button" class="btn btn-sm" data-gup="'+g+'">↑ группа</button> <button type="button" class="btn btn-sm" data-gdown="'+g+'">↓ группа</button></span>' : '') +
             '</div>';
         }
@@ -46260,8 +46368,9 @@ c.addEventListener('click', () => {
       let freqHtml = '';
       try {
         // build 6.93: блок по умолчанию скрыт; включается галочкой в режиме правки «Ещё»
-        if (moreEditMode) freqHtml = '<label class="surah-meta" style="display:flex;gap:0.45rem;align-items:center;margin:0.2rem 0 0.5rem;cursor:pointer"><input type="checkbox" id="more-freq-toggle"' + (state.settings && state.settings.moreFreq ? ' checked' : '') + '> ' + (isKk() ? '⭐ «Жиі ашасыз» блогын көрсету' : '⭐ Показывать «Часто открываете»') + '</label>';
-        if (!moreEditMode && state.settings && state.settings.moreFreq) {
+        if (moreEditMode) freqHtml = '<label class="surah-meta" style="display:flex;gap:0.45rem;align-items:center;margin:0.2rem 0 0.5rem;cursor:pointer"><input type="checkbox" id="more-freq-toggle"' + (state.settings && state.settings.moreFreq !== 0 ? ' checked' : '') + '> ' + (isKk() ? '⭐ «Жиі ашасыз» блогын көрсету' : '⭐ Показывать «Часто открываете»') + '</label>';
+        // 7.60: «Часто открываете» включено по умолчанию (выключается галочкой в режиме правки)
+        if (!moreEditMode && state.settings && state.settings.moreFreq !== 0) {
           const rs = ensureRichStats(), sv = rs.sectionVisits || {};
           const score = function (id) { const m = normalizeDayMap(sv[id] || {}); return Object.keys(m).reduce(function (a, k) { return a + (Number(m[k]) || 0); }, 0); };
           const top = items.map(function (it) { return { it: it, n: score(it.id) }; }).filter(function (x) { return x.n >= 2; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 4);
@@ -48795,6 +48904,17 @@ function renderLibrary() {
         } catch(e) {}
         window.addEventListener('popstate', function(ev) {
           if (skip) return;
+          if (window._qaSkipPop) { window._qaSkipPop = false; return; }
+          // 7.60: «Назад» сначала закрывает окошко выбора, затем сворачивает открытый плеер — а не закрывает его
+          try {
+            var _pp = document.getElementById('pl-pop');
+            var _ab = document.getElementById('audio-bar');
+            if (_pp || (_ab && _ab.classList.contains('visible') && !_ab.classList.contains('collapsed'))) {
+              if (_pp) { try { _pp._close && _pp._close(); } catch (e1) {} _pp.remove(); skip = true; history.pushState({ view: (viewStack && viewStack[viewStack.length-1]) || 'dailyhub' }, ''); skip = false; }
+              else { var _cb = document.getElementById('audio-collapse'); if (_cb) _cb.click(); } // шаг истории плеера уже снят «Назад»
+              return;
+            }
+          } catch (e0) {}
           if (typeof goBack === 'function' && viewStack && viewStack.length > 1) {
             goBack();
             try {
