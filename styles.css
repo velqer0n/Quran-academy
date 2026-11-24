@@ -5526,3 +5526,12 @@ body.more-editing #more-menu .more-item::after { content: none; }
   body.mode-desktop #more-menu.more-grid-3, body.mode-desktop #more-menu.more-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; gap: 0.7rem; }
 }
 @media (prefers-reduced-motion: reduce) { #more-menu .more-item.more-tile { transition: none; } }
+
+/* ===== 7.61: плеер — кнопки в 2 строки ===== */
+.audio-bar.whole-chips:not(.collapsed) #audio-dua-row { display: none !important; }
+.audio-bar .pl-chips { gap: 0.3rem; }
+.audio-bar .pl-chips .pl-chip { padding: 0.3rem 0.62rem; }
+@media (max-width: 480px) {
+  .audio-bar .pl-chips .pl-chip { padding: 0.28rem 0.5rem; font-size: 0.78rem; }
+  .audio-bar.whole-chips .pl-chips #pl-sleep-btn span, .audio-bar.whole-chips .pl-chips #pl-queue-btn { font-size: 0.76rem; }
+}
