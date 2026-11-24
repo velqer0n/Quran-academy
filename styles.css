@@ -5191,3 +5191,50 @@ html.ptr-off.ptr-top { touch-action: pan-x pan-y; }
 .hk-qw .arabic { font-size: calc(1.55rem * var(--ar-scale, 1)); line-height: 1.7; }
 .hk-qw i { font-size: 0.72rem; color: var(--accent); }
 .hk-qw em { font-style: normal; font-size: 0.68rem; color: var(--text-muted); }
+
+/* ===== 7.51: Письмо и Таджвид — список тем, как в Настройках ===== */
+.twl > .tw-group, .twl > .rule-card.tw-rc, .twl .tw-group > .tw-group-title { display: none; }
+.twl .tw-group > .rule-card.tw-rc { display: none; }
+.twl-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.twl-h { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin: 0.7rem 0.2rem 0.1rem; }
+.twl-row { display: flex; align-items: center; gap: 0.65rem; width: 100%; min-height: 56px; padding: 0.55rem 0.75rem; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-card, transparent); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.twl-ico { flex: none; min-width: 36px; height: 36px; padding: 0 4px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--accent) 14%, transparent); font-size: 1.05rem; font-family: Amiri, serif; }
+.twl-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.twl-t b { font-size: 0.95rem; font-weight: 600; }
+.twl-t small { font-size: 0.78rem; color: var(--text-muted); line-height: 1.35; }
+.twl-chev { color: var(--text-muted); font-size: 1.3rem; }
+/* открытая тема: только она, вверху «‹ Письмо» */
+.twl-open > p, .twl-open .twl-list { display: none !important; }
+.twl-open > .tw-group.twl-show, .twl-open .rule-card.tw-rc.twl-show { display: block !important; }
+.twl-open .rule-card.twl-show > .tw-rc-head { display: none; }
+.twl-open .rule-card.twl-show > .tw-rc-body { display: block !important; }
+.twl-open .tw-group.twl-show > .rule-card:not(.twl-show) { display: none !important; }
+.twl-back { display: none; align-items: center; gap: 0.5rem; margin: 0 0 0.6rem; position: sticky; top: var(--hdr-h, 56px); z-index: 5; background: var(--bg); padding: 0.4rem 0; }
+.twl-open .twl-back { display: flex; }
+.twl-back button { border: none; background: transparent; color: var(--accent); font: inherit; font-weight: 600; padding: 0.3rem 0.2rem; cursor: pointer; white-space: nowrap; }
+.twl-back b { font-size: 1rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* новые темы Письма */
+.wr-grp { border: 1px solid var(--border); border-radius: 12px; padding: 0.5rem; margin-bottom: 0.45rem; }
+.wr-lets { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: center; }
+.wr-let { display: flex; flex-direction: column; align-items: center; min-width: 54px; padding: 0.3rem 0.4rem; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; font: inherit; }
+.wr-let .arabic { font-size: calc(1.8rem * var(--ar-scale, 1)); line-height: 1.5; }
+.wr-let small { font-size: 0.7rem; color: var(--text-muted); }
+.wr-note { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem; text-align: left; }
+.wr-big { font-size: calc(2.2rem * var(--ar-scale, 1)); line-height: 1.6; }
+.wr-exs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.4rem; margin: 0.5rem 0; }
+.wr-ex { border: 1px solid var(--border); border-radius: 10px; padding: 0.4rem; text-align: center; display: flex; flex-direction: column; gap: 0.1rem; }
+.wr-ex .arabic { font-size: calc(1.5rem * var(--ar-scale, 1)); line-height: 1.7; }
+.wr-ex small { font-size: 0.74rem; color: var(--text-muted); }
+.wr-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+.wr-pair > div { border: 1px solid var(--border); border-radius: 12px; padding: 0.5rem; display: flex; flex-direction: column; align-items: center; gap: 0.2rem; text-align: center; }
+.wr-pair small { font-size: 0.75rem; color: var(--text-muted); }
+.wr-pair .arabic:last-child { font-size: calc(1.2rem * var(--ar-scale, 1)); line-height: 1.8; }
+.wr-waqf { display: flex; flex-direction: column; gap: 0.35rem; }
+.wr-wq { display: flex; align-items: center; gap: 0.6rem; border: 1px solid var(--border); border-radius: 12px; padding: 0.45rem 0.6rem; }
+.wr-wq > .arabic { flex: none; width: 42px; text-align: center; font-size: 1.8rem; line-height: 1.4; color: var(--accent); }
+.wr-wq b { display: block; font-size: 0.9rem; } .wr-wq small { font-size: 0.76rem; color: var(--text-muted); }
+.wr-digits { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; margin-bottom: 0.5rem; }
+.wr-digits > div { border: 1px solid var(--border); border-radius: 10px; text-align: center; padding: 0.3rem; display: flex; flex-direction: column; }
+.wr-digits .arabic { font-size: 1.7rem; line-height: 1.5; } .wr-digits small { color: var(--text-muted); font-size: 0.75rem; }
+.wr-wq > .arabic { font-family: 'Amiri', 'Scheherazade New', serif; font-size: 3.2rem !important; width: 64px !important; line-height: 1.1 !important; overflow: visible; }
+.wr-wq > div { text-align: left; flex: 1; }

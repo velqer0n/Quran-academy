@@ -2099,6 +2099,7 @@ async function fetchTafsir(surah, ayah) {
     function goBack() {
       // 7.35: открыто нижнее окошко (выбор, «Мои наборы» и т.п.) — «Назад» закрывает его
       try { var _pp = document.getElementById('pl-pop'); if (_pp) { if (_pp._close) _pp._close(); _pp.remove(); return; } } catch(e) {}
+      try { if (window.twlCloseAny && window.twlCloseAny()) return; } catch(e) {}
       // build 6.36: внутри папки «Назад» поднимает на уровень выше (а не уходит с экрана и не выглядит как «отмена»)
       try { if (typeof fsBackHook === 'function' && fsBackHook()) return; } catch(e) {}
       const MORE_SET = new Set(['myreading','data','sins','aqidah','sunnahs','family','hadith','hadiths','stories','howsalah','hisn','memorize','fatihaphon','quiz','quizmistakes','adhkar','qol','names','qdict','cache','settings','export','duabuilder','qurandua','ramadan','adab','calendar','library','topics','search','changelog','legaldocs','sources','help','prayertimes','appupdate','dict','sadaqa','ask']);
@@ -15858,29 +15859,135 @@ function renderMistakes() {
         return;
       }
       try { loadTajweedData().then(function(d) { if (d && !el.dataset.twLoaded) { el.dataset.twLoaded = '1'; renderRules(); } }); } catch(e) {}
-      // 6.100: Письмо — «как буквы соединяются» по шагам, 6 несоединяющихся букв, правила свёрнуты
-      el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.6rem;text-align:left" dir="ltr">' + (kkR ? 'Араб жазуы: әріптер сөзде қалай қосылады және пішінін өзгертеді. Ережені басыңыз — түсіндірме ашылады.' : 'Арабское письмо: как буквы соединяются в слове и меняют форму. Нажмите правило — откроется объяснение.') + '</p>' +
-        wrJoinHtml() + wrNonJoinHtml() +
-        '<h3 class="tw-group-title" dir="ltr">' + (kkR ? 'Ережелер' : 'Правила') + '</h3>' +
-        rules.map(function(r, ri) {
-          var title = kkR ? (r.titleKk || r.title) : r.title;
-          var short = kkR ? (r.shortKk || r.short) : (r.short || (r.ru || r.body || '').slice(0, 100));
-          var body = kkR ? (r.detailKk || r.detail) : (r.detail || r.ru || r.body || '');
-          var example = '';
-          try { example = tajweedExampleHtml(getTajweedExampleForRuleTitle(r.title)); } catch(e) {}
-          return '<div class="rule-card tw-rc" data-rule-i="wr' + ri + '" data-ref-key="wr:' + String(r.title).replace(/"/g, '') + '">' +
-            '<button type="button" class="tw-rc-head" data-tw-toggle="wr' + ri + '" dir="ltr" aria-expanded="false">' +
-              '<span class="tw-rc-text"><span class="tw-rc-title">' + title + '</span><span class="tw-rc-short">' + short + '</span></span>' +
-              '<span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
-            '<div class="tw-rc-body" hidden>' +
-              (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.15rem;margin:0.35rem 0">' + r.ar + '</div>' : '') +
-              '<div class="ayah-translation" dir="ltr" style="white-space:pre-wrap;line-height:1.55;text-align:left">' + String(body).replace(/</g, '&lt;') + '</div>' +
-              example + '</div></div>';
+      // 7.51: Письмо — список тем (как в Настройках): нажатие открывает тему целиком; 13 тем по порядку изучения
+      var ruleBody = function (r) {
+        if (!r) return '';
+        var body = kkR ? (r.detailKk || r.detail) : (r.detail || r.ru || r.body || ''), example = '';
+        try { example = tajweedExampleHtml(getTajweedExampleForRuleTitle(r.title)); } catch(e) {}
+        return (r.ar ? '<div class="rule-ar" dir="rtl" lang="ar" style="font-size:1.15rem;margin:0.35rem 0">' + r.ar + '</div>' : '') +
+          '<div class="ayah-translation" dir="ltr" style="white-space:pre-wrap;line-height:1.55;text-align:left">' + String(body).replace(/</g, '&lt;') + '</div>' + example;
+      };
+      var rs = function (ru) { return kkR ? (rules.find(function (r) { return r.title.indexOf(ru) >= 0; }) || {}).shortKk || '' : (rules.find(function (r) { return r.title.indexOf(ru) >= 0; }) || {}).short || ''; };
+      var rb = function (ru) { return ruleBody(rules.find(function (r) { return r.title.indexOf(ru) >= 0; })); };
+      var T = function (ru, kk) { return kkR ? kk : ru; };
+      var topics = [
+        ['dir', '➡️', T('Направление письма', 'Жазу бағыты'), rs('Направление'), rb('Направление')],
+        ['join', '🔗', T('Как буквы соединяются — по шагам', 'Әріптер қалай қосылады — қадаммен'), rs('Соединение'), wrJoinHtml() + rb('Соединение')],
+        ['nojoin', '✋', T('6 букв, которые не соединяются со следующей', 'Келесі әріппен қосылмайтын 6 әріп'), T('ا د ذ ر ز و — после них слово продолжается с нового куска', 'ا د ذ ر ز و — олардан кейін сөз жаңа бөліктен жалғасады'), wrNonJoinHtml()],
+        ['forms', '🔤', T('Четыре формы буквы', 'Әріптің төрт түрі'), rs('Четыре формы'), rb('Четыре формы')],
+        ['dots', '🔍', T('Похожие буквы — отличаются только точками', 'Ұқсас әріптер — тек нүктелерімен ерекшеленеді'), T('ب ت ث ن ي · ج ح خ · د ذ · ر ز · с ш …', 'ب ت ث ن ي · ج ح خ · د ذ · ر ز …'), wrDotsHtml(kkR)],
+        ['lamalif', '🔀', T('Лям-алиф — «لا»', 'Ләм-әліп — «لا»'), T('Лям и алиф всегда пишутся одной особой связкой', 'Ләм мен әліп әрдайым ерекше бір байламмен жазылады'), wrLamAlifHtml(kkR)],
+        ['harakat', '✏️', T('Огласовки и танвин — кратко', 'Харакаттар мен тәнуин — қысқаша'), rs('Огласовки'), rb('Огласовки') + rb('Танвин') + '<button type="button" class="btn btn-sm" data-acad-go="harakat" style="margin-top:0.5rem">✏️ ' + T('Подробно — раздел «Огласовки»', 'Толығырақ — «Харакаттар» бөлімі') + '</button>'],
+        ['al', 'ال', T('Алиф-лям — артикль «аль-»', 'Әліп-ләм — «әл-» артиклі'), rs('Алиф-лям'), rb('Алиф-лям')],
+        ['hamza', 'ء', T('Хамза', 'Һамза'), rs('Хамза'), rb('Хамза')],
+        ['tam', 'ة', T('Та-марбута', 'Та-марбута'), rs('Та марбута'), rb('Та марбута')],
+        ['maqsura', 'ى', T('Алиф-максура (ى) и йа (ي)', 'Әліп-мақсура (ى) және йа (ي)'), T('Похожи, но читаются по-разному', 'Ұқсас, бірақ әртүрлі оқылады'), wrMaqsuraHtml(kkR)],
+        ['waqf', 'ۚ', T('Знаки остановки в мусхафе', 'Мусхафтағы тоқтау белгілері'), T('ۘ ۗ ۚ ۖ ۙ ۛ ۝ — где останавливаться, где продолжать', 'ۘ ۗ ۚ ۖ ۙ ۛ ۝ — қай жерде тоқтау, қай жерде жалғастыру'), wrWaqfHtml(kkR)],
+        ['digits', '١٢٣', T('Арабские цифры', 'Араб цифрлары'), T('٠ ١ ٢ … ٩ — номера аятов в мусхафе', '٠ ١ ٢ … ٩ — мусхафтағы аят нөмірлері'), wrDigitsHtml(kkR)]
+      ];
+      el.innerHTML = '<p class="ayah-translation" style="margin-bottom:0.6rem;text-align:left" dir="ltr">' + T('Арабское письмо: как буквы соединяются в слове и какие знаки нужно знать, чтобы читать Коран.', 'Араб жазуы: сөзде әріптер қалай қосылады және Құранды оқу үшін қандай белгілерді білу керек.') + '</p>' +
+        topics.map(function (x) {
+          return '<div class="rule-card tw-rc" data-rule-i="wr-' + x[0] + '" data-twl-ico="' + x[1] + '" data-ref-key="wr:' + x[0] + '">' +
+            '<button type="button" class="tw-rc-head" data-tw-toggle="wr-' + x[0] + '" dir="ltr" aria-expanded="false"><span class="tw-rc-text"><span class="tw-rc-title">' + x[2] + '</span><span class="tw-rc-short">' + String(x[3] || '').replace(/</g, '&lt;') + '</span></span><span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
+            '<div class="tw-rc-body" hidden>' + x[4] + '</div></div>';
         }).join('');
       try { wrJoinShow(el.querySelector('.wr-join'), 0, 0); } catch(e) {}
       try { refDecorate('rules'); } catch(e) {}
       try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
+      try { twListify(el, kkR ? 'Жазу' : 'Письмо'); } catch(e) {}
     }
+    // ---------- 7.51: новые темы «Письма» ----------
+    function wrBidi(s) { return String(s).replace(/([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF][\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s+=·]*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]|[\u0600-\u06FF])/g, '<bdi dir="rtl" lang="ar" class="arabic wr-in">$1</bdi>'); }
+    function _wrLet(ch, kk) { var L = (typeof ARABIC_LETTERS !== 'undefined') ? ARABIC_LETTERS.find(function (x) { return x.ch === ch; }) : null; return '<button type="button" class="wr-let" data-wr-say="' + ch + '"><span class="arabic" dir="rtl" lang="ar">' + ch + '</span><small>' + (L ? (kk ? (L.nameKk || L.name) : L.name) : '') + '</small></button>'; }
+    function wrDotsHtml(kk) {
+      var G = [['بتثني', kk ? 'Бір «тіс»: ب астында 1 нүкте, ت үстінде 2, ث үстінде 3, ن үстінде 1, ي астында 2 (басы мен ортасында бірдей пішін)' : 'Один «зубец»: ب — 1 точка снизу, ت — 2 сверху, ث — 3 сверху, ن — 1 сверху, ي — 2 снизу (в начале и середине слова форма одна)'],
+        ['جحخ', kk ? 'ج — ішінде астында нүкте, ح — нүктесіз, خ — үстінде нүкте' : 'ج — точка внутри снизу, ح — без точки, خ — точка сверху'],
+        ['دذ', kk ? 'ذ — үстінде нүкте' : 'ذ — точка сверху'], ['رز', kk ? 'ز — үстінде нүкте' : 'ز — точка сверху'],
+        ['سش', kk ? 'ش — үстінде 3 нүкте' : 'ش — 3 точки сверху'], ['صض', kk ? 'ض — үстінде нүкте' : 'ض — точка сверху'],
+        ['طظ', kk ? 'ظ — үстінде нүкте' : 'ظ — точка сверху'], ['عغ', kk ? 'غ — үстінде нүкте' : 'غ — точка сверху'],
+        ['فق', kk ? 'ف — үстінде 1 нүкте, ق — үстінде 2 нүкте (құйрығы тереңірек)' : 'ف — 1 точка сверху, ق — 2 точки сверху (и хвост глубже)']];
+      return '<div class="ayah-translation" dir="ltr" style="text-align:left;margin-bottom:0.5rem">' + (kk ? 'Араб жазуында көп әріптің негізі бірдей — оларды тек нүктелердің саны мен орны ажыратады. Нүктеге қарап оқыңыз. Әріпті басыңыз — дыбысы.' : 'В арабском письме у многих букв одна и та же основа — различают их только число и место точек. Читая, смотрите на точки. Нажмите на букву — прозвучит.') + '</div>' +
+        G.map(function (g) { return '<div class="wr-grp"><div class="wr-lets" dir="rtl">' + g[0].split('').map(function (c) { return _wrLet(c, kk); }).join('') + '</div><div class="wr-note" dir="ltr">' + wrBidi(g[1]) + '</div></div>'; }).join('');
+    }
+    function wrLamAlifHtml(kk) {
+      var ex = [['لَا', kk ? 'лә — «жоқ»' : 'ля — «нет»'], ['إِلَّا', kk ? 'иллә — «тек»' : 'илля — «кроме»'], ['سَلَٰمٌ', kk ? 'сәләм — «бейбітшілік»' : 'салям — «мир»'], ['ٱلْأَرْضِ', kk ? 'әл-арди — «жер»' : 'аль-арди — «земля»']];
+      return '<div class="ayah-translation" dir="ltr" style="text-align:left">' + wrBidi(kk ? 'Ләмнен (ل) кейін әліп (ا) келсе, оларды қатар жазбайды — арнайы байлам «لا» шығады. Бұл бір әріп емес: оқылуы — «лә» (ләм + ұзын «а»). Әліпте һамза не мадда болса: لأ لإ لآ.' : 'Если после лям (ل) идёт алиф (ا), их не пишут подряд — получается особая связка «لا». Это не отдельная буква: читается «ля» (лям + долгое «а»). С хамзой или маддой над алифом: لأ لإ لآ.') + '</div>' +
+        '<div class="wr-lets" dir="rtl" style="margin:0.5rem 0"><span class="wr-big arabic" lang="ar">ل + ا = لا</span></div>' +
+        '<div class="wr-exs">' + ex.map(function (x) { return '<div class="wr-ex"><span class="arabic" dir="rtl" lang="ar">' + x[0] + '</span><small dir="ltr">' + x[1] + '</small></div>'; }).join('') + '</div>' +
+        '<div class="ayah-translation" dir="ltr" style="text-align:left;font-size:0.82rem">' + wrBidi(kk ? 'Сөз ортасында да солай: ـلا (мысалы, سَلَٰمٌ).' : 'В середине слова так же: ـلا (например, سَلَٰمٌ).') + '</div>';
+    }
+    function wrMaqsuraHtml(kk) {
+      return '<div class="wr-pair"><div><span class="wr-big arabic" lang="ar">ى</span><b dir="ltr">' + (kk ? 'Әліп-мақсура' : 'Алиф-максура') + '</b><small dir="ltr">' + (kk ? 'нүктесіз, тек сөз соңында; алдында фатха болса — ұзын «а»' : 'без точек, только в конце слова; если перед ней фатха — долгое «а»') + '</small><span class="arabic" dir="rtl" lang="ar">عَلَىٰ · هُدًى · مُوسَىٰ</span></div>' +
+        '<div><span class="wr-big arabic" lang="ar">ي</span><b dir="ltr">' + (kk ? 'Йа' : 'Йа') + '</b><small dir="ltr">' + (kk ? 'астында екі нүкте; «й» не ұзын «и»' : 'две точки снизу; «й» или долгое «и»') + '</small><span class="arabic" dir="rtl" lang="ar">يَوْمِ · فِيهِ · ٱلرَّحِيمِ</span></div></div>' +
+        '<div class="ayah-translation" dir="ltr" style="text-align:left;margin-top:0.5rem">' + wrBidi(kk ? 'Маңызды: мусхафта соңғы «йа» жиі нүктесіз жазылады (ى). Ережесі: алдында кәсра болса — ұзын «и» (فِى — «фии»), фатха болса — ұзын «а» (عَلَى — «аләә»).' : 'Важно: в мусхафе конечную «йа» часто пишут без точек (ى). Правило: если перед ней касра — долгое «и» (فِى — «фии»), если фатха — долгое «а» (عَلَى — «аляа»).') + '</div>';
+    }
+    function wrWaqfHtml(kk) {
+      var W = [['ۘ', kk ? 'Мим — міндетті тоқтау' : 'Мим — обязательно остановиться', kk ? 'жалғастырсаң, мағына бұзылуы мүмкін' : 'если продолжить, может исказиться смысл'],
+        ['ۙ', kk ? 'Лә — тоқтамаңыз' : 'Ля — не останавливаться', kk ? 'сөйлем жалғасады' : 'фраза продолжается'],
+        ['ۗ', kk ? 'Қилә — тоқтаған жақсы' : 'Кыля — лучше остановиться', kk ? 'жалғастыруға да болады' : 'но можно и продолжить'],
+        ['ۚ', kk ? 'Жим — екеуі де болады' : 'Джим — можно и так, и так', kk ? 'тоқтау да, жалғастыру да дұрыс' : 'и остановка, и продолжение верны'],
+        ['ۖ', kk ? 'Салә — жалғастырған жақсы' : 'Саля — лучше продолжить', kk ? 'тоқтауға да болады' : 'но остановиться можно'],
+        ['ۛ', kk ? 'Үш нүкте (жұп)' : 'Три точки (парные)', kk ? 'екі жердің біреуінде ғана тоқтаңыз' : 'остановиться только в одном из двух мест'],
+        ['۝', kk ? 'Аят соңы' : 'Конец аята', kk ? 'ішіндегі сан — аят нөмірі' : 'число внутри — номер аята']];
+      return '<div class="ayah-translation" dir="ltr" style="text-align:left;margin-bottom:0.5rem">' + (kk ? 'Мусхафта мәтін үстіндегі кішкентай белгілер қай жерде тоқтап, қай жерде жалғастыру керегін көрсетеді. Тоқтағанда соңғы дыбыс өзгереді (харакат түседі).' : 'Маленькие знаки над текстом мусхафа подсказывают, где остановиться, а где продолжать. При остановке последний звук меняется (огласовка на конце отпадает).') + '</div>' +
+        '<div class="wr-waqf" dir="ltr">' + W.map(function (w) { return '<div class="wr-wq"><span class="arabic" lang="ar" dir="rtl">' + (w[0] === '۝' ? '۝' : 'ـ' + w[0] + 'ـ') + '</span><div dir="ltr"><b>' + w[1] + '</b><small>' + w[2] + '</small></div></div>'; }).join('') + '</div>';
+    }
+    function wrDigitsHtml(kk) {
+      var D = '٠١٢٣٤٥٦٧٨٩'.split('');
+      return '<div class="ayah-translation" dir="ltr" style="text-align:left;margin-bottom:0.5rem">' + (kk ? 'Мусхафта аят нөмірлері осы цифрлармен жазылады. Мәтін оңнан солға оқылса да, сандар солдан оңға жазылады.' : 'Номера аятов в мусхафе пишутся этими цифрами. Хотя текст читается справа налево, числа пишутся слева направо.') + '</div>' +
+        '<div class="wr-digits">' + D.map(function (d, i) { return '<div><span class="arabic" lang="ar">' + d + '</span><small>' + i + '</small></div>'; }).join('') + '</div>' +
+        '<div class="wr-exs">' + [['٧', '7'], ['١١٤', '114'], ['٢٥٥', '255'], ['۝٢٥٥', kk ? '255-аят соңы' : 'конец аята 255']].map(function (x) { return '<div class="wr-ex"><span class="arabic" lang="ar" dir="ltr">' + x[0] + '</span><small dir="ltr">' + x[1] + '</small></div>'; }).join('') + '</div>';
+    }
+    document.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-wr-say]'); if (b) { try { var ch = b.getAttribute('data-wr-say'), L = ARABIC_LETTERS.find(function (x) { return x.ch === ch; }); speakLetter(ch, L ? L.name : ''); } catch (er) {} return; }
+      var g = e.target && e.target.closest && e.target.closest('[data-acad-go]'); if (g) { try { var tb = document.querySelector('#academy-main-tabs [data-acad-tab="' + g.getAttribute('data-acad-go') + '"]'); if (tb) tb.click(); } catch (er) {} }
+    });
+    // ---------- 7.51: список тем вместо «Подробнее/Скрыть» (как в Настройках) — для Письма и Таджвида ----------
+    function twListify(el, label) {
+      if (!el) return;
+      var cards = Array.prototype.slice.call(el.querySelectorAll('.rule-card.tw-rc'));
+      if (!cards.length) return;
+      el.classList.add('twl');
+      var list = document.createElement('div'); list.className = 'twl-list';
+      var lastSec = null;
+      cards.forEach(function (c) {
+        var sec = c.closest('.tw-group'), h = sec && sec.querySelector('.tw-group-title');
+        if (sec && sec !== lastSec && h) { var hh = document.createElement('div'); hh.className = 'twl-h'; hh.textContent = h.textContent; list.appendChild(hh); }
+        lastSec = sec;
+        var ti = c.querySelector('.tw-rc-title'), sh = c.querySelector('.tw-rc-short'), ico = c.getAttribute('data-twl-ico') || '';
+        var r = document.createElement('button'); r.type = 'button'; r.className = 'twl-row'; r.setAttribute('data-twl-open', c.getAttribute('data-rule-i'));
+        r.innerHTML = (ico ? '<span class="twl-ico" dir="rtl" lang="ar">' + ico + '</span>' : '') + '<span class="twl-t"><b>' + (ti ? ti.innerHTML : '') + '</b>' + (sh && sh.textContent.trim() ? '<small>' + sh.innerHTML + '</small>' : '') + '</span><span class="twl-chev">›</span>';
+        list.appendChild(r);
+      });
+      el.insertBefore(list, cards[0].closest('.tw-group') || cards[0]);
+      el.setAttribute('data-twl-label', label);
+    }
+    function twlOpen(el, id) {
+      var c = el.querySelector('.rule-card.tw-rc[data-rule-i="' + id + '"]'); if (!c) return;
+      el._twlY = window.scrollY;
+      el.classList.add('twl-open');
+      el.querySelectorAll('.twl-show').forEach(function (x) { x.classList.remove('twl-show'); });
+      c.classList.add('twl-show'); var sec = c.closest('.tw-group'); if (sec) sec.classList.add('twl-show');
+      try { _twToggleCard(c, true); } catch (e) {}
+      var bar = el.querySelector('.twl-back');
+      if (!bar) { bar = document.createElement('div'); bar.className = 'twl-back'; el.insertBefore(bar, el.firstChild); }
+      var ti = c.querySelector('.tw-rc-title');
+      bar.innerHTML = '<button type="button" data-twl-back="1">‹ ' + (el.getAttribute('data-twl-label') || '') + '</button><b>' + (ti ? ti.innerHTML : '') + '</b>';
+      try { el.scrollIntoView({ block: 'start' }); window.scrollBy(0, -70); } catch (e) {}
+    }
+    function twlClose(el) {
+      if (!el || !el.classList.contains('twl-open')) return false;
+      el.classList.remove('twl-open');
+      el.querySelectorAll('.twl-show').forEach(function (x) { x.classList.remove('twl-show'); });
+      try { window.scrollTo(0, el._twlY || 0); } catch (e) {}
+      return true;
+    }
+    window.twlCloseAny = function () { var o = document.querySelector('.twl.twl-open'); return o ? twlClose(o) : false; };
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      var o = t.closest('[data-twl-open]'); if (o) { twlOpen(o.closest('.twl'), o.getAttribute('data-twl-open')); return; }
+      if (t.closest('[data-twl-back]')) { twlClose(t.closest('.twl')); }
+    });
     // 6.98: Таджвид — правила по группам и свёрнуты (заголовок + одна строка), открываются по нажатию;
     // примеры подгружаются только у открытого правила
     const TW_GROUPS = [
@@ -15952,6 +16059,7 @@ function renderMistakes() {
         if (!cards) return '';
         var tree = g.tree === 'nun' ? _twTreeHtml(kkT2, TW_TREE_NUN, 'Что идёт после нун сакин (نْ) или танвина (ـً ـٍ ـٌ)?', 'Сукунды нун (نْ) немесе тәнуиннен (ـً ـٍ ـٌ) кейін не келеді?', rules)
           : g.tree === 'mim' ? _twTreeHtml(kkT2, TW_TREE_MIM, 'Что идёт после мим сакин (مْ)?', 'Сукунды мимнен (مْ) кейін не келеді?', rules) : '';
+        if (tree) tree = '<div class="rule-card tw-rc" data-rule-i="tree-' + g.tree + '" data-twl-ico="🌳"><button type="button" class="tw-rc-head" data-tw-toggle="tree-' + g.tree + '" dir="ltr" aria-expanded="false"><span class="tw-rc-text"><span class="tw-rc-title">' + (kkT2 ? 'Қай ереже? — сызба' : 'Какое правило? — схема') + '</span><span class="tw-rc-short">' + (kkT2 ? 'Келесі әріпке қарап таңдаңыз' : 'Выбор по следующей букве') + '</span></span><span class="tw-rc-chev" aria-hidden="true">▾</span></button><div class="tw-rc-body" hidden>' + tree + '</div></div>';
         return '<section class="tw-group"><h3 class="tw-group-title" dir="ltr">' + (kkT2 ? g.kk : g.ru) + '</h3>' + tree + cards + '</section>';
       };
       var html = TW_GROUPS.map(groupHtml).join('');
@@ -15962,6 +16070,7 @@ function renderMistakes() {
       try { loadTajweedData().then(function(d) { if (d && !el.dataset.twLoaded) { el.dataset.twLoaded = '1'; renderTajweed(); } }); } catch(e) {}
       try { if (typeof bindLesMore === 'function') bindLesMore(el); } catch(e) {}
       try { refDecorate('tajweed'); } catch(e) {}
+      try { twListify(el, kkT2 ? 'Тәжуид' : 'Таджвид'); } catch(e) {}
     }
     function _twToggleCard(card, forceOpen) {
       if (!card) return;
@@ -62235,7 +62344,7 @@ function getMyVocab() {
             bar.style.display = 'none';
             try { window.getSelection().removeAllRanges(); } catch(e) {}
           };
-        } else if (sel && words >= 1) {
+        } else if (false && sel && words >= 1) { // 7.51: «+ Слово / + Фраза» при выделении убрана — выскакивала при любом долгом нажатии
           if (!bar) {
             bar = document.createElement('div');
             bar.id = 'sel-add-bar';
