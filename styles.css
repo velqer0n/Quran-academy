@@ -4,11 +4,11 @@
       --bg-card: #151F1C;
       --bg-hover: #1C2925;
       --text: #ECEFEA;
-      --text-muted: #97A39D;
+      --text-muted: #A7B3AD;
       --accent: #3FB592;
       --accent-hover: #34A080;
       --gold: #D8B566;
-      --border: #26352F;
+      --border: #2E3E38;
       --arabic: #EEF1EC;
       --danger: #ef4444;
       --warning: #f59e0b;
@@ -5483,3 +5483,23 @@ html.ptr-off.ptr-top { touch-action: pan-x pan-y; }
   .qa-tl-ticks span:nth-child(even) { top: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .qa-sky-tile { transition: none; } }
+
+/* ===== 7.59: тема «Сумерки» — середина между светлой и тёмной; системные списки в цвет темы ===== */
+:root { color-scheme: dark; }
+body.theme-light { color-scheme: light; }
+body.theme-dusk {
+  color-scheme: dark;
+  --bg: #26302D;
+  --bg-card: #2F3B37;
+  --bg-hover: #384540;
+  --bg-elevated: #384540;
+  --text: #EEF1EC;
+  --text-muted: #B5C0BA;
+  --border: #46554F;
+  --arabic: #F2F4F0;
+  --accent: #5FCBA8;
+  --accent-hover: #4DB895;
+  --gold: #E0BF74;
+  --on-accent: #0b1f19;
+}
+body.theme-dusk header, body.theme-dusk .bottom-nav, body.theme-dusk .audio-bar { background: rgba(38, 48, 45, 0.95); }

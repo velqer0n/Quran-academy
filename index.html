@@ -149,7 +149,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#0E1513" />
   <!-- build 6.04: манифест PWA — без него браузер/конвертеры не понимают,
        что за приложение, какая иконка, имя, цвета. С ним сайт уже можно
        «Добавить на экран» как настоящее приложение (иконка, без адресной
@@ -161,13 +161,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>/* 7.50: экран загрузки — стили прямо в странице, чтобы он появлялся раньше всего остального */
-#qa-boot{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:#eef1f5;color:#1a2332;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;transition:opacity .3s}
-#qa-boot.qb-dark{background:#0f172a;color:#e2e8f0}
+#qa-boot{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:#F6F4EE;color:#17201C;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;transition:opacity .3s}
+#qa-boot.qb-dark{background:#0E1513;color:#ECEFEA}
+#qa-boot.qb-dusk{background:#26302D;color:#EEF1EC}
 #qa-boot .qb-in{display:flex;flex-direction:column;align-items:center;gap:.55rem;width:min(78vw,320px);text-align:center}
-#qa-boot .qb-moon{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;background:linear-gradient(135deg,#10b981,#0f766e)}
+#qa-boot .qb-moon{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;background:linear-gradient(135deg,#1d6b58,#0b2e27);color:#E7BE68}
 #qa-boot b{font-size:1.25rem}
 #qa-boot .qb-bar{width:100%;height:6px;border-radius:99px;background:rgba(127,127,127,.25);overflow:hidden}
-#qa-boot .qb-bar i{display:block;height:100%;width:0;background:#10b981;border-radius:99px;transition:width .35s ease}
+#qa-boot .qb-bar i{display:block;height:100%;width:0;background:#B8913F;border-radius:99px;transition:width .35s ease}
 #qa-boot small{font-size:.85rem;opacity:.8}
 #qa-boot .qb-hint{font-size:.75rem;opacity:.6}
 </style>
@@ -178,7 +179,7 @@
 <body class="hide-ui-hints">
   <!-- 7.50: экран загрузки прямо в странице — виден сразу, полоска растёт по мере загрузки файлов сайта -->
   <div id="qa-boot"><div class="qb-in"><div class="qb-moon">☪</div><b>Quran Academy</b><div class="qb-bar"><i id="qa-boot-bar"></i></div><small id="qa-boot-msg">Загрузка…</small><small class="qb-hint" id="qa-boot-hint">Первый запуск может занять до минуты, дальше будет быстрее.</small></div></div>
-  <script>(function(){try{var t=localStorage.getItem('quran_theme')||'light',b=document.getElementById('qa-boot');if(/^(dark|indigo|night|amber|ocean|forest|graphite|teal|nord|solard|gruvd|mocha|ghdim|oled|contrast)$/.test(t))b.className='qb-dark';var s=localStorage.getItem('quran-study-v1')||'';if(/"lang":"kk"/.test(s)){document.getElementById('qa-boot-msg').textContent='Жүктелуде…';document.getElementById('qa-boot-hint').textContent='Алғашқы іске қосу бір минутқа дейін созылуы мүмкін, кейін тезірек болады.';}}catch(e){}window.qaBoot=function(p){try{var i=document.getElementById('qa-boot-bar');if(i)i.style.width=p+'%';}catch(e){}};window.qaBoot(5);})();</script>
+  <script>(function(){try{var t=localStorage.getItem('quran_theme')||'light',b=document.getElementById('qa-boot');if(t==='dusk')b.className='qb-dusk';else if(/^(dark|indigo|night|amber|ocean|forest|graphite|teal|nord|solard|gruvd|mocha|ghdim|oled|contrast)$/.test(t))b.className='qb-dark';var s=localStorage.getItem('quran-study-v1')||'';if(/"lang":"kk"/.test(s)){document.getElementById('qa-boot-msg').textContent='Жүктелуде…';document.getElementById('qa-boot-hint').textContent='Алғашқы іске қосу бір минутқа дейін созылуы мүмкін, кейін тезірек болады.';}}catch(e){}window.qaBoot=function(p){try{var i=document.getElementById('qa-boot-bar');if(i)i.style.width=p+'%';}catch(e){}};window.qaBoot(5);})();</script>
 
   <div id="lock-screen">
     <div class="lock-box" id="lock-box">
@@ -204,7 +205,7 @@
         <button type="button" class="lock-btn-header" id="btn-header-prayertimes" title="Время намаза и кибла" style="display:none">🕐</button>
       </div>
       <nav id="main-nav">
-        <button data-view="dailyhub" class="active">Лента</button>
+        <button data-view="dailyhub" class="active">Главная</button>
         <button data-view="home">Суры</button>
         <button data-view="study">Учёба</button>
         <button data-view="bookmarks">Папки</button>
@@ -628,7 +629,7 @@
     </div>
 
     <div id="view-dailyhub" class="view">
-      <h2 class="section-title">Лента</h2>
+      <h2 class="section-title">Главная</h2>
       <div id="dailyhub-body"></div>
     </div>
 
@@ -1112,13 +1113,15 @@
           <span>Тема</span>
           <select id="setting-theme" style="display:none">
             <option value="light">Светлая</option>
+            <option value="dusk">Сумерки</option>
             <option value="dark">Тёмная</option>
           </select>
           <div class="size-pick-list" id="pick-theme">
             <button type="button" class="size-pick-item" data-v="light" style="background:#F6F4EE;color:#0F5E4E">Светлая</button>
+            <button type="button" class="size-pick-item" data-v="dusk" style="background:#26302D;color:#5FCBA8">Сумерки</button>
             <button type="button" class="size-pick-item" data-v="dark" style="background:#0E1513;color:#3FB592">Тёмная</button>
           </div>
-          <div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-top:0.35rem">Светлая — для дня, тёмная — для вечера и ночи.</div>
+          <div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-top:0.35rem">Светлая — для дня, «Сумерки» — мягкая середина, тёмная — для вечера и ночи.</div>
         </div>
         <div class="setting-row">
           <span>Авто «Тёмная» (22:00–6:00)</span>
@@ -1131,7 +1134,7 @@
           <span>Стартовый экран<br><small style="color:var(--text-muted);font-weight:400">Что открывается при заходе на сайт</small></span>
           <select id="setting-startup-view">
             <option value="last">Последний открытый раздел (по умолчанию)</option>
-            <option value="dailyhub">Лента</option>
+            <option value="dailyhub">Главная</option>
             <option value="home">Суры</option>
           </select>
         </div>
@@ -1496,7 +1499,7 @@
   <nav class="bottom-nav">
     <button data-view="dailyhub" class="active">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-      Лента
+      Главная
     </button>
     <button data-view="home">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
