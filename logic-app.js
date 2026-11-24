@@ -683,9 +683,35 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
       return surahTitle(num, eng);
     }
 
+    // 7.58: на компьютере меню слева — к главным вкладкам добавлены «Время намаза», «Как читать намаз»,
+    // «Данные», «Обновления» и «Настройки» (на телефоне этот блок скрыт стилями)
+    var SIDE_NAV_ITEMS = [
+      ['prayertimes', 'Время намаза', 'Намаз уақыты'], ['howsalah', 'Как читать намаз', 'Намаз оқу тәртібі'],
+      ['cache', 'Данные', 'Деректер'], ['changelog', 'Обновления', 'Жаңартулар'], ['settings', 'Настройки', 'Баптаулар']
+    ];
+    function renderSideNav(kk) {
+      var nav = document.getElementById('side-nav');
+      if (!nav) {
+        var main = document.getElementById('main-nav');
+        if (!main || !main.parentNode) return;
+        nav = document.createElement('nav');
+        nav.id = 'side-nav';
+        nav.setAttribute('aria-label', 'Разделы');
+        main.parentNode.insertBefore(nav, main.nextSibling);
+        nav.innerHTML = SIDE_NAV_ITEMS.map(function(it) { return '<button type="button" data-view="' + it[0] + '"></button>'; }).join('');
+        // общий обработчик [data-view] (если уже привязан) срабатывает раньше — тогда раздел уже открыт и здесь ничего не делаем
+        nav.addEventListener('click', function(e) {
+          var b = e.target.closest && e.target.closest('button[data-view]');
+          if (!b || window._qaView === b.dataset.view) return;
+          try { showView(b.dataset.view); } catch (er) {}
+        });
+      }
+      SIDE_NAV_ITEMS.forEach(function(it) { var b = nav.querySelector('[data-view="' + it[0] + '"]'); if (b) b.textContent = kk ? it[2] : it[1]; });
+    }
     function applyLanguage() {
       const lang = (state.settings && state.settings.lang) || 'ru';
       document.documentElement.lang = lang === 'kk' ? 'kk' : 'ru';
+      try { renderSideNav(lang === 'kk'); } catch (e) {}
       const isKk = lang === 'kk';
       // build 6.45: названия тем в настройках переключаются вместе с языком
       try {
@@ -25782,33 +25808,11 @@ function renderDictation(area) {
     });
 
     // Быстрый выбор темы из шапки — модалка со всеми темами
+    // 7.58: оставлены только две темы — светлая (по умолчанию) и тёмная, в новых цветах «изумруд и золото».
+    // Сохранённые старые темы applyTheme тихо переводит на ближайшую из двух.
     var THEME_LIST = [
-      { v: 'light', name: 'Светлая', kk: 'Жарық', bg: '#eef1f5', fg: '#1a2332', group: 'light' },
-      { v: 'eye', name: 'Зелёная для глаз', kk: 'Көзге жасыл', bg: '#cfe8d2', fg: '#1f6b42', group: 'light' },
-      { v: 'warm', name: 'Тёплая серая', kk: 'Жылы сұр', bg: '#e8e4de', fg: '#0f6b66', group: 'light' },
-      { v: 'soft', name: 'Мягкая', kk: 'Жұмсақ', bg: '#e8eaed', fg: '#174ea6', group: 'light' },
-      { v: 'paper', name: 'Бумага', kk: 'Қағаз', bg: '#f7f3ea', fg: '#b45309', group: 'light' },
-      { v: 'sepia', name: 'Сепия', kk: 'Сепия', bg: '#f4ecd8', fg: '#3e2723', group: 'light' },
-      { v: 'mint', name: 'Мята', kk: 'Жалбыз', bg: '#ecfdf5', fg: '#047857', group: 'light' },
-      { v: 'sage', name: 'Шалфей', kk: 'Шалфей', bg: '#faf7f0', fg: '#587750', group: 'light' },
-      { v: 'solarl', name: 'Solarized светлая', kk: 'Solarized жарық', bg: '#fdf6e3', fg: '#1b699c', group: 'light' },
-      { v: 'gruvl', name: 'Gruvbox светлая', kk: 'Gruvbox жарық', bg: '#fbf1c7', fg: '#9d4a05', group: 'light' },
-      { v: 'latte', name: 'Catppuccin Latte', kk: 'Catppuccin Latte', bg: '#eff1f5', fg: '#6b2fd6', group: 'light' },
-      { v: 'dark', name: 'Тёмная', kk: 'Қараңғы', bg: '#0f172a', fg: '#e2e8f0', group: 'dark' },
-      { v: 'indigo', name: 'Индиго', kk: 'Индиго', bg: '#181433', fg: '#a78bfa', group: 'dark' },
-      { v: 'night', name: 'Ночное', kk: 'Түнгі', bg: '#1c1917', fg: '#d6b27c', group: 'dark' },
-      { v: 'amber', name: 'Янтарь', kk: 'Янтарь', bg: '#1a1208', fg: '#f59e0b', group: 'dark' },
-      { v: 'ocean', name: 'Океан', kk: 'Мұхит', bg: '#0b1220', fg: '#38bdf8', group: 'dark' },
-      { v: 'forest', name: 'Лес', kk: 'Орман', bg: '#0f1a14', fg: '#4ade80', group: 'dark' },
-      { v: 'graphite', name: 'Графит', kk: 'Графит', bg: '#1b1f24', fg: '#8fb8a8', group: 'dark' },
-      { v: 'teal', name: 'Бирюза', kk: 'Көгілдір', bg: '#0d1f22', fg: '#5fc7bd', group: 'dark' },
-      { v: 'nord', name: 'Nord', kk: 'Nord', bg: '#2e3440', fg: '#88c0d0', group: 'dark' },
-      { v: 'solard', name: 'Solarized тёмная', kk: 'Solarized қараңғы', bg: '#002b36', fg: '#2eafa5', group: 'dark' },
-      { v: 'gruvd', name: 'Gruvbox тёмная', kk: 'Gruvbox қараңғы', bg: '#282828', fg: '#fabd2f', group: 'dark' },
-      { v: 'mocha', name: 'Catppuccin Mocha', kk: 'Catppuccin Mocha', bg: '#1e1e2e', fg: '#89b4fa', group: 'dark' },
-      { v: 'ghdim', name: 'GitHub Dimmed', kk: 'GitHub Dimmed', bg: '#22272e', fg: '#5fa2f6', group: 'dark' },
-      { v: 'oled', name: 'OLED', kk: 'OLED', bg: '#000000', fg: '#7fc8a0', group: 'special' },
-      { v: 'contrast', name: 'Контраст', kk: 'Контраст', bg: '#000000', fg: '#ffff00', group: 'special' }
+      { v: 'light', name: 'Светлая', kk: 'Жарық', bg: '#F6F4EE', fg: '#0F5E4E', group: 'light' },
+      { v: 'dark', name: 'Тёмная', kk: 'Қараңғы', bg: '#0E1513', fg: '#3FB592', group: 'dark' }
     ];
     var THEME_GROUP_LABELS = { light: { ru: 'Светлые', kk: 'Ашық' }, dark: { ru: 'Тёмные спокойные', kk: 'Қараңғы, жайлы' }, special: { ru: 'Особые (батарея, слабое зрение)', kk: 'Ерекше (батарея, көру қиындығы)' } };
 
@@ -25839,7 +25843,9 @@ function renderDictation(area) {
       var _kkT = (typeof isKk === 'function') && isKk();
       var _html = '';
       ['light','dark','special'].forEach(function(g) {
-        _html += '<div style="grid-column:1/-1;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin:0.5rem 0 0.15rem">' + (_kkT ? THEME_GROUP_LABELS[g].kk : THEME_GROUP_LABELS[g].ru) + '</div>';
+        var _cnt = THEME_LIST.filter(function(t) { return t.group === g; }).length;
+        if (!_cnt) return;
+        if (_cnt > 1) _html += '<div style="grid-column:1/-1;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin:0.5rem 0 0.15rem">' + (_kkT ? THEME_GROUP_LABELS[g].kk : THEME_GROUP_LABELS[g].ru) + '</div>';
         THEME_LIST.filter(function(t) { return t.group === g; }).forEach(function(t) {
           _html += '<div class="theme-pick-item' + (t.v === cur ? ' active' : '') + '" data-v="' + t.v + '" style="background:' + t.bg + ';color:' + t.fg + '"><div class="tp-aa">Аа <span dir="rtl">بِسْمِ</span></div><div class="tp-n">' + (t.v === cur ? '✓ ' : '') + (_kkT ? (t.kk || t.name) : t.name) + '</div></div>';
         });
@@ -31024,7 +31030,9 @@ function renderDict() {
       }
       // build 6.45: убраны «Роза», «Лаванда» и «Сланец» (неудобны для чтения);
       // у кого они были сохранены — переводим на ближайшую по яркости.
-      var _goneTheme = { rose: 'paper', lavender: 'soft', slate: 'dark' };
+      var _goneTheme = { rose: 'light', lavender: 'light', slate: 'dark' };
+      // 7.58: из 26 тем остались светлая и тёмная — светлые уходят в «Светлую», остальные в «Тёмную»
+      if (t !== 'light' && t !== 'dark' && !_goneTheme[t]) _goneTheme[t] = /^(eye|warm|soft|paper|sepia|mint|sage|solarl|gruvl|latte)$/.test(t) ? 'light' : 'dark';
       if (_goneTheme[t]) {
         t = _goneTheme[t]; state.settings.theme = t;
         try { localStorage.setItem('quran_theme', t); } catch(e) {}
@@ -41817,6 +41825,223 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       return null;
     }
 
+    // 7.58: «Небо» на главной — настоящее положение солнца и луны над выбранным городом,
+    // цвет неба по высоте солнца, звёзды, горы, шкала суток и просмотр любого часа ползунком.
+    var QA_SKY = { raf: 0, card: null };
+    function qaSkyAstro(ms, lat, lon) {
+      var RAD = Math.PI / 180, d = (ms - Date.UTC(2000, 0, 1, 12)) / 864e5;
+      function altAz(ra, dec) {
+        var lst = (280.46061837 + 360.98564736629 * d + lon) * RAD, H = lst - ra, la = lat * RAD;
+        var alt = Math.asin(Math.sin(la) * Math.sin(dec) + Math.cos(la) * Math.cos(dec) * Math.cos(H));
+        var az = Math.atan2(-Math.sin(H), Math.tan(dec) * Math.cos(la) - Math.sin(la) * Math.cos(H));
+        return { alt: alt / RAD, az: ((az / RAD) + 360) % 360 };
+      }
+      function eq(L, b) {
+        var e = (23.439 - 4e-7 * d) * RAD; L *= RAD; b = (b || 0) * RAD;
+        return { ra: Math.atan2(Math.sin(L) * Math.cos(e) - Math.tan(b) * Math.sin(e), Math.cos(L)), dec: Math.asin(Math.sin(b) * Math.cos(e) + Math.cos(b) * Math.sin(e) * Math.sin(L)) };
+      }
+      var g = (357.529 + 0.98560028 * d) * RAD, q = 280.459 + 0.98564736 * d;
+      var Ls = q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g);
+      var s = eq(Ls, 0), sun = altAz(s.ra, s.dec);
+      var Lm = 218.316 + 13.176396 * d, Mm = (134.963 + 13.064993 * d) * RAD, F = (93.272 + 13.229350 * d) * RAD;
+      var lm = Lm + 6.289 * Math.sin(Mm), bm = 5.128 * Math.sin(F);
+      var m = eq(lm, bm), moon = altAz(m.ra, m.dec);
+      var el = ((lm - Ls) % 360 + 360) % 360; // 0 — новолуние, 180 — полнолуние
+      moon.phase = el; moon.illum = (1 - Math.cos(el * RAD)) / 2;
+      return { sun: sun, moon: moon };
+    }
+    function qaSkyMoonName(ph, kk) {
+      var i = ph < 12 || ph > 348 ? 0 : ph < 85 ? 1 : ph < 95 ? 2 : ph < 170 ? 3 : ph < 190 ? 4 : ph < 265 ? 5 : ph < 275 ? 6 : 7;
+      return (kk ? ['жаңа ай', 'өсіп келе жатқан орақ ай', 'бірінші ширек', 'толып келе жатқан ай', 'толған ай', 'кеміп келе жатқан ай', 'соңғы ширек', 'кемістегі орақ ай']
+                 : ['новолуние', 'растущий серп', 'первая четверть', 'растущая луна', 'полнолуние', 'убывающая луна', 'последняя четверть', 'убывающий серп'])[i];
+    }
+    var QA_SKY_COLS = [[-90, '#03060f', '#070d1e'], [-18, '#050a1a', '#0d1733'], [-12, '#0a1533', '#1f2a55'], [-6, '#16295a', '#7a4f78'], [-2, '#27427a', '#e0836a'], [2, '#3d6aa6', '#f2a868'], [8, '#4a86c7', '#f3cf9a'], [20, '#3d82cf', '#a8d2ef'], [90, '#2a6fc4', '#8fc3ea']];
+    function qaSkyHex(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+    function qaSkyMixRGB(a, b, t) { return a.map(function(v, i) { return Math.round(v + (b[i] - v) * t); }); }
+    function qaSkyCols(alt) {
+      var C = QA_SKY_COLS;
+      for (var i = 1; i < C.length; i++) if (alt <= C[i][0]) {
+        var t = (alt - C[i - 1][0]) / (C[i][0] - C[i - 1][0]);
+        return ['rgb(' + qaSkyMixRGB(qaSkyHex(C[i - 1][1]), qaSkyHex(C[i][1]), t).join(',') + ')', 'rgb(' + qaSkyMixRGB(qaSkyHex(C[i - 1][2]), qaSkyHex(C[i][2]), t).join(',') + ')'];
+      }
+      return [C[C.length - 1][1], C[C.length - 1][2]];
+    }
+    function qaSkyRng(seed) { return function() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }; }
+    function qaSkyRidge(seed, n, rough) {
+      var r = qaSkyRng(seed), pts = [], v = 0.5;
+      for (var i = 0; i <= n; i++) { v += (r() - 0.5) * rough; v = Math.max(0, Math.min(1, v)); pts.push(v); }
+      for (var k = 0; k < 2; k++) pts = pts.map(function(p, i) { var a = i > 0 ? pts[i - 1] : p, b = i < pts.length - 1 ? pts[i + 1] : p; return (a + p * 2 + b) / 4; });
+      return pts;
+    }
+    var QA_SKY_R = null;
+    function qaSkyMount(card) {
+      if (!card) return;
+      if (QA_SKY.raf) { cancelAnimationFrame(QA_SKY.raf); QA_SKY.raf = 0; }
+      QA_SKY.card = card;
+      if (!QA_SKY_R) {
+        var sr = qaSkyRng(3), lr = qaSkyRng(11), st = [], li = [];
+        for (var i = 0; i < 160; i++) st.push([sr(), sr() * 0.8, sr() * 1.3 + 0.3, sr() * 6.28]);
+        for (var j = 0; j < 140; j++) li.push([lr(), lr(), lr()]);
+        QA_SKY_R = { r1: qaSkyRidge(7, 90, 0.55), r2: qaSkyRidge(29, 70, 0.45), r3: qaSkyRidge(51, 50, 0.3), stars: st, lights: li };
+      }
+      var kk = (typeof isKk === 'function') && isKk();
+      var lat = +card.dataset.skyLat, lon = +card.dataset.skyLon, base = +card.dataset.skyDay, live = card.dataset.skyLive === '1';
+      if (!isFinite(lat) || !isFinite(lon) || !base) return;
+      var times = (card.dataset.skyTimes || '').split(','), M = times.map(function(s) { var p = String(s || '').split(':'); return (+p[0] || 0) * 60 + (+p[1] || 0); });
+      var names = [tLabel('Фаджр'), tLabel('Восход'), tLabel('Зухр'), tLabel('Аср'), tLabel('Магриб'), tLabel('Иша')];
+      var cv = card.querySelector('.qa-sky-cv'), c = cv && cv.getContext('2d');
+      if (!c) return;
+      var head = card.querySelector('.qa-sky-head'), foot = card.querySelector('.qa-sky-foot');
+      var sunEl = card.querySelector('[data-sky-sun]'), moonEl = card.querySelector('[data-sky-moon]');
+      var tlBar = card.querySelector('.qa-tl-bar'), tlNow = card.querySelector('.qa-tl-now'), tlTicks = card.querySelector('.qa-tl-ticks');
+      var range = card.querySelector('.qa-sky-range'), playBtn = card.querySelector('.qa-sky-play'), nowBtn = card.querySelector('.qa-sky-now');
+      var W = 0, H = 0, RAD = Math.PI / 180;
+      var PATH = [], ALTMAX = 30, AZ0 = 120, AZ1 = 240;
+      for (var mm = 0; mm <= 1440; mm += 6) PATH.push(qaSkyAstro(base + mm * 60000, lat, lon).sun);
+      ALTMAX = Math.max(20, Math.max.apply(null, PATH.map(function(p) { return p.alt; })) * 1.12);
+      var up = PATH.filter(function(p) { return p.alt > 0; });
+      if (up.length > 1) { AZ0 = up[0].az; AZ1 = up[up.length - 1].az; if (AZ1 - AZ0 < 40) { AZ0 = 160; AZ1 = 200; } }
+      var MARKS = [[2, names[2]], [3, names[3]]].map(function(o) { return [qaSkyAstro(base + M[o[0]] * 60000, lat, lon).sun, o[1]]; });
+      function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+      function resize() {
+        var r = card.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+        W = r.width; H = r.height; cv.width = Math.max(1, Math.round(W * dpr)); cv.height = Math.max(1, Math.round(H * dpr)); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      function horizonY() { return Math.min(H * 0.72, foot.offsetTop + 28); }
+      function proj(alt, az) {
+        var hy = horizonY(), narrow = W < 700;
+        var top = narrow ? head.offsetTop + head.offsetHeight + 18 : Math.max(head.offsetTop + 40, H * 0.12);
+        var arcW = Math.min(W * (narrow ? 0.86 : 0.8), 1000), vr = Math.max(30, Math.min(hy - top, arcW / 2.5));
+        // внутри дуги солнца — линейно; восток/запад за её краями (луна) сжимаются к краям карточки
+        var xl = W / 2 - arcW / 2, xr = W / 2 + arcW / 2, x;
+        if (az < AZ0) x = xl - Math.min(1, (AZ0 - az) / 110) * (xl - 18);
+        else if (az > AZ1) x = xr + Math.min(1, (az - AZ1) / 110) * (W - 18 - xr);
+        else x = xl + (az - AZ0) / (AZ1 - AZ0) * arcW;
+        return [x, hy - (alt / ALTMAX) * vr];
+      }
+      function ridge(pts, yBase, h, col, snow) {
+        var n = pts.length - 1, step = Math.max(W / n, 13); h = Math.min(h, W * 0.17);
+        c.beginPath(); c.moveTo(0, H);
+        for (var i = 0; i <= n; i++) { c.lineTo(step * i, yBase - pts[i] * h); if (step * i > W) break; }
+        c.lineTo(W, H); c.closePath();
+        if (snow) { var gr = c.createLinearGradient(0, yBase - h, 0, yBase); gr.addColorStop(0, snow); gr.addColorStop(0.28, snow); gr.addColorStop(0.42, col); gr.addColorStop(1, col); c.fillStyle = gr; } else c.fillStyle = col;
+        c.fill();
+      }
+      var lastTxt = '';
+      function render(ms) {
+        if (!W || !H) return;
+        var s = qaSkyAstro(ms, lat, lon), sa = s.sun.alt, cols = qaSkyCols(sa), hy = horizonY(), R = QA_SKY_R;
+        var g = c.createLinearGradient(0, 0, 0, hy); g.addColorStop(0, cols[0]); g.addColorStop(1, cols[1]);
+        c.fillStyle = g; c.fillRect(0, 0, W, H);
+        var sp = proj(sa, s.sun.az);
+        if (sa > -14) {
+          var ga = clamp((sa + 14) / 14, 0, 1) * (sa > 15 ? 0.25 : 0.55), gl = c.createRadialGradient(sp[0], hy, 0, sp[0], hy, W * 0.6);
+          gl.addColorStop(0, 'rgba(255,190,120,' + ga + ')'); gl.addColorStop(1, 'rgba(255,190,120,0)'); c.fillStyle = gl; c.fillRect(0, 0, W, hy);
+        }
+        var starA = clamp((-sa - 4) / 12, 0, 1), tt = performance.now() / 1000;
+        if (starA > 0) R.stars.forEach(function(st) { var tw = 0.6 + 0.4 * Math.sin(tt * 1.3 + st[3]); c.fillStyle = 'rgba(255,255,255,' + (starA * tw * 0.9).toFixed(3) + ')'; c.beginPath(); c.arc(st[0] * W, st[1] * hy, st[2] * 0.8, 0, 6.3); c.fill(); });
+        c.save(); c.setLineDash([2, 6]); c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 1.4; c.beginPath();
+        var st0 = false;
+        PATH.forEach(function(p) { if (p.alt > -1) { var q = proj(p.alt, p.az); if (!st0) { c.moveTo(q[0], q[1]); st0 = true; } else c.lineTo(q[0], q[1]); } });
+        c.stroke(); c.restore();
+        c.font = '500 12px Inter, system-ui, sans-serif'; c.textAlign = 'center';
+        MARKS.forEach(function(o) { var q = proj(Math.max(o[0].alt, 0), o[0].az); c.fillStyle = 'rgba(255,255,255,0.85)'; c.beginPath(); c.arc(q[0], q[1], 3.5, 0, 6.3); c.fill(); if (sa < -4 || Math.hypot(q[0] - sp[0], q[1] - sp[1]) > 46) c.fillText(o[1], q[0], q[1] - 12); });
+        var mo = s.moon;
+        if (mo.alt > -3) {
+          var mp = proj(Math.min(mo.alt, ALTMAX * 0.92), mo.az), r = Math.max(11, W * 0.014);
+          mp[0] = clamp(mp[0], r + 6, W - r - 6);
+          var mg = c.createRadialGradient(mp[0], mp[1], 0, mp[0], mp[1], r * 4); mg.addColorStop(0, 'rgba(230,235,255,' + (0.25 * starA + 0.05) + ')'); mg.addColorStop(1, 'rgba(230,235,255,0)');
+          c.fillStyle = mg; c.fillRect(mp[0] - r * 4, mp[1] - r * 4, r * 8, r * 8);
+          c.save(); c.translate(mp[0], mp[1]);
+          c.fillStyle = 'rgba(30,40,70,' + (0.35 + 0.4 * starA) + ')'; c.beginPath(); c.arc(0, 0, r, 0, 6.3); c.fill();
+          // освещённая часть: справа у растущей луны, слева у убывающей
+          var k = Math.cos(mo.phase * RAD); if (mo.phase >= 180) c.scale(-1, 1);
+          c.shadowColor = 'rgba(255,250,230,0.6)'; c.shadowBlur = r * 0.8; c.fillStyle = '#F4F1E6'; c.beginPath();
+          c.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
+          if (k < 0) c.ellipse(0, 0, -k * r, r, 0, Math.PI / 2, Math.PI * 1.5, false); else c.ellipse(0, 0, Math.max(k * r, 0.01), r, 0, Math.PI / 2, -Math.PI / 2, true);
+          c.fill(); c.shadowBlur = 0;
+          c.fillStyle = 'rgba(150,150,140,0.18)'; [[-0.3, -0.2, 0.22], [0.25, 0.3, 0.16], [0.1, -0.45, 0.12]].forEach(function(z) { c.beginPath(); c.arc(z[0] * r, z[1] * r, z[2] * r, 0, 6.3); c.fill(); });
+          c.restore();
+        }
+        if (sa > -4) {
+          var rs = Math.max(14, W * 0.018), warm = clamp(sa / 20, 0, 1);
+          var sg = c.createRadialGradient(sp[0], sp[1], 0, sp[0], sp[1], rs * 5); sg.addColorStop(0, 'rgba(255,230,160,0.65)'); sg.addColorStop(0.3, 'rgba(255,200,120,0.22)'); sg.addColorStop(1, 'rgba(255,200,120,0)');
+          c.fillStyle = sg; c.beginPath(); c.arc(sp[0], sp[1], rs * 5, 0, 6.3); c.fill();
+          c.fillStyle = 'rgb(' + qaSkyMixRGB([255, 150, 80], [255, 240, 200], warm).join(',') + ')'; c.beginPath(); c.arc(sp[0], sp[1], rs, 0, 6.3); c.fill();
+        }
+        var day = clamp((sa + 8) / 20, 0, 1);
+        function mc(n, d2) { return 'rgb(' + qaSkyMixRGB(n, d2, day).join(',') + ')'; }
+        ridge(R.r1, hy + H * 0.01, H * 0.15, mc([34, 44, 78], [124, 146, 182]), 'rgba(255,255,255,' + (0.25 + 0.6 * day).toFixed(2) + ')');
+        ridge(R.r2, hy + H * 0.06, H * 0.10, mc([20, 28, 52], [62, 92, 110]));
+        var lightA = clamp((-sa + 2) / 10, 0, 1);
+        if (lightA > 0) R.lights.forEach(function(l) { c.fillStyle = 'rgba(255,' + (190 + l[2] * 50 | 0) + ',120,' + (lightA * (0.4 + 0.6 * l[2])).toFixed(2) + ')'; c.fillRect(l[0] * W, hy + H * 0.05 + l[1] * (H - hy), 1.6, 1.6); });
+        ridge(R.r3, H * 0.99, H * 0.08, mc([10, 14, 28], [30, 50, 52]));
+        var sh = c.createLinearGradient(0, H * 0.55, 0, H); sh.addColorStop(0, 'rgba(5,8,18,0)'); sh.addColorStop(1, 'rgba(5,8,18,0.55)'); c.fillStyle = sh; c.fillRect(0, H * 0.55, W, H * 0.45);
+        var lf = c.createLinearGradient(0, 0, W * 0.5, 0); lf.addColorStop(0, 'rgba(5,8,18,0.28)'); lf.addColorStop(1, 'rgba(5,8,18,0)'); c.fillStyle = lf; c.fillRect(0, 0, W * 0.5, H * 0.6);
+        var txt = (sa > 0 ? (kk ? 'көкжиектен жоғары, ' : 'над горизонтом, ') : (kk ? 'көкжиектен төмен, ' : 'под горизонтом, ')) + Math.round(sa) + '°|' + qaSkyMoonName(mo.phase, kk) + ', ' + Math.round(mo.illum * 100) + '%';
+        if (txt !== lastTxt) { lastTxt = txt; var p2 = txt.split('|'); if (sunEl) sunEl.textContent = p2[0]; if (moonEl) moonEl.textContent = p2[1]; }
+      }
+      // шкала суток цветом неба
+      try {
+        var stops = [];
+        for (var x = 0; x <= 1440; x += 30) stops.push(qaSkyCols(qaSkyAstro(base + x * 60000, lat, lon).sun.alt)[1] + ' ' + (x / 14.4).toFixed(2) + '%');
+        if (tlBar) tlBar.style.background = 'linear-gradient(90deg,' + stops.join(',') + ')';
+        if (tlTicks) tlTicks.innerHTML = names.map(function(n, i) { return '<span style="left:' + (M[i] / 14.4).toFixed(2) + '%">' + n + '</span>'; }).join('');
+      } catch (e) {}
+      var sim = live ? null : 720, playing = false;
+      var playSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>', pauseSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>';
+      function setPlay() { if (playBtn) playBtn.innerHTML = playing ? pauseSvg : playSvg; }
+      function curMin() { return sim === null ? (Date.now() - base) / 60000 : sim; }
+      if (nowBtn) { nowBtn.hidden = live; nowBtn.addEventListener('click', function() { sim = live ? null : 720; playing = false; setPlay(); nowBtn.hidden = live; }); }
+      if (range) range.addEventListener('input', function() { sim = +range.value; playing = false; setPlay(); if (nowBtn) nowBtn.hidden = false; });
+      if (playBtn) playBtn.addEventListener('click', function() { playing = !playing; if (playing && sim === null) sim = ((curMin() % 1440) + 1440) % 1440; if (nowBtn) nowBtn.hidden = false; setPlay(); });
+      // свайп по ползунку не листает дни
+      card.querySelectorAll('.qa-sky-scrub').forEach(function(sc) { ['touchstart', 'touchend'].forEach(function(ev) { sc.addEventListener(ev, function(e) { e.stopPropagation(); }, { passive: true }); }); });
+      var reduce = document.body.classList.contains('reduce-motion') || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      var last = performance.now(), lastDraw = 0;
+      function frame(now) {
+        if (!card.isConnected || QA_SKY.card !== card) { QA_SKY.raf = 0; return; }
+        QA_SKY.raf = requestAnimationFrame(frame);
+        var dt = now - last; last = now;
+        if (playing) sim = (sim + dt / 1000 * 72) % 1440;
+        if (document.hidden) return;
+        var gap = playing ? 0 : (reduce ? 30000 : 90);
+        if (now - lastDraw < gap) return;
+        lastDraw = now;
+        var m2 = curMin(), mDay = ((m2 % 1440) + 1440) % 1440;
+        if (range && document.activeElement !== range) range.value = Math.floor(mDay);
+        if (tlNow) tlNow.style.left = (mDay / 14.4) + '%';
+        if (W !== card.clientWidth || H !== card.clientHeight) resize();
+        render(base + m2 * 60000);
+      }
+      resize();
+      QA_SKY.raf = requestAnimationFrame(frame);
+    }
+    // 7.58: смена страны/города прямо на главной — сразу сохраняется
+    function qaPlaceBind(root) {
+      var cs = root.querySelector('#dh-country'), ct = root.querySelector('#dh-city');
+      if (!cs || !ct || typeof PRAYER_COUNTRIES === 'undefined') return;
+      cs.addEventListener('change', function() {
+        var cc = PRAYER_COUNTRIES[cs.value];
+        ct.innerHTML = '<option value="">' + tLabel('— Выберите —') + '</option>' + ((cc && cc.cities) || []).map(function(x) { return '<option value="' + x.lat + '|' + x.lon + '|' + String(x.n).replace(/"/g, '&quot;') + '">' + tLabel(x.n) + '</option>'; }).join('');
+        try { ct.focus(); } catch (e) {}
+      });
+      ct.addEventListener('change', function() {
+        var p = (ct.value || '').split('|');
+        if (p.length < 2) return;
+        var oldC = (state.prayerLoc && state.prayerLoc.country) || 'KZ', newC = cs.value;
+        try {
+          var curM = state.settings.prayerMethod || 'DUMK', oldRec = PT_METHOD_REC[oldC] || 'MWL', newRec = PT_METHOD_REC[newC] || 'MWL';
+          if (newC !== oldC && curM === oldRec) state.settings.prayerMethod = newRec;
+        } catch (e) {}
+        state.prayerLoc = { lat: +p[0], lon: +p[1], city: p[2] || '', country: newC };
+        window._ptWorking = null; window._ptMethodWorking = null; window._dhPrayerDayOff = 0; state._dhSelectedPrayerKey = null;
+        saveState();
+        try { if (typeof schedulePrayerNotifications === 'function') schedulePrayerNotifications(); } catch (e) {}
+        try { toast((isKk() ? 'Қала: ' : 'Город: ') + tLabel(p[2] || '')); } catch (e) {}
+        renderDailyHub();
+      });
+    }
     function renderDailyHub() {
       const el = document.getElementById('dailyhub-body');
       if (!el) return;
@@ -41938,49 +42163,50 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
               let countdownHtml = '';
               if (info) {
                 const label = kk ? info.kkLabel : info.ruLabel;
-                const frac = (typeof prayerProgressFraction === 'function') ? prayerProgressFraction(info) : null;
-                const icon = (typeof PRAYER_ICONS !== 'undefined' && PRAYER_ICONS[info.key]) || '🕌';
-                const untilWord = selKey ? (kk ? 'дейін' : 'До выбранного —') : (kk ? 'Келесіге дейін' : 'До ближайшего —');
-                countdownHtml = '<div style="margin-top:0.65rem;padding:0.75rem 0.85rem;border-radius:0.85rem;background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb, var(--accent) 78%, #000) 100%);box-shadow:0 4px 14px rgba(0,0,0,0.12)">' +
-                  '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">' +
-                  '<span style="color:rgba(255,255,255,0.92);font-size:0.78rem;font-weight:500">' + icon + ' ' + untilWord + ' ' + label + (info.isTomorrow ? (' <span style="opacity:0.75">(' + (kk ? 'ертең' : 'завтра') + ')</span>') : '') + '</span>' +
-                  '<span style="color:rgba(255,255,255,0.8);font-size:0.75rem;font-variant-numeric:tabular-nums">' + info.time + '</span>' +
-                  '</div>' +
-                  '<div id="dh-prayer-countdown" data-until="' + info.whenDate.getTime() + '" style="color:#fff;font-size:1.9rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:0.03em;margin-top:0.15rem;text-shadow:0 1px 3px rgba(0,0,0,0.15)">' + formatCountdownHMS(info.diffMs) + '</div>' +
-                  (frac != null ? '<div style="height:5px;background:rgba(255,255,255,0.28);border-radius:3px;margin-top:0.5rem;overflow:hidden"><div id="dh-prayer-progress" style="height:100%;width:' + Math.round(frac*100) + '%;background:#fff;border-radius:3px;transition:width 0.6s linear"></div></div>' : '') +
-                  (selKey ? '<div data-reset-prayer-dh="1" style="color:rgba(255,255,255,0.9);font-size:0.7rem;margin-top:0.35rem;text-decoration:underline;cursor:pointer">' + (kk ? '↻ Автоматты режимге қайту (жақындағыға)' : '↻ Вернуться к ближайшему намазу') + '</div>' : '') +
-                  '</div>';
+                const untilWord = selKey ? (kk ? 'Таңдалғанға дейін: ' : 'До выбранного: ') : (kk ? 'Жақынына дейін: ' : 'До ближайшего: ');
+                countdownHtml = '<div class="qa-sky-label">' + untilWord + label + (info.isTomorrow ? (' (' + (kk ? 'ертең' : 'завтра') + ')') : '') + ' · ' + info.time + '</div>' +
+                  '<div id="dh-prayer-countdown" class="qa-sky-count" data-until="' + info.whenDate.getTime() + '">' + formatCountdownHMS(info.diffMs) + '</div>' +
+                  (selKey ? '<div data-reset-prayer-dh="1" class="qa-sky-reset">' + (kk ? '↻ Жақындағы намазға қайту' : '↻ Вернуться к ближайшему намазу') + '</div>' : '');
               }
-              // 2 в ряд, 3+ строки — каждая карточка кликабельна для выбора отсчёта
-              prayerMini = '<div class="card" data-pt-swipe="1" data-no-swipe="1" style="margin-bottom:0.75rem;overflow:hidden">' +
-              '<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" data-go="prayertimes"><b>🕌 '+tLabel('Намаз')+' · '+(loc.city||'')+'</b><span style="color:var(--text-muted);font-size:0.78rem">'+(kk?'Толығырақ →':'Подробнее →')+'</span></div>' +
-              dhNav +
-              countdownHtml +
-              '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;margin-top:0.65rem">' +
-              cells.map(function(triple){
+              // 7.58: карточки времени — стеклянные плитки поверх неба; клик выбирает отсчёт (как раньше)
+              const tilesHtml = cells.map(function(triple){
                 const key = triple[0];
-                const icon = (typeof PRAYER_ICONS !== 'undefined' && PRAYER_ICONS[key]) || '';
                 const isActive = info && info.key === key && (selKey ? true : !info.isTomorrow);
-                // build 5.75: прошедшие сегодня намазы — сероватые, чтобы сразу
-                // было видно, что время уже позади (тот же принцип, что и в
-                // полном разделе «Время намаза»).
                 const timeDate = (dhOff === 0 && typeof parseHM === 'function') ? parseHM(triple[2], new Date()) : null;
-                let isPast = !isActive && timeDate && timeDate.getTime() < Date.now();
-                // build 6.44: тахаджуд — ночью, после полуночи, и показан на ближайшую ночь. Пока его время ещё не
-                // наступило, цвет обычный; серым он становится, только когда уже начался (после его начала и до фаджра).
-                if (key === 'tahajjud' && timeDate) {
-                  const _fjD = (typeof parseHM === 'function') ? parseHM(t.fajr, new Date()) : null;
-                  const _nowMs = Date.now();
-                  isPast = false; // build 6.50: тахаджуд никогда не серый
-                }
-                const cellStyle = isActive
-                  ? 'background:var(--accent);border:1px solid var(--accent);border-radius:0.6rem;padding:0.5rem 0.6rem;font-size:0.82rem;cursor:pointer;transition:transform 0.15s'
-                  : ('background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.5rem 0.6rem;font-size:0.82rem;cursor:pointer;transition:transform 0.15s' + (isPast ? ';border-style:dashed' : ''));
-                const labelStyle = isActive ? 'color:rgba(255,255,255,0.88)' : 'color:var(--text-muted)';
-                const valStyle = isActive ? 'font-size:1.08rem;color:#fff' : ('font-size:1.08rem' + (isPast ? ';color:var(--text-muted)' : ''));
-                return '<div data-select-prayer="'+key+'" data-ts="'+(timeDate ? timeDate.getTime() : '')+'" data-act="'+(isActive ? '1' : '0')+'" style="'+cellStyle+'"><span style="'+labelStyle+'">'+icon+' '+triple[1]+(isActive?' ✦':'')+'</span><br><b style="'+valStyle+'">'+triple[2]+'</b>'+(key === 'tahajjud' ? '<div style="font-size:0.68rem;opacity:0.8;line-height:1.3;margin-top:0.1rem">'+(kk ? 'түнде, түн ортасынан кейін' : 'ночью, после полуночи')+'</div>' : '')+'</div>';
-              }).join('') +
-              '</div></div>';
+                const isPast = key !== 'tahajjud' && !isActive && timeDate && timeDate.getTime() < Date.now();
+                return '<div class="qa-sky-tile' + (isActive ? ' cur' : '') + '" data-select-prayer="' + key + '" data-ts="' + (timeDate ? timeDate.getTime() : '') + '" data-act="' + (isActive ? '1' : '0') + '" role="button" tabindex="0"' + (isPast ? ' style="opacity:0.5"' : '') + '><span>' + triple[1] + '</span><b>' + triple[2] + '</b>' +
+                  (key === 'tahajjud' ? '<small>' + (kk ? 'түнде, түн ортасынан кейін' : 'ночью, после полуночи') + '</small>' : '') + '</div>';
+              }).join('');
+              // 7.58: страна и город — прямо на главной
+              const pcKey = loc.country || 'KZ';
+              const pcCities = (typeof PRAYER_COUNTRIES !== 'undefined' && PRAYER_COUNTRIES[pcKey] && PRAYER_COUNTRIES[pcKey].cities) || [];
+              const escC = function(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+              const placeRow = '<div class="qa-place">' +
+                '<svg class="qa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>' +
+                '<label class="qa-place-f"><span>' + tLabel('Страна') + '</span><select id="dh-country">' +
+                (typeof PRAYER_COUNTRIES !== 'undefined' ? Object.keys(PRAYER_COUNTRIES).map(function(k){ return '<option value="' + k + '"' + (k === pcKey ? ' selected' : '') + '>' + tLabel(PRAYER_COUNTRIES[k].name) + '</option>'; }).join('') : '') +
+                '</select></label>' +
+                '<label class="qa-place-f"><span>' + tLabel('Город') + '</span><select id="dh-city">' +
+                (loc.city && !pcCities.some(function(c){ return c.n === loc.city; }) ? '<option value="" selected>' + escC(loc.city === 'GPS' ? (kk ? 'Менің орным' : 'Моё место') : loc.city) + '</option>' : '') +
+                pcCities.map(function(c){ return '<option value="' + c.lat + '|' + c.lon + '|' + escC(c.n) + '"' + (loc.city === c.n ? ' selected' : '') + '>' + tLabel(c.n) + '</option>'; }).join('') +
+                '</select></label>' +
+                '<button type="button" class="qa-place-more" data-go="prayertimes">' + (kk ? 'Толығырақ' : 'Подробнее') + '</button></div>';
+              let skyDay = 0, skyTz = 0;
+              try { skyTz = getPlaceTz(+loc.lat, +loc.lon, dhDate); const w = ptWall(dhDate, skyTz); skyDay = Date.UTC(w.getFullYear(), w.getMonth(), w.getDate()) - skyTz * 3600000; } catch (e) {}
+              const playSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>';
+              prayerMini = placeRow +
+                '<div class="card qa-sky" data-pt-swipe="1" data-no-swipe="1" data-sky-lat="' + (+loc.lat) + '" data-sky-lon="' + (+loc.lon) + '" data-sky-day="' + skyDay + '" data-sky-live="' + (dhOff === 0 ? '1' : '0') + '" data-sky-times="' + [t.fajr, t.sunrise, t.dhuhr, t.asr, t.maghrib, t.isha].join(',') + '">' +
+                '<canvas class="qa-sky-cv" aria-hidden="true"></canvas>' +
+                '<div class="qa-sky-head"><div class="qa-sky-text">' + dhNav + countdownHtml + '</div>' +
+                '<div class="qa-sky-info"><div><span>' + (kk ? 'Күн' : 'Солнце') + '</span><b data-sky-sun>—</b></div><div><span>' + (kk ? 'Ай' : 'Луна') + '</span><b data-sky-moon>—</b></div></div></div>' +
+                '<div class="qa-sky-gap"></div>' +
+                '<div class="qa-sky-foot">' +
+                '<div class="qa-tl" aria-hidden="true"><div class="qa-tl-bar"></div><div class="qa-tl-now"></div><div class="qa-tl-ticks"></div></div>' +
+                '<div class="qa-sky-scrub"><button type="button" class="qa-sky-play" aria-label="' + (kk ? 'Бүкіл күнді көрсету' : 'Показать весь день') + '">' + playSvg + '</button>' +
+                '<input type="range" class="qa-sky-range" min="0" max="1439" step="1" aria-label="' + (kk ? 'Аспанды көру уақыты' : 'Время суток для просмотра неба') + '">' +
+                '<button type="button" class="qa-sky-now" hidden>' + (kk ? 'Қазір' : 'Сейчас') + '</button></div>' +
+                '<div class="qa-sky-tiles' + (cells.length > 6 ? ' n7' : '') + '">' + tilesHtml + '</div>' +
+                '</div></div>';
           }
         }
       } catch(e) { prayerMini = ''; }
@@ -42144,6 +42370,8 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
             '<div style="color:rgba(255,255,255,0.9);font-size:0.82rem;font-style:italic">'+wishText+'</div></div>') : '') +
           (dateLabel ? '<div class="dh-greet-more" style="color:rgba(255,255,255,0.85);font-size:0.8rem;text-transform:capitalize;margin-top:0.25rem'+(greetCollapsed?';display:none':'')+'">'+dateLabel+'</div>' : '') +
           '</div></div>';
+        // 7.58: приветствие и пожелание убраны с главной (меньше места); остаётся только строка в Джуму и Айт
+        greetingBar = special ? '<div class="qa-special">' + greetText + '</div>' : '';
       } catch(e) {}
       // build 5.76: скрытые долгим нажатием виджеты (не то же самое, что
       // порядок — «Порядок» ничего не убирает, только переставляет).
@@ -42416,6 +42644,8 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       // отсчёта; повторный клик по уже выбранной — снять выбор (вернуться
       // к автоматическому «ближайшему»).
       // build 6.41: свайп влево/вправо по карточке намаза и кнопки ‹ › — другие дни; общий свайп вкладок здесь не срабатывает (data-no-swipe)
+      try { el.querySelectorAll('.qa-sky').forEach(function(c) { qaSkyMount(c); }); } catch (e) {}
+      try { qaPlaceBind(el); } catch (e) {}
       el.querySelectorAll('[data-pt-swipe][data-no-swipe]').forEach(function(card) {
         let sx = 0, sy = 0, st = 0, on = false;
         card.addEventListener('touchstart', function(e) { if (!e.touches || !e.touches[0]) return; sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); on = true; }, { passive: true });
