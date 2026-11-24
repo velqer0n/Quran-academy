@@ -9228,6 +9228,12 @@ function speakLetter(ch, name, ttsOnly) {
       box.querySelector('.hkq-opts').innerHTML = shuffle(opts).map(function(o) { return '<button type="button" class="btn btn-sm hkq-opt" data-hkq="' + o + '">' + _hkTr(o) + '</button>'; }).join('');
       box.querySelector('.hkq-res').textContent = '';
     }
+    document.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-hk-qw]'); if (!b) return;
+      var p = b.getAttribute('data-hk-qw').split(':');
+      try { if (window._hkQA) window._hkQA.pause(); window._hkQA = new Audio(wbwAudioUrl(+p[0], +p[1], +p[2])); document.querySelectorAll('.hk-qw.on').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on');
+        window._hkQA.addEventListener('ended', function () { b.classList.remove('on'); }); window._hkQA.play().catch(function () { b.classList.remove('on'); toast(isKk() ? 'Дыбыс жүктелмеді — интернетті тексеріңіз' : 'Звук не загрузился — нужен интернет'); }); } catch (er) {}
+    });
     function renderHarakat() {
       const el = document.getElementById('learn-harakat');
       if (!el) return;
@@ -9249,6 +9255,18 @@ function speakLetter(ch, name, ttsOnly) {
               return '<button type="button" class="hk-len-btn" data-hk-say="' + x + '" data-hk-slow="1"><span class="hk-cell-ar" dir="rtl" lang="ar">' + x + '</span><span class="hk-bar"><i style="width:' + (i ? 100 : 50) + '%"></i></span><span class="hk-cell-tr">' + _hkTr(x) + ' · ' + (i ? (kkH ? '2 санақ' : '2 счёта') : (kkH ? '1 санақ' : '1 счёт')) + '</span></button>';
             }).join('') + '</div>';
           }).join('') + '</div>' +
+        // 7.49: «Как звучит в Коране» — каждый знак на настоящем слове голосом чтеца (пословные записи quran.com)
+        (function () {
+          var EX = [['Фатха', 'Фатха', 'خَلَقَ', 96, 2, 1], ['Касра', 'Кәсра', 'بِسْمِ', 1, 1, 1], ['Дамма', 'Дамма', 'قُلْ', 112, 1, 1], ['Сукун', 'Сукун', 'لَمْ', 112, 3, 1],
+            ['Шадда', 'Шәдда', 'بِرَبِّ', 114, 1, 3], ['Танвин -ун', 'Тәнуин -ун', 'أَحَدٌ', 112, 1, 4], ['Танвин -ан', 'Тәнуин -ан', 'كُفُوًا', 112, 4, 4], ['Танвин -ин', 'Тәнуин -ин', 'حَاسِدٍ', 113, 5, 3],
+            ['Долгое «аа»', 'Ұзын «аа»', 'ٱلنَّاسِ', 114, 1, 4], ['Долгое «ии»', 'Ұзын «ии»', 'ٱلرَّحِيمِ', 1, 1, 4], ['Долгое «уу»', 'Ұзын «уу»', 'يُولَدْ', 112, 3, 4]];
+          return '<div class="card hk-quran"><b>🎧 ' + (kkH ? 'Құранда қалай естіледі' : 'Как звучит в Коране') + '</b>' +
+            '<div class="ayah-translation" style="font-size:0.8rem;margin:0.2rem 0 0.45rem;text-align:left" dir="ltr">' + (kkH ? 'Әр белгі — Құрандағы нақты сөзде, қаридің дауысымен. Басыңыз — тыңдаңыз.' : 'Каждый знак — на настоящем слове из Корана, голосом чтеца. Нажмите — послушайте.') + '</div>' +
+            '<div class="hk-qgrid">' + EX.map(function (x) {
+              var tl = ''; try { tl = window.arTransFull ? window.arTransFull(x[2]) : ''; } catch (e) {}
+              return '<button type="button" class="hk-qw" data-hk-qw="' + x[3] + ':' + x[4] + ':' + x[5] + '"><small dir="ltr">' + (kkH ? x[1] : x[0]) + '</small><span class="arabic" dir="rtl" lang="ar">' + x[2] + '</span>' + (tl ? '<i dir="ltr">' + String(tl).replace(/</g, '&lt;') + '</i>' : '') + '<em dir="ltr">▶ ' + x[3] + ':' + x[4] + '</em></button>';
+            }).join('') + '</div></div>';
+        })() +
         // карточки знаков — свёрнуты
         '<h3 class="tw-group-title" dir="ltr">' + (kkH ? 'Белгілер' : 'Знаки') + '</h3>' +
         HARAKAT.map(function(h, i) {
@@ -14232,6 +14250,14 @@ function renderMistakes() {
         if (!seen || seen === cur.v || QA_WAS_NEW) return;
         const kk = isKk(), src = (kk && cur.kk) ? cur.kk : cur;
         const pts = [].concat(src.a || [], src.d || [], src.f || []).slice(0, 3).map(function (x) { return '<li>' + String(x).split(/[.!?]\s/)[0].replace(/</g, '&lt;') + '</li>'; }).join('');
+        // 7.49: коротко — строка «Обновлено до 7.xx · Что нового», сама исчезает
+        try {
+          const tip = document.createElement('div'); tip.id = 'qa-wn-tip'; tip.className = 'qa-wn-tip';
+          tip.innerHTML = '🆕 ' + (kk ? 'Жаңартылды: ' : 'Обновлено до ') + cur.v + ' · <button type="button" data-wn-tip-more="1">' + (kk ? 'Не жаңа' : 'Что нового') + '</button><button type="button" data-wn-tip-x="1" aria-label="✕">✕</button>';
+          tip.addEventListener('click', function (e) { const b = e.target.closest('button'); if (!b) return; tip.remove(); if (b.hasAttribute('data-wn-tip-more')) showView('changelog'); });
+          document.body.appendChild(tip); setTimeout(function () { try { tip.remove(); } catch (e) {} }, 9000);
+          return;
+        } catch (e) {}
         const ov = document.createElement('div'); ov.className = 'qa-onb'; ov.id = 'qa-wn';
         ov.innerHTML = '<div class="qa-onb-card" style="text-align:left"><h3 style="text-align:center">🆕 ' + (kk ? 'Не жаңа — ' : 'Что нового в ') + cur.v + '</h3><ul class="qa-wn-list">' + pts + '</ul>' +
           '<div class="qa-onb-nav"><button type="button" class="btn btn-sm" data-wn-more="1">' + (kk ? 'Толығырақ' : 'Подробнее') + '</button><button type="button" class="btn btn-primary" data-wn-ok="1">' + (kk ? 'Жақсы' : 'Понятно') + '</button></div></div>';
@@ -28733,6 +28759,13 @@ bKk:
         // любое отличие номера = есть обновление. Раньше сравнивали числа, и
         // устройства со старой нумерацией (например 6.39) не видели 6.00/6.01.
         if (!serverVer || serverVer === myVer) return;
+        // 7.49: сразу после выпуска GitHub Pages ещё несколько минут отдаёт старые файлы (даже после ручного обновления),
+        // а эта проверка уже видит новый номер — баннер выскакивал зря. Показываем, только если новая версия видна ≥ 2 минут.
+        try {
+          var fk = 'qa_upd_first_seen', fs = JSON.parse(sessionStorage.getItem(fk) || 'null');
+          if (!fs || fs.v !== serverVer) { sessionStorage.setItem(fk, JSON.stringify({ v: serverVer, t: Date.now() })); setTimeout(_checkSiteUpdateAvailable, 150000); return; }
+          if (Date.now() - fs.t < 120000) { setTimeout(_checkSiteUpdateAvailable, 120000 - (Date.now() - fs.t) + 5000); return; }
+        } catch (e) {}
         window._siteUpdateAvailable = true;
         window._siteUpdateServerVersion = serverVer;
         _showSiteUpdateBanner(serverVer);
@@ -67155,6 +67188,8 @@ function startApp() {
         return cache[key];
       };
       window.arabicToCyr = arabicToCyr;
+      // 7.49: полная транскрипция без «остановки» на конце (для уроков об огласовках)
+      window.arTransFull = function (ar) { var md = translitModeNow(); if (md === 'off') return ''; try { return md === 'latin' ? cyrToLat(arabicToCyr(ar, 'ru', { full: true })) : arabicToCyr(ar, md, { full: true }); } catch (e) { return ''; } };
       window.arTrans = function (ar, kkFlag) {
         if (kkFlag === undefined) {
           var md = translitModeNow();
