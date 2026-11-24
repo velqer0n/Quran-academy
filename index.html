@@ -160,12 +160,25 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>/* 7.50: экран загрузки — стили прямо в странице, чтобы он появлялся раньше всего остального */
+#qa-boot{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:#eef1f5;color:#1a2332;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;transition:opacity .3s}
+#qa-boot.qb-dark{background:#0f172a;color:#e2e8f0}
+#qa-boot .qb-in{display:flex;flex-direction:column;align-items:center;gap:.55rem;width:min(78vw,320px);text-align:center}
+#qa-boot .qb-moon{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;background:linear-gradient(135deg,#10b981,#0f766e)}
+#qa-boot b{font-size:1.25rem}
+#qa-boot .qb-bar{width:100%;height:6px;border-radius:99px;background:rgba(127,127,127,.25);overflow:hidden}
+#qa-boot .qb-bar i{display:block;height:100%;width:0;background:#10b981;border-radius:99px;transition:width .35s ease}
+#qa-boot small{font-size:.85rem;opacity:.8}
+#qa-boot .qb-hint{font-size:.75rem;opacity:.6}
+</style>
   <link rel="stylesheet" href="styles.css">
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- build 6.43: html2canvas, jsPDF, qrcode и Leaflet (карта) больше не грузятся при старте — подгружаются при первом нажатии (loadLib в logic-app.js) -->
 </head>
 <body class="hide-ui-hints">
+  <!-- 7.50: экран загрузки прямо в странице — виден сразу, полоска растёт по мере загрузки файлов сайта -->
+  <div id="qa-boot"><div class="qb-in"><div class="qb-moon">☪</div><b>Quran Academy</b><div class="qb-bar"><i id="qa-boot-bar"></i></div><small id="qa-boot-msg">Загрузка…</small><small class="qb-hint" id="qa-boot-hint">Первый запуск может занять до минуты, дальше будет быстрее.</small></div></div>
+  <script>(function(){try{var t=localStorage.getItem('quran_theme')||'light',b=document.getElementById('qa-boot');if(/^(dark|indigo|night|amber|ocean|forest|graphite|teal|nord|solard|gruvd|mocha|ghdim|oled|contrast)$/.test(t))b.className='qb-dark';var s=localStorage.getItem('quran-study-v1')||'';if(/"lang":"kk"/.test(s)){document.getElementById('qa-boot-msg').textContent='Жүктелуде…';document.getElementById('qa-boot-hint').textContent='Алғашқы іске қосу бір минутқа дейін созылуы мүмкін, кейін тезірек болады.';}}catch(e){}window.qaBoot=function(p){try{var i=document.getElementById('qa-boot-bar');if(i)i.style.width=p+'%';}catch(e){}};window.qaBoot(5);})();</script>
 
   <div id="lock-screen">
     <div class="lock-box" id="lock-box">
@@ -1789,16 +1802,27 @@
 
 
   <!-- build 5.72: данные вынесены в отдельные файлы для более лёгкого редактирования -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>window.qaBoot&&qaBoot(7)</script>
   <script src="data-changelog.js"></script>
+  <script>window.qaBoot&&qaBoot(8)</script>
   <script src="data-legal.js"></script>
+  <script>window.qaBoot&&qaBoot(9)</script>
   <script src="data-quran-learning.js"></script>
+  <script>window.qaBoot&&qaBoot(22)</script>
   <!-- build 6.43: data-reading-library.js (истории, 40 хадисов) подгружается из logic-app.js сразу после старта -->
   <script src="data-islamic-knowledge.js"></script>
+  <script>window.qaBoot&&qaBoot(33)</script>
   <script src="data-hajj-and-names.js"></script>
+  <script>window.qaBoot&&qaBoot(37)</script>
   <script src="data-daily-practice.js"></script>
+  <script>window.qaBoot&&qaBoot(39)</script>
   <script src="data-app-settings.js"></script>
+  <script>window.qaBoot&&qaBoot(41)</script>
   <script src="data-kk-extra.js"></script>
+  <script>window.qaBoot&&qaBoot(42)</script>
   <script src="logic-app.js"></script>
+  <script>(function(){try{qaBoot(100);var b=document.getElementById('qa-boot');setTimeout(function(){if(b){b.style.opacity='0';setTimeout(function(){b.remove();},300);}},150);}catch(e){}})();</script>
 
 </body>
 </html>

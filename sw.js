@@ -2,7 +2,9 @@
 // URL — браузеры такое запрещают, поэтому офлайн фактически не работал.
 // Версия кэша приходит в адресе: sw.js?v=6.02 — при новой версии старый
 // кэш удаляется. Для всех файлов «сначала сеть», кэш — только без сети.
-const CACHE = 'quran-app-shell-' + (new URL(self.location.href).searchParams.get('v') || 'v3');
+// 7.50: одна постоянная копия сайта (не по номеру версии): сайт открывается из неё сразу, а свежие файлы докачиваются в фоне —
+// со следующего запуска уже новая версия (есть плашка «Вышла версия — обновить»). Старые копии «по версиям» удаляются.
+const CACHE = 'quran-app-shell-main';
 self.addEventListener('install', () => { self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
@@ -40,6 +42,19 @@ self.addEventListener('fetch', e => {
   // build 6.93: файлы самого сайта всегда сверяем с сервером (cache: 'no-cache' — короткий
   // запрос «не изменился ли», 304 без перекачки), чтобы HTTP-кэш браузера не держал старую версию
   const own = url.indexOf(self.location.origin + '/') === 0;
+  // 7.50: файлы сайта (страница, скрипты, стили) — сразу из копии, обновление в фоне. Проверка версии (no-store, _check) — всегда из сети.
+  const shell = own && (req.mode === 'navigate' || /\.(js|css|html)(\?|$)/.test(url) || /\/(\?|$)/.test(url)) && req.cache !== 'no-store' && url.indexOf('_check=') < 0 && url.indexOf('/sw.js') < 0;
+  if (shell) {
+    e.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      const hit = await cache.match(req, { ignoreSearch: true });
+      const netP = fetch(req.mode === 'navigate' ? req.url : req, { cache: 'no-cache', credentials: 'same-origin' })
+        .then(resp => { if (resp && resp.ok) cache.put(req.mode === 'navigate' ? new Request(new URL(req.url).pathname) : req, resp.clone()).catch(() => {}); return resp; });
+      if (hit) { e.waitUntil(netP.catch(() => {})); return hit; }
+      return netP.catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || Response.error()));
+    })());
+    return;
+  }
   const net = own ? fetch(req.mode === 'navigate' ? req.url : req, { cache: 'no-cache', credentials: 'same-origin' }).catch(() => fetch(req)) : fetch(req);
   e.respondWith(
     net.then(resp => {

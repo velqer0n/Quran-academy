@@ -9242,31 +9242,7 @@ function speakLetter(ch, name, ttsOnly) {
       el.innerHTML =
         '<p class="ayah-translation" style="margin-bottom:0.6rem;text-align:left" dir="ltr">' + (kkH ? 'Харакаттар — оқудың кілті. Кестедегі буынды басыңыз — тыңдаңыз; әріпті жоғарыдан ауыстырыңыз.' : 'Огласовки — ключ к чтению. Нажмите слог в таблице — прозвучит; букву можно сменить сверху.') + '</p>' +
         harakatDemoHtml() +
-        // таблица
-        '<div class="card hk-table"><b>🔤 ' + (kkH ? 'Әріп × харакат' : 'Буква × огласовка') + '</b>' +
-          '<div class="hk-letpick" dir="rtl">' + HK_LETTERS.split('').map(function(ch) { return '<button type="button" class="hk-let' + (ch === L0 ? ' on' : '') + '" data-hk-let="' + ch + '" lang="ar">' + ch + '</button>'; }).join('') + '</div>' +
-          '<div class="hk-grid">' + _hkGridHtml(L0) + '</div>' +
-          '<div class="ayah-translation" style="font-size:0.75rem;margin-top:0.35rem;text-align:left" dir="ltr">' + (kkH ? 'Дыбыс — құрылғының араб дауыс синтезі (жазба емес). Әріптің жазбасы — «Әріптер» бөлімінде.' : 'Звук — арабский синтез речи устройства (не запись). Живая запись буквы — в разделе «Буквы».') + '</div></div>' +
-        // короткая/долгая
-        '<div class="card"><b>📏 ' + (kkH ? 'Қысқа және ұзын дауысты' : 'Краткая и долгая гласная') + '</b>' +
-          '<div class="ayah-translation" style="font-size:0.82rem;margin:0.2rem 0 0.4rem;text-align:left" dir="ltr">' + (kkH ? 'Харакат — 1 санақ. Мадд әрпі (ا و ي) қосылса — 2 санақ, екі есе ұзын.' : 'Огласовка — 1 счёт. С буквой мадда (ا و ي) — 2 счёта, вдвое дольше.') + '</div>' +
-          [['بَ', 'بَا'], ['بِ', 'بِي'], ['بُ', 'بُو']].map(function(pr) {
-            return '<div class="hk-len">' + pr.map(function(x, i) {
-              return '<button type="button" class="hk-len-btn" data-hk-say="' + x + '" data-hk-slow="1"><span class="hk-cell-ar" dir="rtl" lang="ar">' + x + '</span><span class="hk-bar"><i style="width:' + (i ? 100 : 50) + '%"></i></span><span class="hk-cell-tr">' + _hkTr(x) + ' · ' + (i ? (kkH ? '2 санақ' : '2 счёта') : (kkH ? '1 санақ' : '1 счёт')) + '</span></button>';
-            }).join('') + '</div>';
-          }).join('') + '</div>' +
-        // 7.49: «Как звучит в Коране» — каждый знак на настоящем слове голосом чтеца (пословные записи quran.com)
-        (function () {
-          var EX = [['Фатха', 'Фатха', 'خَلَقَ', 96, 2, 1], ['Касра', 'Кәсра', 'بِسْمِ', 1, 1, 1], ['Дамма', 'Дамма', 'قُلْ', 112, 1, 1], ['Сукун', 'Сукун', 'لَمْ', 112, 3, 1],
-            ['Шадда', 'Шәдда', 'بِرَبِّ', 114, 1, 3], ['Танвин -ун', 'Тәнуин -ун', 'أَحَدٌ', 112, 1, 4], ['Танвин -ан', 'Тәнуин -ан', 'كُفُوًا', 112, 4, 4], ['Танвин -ин', 'Тәнуин -ин', 'حَاسِدٍ', 113, 5, 3],
-            ['Долгое «аа»', 'Ұзын «аа»', 'ٱلنَّاسِ', 114, 1, 4], ['Долгое «ии»', 'Ұзын «ии»', 'ٱلرَّحِيمِ', 1, 1, 4], ['Долгое «уу»', 'Ұзын «уу»', 'يُولَدْ', 112, 3, 4]];
-          return '<div class="card hk-quran"><b>🎧 ' + (kkH ? 'Құранда қалай естіледі' : 'Как звучит в Коране') + '</b>' +
-            '<div class="ayah-translation" style="font-size:0.8rem;margin:0.2rem 0 0.45rem;text-align:left" dir="ltr">' + (kkH ? 'Әр белгі — Құрандағы нақты сөзде, қаридің дауысымен. Басыңыз — тыңдаңыз.' : 'Каждый знак — на настоящем слове из Корана, голосом чтеца. Нажмите — послушайте.') + '</div>' +
-            '<div class="hk-qgrid">' + EX.map(function (x) {
-              var tl = ''; try { tl = window.arTransFull ? window.arTransFull(x[2]) : ''; } catch (e) {}
-              return '<button type="button" class="hk-qw" data-hk-qw="' + x[3] + ':' + x[4] + ':' + x[5] + '"><small dir="ltr">' + (kkH ? x[1] : x[0]) + '</small><span class="arabic" dir="rtl" lang="ar">' + x[2] + '</span>' + (tl ? '<i dir="ltr">' + String(tl).replace(/</g, '&lt;') + '</i>' : '') + '<em dir="ltr">▶ ' + x[3] + ':' + x[4] + '</em></button>';
-            }).join('') + '</div></div>';
-        })() +
+        // 7.50: порядок — знаки → как звучат в Коране → краткая/долгая → таблица → тренажёр
         // карточки знаков — свёрнуты
         '<h3 class="tw-group-title" dir="ltr">' + (kkH ? 'Белгілер' : 'Знаки') + '</h3>' +
         HARAKAT.map(function(h, i) {
@@ -9279,6 +9255,31 @@ function speakLetter(ch, name, ttsOnly) {
               '<button type="button" class="hk-ex" data-hk-say="' + h.example + '"><span class="arabic" dir="rtl" lang="ar">' + h.example + '</span> <span class="hk-cell-tr">' + ((kkH && h.exampleTrKk) ? h.exampleTrKk : (h.exampleTr || '')) + '</span> 🔊</button>' +
             '</div></div>';
         }).join('') +
+        // 7.49: «Как звучит в Коране» — каждый знак на настоящем слове голосом чтеца (пословные записи quran.com)
+        (function () {
+          var EX = [['Фатха', 'Фатха', 'خَلَقَ', 96, 2, 1], ['Касра', 'Кәсра', 'بِسْمِ', 1, 1, 1], ['Дамма', 'Дамма', 'قُلْ', 112, 1, 1], ['Сукун', 'Сукун', 'لَمْ', 112, 3, 1],
+            ['Шадда', 'Шәдда', 'بِرَبِّ', 114, 1, 3], ['Танвин -ун', 'Тәнуин -ун', 'أَحَدٌ', 112, 1, 4], ['Танвин -ан', 'Тәнуин -ан', 'كُفُوًا', 112, 4, 4], ['Танвин -ин', 'Тәнуин -ин', 'حَاسِدٍ', 113, 5, 3],
+            ['Долгое «аа»', 'Ұзын «аа»', 'ٱلنَّاسِ', 114, 1, 4], ['Долгое «ии»', 'Ұзын «ии»', 'ٱلرَّحِيمِ', 1, 1, 4], ['Долгое «уу»', 'Ұзын «уу»', 'يُولَدْ', 112, 3, 4]];
+          return '<div class="card hk-quran"><b>🎧 ' + (kkH ? 'Құранда қалай естіледі' : 'Как звучит в Коране') + '</b>' +
+            '<div class="ayah-translation" style="font-size:0.8rem;margin:0.2rem 0 0.45rem;text-align:left" dir="ltr">' + (kkH ? 'Әр белгі — Құрандағы нақты сөзде, қаридің дауысымен. Басыңыз — тыңдаңыз.' : 'Каждый знак — на настоящем слове из Корана, голосом чтеца. Нажмите — послушайте.') + '</div>' +
+            '<div class="hk-qgrid">' + EX.map(function (x) {
+              var tl = ''; try { tl = window.arTransFull ? window.arTransFull(x[2]) : ''; } catch (e) {}
+              return '<button type="button" class="hk-qw" data-hk-qw="' + x[3] + ':' + x[4] + ':' + x[5] + '"><small dir="ltr">' + (kkH ? x[1] : x[0]) + '</small><span class="arabic" dir="rtl" lang="ar">' + x[2] + '</span>' + (tl ? '<i dir="ltr">' + String(tl).replace(/</g, '&lt;') + '</i>' : '') + '<em dir="ltr">▶ ' + x[3] + ':' + x[4] + '</em></button>';
+            }).join('') + '</div></div>';
+        })() +
+        // короткая/долгая
+        '<div class="card"><b>📏 ' + (kkH ? 'Қысқа және ұзын дауысты' : 'Краткая и долгая гласная') + '</b>' +
+          '<div class="ayah-translation" style="font-size:0.82rem;margin:0.2rem 0 0.4rem;text-align:left" dir="ltr">' + (kkH ? 'Харакат — 1 санақ. Мадд әрпі (ا و ي) қосылса — 2 санақ, екі есе ұзын.' : 'Огласовка — 1 счёт. С буквой мадда (ا و ي) — 2 счёта, вдвое дольше.') + '</div>' +
+          [['بَ', 'بَا'], ['بِ', 'بِي'], ['بُ', 'بُو']].map(function(pr) {
+            return '<div class="hk-len">' + pr.map(function(x, i) {
+              return '<button type="button" class="hk-len-btn" data-hk-say="' + x + '" data-hk-slow="1"><span class="hk-cell-ar" dir="rtl" lang="ar">' + x + '</span><span class="hk-bar"><i style="width:' + (i ? 100 : 50) + '%"></i></span><span class="hk-cell-tr">' + _hkTr(x) + ' · ' + (i ? (kkH ? '2 санақ' : '2 счёта') : (kkH ? '1 санақ' : '1 счёт')) + '</span></button>';
+            }).join('') + '</div>';
+          }).join('') + '</div>' +
+        // таблица
+        '<div class="card hk-table"><b>🔤 ' + (kkH ? 'Әріп × харакат' : 'Буква × огласовка') + '</b>' +
+          '<div class="hk-letpick" dir="rtl">' + HK_LETTERS.split('').map(function(ch) { return '<button type="button" class="hk-let' + (ch === L0 ? ' on' : '') + '" data-hk-let="' + ch + '" lang="ar">' + ch + '</button>'; }).join('') + '</div>' +
+          '<div class="hk-grid">' + _hkGridHtml(L0) + '</div>' +
+          '<div class="ayah-translation" style="font-size:0.75rem;margin-top:0.35rem;text-align:left" dir="ltr">' + (kkH ? 'Дыбыс — құрылғының араб дауыс синтезі (жазба емес). Әріптің жазбасы — «Әріптер» бөлімінде.' : 'Звук — арабский синтез речи устройства (не запись). Живая запись буквы — в разделе «Буквы».') + '</div></div>' +
         // тренажёр
         '<div class="card hkq"><b>🎯 ' + (kkH ? 'Буынды оқы' : 'Прочитай слог') + '</b>' +
           '<div class="ayah-translation" style="font-size:0.82rem;margin-top:0.2rem;text-align:left" dir="ltr">' + (kkH ? 'Қалай оқылады? Дұрыс нұсқаны таңдаңыз.' : 'Как читается? Выберите верный вариант.') + '</div>' +
