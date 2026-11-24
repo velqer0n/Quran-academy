@@ -13191,7 +13191,8 @@ function renderMistakes() {
         : info.flow === 'stop' ? (kk ? 'Босатыңыз — дыбыс «жарылады»' : 'Отпустите — звук «взрывается»')
         : info.voiced ? (kk ? 'Дауыс байламдары дірілдейді' : 'Голосовые связки дрожат')
         : (kk ? 'Дауыссыз, тек ауа' : 'Без голоса, только воздух');
-      return ['1 · ' + s1, '2 · ' + s2, '3 · ' + s3];
+      // 7.53: четвёртый шаг — огласовка «а» после буквы (у алифа — нет)
+      return info.gid === 'jawf' ? ['1 · ' + s1, '2 · ' + s2, '3 · ' + s3] : ['1 · ' + s1, '2 · ' + s2, '3 · ' + s3, '4 · ' + (kk ? 'Фатхамен «а»: ауыз ашылады' : 'С огласовкой «а»: рот раскрывается')];
     }
     function mouthFigureSvg(ch, opts) {
       opts = opts || {};
@@ -13236,7 +13237,7 @@ function renderMistakes() {
         tVals = [restD, poseD]; tKt = [0, KT];
         const a = mouthTonguePath({ T: [pose.T[0] + 1, pose.T[1] + 3], H: pose.H, R: pose.R, F: pose.F });
         const b = mouthTonguePath({ T: [pose.T[0], pose.T[1] - 1.5], H: pose.H, R: pose.R, F: pose.F });
-        const kts = [0.16, 0.22, 0.28, 0.34, 0.40, 0.46, 0.52, 0.58];
+        const kts = [0.2, 0.3]; // 7.53: одно касание кончиком — раскатывать «ра» в таджвиде нельзя
         kts.forEach(function (k, i) { tVals.push(i % 2 === 0 ? a : b); tKt.push(k); });
         tVals.push(poseD); tKt.push(0.64); tVals.push(poseD); tKt.push(1);
       }
@@ -13247,7 +13248,9 @@ function renderMistakes() {
         tVals.splice(1, 0, mouthTonguePath(over)); tKt.splice(1, 0, _mf(KT * 0.72));
       }
       const lipsRestU = MOUTH_LIPS.open.u, lipsRestL = MOUTH_LIPS.open.l;
-      const vow = opts.vowel ? MOUTH_VOWELS[opts.vowel] : null, VD = vow ? _mf(D * 0.64) : 0;
+      // 7.53: после каждой буквы — огласовка «а» (рот раскрывается: «ба», «та», «ка»), чтобы губы и челюсть двигались у всех букв
+      const vKey = opts.vowel !== undefined ? opts.vowel : ((!ghostCh && !compact && ch !== 'ا' && animate) ? 'a' : null);
+      const vow = vKey ? MOUTH_VOWELS[vKey] : null, VD = vow ? _mf(D * 0.64) : 0;
       const airPts = mouthAirPts(info, pose);
       const airD = mouthSmoothPath(airPts);
       // части языка: границы по x (в координатах схемы) для текущей позы
@@ -13259,7 +13262,7 @@ function renderMistakes() {
       const stp = function (o, c) { return '<stop offset="' + o + '" stop-color="' + c + '"/>'; };
       const vbW = compact ? 148 : (labelsOn ? 216 : 200), vbX = compact ? 0 : -32, vbH = opts.steps ? (compact ? 184 : (labelsOn ? 192 : 180)) : (labelsOn ? 168 : 160);
       let s = '';
-      s += '<svg class="mouth-anim' + (labelsOn ? ' mouth-labeled' : '') + '"' + (opts.auto ? ' data-auto="1"' : '') + ' viewBox="' + vbX + ' 0 ' + vbW + ' ' + vbH + '" width="100%" direction="ltr" role="img" aria-label="' + ch + '" style="max-width:' + (compact ? '230' : '390') + 'px;height:auto;display:block;margin:0 auto;background:var(--bg);border-radius:0.85rem;border:1px solid var(--border);direction:ltr">';
+      s += '<svg class="mouth-anim' + (labelsOn ? ' mouth-labeled' : '') + '"' + (opts.auto ? ' data-auto="1"' : '') + (vow ? ' data-vow="' + vKey + '"' : '') + ' viewBox="' + vbX + ' 0 ' + vbW + ' ' + vbH + '" width="100%" direction="ltr" role="img" aria-label="' + ch + '" style="max-width:' + (compact ? '230' : '390') + 'px;height:auto;display:block;margin:0 auto;background:var(--bg);border-radius:0.85rem;border:1px solid var(--border);direction:ltr">';
       s += '<defs><linearGradient id="' + uid + 't" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="125" y2="0">' +
         stp('0%', zc('tip')) + stp(off(tipE - 3), zc('tip')) + stp(off(tipE + 4), zc('mid')) + stp(off(midE - 5), zc('mid')) +
         stp(off(midE + 5), zc('back')) + stp(off(rootS - 5), zc('back')) + stp(off(rootS + 5), zc('root')) + stp('100%', zc('root')) + '</linearGradient>';
@@ -13600,7 +13603,10 @@ function renderMistakes() {
         const vals = function (k) { return stop ? [R0[k], S1[k], S1[k], R0[k], R0[k]] : [R0[k], S1[k], S1[k]]; };
         const kt = stop ? [0, KT, 0.55, 0.62, 1] : [0, KT, 1];
         const now = S1;
-        s += '<defs><clipPath id="' + uid + 'o"><path d="' + now.o + '">' + A('d', vals('o'), kt) + '</path></clipPath>' +
+        // 7.53: после буквы — «а»: рот раскрывается и возвращается (те же время и задержка, что у разреза)
+        const W = P('wide'), E = stop ? R0 : S1, vOn = animate && ch !== 'ا' && opts.vowel !== null;
+        const AV = function (k) { return vOn ? '<animate attributeName="d" begin="indefinite" dur="' + _mf(1.7 * sc) + 's" values="' + [E[k], W[k], W[k], E[k]].join(';') + '" keyTimes="0;0.22;0.82;1" calcMode="spline" keySplines=".4 0 .2 1;.4 0 .2 1;.4 0 .2 1" data-d="' + _mf(D * 0.64) + '"/>' : ''; };
+        s += '<defs><clipPath id="' + uid + 'o"><path d="' + now.o + '">' + A('d', vals('o'), kt) + AV('o') + '</path></clipPath>' +
           '<radialGradient id="' + uid + 's" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#f6d2bb"/><stop offset="1" stop-color="#e3ad8e"/></radialGradient>' +
           '<linearGradient id="' + uid + 'u" gradientUnits="userSpaceOnUse" x1="0" y1="51" x2="0" y2="63"><stop offset="0" stop-color="#e57a8b"/><stop offset="1" stop-color="#b8324c"/></linearGradient>' +
           '<linearGradient id="' + uid + 'l" gradientUnits="userSpaceOnUse" x1="0" y1="62" x2="0" y2="77"><stop offset="0" stop-color="#b8324c"/><stop offset="0.55" stop-color="#df6b7f"/><stop offset="1" stop-color="#e9909e"/></linearGradient>' +
@@ -13612,7 +13618,7 @@ function renderMistakes() {
         s += '<path d="M57.2,42 Q56.6,48 56.4,52.6 M62.8,42 Q63.4,48 63.6,52.6" stroke="#d29a7c" stroke-width="0.45" fill="none" opacity="0.7"/>';
         s += '<path d="M' + _mf(60 - MOUTH_FRONT[st][0] - 4) + ',56 Q' + _mf(60 - MOUTH_FRONT[st][0] - 5) + ',62 ' + _mf(60 - MOUTH_FRONT[st][0] - 3) + ',68 M' + _mf(60 + MOUTH_FRONT[st][0] + 4) + ',56 Q' + _mf(60 + MOUTH_FRONT[st][0] + 5) + ',62 ' + _mf(60 + MOUTH_FRONT[st][0] + 3) + ',68" stroke="#d29a7c" stroke-width="0.45" fill="none" opacity="0.55"/>';
         // полость рта, зубы и язык — видно только в раскрытии губ
-        s += '<path d="' + now.o + '" fill="url(#' + uid + 'd)">' + A('d', vals('o'), kt) + '</path>';
+        s += '<path d="' + now.o + '" fill="url(#' + uid + 'd)">' + A('d', vals('o'), kt) + AV('o') + '</path>';
         const tw = function (x, y, w, h, up) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="1.3" fill="url(#' + uid + 'w)" stroke="#a7b3c4" stroke-width="0.3"/>'; };
         s += '<g clip-path="url(#' + uid + 'o)">' +
              '<path d="M40,52 Q60,49 80,52 L80,56 Q60,53.5 40,56 Z" fill="#e7969f"/>' +
@@ -13623,8 +13629,8 @@ function renderMistakes() {
              '</g>';
         const lipOn = g.cat === 'lips';
         ['u', 'l'].forEach(function (k) {
-          if (lipOn) s += '<path d="' + now[k] + '" fill="none" stroke="' + MOUTH_CAT_COLOR.lips + '" stroke-width="2.2" opacity="0.22" stroke-linejoin="round">' + A('d', vals(k), kt) + '</path>';
-          s += '<path d="' + now[k] + '" fill="url(#' + uid + k + ')" stroke="#a52a44" stroke-width="0.35" stroke-linejoin="round">' + A('d', vals(k), kt) + '</path>';
+          if (lipOn) s += '<path d="' + now[k] + '" fill="none" stroke="' + MOUTH_CAT_COLOR.lips + '" stroke-width="2.2" opacity="0.22" stroke-linejoin="round">' + A('d', vals(k), kt) + AV(k) + '</path>';
+          s += '<path d="' + now[k] + '" fill="url(#' + uid + k + ')" stroke="#a52a44" stroke-width="0.35" stroke-linejoin="round">' + A('d', vals(k), kt) + AV(k) + '</path>';
         });
         s += '</g>';
         const capF = st === 'interd' ? (kk ? 'тілдің ұшы тіс арасында' : 'кончик языка между зубами')
@@ -13766,8 +13772,9 @@ function renderMistakes() {
         });
       };
       const extra = sc > 1 ? 1200 : 0; // в «Медленно» схема на секунду замирает в момент касания
+      const vw = !!svgEl.getAttribute('data-vow'), VT = D * 0.64 * 1000 + 0.25 * sc * 1000;
       ol._mt = [setTimeout(function () { set(1); }, 0), setTimeout(function () { set(2); }, D * MOUTH_KT * 1000),
-        setTimeout(function () { set(3); }, D * 0.55 * 1000 + extra), setTimeout(function () { set(0); }, D * 1000 + extra + 900)];
+        setTimeout(function () { set(3); }, D * 0.55 * 1000 + extra)].concat(vw ? [setTimeout(function () { set(4); }, VT + extra), setTimeout(function () { set(0); }, VT + 1.7 * sc * 1000 + extra + 500)] : [setTimeout(function () { set(0); }, D * 1000 + extra + 900)]);
     }
     // build 6.79: простые подсказки «проверьте сами» — вместо терминов без объяснения
     function mouthTipsHtml(ch, info, kk) {
