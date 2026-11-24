@@ -2100,6 +2100,7 @@ async function fetchTafsir(surah, ayah) {
       // 7.35: открыто нижнее окошко (выбор, «Мои наборы» и т.п.) — «Назад» закрывает его
       try { var _pp = document.getElementById('pl-pop'); if (_pp) { if (_pp._close) _pp._close(); _pp.remove(); return; } } catch(e) {}
       try { if (window.twlCloseAny && window.twlCloseAny()) return; } catch(e) {}
+      try { if (window.dhBack && window.dhBack()) return; } catch(e) {}
       // build 6.36: внутри папки «Назад» поднимает на уровень выше (а не уходит с экрана и не выглядит как «отмена»)
       try { if (typeof fsBackHook === 'function' && fsBackHook()) return; } catch(e) {}
       const MORE_SET = new Set(['myreading','data','sins','aqidah','sunnahs','family','hadith','hadiths','stories','howsalah','hisn','memorize','fatihaphon','quiz','quizmistakes','adhkar','qol','names','qdict','cache','settings','export','duabuilder','qurandua','ramadan','adab','calendar','library','topics','search','changelog','legaldocs','sources','help','prayertimes','appupdate','dict','sadaqa','ask']);
@@ -46174,6 +46175,7 @@ const HADITH_EXPAND = {
 
       const el = document.getElementById('cache-body');
       if (!el) return;
+      DH.rec = null; DH.sel = null;
       const amma = (typeof getOfflineAmma === 'function') ? getOfflineAmma() : {};
       const ammaKeys = Object.keys(amma).map(Number).filter(n => amma[n] && amma[n].ayahs).sort((a,b)=>a-b);
       let ammaAyahs = 0;
@@ -46248,121 +46250,9 @@ const HADITH_EXPAND = {
       const fmt = (n) => n >= 1024 ? (Math.round(n/102.4)/10 + ' КБ') : (n + ' Б');
       const kk = state.settings && state.settings.lang === 'kk';
 
-      el.innerHTML =
-        '<div class="card" style="border-color:var(--accent)"><b>📴 '+(kk?'Толық офлайн режим':'Полный офлайн-режим')+'</b>' +
-        '<div class="ayah-translation" style="margin:0.35rem 0">'+(kk
-          ? 'Бір батырма — Құранның барлық 114 сүресінің мәтіні + қосымшаның өзінің файлдары (HTML/CSS/JS) алдын ала жүктеледі, сол үшін сайт интернетсіз де «нөлден» ашылады, тек бұрын кем дегенде бір рет желімен ашылған жағдайда емес.'
-          : 'Одной кнопкой заранее скачивается текст всех 114 сур Корана + файлы самого приложения (HTML/CSS/JS), чтобы сайт открывался офлайн «с нуля», а не только если раньше уже открывался хотя бы раз при сети.') + '</div>' +
-        '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;margin-bottom:0.5rem"><input type="checkbox" id="cache-dl-hisn-audio" checked><span>'+(kk?'«Дұғалар мен зікірлер» дыбыс жазбалары (~30 МБ)':'Озвучка «Дуа и зикры» (~30 МБ)')+'</span></label>' +
-        '<button type="button" class="btn btn-primary" id="cache-dl-everything" style="width:100%">⬇️ '+(kk?'Барлығын офлайн үшін жүктеу':'Скачать всё для офлайн')+'</button>' +
-        '<div id="cache-dl-everything-progress" class="ayah-translation" style="margin-top:0.4rem;min-height:1.2rem"></div>' +
-        '</div>' +
-        '<div class="card"><b>'+(kk?'Жалпы localStorage':'Общий localStorage')+'</b><div class="ayah-translation" style="margin-top:0.35rem">~'+fmt(lsTotal)+(kk?' (браузер шегі әдетте 5–10 МБ)':' (лимит браузера обычно 5–10 МБ)')+'</div>' +
-        (lsRows.length ? '<div style="margin-top:0.4rem;font-size:0.78rem;color:var(--text-muted);max-height:7rem;overflow:auto">' +
-          lsRows.slice(0, 20).map(r => '<div style="display:flex;justify-content:space-between;gap:0.5rem"><span style="overflow:hidden;text-overflow:ellipsis">'+r.k+'</span><span>'+fmt(r.sz)+'</span></div>').join('') +
-          '</div>' : '') +
-        '</div>' +
-        '<div class="card"><b>'+(kk?'Офлайн сүрелер (мәтін)':'Офлайн-суры (текст)')+'</b>' +
-        '<div class="ayah-translation" style="margin:0.35rem 0">'+(kk?'Жүктелген сүрелер':'Скачано сур')+': <b>'+ammaKeys.length+'</b>' +
-        (ammaKeys.length ? (' · № ' + ammaKeys[0] + '…' + ammaKeys[ammaKeys.length-1]) : '') +
-        ' · '+(kk?'аяттар':'аятов')+': <b>'+ammaAyahs+'</b></div>' +
-        (ammaKeys.length ? '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin:0.4rem 0;max-height:8rem;overflow:auto">' +
-          ammaKeys.map(n => '<span class="page-badge">'+n+'</span>').join('') + '</div>' : '') +
-        '<div style="display:flex;flex-wrap:wrap;gap:0.4rem">' +
-        '<button type="button" class="btn btn-sm btn-primary" id="cache-dl-amma">⬇ 78–114</button>' +
-        '<button type="button" class="btn btn-sm" id="cache-dl-full">⬇ 1–114</button>' +
-        '<button type="button" class="btn btn-sm" id="cache-dl-juz">⬇ '+(kk?'Жүз…':'Джуз…')+'</button>' +
-        '<button type="button" class="btn btn-sm" id="cache-clear-amma" style="color:var(--danger)">'+(kk?'Сүрелерді тазалау':'Очистить суры')+'</button>' +
-        '</div></div>' +
-        '<div class="card"><b>'+(kk?'Оқу кэші (сессия)':'Кэш чтения (сессия)')+'</b><div class="ayah-translation" style="margin:0.35rem 0">'+(kk?'RAM-дағы сүрелер':'Суры в RAM')+': <b>'+diskN+'</b>' +
-        (diskList.length ? (' · ' + diskList.join(', ')) : '') +
-        '</div>' +
-        '<button type="button" class="btn btn-sm" id="cache-clear-mem">'+(kk?'Сүрелер жадын тазалау':'Очистить память сур')+'</button></div>' +
-        '<div class="card"><b>'+(kk?'Хадистер (жүктелген жинақтар)':'Хадисы (скачанные сборники)')+'</b><div class="ayah-translation" style="margin:0.35rem 0">'+(kk?'Жинақтар/кілттер':'Сборников/ключей')+': <b>'+hadithKeys+'</b> · ~'+fmt(hadithBytes)+'</div>' +
-        (hadithBooks.length ? '<div style="font-size:0.8rem;color:var(--text-muted);margin:0.3rem 0">'+hadithBooks.map(x => '<div>• '+x+'</div>').join('')+'</div>' : '<div class="ayah-translation">'+(kk?'Жүктелген жинақтар жоқ немесе тек кірістірілген үлгілер бар.':'Нет скачанных сборников или только встроенные образцы.')+'</div>') +
-        '<div class="ayah-translation" style="margin-top:0.35rem;font-size:calc(0.8rem * var(--ru-scale, 1))">'+(kk?'Осы құрылғының браузерінде сақталады (сайттың localStorage), браузерден тыс жеке файл ретінде емес.':'Хранятся <b>в браузере на этом устройстве</b> (localStorage сайта), не как отдельные файлы «в телефоне» вне браузера.')+'</div>' +
-        '<button type="button" class="btn btn-sm" id="cache-clear-hadith" style="color:var(--danger)">'+(kk?'Хадистерді тазалау':'Очистить хадисы')+'</button></div>' +
-        '<div class="card"><b>'+(kk?'Тәфсирлер (кэш)':'Тафсиры (кэш)')+'</b><div class="ayah-translation" style="margin:0.35rem 0">'+(kk?'Сақталған аят тәфсирлері':'Сохранённых тафсиров аятов')+': <b>'+tafsirN+'</b> · ~'+fmt(tafsirBytes)+'</div>' +
-        '<div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1))">'+(kk?'Бір рет ашылған аят тәфсирі келесі жолы интернетсіз көрсету үшін осында сақталады.':'Один раз открытый тафсир аята сохраняется здесь, чтобы в следующий раз показать без интернета.')+'</div>' +
-        '<button type="button" class="btn btn-sm" id="cache-clear-tafsir">'+(kk?'Тәфсирлерді тазалау':'Очистить тафсиры')+'</button></div>' +
-        '<div class="card" id="cache-audio-card"><b>'+(kk?'Аудио (Құран / дұға)':'Аудио (Коран / дуа)')+'</b>' +
-        '<div class="ayah-translation" style="margin:0.35rem 0" id="cache-audio-stats">'+(kk?'Есептелуде...':'Считаем...')+'</div>' +
-        '<div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1))">'+(kk
-          ? 'Бір рет ▶ басып тыңдалған аят/сүре енді осында сақталады (IndexedDB) — келесі жолы, тіпті интернетсіз де, жергілікті көшірмеден ойнатылады. Толық сүрені алдын ала жүктеп қою үшін төмендегі түймені басыңыз (ағымдағы қари бойынша). Дұға/зікірлер — TTS (интернет) немесе жүйелік дауыс, кэштелмейді.'
-          : 'Один раз прослушанный (▶) аят/сура теперь сохраняется здесь (IndexedDB) — в следующий раз, даже без интернета, играет локальная копия. Чтобы скачать сразу всю суру заранее, используйте кнопку ниже (для текущего выбранного чтеца). Дуа/азкары — TTS (нужна сеть) или системный голос, не кэшируются.')+'</div>' +
-        '<div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));color:var(--text-muted);margin-top:0.3rem">'+(kk
-          ? '✅ Бұл — жеке/жалпы скачау лимитіне (📊 Қойма) кірмейді: аудио бөлек сыртқы серверден жүктеледі, сайт квотасын тұтынбайды. Қанша сүре тыңдасаңыз да, лимит азаймайды.'
-          : '✅ Не входит в личный/общий лимит скачивания (📊 Хранилище): аудио грузится с отдельного стороннего сервера и квоту сайта не расходует. Слушайте и качайте сколько нужно — лимит от этого не уменьшается.')+'</div>' +
-        '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">' +
-          '<button type="button" class="btn btn-sm" id="cache-dl-surah-audio">⬇️ '+(kk?'Сүре аудиосын жүктеу':'Скачать суру офлайн')+'</button>' +
-          '<button type="button" class="btn btn-sm" id="cache-clear-audio" style="color:var(--danger)">'+(kk?'Аудио кэшін тазалау':'Очистить кэш аудио')+'</button>' +
-        '</div></div>' +
-        '<div class="card" id="cache-wbw-audio-card"><b>'+(kk?'Сөзбе-сөз дыбыс (WBW)':'Аудио отдельных слов (пословный разбор)')+'</b>' +
-        '<div class="ayah-translation" style="margin:0.35rem 0" id="cache-wbw-audio-stats">'+(kk?'Есептелуде...':'Считаем...')+'</div>' +
-        '<div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1))">'+(kk
-          ? '«Оқу → Практика → 🎧 Сүрелер (дыбыс)» бөлімінде әр сөзге бір рет басу жеткілікті — дыбыс осында сақталады (IndexedDB) және екінші рет қайта жүктелмейді. Барлық 26 сүренің (1, 90–114) сөздерін алдын ала бір батырмамен жүктеп қоюға да болады.'
-          : 'Каждое слово в разделе «Учёба → Практика → 🎧 Суры (озвучка)» достаточно нажать один раз — звук сохраняется здесь (IndexedDB) и повторно уже не скачивается. Слова всех 26 сур (1, 90–114) можно заранее скачать одной кнопкой ниже, не нажимая на каждое слово по отдельности.')+'</div>' +
-        '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">' +
-          '<button type="button" class="btn btn-sm btn-primary" id="cache-dl-wbw-all">⬇️ '+(kk?'Барлық сөзді жүктеу':'Скачать все слова офлайн')+'</button>' +
-          '<button type="button" class="btn btn-sm" id="cache-dl-wbw-surah">⬇️ '+(kk?'Бір сүре...':'Одну суру...')+'</button>' +
-          '<button type="button" class="btn btn-sm" id="cache-clear-wbw-audio" style="color:var(--danger)">'+(kk?'Тазалау':'Очистить кэш слов')+'</button>' +
-        '</div></div>' +
-        '<div class="card" id="cache-online-card"><b>'+(kk?'💬 Хат-хабар кэші (Онлайн)':'💬 Кэш переписок (Онлайн)')+'</b>' +
-        '<div class="ayah-translation" style="margin:0.35rem 0" id="cache-online-stats">'+(kk?'Есептелуде...':'Считаем...')+'</div>' +
-        '<div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1))">'+(kk
-          ? 'Кэштелетіні — тек фотосуреттер (IndexedDB): бір рет көрген суретті сол переписка/топта екінші рет ашқанда сервер орнына жергілікті кэштен алады. Хабарламалардың МӘТІНІ кэштелмейді — чатты ашқан сайын әрдайым интернеттен қайта жүктеледі, сондықтан переписка офлайн ашылмайды. Дауыстық хабарламалар да кэштелмейді (жоғарыдағы «Автозагрузка аудио»-мен байланысты, бірақ бөлек нәрсе).'
-          : 'Кэшируются только фотографии (через IndexedDB): один раз просмотренная в переписке/группе картинка при повторном открытии подставляется из локального кэша, а не с сервера. ТЕКСТ сообщений не кэшируется — при каждом открытии чата он всегда заново подгружается из интернета, поэтому <b>офлайн переписку открыть нельзя</b>. Голосовые тоже не кэшируются (это связано с «Автозагрузкой аудио» выше, но не то же самое).')+'</div>' +
-        '<button type="button" class="btn btn-sm" id="cache-clear-online" style="margin-top:0.4rem;color:var(--danger)">'+(kk?'Фото кэшін тазалау':'Очистить кэш фото')+'</button></div>' +
-        '<div class="card"><b>'+(kk?'Қауіпті аймақ':'Опасная зона')+'</b><button type="button" class="btn btn-sm" id="cache-clear-all" style="color:var(--danger)">'+(kk?'Барлық кэшті тазалау (үлгерім/сөздік емес)':'Сбросить весь кэш (не прогресс/словарь)')+'</button></div>';
+      // 7.54: новый вид «Данных» (dhHubHtml) — старые кнопки (id cache-*) живут внутри строк, их обработчики ниже не менялись
+      el.innerHTML = dhHubHtml({ ammaN: ammaKeys.length, ammaAyahs: ammaAyahs, hadithN: hadithKeys, tafsirN: tafsirN });
 
-      // build 4.101: асинхронно считаем размер кэша фото (перебор всех
-      // записей IndexedDB) — не блокируем открытие вкладки, просто
-      // подставляем результат в карточку, когда будет готово.
-      _imgCacheStats().then(function(s) {
-        var elS = document.getElementById('cache-online-stats');
-        if (!elS) return;
-        elS.innerHTML = (kk?'Кэштелген суреттер':'Закэшировано фото')+': <b>'+s.count+'</b> · ~'+fmt(s.bytes);
-      });
-      // build 5.50: та же схема, что и у статистики кэша фото выше — асинхронно
-      // считаем размер кэша аудио начиток и подставляем, когда готово.
-      _audioCacheStats().then(function(s) {
-        var elA = document.getElementById('cache-audio-stats');
-        if (!elA) return;
-        elA.innerHTML = (kk?'Кэштелген аудио':'Закэшировано аудио')+': <b>'+s.count+'</b> · ~'+fmt(s.bytes);
-      });
-      document.getElementById('cache-dl-surah-audio')?.addEventListener('click', () => {
-        if (!navigator.onLine) { toast(kk?'Интернет қажет':'Нужен интернет'); return; }
-        var s = prompt(kk?'Сүре нөмірі 1–114:':'Номер суры 1–114:', String(state.currentSurah || 1));
-        if (!s) return;
-        var sn = parseInt(s, 10);
-        if (!sn || sn < 1 || sn > 114) { toast(kk?'Дұрыс емес нөмір':'Некорректный номер'); return; }
-        toast((kk?'Жүктелуде: сүре ':'Загрузка: сура ') + sn + '…');
-        downloadSurahAudioOffline(sn, function(done, total) {}).then(function(r) {
-          if (r.quotaHit) {
-            toast(kk ? ('Орын жетпеді — тек ' + r.saved + '/' + r.total + ' сақталды. Басқа кэшті тазалап көріңіз.') : ('Не хватило места на устройстве — сохранено только ' + r.saved + ' из ' + r.total + '. Попробуйте очистить другой кэш и повторить.'));
-          } else if (r.failed > 0) {
-            toast(kk ? ('Сүре ' + sn + ': ' + r.saved + '/' + r.total + ' сақталды (' + r.failed + ' қатемен)') : ('Сура ' + sn + ': сохранено ' + r.saved + ' из ' + r.total + ' (' + r.failed + ' с ошибкой)'));
-          } else {
-            toast((kk?'Сүре ':'Сура ') + sn + (kk?' дайын (аудио)':' готова (аудио)'));
-          }
-          renderCacheManager();
-        }).catch(function() {
-          toast(kk?'Қате':'Ошибка');
-        });
-      });
-      document.getElementById('cache-clear-audio')?.addEventListener('click', async () => {
-        if (!confirm(kk?'Барлық кэштелген аудионы жою керек пе?':'Удалить весь кэш аудио начиток?')) return;
-        await _audioCacheClear();
-        toast(kk?'Тазаланды':'Очищено');
-        renderCacheManager();
-      });
-      // build 5.56: та же асинхронная статистика, что у кэша аудио начиток
-      // выше, только для отдельной IndexedDB со словами (quran_wbw_audio_cache).
-      _wbwAudioCacheStats().then(function(s) {
-        var elW = document.getElementById('cache-wbw-audio-stats');
-        if (!elW) return;
-        elW.innerHTML = (kk?'Кэштелген сөздер':'Закэшировано слов')+': <b>'+s.count+'</b> · ~'+fmt(s.bytes);
-      });
       document.getElementById('cache-dl-wbw-all')?.addEventListener('click', () => {
         if (!navigator.onLine) { toast(kk?'Интернет қажет':'Нужен интернет'); return; }
         if (!confirm(kk?'26 сүренің (1, 90–114) барлық сөзін жүктеу керек пе? Бұл біраз уақыт алуы мүмкін.':'Скачать слова всех 26 сур (1, 90–114) сразу? Это может занять некоторое время.')) return;
@@ -46462,11 +46352,6 @@ const HADITH_EXPAND = {
         toast(kk?'Офлайн сүрелер тазаланды':'Офлайн-суры очищены');
         renderCacheManager();
       });
-      document.getElementById('cache-clear-mem')?.addEventListener('click', () => {
-        try { state.cache = {}; } catch(e) {}
-        toast(kk?'Сүрелер жады тазаланды':'Память сур очищена');
-        renderCacheManager();
-      });
       document.getElementById('cache-clear-hadith')?.addEventListener('click', () => {
         if (!confirm(kk?'Хадистер кэшін тазалау керек пе?':'Очистить кэш хадисов?')) return;
         try { localStorage.removeItem('quran_hadith_lib'); } catch(e) {}
@@ -46494,8 +46379,582 @@ const HADITH_EXPAND = {
           }
           rm.forEach(function (k) { localStorage.removeItem(k); });
         } catch(e) {}
-        toast(kk?'Кэш тазаланды':'Кэш сброшен');
-        renderCacheManager();
+        // 7.54: «Удалить всё скачанное» — теперь и аудио (чтецы, слова, дуа)
+        Promise.all([_audioCacheClear(), _wbwAudioCacheClear(), dhHisnClear()]).catch(function () {}).then(function () {
+          DH.idx = null;
+          toast(kk?'Кэш тазаланды':'Кэш сброшен');
+          renderCacheManager();
+        });
+      });
+      dhAfterHub(el);
+    }
+
+    // ===== 7.54: «Данные» по-новому — память, чтецы (больше — выше), сетка 114 сур, поиск «где скачана сура», повторы, загрузки =====
+    var DH = { idx: null, scanning: null, other: null, rec: null, mode: null, sel: null, tab: 'all', q: '', juz: false, pick: false, fm: null };
+    function dhT(ru, kk) { try { return isKk() ? kk : ru; } catch (e) { return ru; } }
+    function dhEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function dhMb(n) {
+      n = +n || 0;
+      if (n >= 1073741824) return (n / 1073741824).toFixed(2).replace('.', ',') + ' ГБ';
+      if (n >= 1048576) return (n >= 104857600 ? Math.round(n / 1048576) : (n / 1048576).toFixed(1).replace('.', ',')) + ' МБ';
+      if (n > 0) return Math.max(1, Math.round(n / 1024)) + ' КБ';
+      return '0';
+    }
+    function dhRecName(key) {
+      var kk = isKk(), n = key;
+      if (String(key).indexOf('whole:') === 0) { var w = wholeById(key.slice(6)); n = kk ? w.kk : w.ru; }
+      else { var r = RECITER_LIST.filter(function (x) { return x.id === key; })[0]; if (r) n = kk ? r.kk : r.ru; }
+      return String(n).replace(/\s*\(([^)]{22,})\)/, '');
+    }
+    function dhInitials(name) {
+      var p = String(name).replace(/\(.*\)/, '').split(/[\s-]+/).filter(function (w) { return w && !/^(аль|ал|әл|ас|әс|ад|әд|аш|әш|ар|әр|ат|ән|ан)$/i.test(w); });
+      return ((p[0] || '?').charAt(0) + (p[1] ? p[1].charAt(0) : '')).toUpperCase();
+    }
+    function dhFolderMap() {
+      if (DH.fm) return DH.fm;
+      var ea = {}, wh = {};
+      RECITER_ORDER.concat(RECITER_LIST.map(function (r) { return r.id; })).forEach(function (id) {
+        if (id.indexOf('whole:') === 0) return;
+        var f = everyayahFolder(id); if (!ea[f]) ea[f] = id;
+      });
+      WHOLE_RECITERS.forEach(function (r) { wh[r.base] = r.ayah || ('whole:' + r.id); });
+      return (DH.fm = { ea: ea, wh: wh });
+    }
+    // URL файла → { rec, s, a }: a=0 — целая сура, s=0 — а‘узу (относится к чтецу, но не к суре)
+    function dhParse(url) {
+      var fm = dhFolderMap(), m;
+      if ((m = /everyayah\.com\/data\/([^\/]+)\/(\d{3})(\d{3})\.mp3/.exec(url))) { return fm.ea[m[1]] ? { rec: fm.ea[m[1]], s: +m[2], a: +m[3] } : null; }
+      if ((m = /everyayah\.com\/data\/([^\/]+)\/audhubillah\.mp3/.exec(url))) { return fm.ea[m[1]] ? { rec: fm.ea[m[1]], s: 0, a: 0 } : null; }
+      for (var b in fm.wh) {
+        if (url.indexOf(b) === 0) { m = /^(\d{3})\.mp3/.exec(url.slice(b.length)); if (m) return { rec: fm.wh[b], s: +m[1], a: 0 }; }
+      }
+      if (/verses\.quran\.com|audio\.qurancdn\.com/.test(url) && !/\/wbw\//.test(url) && (m = /(\d{3})(\d{3})\.mp3/.exec(url))) return { rec: 'ar.husary', s: +m[1], a: +m[2] };
+      return null;
+    }
+    function dhScan(force) {
+      if (DH.idx && !force) return Promise.resolve(DH.idx);
+      if (DH.scanning) return DH.scanning;
+      DH.scanning = _audioCacheOpenDB().then(function (db) {
+        return new Promise(function (res) {
+          var idx = { recs: {}, other: { n: 0, bytes: 0, urls: [] }, total: 0 };
+          if (!db) { res(idx); return; }
+          try {
+            var cr = db.transaction('audio', 'readonly').objectStore('audio').openCursor();
+            cr.onsuccess = function (ev) {
+              var c = ev.target.result;
+              if (!c) { res(idx); return; }
+              var url = String(c.key), sz = (c.value && c.value.size) || 0, p = dhParse(url);
+              idx.total += sz;
+              if (p && p.s >= 0 && p.s <= 114) {
+                var R = idx.recs[p.rec] || (idx.recs[p.rec] = { bytes: 0, s: {}, extra: [] });
+                R.bytes += sz;
+                if (!p.s) R.extra.push(url);
+                else {
+                  var S = R.s[p.s] || (R.s[p.s] = { a: {}, n: 0, bytes: 0, whole: false, urls: [] });
+                  S.bytes += sz; S.urls.push(url);
+                  if (p.a) { if (!S.a[p.a]) { S.a[p.a] = 1; S.n++; } } else S.whole = true;
+                }
+              } else { idx.other.n++; idx.other.bytes += sz; idx.other.urls.push(url); }
+              c.continue();
+            };
+            cr.onerror = function () { res(idx); };
+          } catch (e) { res(idx); }
+        });
+      }).then(function (idx) { DH.idx = idx; DH.scanning = null; return idx; }, function () { DH.scanning = null; return { recs: {}, other: { n: 0, bytes: 0, urls: [] }, total: 0 }; });
+      return DH.scanning;
+    }
+    // 0 — нет, 1 — частично (по аятам), 2 — скачана
+    function dhSt(R, s) {
+      var S = R && R.s[s]; if (!S) return 0;
+      var cnt = surahAyahCount(s) || 0;
+      return (S.whole || (cnt && S.n >= cnt)) ? 2 : 1;
+    }
+    function dhDone(R) { var n = 0; for (var s = 1; s <= 114; s++) if (dhSt(R, s) === 2) n++; return n; }
+    function dhDelUrls(urls) {
+      return _audioCacheOpenDB().then(function (db) {
+        if (!db || !urls.length) return;
+        return new Promise(function (res) {
+          try {
+            var tx = db.transaction('audio', 'readwrite'), st = tx.objectStore('audio');
+            urls.forEach(function (u) {
+              st.delete(u);
+              try { if (_audioCacheMemUrls[u]) { URL.revokeObjectURL(_audioCacheMemUrls[u]); delete _audioCacheMemUrls[u]; } } catch (e) {}
+            });
+            tx.oncomplete = res; tx.onerror = res; tx.onabort = res;
+          } catch (e) { res(); }
+        });
+      }).then(function () { DH.idx = null; });
+    }
+    function dhIsHisn(u) { return u.indexOf('/audio-hisn/') >= 0 || u.indexOf('/audio-salah/') >= 0; }
+    // всё, что не в базе аудио: дуа (кэш воркера), файлы сайта, слова, фото, место на устройстве
+    async function dhOther() {
+      var o = { hisn: { n: 0, b: 0 }, app: { n: 0, b: 0 }, wbw: { n: 0, b: 0 }, img: { n: 0, b: 0 }, est: null };
+      try { if (navigator.storage && navigator.storage.estimate) o.est = await navigator.storage.estimate(); } catch (e) {}
+      try { var w = await _wbwAudioCacheStats(); o.wbw = { n: w.count, b: w.bytes }; } catch (e) {}
+      try { var im = await _imgCacheStats(); o.img = { n: im.count, b: im.bytes }; } catch (e) {}
+      try {
+        if (window.caches) {
+          var names = await caches.keys();
+          for (var i = 0; i < names.length; i++) {
+            var c = await caches.open(names[i]), reqs = await c.keys();
+            for (var j = 0; j < reqs.length; j++) {
+              var u = reqs[j].url;
+              // аудио чтецов лежит в своей базе; копии в кэше воркера — лишние (раньше попадали туда по ошибке)
+              if (/everyayah\.com|qurancdn\.com|verses\.quran\.com|mp3quran\.net/.test(u)) { try { await c.delete(reqs[j]); } catch (e) {} continue; }
+              var g = dhIsHisn(u) ? 'hisn' : 'app', sz = 0;
+              try {
+                var r = await c.match(reqs[j]), cl = r && r.headers.get('content-length');
+                if (cl && +cl > 0) sz = +cl; else if (r) sz = (await r.blob()).size;
+              } catch (e) {}
+              o[g].n++; o[g].b += sz;
+            }
+          }
+        }
+      } catch (e) {}
+      return (DH.other = o);
+    }
+    function dhLs() {
+      var g = { quran: 0, hadith: 0, tafsir: 0, user: 0 };
+      try {
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i) || '', sz = (k.length + (localStorage.getItem(k) || '').length) * 2;
+          if (k === 'quran_offline_amma' || k === SURAH_CACHE_KEY) g.quran += sz;
+          else if (k === 'quran_hadith_lib' || /^he_cache_|^ih_cache_/.test(k)) g.hadith += sz;
+          else if (/tafsir-cache/.test(k)) g.tafsir += sz;
+          else g.user += sz;
+        }
+      } catch (e) {}
+      return g;
+    }
+    async function dhHisnClear() {
+      try {
+        var names = await caches.keys();
+        for (var i = 0; i < names.length; i++) {
+          var c = await caches.open(names[i]), reqs = await c.keys();
+          for (var j = 0; j < reqs.length; j++) if (dhIsHisn(reqs[j].url)) await c.delete(reqs[j]);
+        }
+      } catch (e) {}
+    }
+    async function dhHisnDl(onP) {
+      await loadHisnData();
+      var urls = HISN_ITEMS.map(function (it) { return 'audio-hisn/' + it.a + '.mp3'; }), k = 0, ok = 0, done = 0;
+      async function wk() {
+        while (k < urls.length) {
+          var u = urls[k++];
+          try { var have = window.caches && await caches.match(u); if (!have) { var r = await fetch(u); if (!r.ok) throw 0; await r.arrayBuffer(); } ok++; } catch (e) {}
+          done++; if (onP) onP(done, urls.length);
+        }
+      }
+      await Promise.all([wk(), wk(), wk(), wk()]);
+      return { ok: ok, total: urls.length };
+    }
+
+    // ---------- очередь загрузок (пауза / отмена / только Wi-Fi) ----------
+    var DLQ = { jobs: [], run: false, paused: false, ctl: null };
+    function dlqSleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+    function dlqWifiOnly() { return _lsGet('qa_dl_wifi', '0') === '1'; }
+    function dlqHasType() { try { return !!(navigator.connection && typeof navigator.connection.type === 'string'); } catch (e) { return false; } }
+    function dlqCellular() { try { return dlqWifiOnly() && dlqHasType() && navigator.connection.type === 'cellular'; } catch (e) { return false; } }
+    function dlqAdd(rec, whole, surahs) {
+      surahs = surahs.filter(function (s) { return s >= 1 && s <= 114; });
+      if (!surahs.length) return;
+      if (!navigator.onLine) { toast(dhT('Нужен интернет', 'Интернет қажет')); return; }
+      DLQ.jobs.push({ rec: rec, whole: !!whole, surahs: surahs, i: 0, done: 0, fail: 0, cancel: false, part: 0, partTotal: 0, cur: surahs[0] });
+      toast(dhT('Добавлено в загрузки: ', 'Жүктеуге қосылды: ') + surahs.length + dhT(' сур', ' сүре'));
+      dlqLoop(); dhPaintDl();
+    }
+    function dlqSurahUrls(j, s) {
+      if (j.whole) {
+        var w = j.rec.indexOf('whole:') === 0 ? wholeById(j.rec.slice(6)) : wholeForAyah(j.rec);
+        return w ? [w.base + String(s).padStart(3, '0') + '.mp3'] : [];
+      }
+      var urls = [], cnt = surahAyahCount(s) || 0;
+      for (var a = 1; a <= cnt; a++) urls.push(ayahAudioUrl(s, a, j.rec));
+      if (s !== 9) { try { var z = zeroAyahUrl(s, j.rec); if (urls.indexOf(z) < 0) urls.unshift(z); } catch (e) {} }
+      return urls;
+    }
+    async function dlqSurah(j, s) {
+      var have = await _audioCacheAllUrls();
+      var urls = dlqSurahUrls(j, s).filter(function (u) { return !have.has(u); });
+      j.part = 0; j.partTotal = urls.length;
+      if (!urls.length) return 'ok';
+      var ctl = new AbortController(); DLQ.ctl = ctl;
+      var quota = false, fails = 0, k = 0;
+      async function wk() {
+        while (k < urls.length && !j.cancel && !quota) {
+          if (DLQ.paused || dlqCellular()) { await dlqSleep(500); continue; }
+          var u = urls[k++];
+          try {
+            var res = await fetch(u, { signal: ctl.signal });
+            if (!res.ok) throw new Error('http');
+            await _audioCacheSet(u, await res.blob());
+          } catch (e) {
+            if (e && e.name === 'QuotaExceededError') quota = true;
+            else if (!(e && e.name === 'AbortError')) fails++;
+          }
+          j.part++; dhPaintDl();
+        }
+      }
+      await Promise.all(j.whole ? [wk()] : [wk(), wk(), wk()]);
+      DLQ.ctl = null;
+      if (quota) return 'quota';
+      if (j.cancel) return 'cancel';
+      return fails ? 'fail' : 'ok';
+    }
+    async function dlqLoop() {
+      if (DLQ.run) return;
+      DLQ.run = true;
+      try {
+        while (DLQ.jobs.length) {
+          var j = DLQ.jobs[0];
+          while (j.i < j.surahs.length && !j.cancel) {
+            if (DLQ.paused || dlqCellular() || !navigator.onLine) { dhPaintDl(); await dlqSleep(1000); continue; }
+            j.cur = j.surahs[j.i];
+            var r = await dlqSurah(j, j.cur);
+            if (r === 'quota') {
+              toast(dhT('Не хватает места на устройстве — загрузки остановлены. Удалите лишнее ниже.', 'Құрылғыда орын жетпейді — жүктеу тоқтатылды. Артығын төменде өшіріңіз.'));
+              DLQ.jobs.forEach(function (x) { x.cancel = true; });
+              break;
+            }
+            if (r === 'ok') j.done++; else if (r === 'fail') j.fail++;
+            if (r !== 'cancel') j.i++;
+            DH.idx = null; dhRefreshSoon();
+          }
+          DLQ.jobs.shift();
+          if (!j.cancel) toast(dhRecName(j.rec) + ': ' + dhT('скачано ', 'жүктелді ') + j.done + ' / ' + j.surahs.length + (j.fail ? dhT(' (с ошибками: ', ' (қатемен: ') + j.fail + ')' : ''));
+        }
+      } finally { DLQ.run = false; DH.idx = null; dhRefreshSoon(); dhPaintDl(); }
+    }
+    function dlqCancel(i) {
+      var j = DLQ.jobs[i]; if (!j) return;
+      j.cancel = true;
+      if (i === 0 && DLQ.ctl) { try { DLQ.ctl.abort(); } catch (e) {} }
+      if (i > 0) DLQ.jobs.splice(i, 1);
+      dhPaintDl();
+    }
+
+    // ---------- отрисовка ----------
+    function dhOnScreen() { var v = document.getElementById('view-cache'); return !!(v && v.classList.contains('active') && document.getElementById('cache-body')); }
+    var _dhRefT = 0;
+    function dhRefreshSoon() {
+      if (_dhRefT) return;
+      _dhRefT = setTimeout(function () {
+        _dhRefT = 0;
+        if (!dhOnScreen()) return;
+        dhScan().then(function () {
+          if (DH.rec) dhRenderRec(); else { dhPaintRecs(); dhPaintBar(); dhPaintDup(); dhPaintSearch(); }
+        });
+      }, 1200);
+    }
+    var _dhDlT = 0;
+    function dhPaintDl() {
+      if (_dhDlT) return;
+      _dhDlT = setTimeout(function () {
+        _dhDlT = 0;
+        var box = document.getElementById('dh-dl'); if (!box) return;
+        if (!DLQ.jobs.length) { box.innerHTML = ''; box.hidden = true; return; }
+        box.hidden = false;
+        var h = '<div class="dh-sec">⬇ ' + dhT('Сейчас качается', 'Қазір жүктелуде') + ' · ' + DLQ.jobs.length + '</div><div class="card dh-card">';
+        DLQ.jobs.forEach(function (j, i) {
+          var pct = j.surahs.length ? Math.round(((j.i + (j.partTotal ? j.part / j.partTotal : 0)) / j.surahs.length) * 100) : 0;
+          h += '<div class="dh-dlrow"><div class="dh-dltop"><span>' + dhEsc(dhRecName(j.rec)) + ' · ' + (i === 0 ? dhEsc(surahShortName(j.cur)) + ' (' + Math.min(j.i + 1, j.surahs.length) + '/' + j.surahs.length + ')' : dhT('ждёт', 'күтуде') + ' · ' + j.surahs.length + dhT(' сур', ' сүре')) + '</span><span class="dh-mut">' + (i === 0 ? pct + '%' : '') + '</span></div>' +
+            '<div class="dh-mini"><i style="width:' + (i === 0 ? pct : 0) + '%"></i></div>' +
+            '<button type="button" class="btn btn-sm dh-x" data-dh="dlx" data-i="' + i + '">✕ ' + dhT('Отмена', 'Болдырмау') + '</button></div>';
+        });
+        var why = !navigator.onLine ? dhT('Нет интернета — продолжится сам', 'Интернет жоқ — өзі жалғасады') : (dlqCellular() ? dhT('Мобильная сеть — ждём Wi-Fi', 'Мобильді желі — Wi-Fi күтеміз') : '');
+        h += (why ? '<div class="dh-mut" style="margin:0.3rem 0">' + why + '</div>' : '') +
+          '<div class="dh-btns"><button type="button" class="btn btn-sm" data-dh="dlpause">' + (DLQ.paused ? '▶ ' + dhT('Продолжить', 'Жалғастыру') : '⏸ ' + dhT('Пауза', 'Кідірту')) + '</button></div>' +
+          '<div class="dh-mut" style="margin-top:0.35rem">' + dhT('Пока качается, не закрывайте сайт.', 'Жүктеліп жатқанда сайтты жаппаңыз.') + '</div></div>';
+        box.innerHTML = h;
+      }, 250);
+    }
+    function dhPaintBar() {
+      var box = document.getElementById('dh-bar'); if (!box) return;
+      var idx = DH.idx, o = DH.other, ls = dhLs();
+      if (!idx || !o) { box.innerHTML = '<div class="dh-mut">' + dhT('Считаю, сколько занято…', 'Қанша орын алғанын есептеп жатырмын…') + '</div>'; return; }
+      var aud = idx.total + o.hisn.b + o.wbw.b, txt = ls.quran + ls.hadith + ls.tafsir, oth = o.app.b + o.img.b + ls.user;
+      var sum = aud + txt + oth || 1, used = (o.est && o.est.usage) || sum, quota = o.est && o.est.quota;
+      var free = quota ? Math.max(0, quota - used) : 0;
+      var den = quota ? Math.max(quota, sum) : sum;
+      function seg(v, c) { return v > 0 ? '<i style="width:' + Math.max(0.6, v / den * 100).toFixed(2) + '%;background:' + c + '"></i>' : ''; }
+      box.innerHTML = '<div class="dh-row2"><b>' + dhT('Занято ', 'Бос емес: ') + dhMb(Math.max(used, sum)) + '</b>' + (quota ? '<span class="dh-mut">' + dhT('можно ещё ~', 'тағы ~') + dhMb(free) + '</span>' : '') + '</div>' +
+        '<div class="dh-bar">' + seg(aud, '#10b981') + seg(txt, '#60a5fa') + seg(oth, '#fbbf24') + '</div>' +
+        '<div class="dh-leg"><span><b style="background:#10b981"></b>' + dhT('Аудио ', 'Аудио ') + dhMb(aud) + '</span><span><b style="background:#60a5fa"></b>' + dhT('Тексты ', 'Мәтіндер ') + dhMb(txt) + '</span><span><b style="background:#fbbf24"></b>' + dhT('Прочее ', 'Басқа ') + dhMb(oth) + '</span></div>';
+      // размеры строк «другое аудио / тексты / прочее» и сортировка — больше сверху
+      var sizes = { hisn: o.hisn.b, wbw: o.wbw.b, qother: idx.other.bytes, quran: ls.quran, hadith: ls.hadith, tafsir: ls.tafsir, img: o.img.b, app: o.app.b, user: ls.user };
+      document.querySelectorAll('#cache-body [data-dh-size]').forEach(function (s) {
+        var k = s.getAttribute('data-dh-size'), v = sizes[k] || 0;
+        s.textContent = v ? dhMb(v) : dhT('пусто', 'бос');
+        var row = s.closest('[data-dh-row]'); if (row) row.setAttribute('data-b', v);
+      });
+      document.querySelectorAll('#cache-body [data-dh-sort]').forEach(function (c) {
+        Array.prototype.slice.call(c.children).sort(function (a, b) { return (+b.getAttribute('data-b') || 0) - (+a.getAttribute('data-b') || 0); }).forEach(function (x) { c.appendChild(x); });
+      });
+    }
+    function dhRecKeys() {
+      var r = DH.idx ? Object.keys(DH.idx.recs) : [];
+      return r.sort(function (a, b) { return DH.idx.recs[b].bytes - DH.idx.recs[a].bytes; });
+    }
+    function dhPaintRecs() {
+      var box = document.getElementById('dh-recs'); if (!box) return;
+      if (!DH.idx) { box.innerHTML = '<div class="dh-mut" style="padding:0.6rem 0.2rem">' + dhT('Считаю…', 'Есептеп жатырмын…') + '</div>'; return; }
+      var keys = dhRecKeys(), h = '';
+      keys.forEach(function (k) {
+        var R = DH.idx.recs[k], done = dhDone(R), part = 0;
+        for (var s = 1; s <= 114; s++) if (dhSt(R, s) === 1) part++;
+        var nm = dhRecName(k);
+        h += '<button type="button" class="dh-rrow" data-dh="rec" data-k="' + dhEsc(k) + '"><span class="dh-av">' + dhEsc(dhInitials(nm)) + '</span><span class="dh-grow"><span class="dh-nm">' + dhEsc(nm) + '</span>' +
+          '<span class="dh-mut">' + (done >= 114 ? dhT('весь Коран', 'бүкіл Құран') : done + ' / 114' + dhT(' сур', ' сүре')) + (part ? dhT(' · частично ещё ', ' · ішінара тағы ') + part : '') + '</span>' +
+          '<span class="dh-mini"><i style="width:' + Math.round(done / 114 * 100) + '%"></i></span></span><span class="dh-sz">' + dhMb(R.bytes) + '</span><span class="dh-chev">›</span></button>';
+      });
+      if (!keys.length) h += '<div class="dh-mut" style="padding:0.5rem 0.2rem">' + dhT('Пока ничего не скачано. Прослушанные аяты сохраняются сами, а целые суры можно скачать здесь.', 'Әзірге ештеңе жүктелмеген. Тыңдалған аяттар өзі сақталады, ал толық сүрелерді осы жерден жүктеуге болады.') + '</div>';
+      h += '<button type="button" class="dh-rrow" data-dh="pick"><span class="dh-av dh-av-add">＋</span><span class="dh-grow"><span class="dh-nm dh-acc">' + dhT('Скачать у чтеца', 'Қариден жүктеу') + '</span></span><span class="dh-chev">' + (DH.pick ? '⌃' : '›') + '</span></button>';
+      if (DH.pick) {
+        h += '<div class="dh-pick">' + reciterOrdered(true).map(function (r) {
+          var k = r.whole ? 'whole:' + r.whole : r.id;
+          return '<button type="button" class="btn btn-sm" data-dh="rec" data-k="' + dhEsc(k) + '">' + dhEsc(dhRecName(k)) + (r.whole ? dhT(' · целые суры', ' · толық сүре') : '') + '</button>';
+        }).join('') + '</div>';
+      }
+      box.innerHTML = h;
+    }
+    function dhDups() {
+      var out = [], recs = DH.idx ? DH.idx.recs : {};
+      for (var s = 1; s <= 114; s++) {
+        var who = Object.keys(recs).filter(function (k) { return dhSt(recs[k], s) === 2; });
+        if (who.length > 1) out.push({ s: s, who: who });
+      }
+      return out;
+    }
+    function dhPaintDup() {
+      var box = document.getElementById('dh-dup'); if (!box) return;
+      var d = DH.idx ? dhDups() : [];
+      var sig = d.map(function (x) { return x.s + ':' + x.who.length; }).join(',');
+      if (!d.length || _lsGet('qa_dh_dup_hide', '') === sig) { box.innerHTML = ''; return; }
+      var extra = 0, recs = DH.idx.recs;
+      d.forEach(function (x) { var b = x.who.map(function (k) { return recs[k].s[x.s].bytes; }).sort(function (p, q) { return q - p; }); b.slice(1).forEach(function (v) { extra += v; }); });
+      var names = d.slice(0, 3).map(function (x) { return surahShortName(x.s); }).join(', ') + (d.length > 3 ? dhT(' и ещё ', ' және тағы ') + (d.length - 3) : '');
+      var cnt = {}; d.forEach(function (x) { x.who.forEach(function (k) { cnt[k] = (cnt[k] || 0) + 1; }); });
+      var who = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; });
+      box.innerHTML = '<div class="dh-hint">💡 <b>' + dhEsc(names) + '</b> ' + dhT('скачаны у нескольких чтецов сразу (лишнее ≈ ', 'бірнеше қариден қатар жүктелген (артығы ≈ ') + dhMb(extra) + '). ' + dhT('Оставить только у одного?', 'Тек біреуінде қалдырасыз ба?') +
+        '<div class="dh-btns">' + who.map(function (k) { return '<button type="button" class="btn btn-sm" data-dh="keep" data-k="' + dhEsc(k) + '">' + dhT('Оставить: ', 'Қалсын: ') + dhEsc(dhRecName(k)) + '</button>'; }).join('') +
+        '<button type="button" class="btn btn-sm" data-dh="duphide" data-sig="' + dhEsc(sig) + '">' + dhT('Не надо', 'Керек емес') + '</button></div></div>';
+    }
+    function dhNorm(s) { return String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/^(аль|ал|әл|ас|әс|ад|ат|аш|ар|ан|ан-|ув|уа)[\s-]+/, '').replace(/[\s\-'‘’ʼ`]+/g, ''); }
+    function dhFind(q) {
+      q = String(q || '').trim(); if (!q) return [];
+      if (/^\d+$/.test(q)) { var n = +q; return n >= 1 && n <= 114 ? [n] : []; }
+      var nq = dhNorm(q), out = [];
+      for (var s = 1; s <= 114 && out.length < 4; s++) {
+        var names = [];
+        try { if (typeof SURAH_RU !== 'undefined' && SURAH_RU[s]) names.push(SURAH_RU[s]); } catch (e) {}
+        try { if (typeof SURAH_KK !== 'undefined' && SURAH_KK[s]) names.push(SURAH_KK[s]); } catch (e) {}
+        try { var m = state.surahsMeta && state.surahsMeta[s - 1]; if (m) { names.push(m.englishName || ''); names.push(m.englishNameTranslation || ''); } } catch (e) {}
+        if (names.some(function (x) { return dhNorm(x).indexOf(nq) >= 0; })) out.push(s);
+      }
+      return out;
+    }
+    function dhPaintSearch() {
+      var box = document.getElementById('dh-sres'); if (!box) return;
+      var list = dhFind(DH.q);
+      if (!DH.q) { box.innerHTML = ''; return; }
+      if (!list.length) { box.innerHTML = '<div class="dh-mut" style="padding:0.4rem 0.2rem">' + dhT('Сура не найдена', 'Сүре табылмады') + '</div>'; return; }
+      var recs = DH.idx ? DH.idx.recs : {}, cur = (state.settings && state.settings.reciter) || 'ar.alafasy';
+      box.innerHTML = list.map(function (s) {
+        var who = Object.keys(recs).filter(function (k) { return dhSt(recs[k], s) > 0; }).sort(function (a, b) { return recs[b].s[s].bytes - recs[a].s[s].bytes; });
+        var h = '<div class="card dh-card"><div class="dh-nm">' + s + '. ' + dhEsc(surahShortName(s)) + '</div>';
+        who.forEach(function (k) {
+          var st = dhSt(recs[k], s);
+          h += '<div class="dh-srow"><span class="dh-av">' + dhEsc(dhInitials(dhRecName(k))) + '</span><span class="dh-grow">' + dhEsc(dhRecName(k)) + (st === 1 ? '<span class="dh-mut">' + dhT(' · частично', ' · ішінара') + '</span>' : '') + '</span><span class="dh-sz">' + dhMb(recs[k].s[s].bytes) + '</span>' +
+            '<button type="button" class="btn btn-sm dh-x" data-dh="sdel" data-k="' + dhEsc(k) + '" data-s="' + s + '" aria-label="' + dhT('Удалить', 'Өшіру') + '">🗑</button></div>';
+        });
+        if (!who.length) h += '<div class="dh-mut" style="margin:0.3rem 0">' + dhT('Ни у одного чтеца не скачана.', 'Ешбір қариде жүктелмеген.') + '</div>';
+        if (who.indexOf(cur) < 0 || dhSt(recs[cur], s) < 2) h += '<div class="dh-srow"><span class="dh-av dh-av-add">⬇</span><span class="dh-grow dh-mut">' + dhEsc(dhRecName(cur)) + ' — ' + dhT('ваш чтец', 'сіздің қариіңіз') + '</span><button type="button" class="btn btn-sm btn-primary" data-dh="sdl" data-k="' + dhEsc(cur) + '" data-s="' + s + '">⬇ ' + dhT('Скачать', 'Жүктеу') + '</button></div>';
+        return h + '</div>';
+      }).join('');
+    }
+    // строка-раскрывашка «другое аудио / тексты / прочее»
+    function dhRow(key, icon, title, sub, body) {
+      return '<details class="dh-drow" data-dh-row data-b="0"><summary><span class="dh-grow"><span class="dh-nm">' + icon + ' ' + title + '</span>' + (sub ? '<span class="dh-mut">' + sub + '</span>' : '') + '</span><span class="dh-sz" data-dh-size="' + key + '">…</span><span class="dh-chev">›</span></summary><div class="dh-dbody">' + body + '</div></details>';
+    }
+    function dhHubHtml(v) {
+      var kk = isKk();
+      var hub = '<div class="card dh-card" id="dh-bar"></div>' +
+        '<input type="search" class="select dh-q" id="dh-q" placeholder="🔍 ' + dhT('Где скачана сура? Мульк, 67…', 'Сүре қай жерде? Мүлк, 67…') + '" value="' + dhEsc(DH.q) + '">' +
+        '<div id="dh-sres"></div>' +
+        '<div id="dh-dl" hidden></div>' +
+        '<div class="dh-sec">🎧 ' + dhT('Аудио Корана — по чтецам', 'Құран аудиосы — қарилер бойынша') + '</div>' +
+        '<div class="card dh-card dh-list" id="dh-recs"></div>' +
+        '<div id="dh-dup"></div>' +
+        '<div class="dh-sec">🤲 ' + dhT('Дуа, слова и другое аудио', 'Дұға, сөздер және басқа аудио') + '</div>' +
+        '<div class="card dh-card dh-list" data-dh-sort>' +
+          dhRow('hisn', '🤲', dhT('Дуа и зикры — озвучка', 'Дұға мен зікір — дыбыс'), dhT('записи «Хисн аль-муслим» и намаза', '«Хисн әл-мүслим» мен намаз жазбалары'),
+            '<div class="dh-mut">' + dhT('Прослушанная запись сохраняется сама. Можно скачать все сразу (≈30 МБ).', 'Тыңдалған жазба өзі сақталады. Барлығын бірден жүктеуге болады (≈30 МБ).') + '</div><div id="dh-hisn-p" class="dh-mut"></div>' +
+            '<div class="dh-btns"><button type="button" class="btn btn-sm btn-primary" data-dh="hisndl">⬇ ' + dhT('Скачать все', 'Барлығын жүктеу') + '</button><button type="button" class="btn btn-sm dh-x" data-dh="hisnclr">🗑 ' + dhT('Удалить', 'Өшіру') + '</button></div>') +
+          dhRow('wbw', '🔤', dhT('Озвучка отдельных слов', 'Жеке сөздердің дыбысы'), dhT('пословный разбор, 26 сур', 'сөзбе-сөз талдау, 26 сүре'),
+            '<div class="dh-btns"><button type="button" class="btn btn-sm btn-primary" id="cache-dl-wbw-all">⬇ ' + dhT('Все слова', 'Барлық сөз') + '</button><button type="button" class="btn btn-sm" id="cache-dl-wbw-surah">⬇ ' + dhT('Одну суру…', 'Бір сүре…') + '</button><button type="button" class="btn btn-sm dh-x" id="cache-clear-wbw-audio">🗑 ' + dhT('Удалить', 'Өшіру') + '</button></div>') +
+          dhRow('qother', '🎵', dhT('Прочее аудио Корана', 'Құранның басқа аудиосы'), dhT('не удалось отнести к чтецу', 'қариге жатқызылмады'),
+            '<div class="dh-btns"><button type="button" class="btn btn-sm dh-x" data-dh="qotherclr">🗑 ' + dhT('Удалить', 'Өшіру') + '</button></div>') +
+        '</div>' +
+        '<div class="dh-sec">📖 ' + dhT('Тексты', 'Мәтіндер') + '</div>' +
+        '<div class="card dh-card dh-list" data-dh-sort>' +
+          dhRow('quran', '📖', dhT('Тексты сур с переводом', 'Аудармасымен сүре мәтіндері'), (v.ammaN >= 114 ? dhT('весь Коран', 'бүкіл Құран') : v.ammaN + ' / 114' + dhT(' сур', ' сүре')) + ' · ' + v.ammaAyahs + dhT(' аятов', ' аят'),
+            '<div class="dh-btns"><button type="button" class="btn btn-sm btn-primary" id="cache-dl-full">⬇ ' + dhT('Весь Коран', 'Бүкіл Құран') + '</button><button type="button" class="btn btn-sm" id="cache-dl-amma">⬇ 78–114</button><button type="button" class="btn btn-sm" id="cache-dl-juz">⬇ ' + dhT('Джуз…', 'Жүз…') + '</button><button type="button" class="btn btn-sm dh-x" id="cache-clear-amma">🗑 ' + dhT('Удалить', 'Өшіру') + '</button></div>') +
+          dhRow('hadith', '📜', dhT('Хадисы', 'Хадистер'), v.hadithN ? (v.hadithN + dhT(' хадисов', ' хадис')) : '',
+            '<div class="dh-btns"><button type="button" class="btn btn-sm dh-x" id="cache-clear-hadith">🗑 ' + dhT('Удалить', 'Өшіру') + '</button></div>') +
+          dhRow('tafsir', '📚', dhT('Тафсиры', 'Тәфсирлер'), v.tafsirN ? (v.tafsirN + dhT(' аятов открывали', ' аят ашылған')) : '',
+            '<div class="dh-mut">' + dhT('Открытый тафсир аята сохраняется, чтобы потом открывался без интернета.', 'Ашылған аят тәфсирі кейін интернетсіз ашылу үшін сақталады.') + '</div><div class="dh-btns"><button type="button" class="btn btn-sm dh-x" id="cache-clear-tafsir">🗑 ' + dhT('Удалить', 'Өшіру') + '</button></div>') +
+        '</div>' +
+        '<div class="dh-sec">🗂 ' + dhT('Прочее', 'Басқа') + '</div>' +
+        '<div class="card dh-card dh-list" data-dh-sort>' +
+          dhRow('img', '🖼', dhT('Фото из чатов', 'Чаттағы суреттер'), '',
+            '<div class="dh-btns"><button type="button" class="btn btn-sm dh-x" id="cache-clear-online">🗑 ' + dhT('Удалить', 'Өшіру') + '</button></div>') +
+          dhRow('app', '📱', dhT('Файлы сайта', 'Сайт файлдары'), dhT('нужны, чтобы сайт открывался без интернета', 'сайт интернетсіз ашылуы үшін керек'),
+            '<div class="dh-mut">' + dhT('Удалять не нужно — обновляются сами.', 'Өшірудің қажеті жоқ — өздері жаңарады.') + '</div>') +
+          dhRow('user', '⭐', dhT('Ваши данные', 'Сіздің деректеріңіз'), dhT('прогресс, закладки, настройки', 'үлгерім, бетбелгілер, баптаулар'),
+            '<div class="dh-mut">' + dhT('Это ваше — здесь не удаляется. Сохранить копию можно ниже.', 'Бұл сіздікі — мұнда өшірілмейді. Көшірмесін төменде сақтауға болады.') + '</div>') +
+        '</div>' +
+        '<details class="card dh-card"><summary class="dh-nm">📴 ' + dhT('Полный офлайн одной кнопкой', 'Бір батырмамен толық офлайн') + '</summary>' +
+          '<div class="dh-mut" style="margin:0.4rem 0">' + dhT('Тексты всех 114 сур и файлы сайта — чтобы всё открывалось без интернета.', 'Барлық 114 сүре мәтіні мен сайт файлдары — бәрі интернетсіз ашылуы үшін.') + '</div>' +
+          '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;margin-bottom:0.5rem"><input type="checkbox" id="cache-dl-hisn-audio" checked><span>' + dhT('Плюс озвучка «Дуа и зикры» (≈30 МБ)', 'Қоса «Дұға мен зікір» дыбысы (≈30 МБ)') + '</span></label>' +
+          '<button type="button" class="btn btn-primary" id="cache-dl-everything" style="width:100%">⬇️ ' + dhT('Скачать всё для офлайн', 'Барлығын офлайн үшін жүктеу') + '</button>' +
+          '<div id="cache-dl-everything-progress" class="dh-mut" style="margin-top:0.4rem;min-height:1.2rem"></div></details>' +
+        (dlqHasType() ? '<div class="card dh-card dh-row2"><span>' + dhT('Скачивать только по Wi-Fi', 'Тек Wi-Fi арқылы жүктеу') + '</span><label class="dh-tog"><input type="checkbox" id="dh-wifi"' + (dlqWifiOnly() ? ' checked' : '') + '><i></i></label></div>' : '') +
+        '<div class="dh-sec">🗂 ' + dhT('Резервная копия', 'Сақтық көшірме') + '</div>' +
+        '<div class="card dh-card"><div class="dh-mut">' + dhT('Закладки, папки, прогресс, настройки — в файл и обратно.', 'Бетбелгілер, топтар, үлгерім, баптаулар — файлға және кері.') + '</div><div class="dh-btns"><button type="button" class="btn btn-sm" data-dh="backup">🗂 ' + dhT('Открыть резервную копию', 'Сақтық көшірмені ашу') + '</button></div></div>' +
+        '<details class="card dh-card"><summary class="dh-nm" style="color:var(--danger)">⚠️ ' + dhT('Удалить всё скачанное', 'Барлық жүктелгенді өшіру') + '</summary><div class="dh-mut" style="margin:0.4rem 0">' + dhT('Удалятся тексты сур, хадисы и всё аудио. Прогресс, закладки и словарь не трогаем.', 'Сүре мәтіндері, хадистер және барлық аудио өшеді. Үлгерім, бетбелгі мен сөздікке тимейміз.') + '</div><button type="button" class="btn btn-sm dh-x" id="cache-clear-all">🗑 ' + dhT('Удалить всё скачанное', 'Барлық жүктелгенді өшіру') + '</button></details>';
+      return hub;
+    }
+    function dhRecTitle(k) { return dhRecName(k) + (k.indexOf('whole:') === 0 ? dhT(' · целые суры', ' · толық сүре') : ''); }
+    function dhCanWhole(k) { return k.indexOf('whole:') === 0 || !!wholeForAyah(k); }
+    function dhRenderRec() {
+      var el = document.getElementById('cache-body'); if (!el || !DH.rec) return;
+      var k = DH.rec, R = DH.idx && DH.idx.recs[k], done = R ? dhDone(R) : 0, kk = isKk();
+      var onlyWhole = k.indexOf('whole:') === 0, can = dhCanWhole(k);
+      if (DH.mode == null) DH.mode = onlyWhole ? 'whole' : 'ayah';
+      var cells = '', nDone = 0, nNo = 0;
+      for (var s = 1; s <= 114; s++) {
+        var st = dhSt(R, s); if (st === 2) nDone++; else nNo++;
+        if (DH.tab === 'done' && st !== 2) continue;
+        if (DH.tab === 'no' && st === 2) continue;
+        cells += '<button type="button" class="dh-cell' + (st === 2 ? ' ok' : st === 1 ? ' part' : '') + (DH.sel && DH.sel.has(s) ? ' sel' : '') + '" data-s="' + s + '" title="' + dhEsc(surahShortName(s)) + '">' + s + '</button>';
+      }
+      var juz = '';
+      if (DH.juz) { juz = '<div class="dh-juz">'; for (var j = 1; j <= 30; j++) juz += '<button type="button" class="btn btn-sm" data-dh="juzgo" data-j="' + j + '">' + j + '</button>'; juz += '</div>'; }
+      var selN = DH.sel ? DH.sel.size : 0;
+      el.innerHTML = '<button type="button" class="btn btn-sm dh-back" data-dh="back">‹ ' + dhT('Все данные', 'Барлық дерек') + '</button>' +
+        '<div class="dh-h">' + dhEsc(dhRecTitle(k)) + '</div>' +
+        '<div class="card dh-card"><div class="dh-row2"><b>' + done + dhT(' из 114 сур', ' / 114 сүре') + '</b><span class="dh-mut">' + dhMb(R ? R.bytes : 0) + '</span></div><div class="dh-mini dh-mini-l"><i style="width:' + Math.round(done / 114 * 100) + '%"></i></div>' +
+          (can && !onlyWhole ? '<div class="dh-seg"><button type="button" data-dh="mode" data-m="ayah"' + (DH.mode === 'ayah' ? ' class="on"' : '') + '>' + dhT('По аятам', 'Аятпен') + '</button><button type="button" data-dh="mode" data-m="whole"' + (DH.mode === 'whole' ? ' class="on"' : '') + '>' + dhT('Целыми сурами', 'Толық сүремен') + '</button></div>' +
+            '<div class="dh-mut">' + (DH.mode === 'whole' ? dhT('Один файл на суру — для режима «сура целиком» в плеере.', 'Әр сүреге бір файл — плеердегі «толық сүре» режимі үшін.') : dhT('Файл на каждый аят — для обычного плеера, повтора аятов и подсветки.', 'Әр аятқа бір файл — қалыпты плеер, аят қайталау және жарықтандыру үшін.')) + '</div>' : '') +
+          '<div class="dh-btns"><button type="button" class="btn btn-sm btn-primary" data-dh="all">⬇ ' + dhT('Весь Коран', 'Бүкіл Құран') + '</button><button type="button" class="btn btn-sm" data-dh="juz">⬇ ' + dhT('Джуз…', 'Жүз…') + '</button>' + (R ? '<button type="button" class="btn btn-sm dh-x" data-dh="recdel">🗑 ' + dhT('Удалить всё у чтеца', 'Қаридегінің бәрін өшіру') + '</button>' : '') + '</div>' + juz + '</div>' +
+        '<div class="dh-tabs"><button type="button" data-dh="tab" data-t="all"' + (DH.tab === 'all' ? ' class="on"' : '') + '>' + dhT('Все 114', 'Барлығы 114') + '</button><button type="button" data-dh="tab" data-t="done"' + (DH.tab === 'done' ? ' class="on"' : '') + '>' + dhT('Скачанные ', 'Жүктелген ') + nDone + '</button><button type="button" data-dh="tab" data-t="no"' + (DH.tab === 'no' ? ' class="on"' : '') + '>' + dhT('Нет ', 'Жоқ ') + nNo + '</button></div>' +
+        '<div class="card dh-card"><div class="dh-mut">' + dhT('Нажмите на суру — скачать или удалить. Долгое нажатие — выбрать несколько.', 'Сүрені басыңыз — жүктеу не өшіру. Ұзақ басу — бірнешеуін таңдау.') + '</div>' +
+          '<div class="dh-grid">' + (cells || '<div class="dh-mut">' + dhT('Пусто', 'Бос') + '</div>') + '</div>' +
+          '<div class="dh-leg" style="margin-top:0.6rem"><span><b style="background:#10b981"></b>' + dhT('скачана', 'жүктелген') + '</span><span><b style="background:rgba(16,185,129,0.4)"></b>' + dhT('частично', 'ішінара') + '</span><span><b style="background:var(--bg-hover)"></b>' + dhT('нет', 'жоқ') + '</span></div>' +
+          (DH.sel ? '<div class="dh-selbar"><span>✓ ' + dhT('Выбрано ', 'Таңдалды ') + selN + '</span><span class="dh-grow"></span><button type="button" class="btn btn-sm btn-primary" data-dh="seldl"' + (selN ? '' : ' disabled') + '>⬇</button><button type="button" class="btn btn-sm dh-x" data-dh="seldel"' + (selN ? '' : ' disabled') + '>🗑</button><button type="button" class="btn btn-sm" data-dh="selx">✕</button></div>' : '') +
+        '</div><div id="dh-dl" hidden></div>';
+      dhPaintDl();
+      dhBind(el);
+    }
+    function dhSurahUrls(k, list) { var R = DH.idx && DH.idx.recs[k], u = []; if (R) list.forEach(function (s) { if (R.s[s]) u = u.concat(R.s[s].urls); }); return u; }
+    function dhDelete(k, list, ask) {
+      var urls = dhSurahUrls(k, list); if (!urls.length) return;
+      var tot = 0, R = DH.idx.recs[k]; list.forEach(function (s) { if (R.s[s]) tot += R.s[s].bytes; });
+      if (ask && !confirm(ask + ' (' + dhMb(tot) + ')')) return;
+      dhDelUrls(urls).then(function () { toast(dhT('Удалено: ', 'Өшірілді: ') + dhMb(tot)); return dhScan(true); }).then(function () { if (DH.rec) dhRenderRec(); else { dhPaintRecs(); dhPaintBar(); dhPaintDup(); dhPaintSearch(); } });
+    }
+    function dhBind(el) {
+      var lp = null, lpFired = false;
+      el.onpointerdown = function (e) {
+        var c = e.target.closest && e.target.closest('.dh-cell'); if (!c) return;
+        lpFired = false;
+        clearTimeout(lp);
+        lp = setTimeout(function () { lpFired = true; if (!DH.sel) DH.sel = new Set(); DH.sel.add(+c.getAttribute('data-s')); try { navigator.vibrate && navigator.vibrate(20); } catch (e2) {} dhRenderRec(); }, 520);
+      };
+      el.onpointerup = el.onpointercancel = el.onpointerleave = function () { clearTimeout(lp); };
+      el.oncontextmenu = function (e) { if (e.target.closest && e.target.closest('.dh-cell')) e.preventDefault(); };
+      el.oninput = function (e) {
+        if (e.target && e.target.id === 'dh-q') { DH.q = e.target.value; dhPaintSearch(); }
+      };
+      el.onchange = function (e) { if (e.target && e.target.id === 'dh-wifi') { _lsSet('qa_dl_wifi', e.target.checked ? '1' : '0'); dhPaintDl(); } };
+      el.onclick = function (e) {
+        var c = e.target.closest && e.target.closest('.dh-cell');
+        if (c && DH.rec) {
+          if (lpFired) { lpFired = false; return; }
+          var s = +c.getAttribute('data-s');
+          if (DH.sel) { if (DH.sel.has(s)) DH.sel.delete(s); else DH.sel.add(s); dhRenderRec(); return; }
+          var R = DH.idx && DH.idx.recs[DH.rec], st = dhSt(R, s);
+          if (st === 2) dhDelete(DH.rec, [s], dhT('Удалить суру «', '«') + surahShortName(s) + dhT('» у этого чтеца?', '» сүресін осы қариден өшіру керек пе?'));
+          else dlqAdd(DH.rec, DH.mode === 'whole', [s]);
+          return;
+        }
+        var b = e.target.closest && e.target.closest('[data-dh]'); if (!b) return;
+        var a = b.getAttribute('data-dh'), k = b.getAttribute('data-k');
+        if (a === 'rec') { DH.rec = k; DH.mode = null; DH.sel = null; DH.tab = 'all'; DH.juz = false; DH.pick = false; dhScan().then(dhRenderRec); try { window.scrollTo(0, 0); } catch (e2) {} return; }
+        if (a === 'pick') { DH.pick = !DH.pick; dhPaintRecs(); return; }
+        if (a === 'back') { dhBack(); return; }
+        if (a === 'mode') { DH.mode = b.getAttribute('data-m'); dhRenderRec(); return; }
+        if (a === 'tab') { DH.tab = b.getAttribute('data-t'); dhRenderRec(); return; }
+        if (a === 'juz') { DH.juz = !DH.juz; dhRenderRec(); return; }
+        if (a === 'juzgo') {
+          var r = JUZ_SURAH_RANGE[+b.getAttribute('data-j')] || [1, 1], list = [];
+          for (var x = r[0]; x <= r[1]; x++) if (dhSt(DH.idx && DH.idx.recs[DH.rec], x) < 2) list.push(x);
+          DH.juz = false; dhRenderRec();
+          if (!list.length) { toast(dhT('Этот джуз уже скачан', 'Бұл жүз жүктеліп қойған')); return; }
+          dlqAdd(DH.rec, DH.mode === 'whole', list); return;
+        }
+        if (a === 'all') {
+          var R2 = DH.idx && DH.idx.recs[DH.rec], rest = [];
+          for (var y = 1; y <= 114; y++) if (dhSt(R2, y) < 2) rest.push(y);
+          if (!rest.length) { toast(dhT('Весь Коран уже скачан', 'Бүкіл Құран жүктеліп қойған')); return; }
+          if (!confirm(dhT('Скачать ещё ', 'Тағы ') + rest.length + dhT(' сур у этого чтеца? Это много: обычно от 500 МБ до 2 ГБ. Лучше по Wi-Fi.', ' сүре жүктелсін бе? Бұл көп: әдетте 500 МБ-тан 2 ГБ-қа дейін. Wi-Fi арқылы жақсы.'))) return;
+          dlqAdd(DH.rec, DH.mode === 'whole', rest); return;
+        }
+        if (a === 'recdel') { var all = []; for (var z = 1; z <= 114; z++) all.push(z); var R3 = DH.idx && DH.idx.recs[DH.rec]; var urls = dhSurahUrls(DH.rec, all).concat(R3 ? R3.extra : []); if (!confirm(dhT('Удалить всё скачанное у чтеца ', 'Қаридің барлық жүктелгенін өшіру: ') + dhRecName(DH.rec) + ' (' + dhMb(R3 ? R3.bytes : 0) + ')?')) return; dhDelUrls(urls).then(function () { toast(dhT('Удалено', 'Өшірілді')); return dhScan(true); }).then(dhRenderRec); return; }
+        if (a === 'selx') { DH.sel = null; dhRenderRec(); return; }
+        if (a === 'seldl') { var sl = Array.from(DH.sel || []).sort(function (p, q) { return p - q; }); DH.sel = null; dhRenderRec(); dlqAdd(DH.rec, DH.mode === 'whole', sl); return; }
+        if (a === 'seldel') { var sd = Array.from(DH.sel || []); DH.sel = null; dhDelete(DH.rec, sd, dhT('Удалить выбранные суры: ', 'Таңдалған сүрелерді өшіру: ') + sd.length + '?'); return; }
+        if (a === 'dlx') { dlqCancel(+b.getAttribute('data-i')); return; }
+        if (a === 'dlpause') { DLQ.paused = !DLQ.paused; dhPaintDl(); return; }
+        if (a === 'sdel') { var ss = +b.getAttribute('data-s'); dhDelete(k, [ss], dhT('Удалить «', '«') + surahShortName(ss) + dhT('» у чтеца ', '» сүресін өшіру: ') + dhRecName(k) + '?'); return; }
+        if (a === 'sdl') { dlqAdd(k, wholeModeOn() && !!wholeForAyah(k), [+b.getAttribute('data-s')]); return; }
+        if (a === 'keep') {
+          var d = dhDups(), del = [];
+          d.forEach(function (x) { if (x.who.indexOf(k) < 0) return; x.who.forEach(function (w) { if (w !== k) del = del.concat(DH.idx.recs[w].s[x.s].urls); }); });
+          if (!del.length) return;
+          if (!confirm(dhT('Оставить эти суры только у чтеца ', 'Бұл сүрелер тек мына қариде қалсын: ') + dhRecName(k) + dhT(', у остальных удалить?', ', қалғандарынан өшірілсін бе?'))) return;
+          dhDelUrls(del).then(function () { toast(dhT('Готово', 'Дайын')); return dhScan(true); }).then(function () { dhPaintRecs(); dhPaintBar(); dhPaintDup(); dhPaintSearch(); });
+          return;
+        }
+        if (a === 'duphide') { _lsSet('qa_dh_dup_hide', b.getAttribute('data-sig') || ''); dhPaintDup(); return; }
+        if (a === 'qotherclr') { if (!DH.idx || !DH.idx.other.urls.length) return; if (!confirm(dhT('Удалить прочее аудио?', 'Басқа аудионы өшіру керек пе?'))) return; dhDelUrls(DH.idx.other.urls).then(function () { return dhScan(true); }).then(function () { dhPaintBar(); }); return; }
+        if (a === 'hisnclr') { if (!confirm(dhT('Удалить сохранённую озвучку дуа?', 'Сақталған дұға дыбысын өшіру керек пе?'))) return; dhHisnClear().then(dhOther).then(dhPaintBar); toast(dhT('Удалено', 'Өшірілді')); return; }
+        if (a === 'hisndl') {
+          if (!navigator.onLine) { toast(dhT('Нужен интернет', 'Интернет қажет')); return; }
+          var hp = document.getElementById('dh-hisn-p'); b.disabled = true;
+          dhHisnDl(function (n, t) { if (hp) hp.textContent = n + ' / ' + t; }).then(function (r) {
+            toast(dhT('Дуа: сохранено ', 'Дұға: сақталды ') + r.ok + ' / ' + r.total); if (hp) hp.textContent = '';
+            b.disabled = false; return dhOther().then(dhPaintBar);
+          }).catch(function () { b.disabled = false; toast(dhT('Не удалось — проверьте интернет', 'Болмады — интернетті тексеріңіз')); });
+          return;
+        }
+        if (a === 'backup') { try { state.dataTab = 'export'; showView('export'); } catch (e2) {} return; }
+      };
+    }
+    function dhBack() {
+      if (!DH.rec || !dhOnScreen()) return false;
+      if (DH.sel) { DH.sel = null; dhRenderRec(); return true; }
+      DH.rec = null; DH.sel = null;
+      renderCacheManager();
+      return true;
+    }
+    window.dhBack = dhBack;
+    function dhAfterHub(el) {
+      dhBind(el);
+      dhPaintBar(); dhPaintRecs(); dhPaintDup(); dhPaintSearch(); dhPaintDl();
+      Promise.all([dhScan(true), dhOther()]).then(function () {
+        if (DH.rec || !document.getElementById('dh-recs')) return;
+        dhPaintBar(); dhPaintRecs(); dhPaintDup(); dhPaintSearch();
       });
     }
 
