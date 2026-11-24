@@ -5173,3 +5173,10 @@ body { overscroll-behavior-y: none; }
 .fs-ord { display: inline-flex; gap: 0.3rem; margin-left: auto; }
 .fs-ob { min-width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-size: 1.05rem; cursor: pointer; }
 .fs-orderbar { border: 1px dashed var(--accent); border-radius: 10px; padding: 0.4rem 0.6rem; }
+
+/* 7.48: приложение — без обновления потягиванием (приложение не обновляет страницу с таким режимом касаний; прокрутка и щипок работают) */
+html.ptr-off.ptr-top { touch-action: pan-x pan-y; }
+.lt-forms[hidden] { display: none !important; }
+.lw-forms { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.35rem !important; }
+.lw-forms .lw-form { min-width: 0 !important; padding: 0.4rem 0.2rem !important; }
+.lw-forms .lw-form div[dir="ltr"] { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

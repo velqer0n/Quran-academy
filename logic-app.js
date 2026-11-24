@@ -14691,11 +14691,11 @@ function renderMistakes() {
       const lab = kk ? ['Жеке', 'Басында', 'Ортасында', 'Соңында'] : ['Отдельно', 'В начале', 'В середине', 'В конце'];
       const keys = ['isol', 'init', 'medi', 'fina'];
       const noJoin = L.forms[1] === L.forms[0];
-      return '<div class="lw-forms" dir="rtl" style="display:flex;gap:0.45rem;justify-content:center;flex-wrap:wrap;margin-top:0.55rem">' +
+      return '<div class="lw-forms" dir="ltr" style="display:flex;gap:0.45rem;justify-content:center;flex-wrap:wrap;margin-top:0.55rem">' +
         L.forms.map(function(f, i) {
           return '<button type="button" class="lw-form" data-lw-form="' + keys[i] + '" title="' + (kk ? 'Қалай жазылатынын көрсету' : 'Показать, как пишется') + '" style="cursor:pointer;font:inherit;opacity:0;transform:translateY(8px);transition:opacity .35s ease ' + (i * 0.35) + 's,transform .35s ease ' + (i * 0.35) + 's,border-color .2s;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.35rem 0.55rem;min-width:4rem;color:inherit">' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.7rem * var(--ar-scale, 1));color:' + (i ? 'var(--accent)' : 'var(--text)') + '">' + f + '</div>' +
-            '<div dir="ltr" style="font-size:0.68rem;color:var(--text-muted)">✍️ ' + lab[i] + '</div></button>';
+            '<div dir="ltr" style="font-size:0.7rem;color:var(--text-muted)">' + lab[i] + '</div></button>';
         }).join('') + '</div>' +
         '<div class="ayah-translation lw-note" dir="ltr" style="opacity:0;transition:opacity .4s ease 1.5s;font-size:0.8rem;margin-top:0.4rem">' +
         (noJoin
@@ -14804,6 +14804,7 @@ function renderMistakes() {
         if (wrap._lwRun !== myRun) return;
         if (!LETTER_STROKES[ch]) { stage.innerHTML = ''; return; }
         stage.innerHTML = '<div class="lw-forms-box" dir="ltr">' + _lwFormsHtml(ch, kk) + '</div>';
+        try { var _pn = wrap.closest('.lt-panel'), _st = _pn && _pn.querySelector('.lt-forms'); if (_st) _st.hidden = true; } catch (e) {} // 7.48: формы уже есть сверху — нижний ряд не дублируем
         stage.querySelectorAll('.lw-form').forEach(function(f) { f.style.opacity = '1'; f.style.transform = 'none'; });
         const nt = stage.querySelector('.lw-note'); if (nt) nt.style.opacity = '1';
         playLetterForm(wrap, 'isol');
@@ -67461,6 +67462,11 @@ document.addEventListener('click', function(e) { if (e.target && e.target.closes
 // ===== 7.46: приложение — обновление потягиванием (по умолчанию выключено), экран не гаснет, «Поделиться» =====
 (function () {
   // приложение спрашивает страницу при каждом касании, можно ли обновлять потягиванием; отвечаем «нет» после его проверки
+  function ptrClass() { try { document.documentElement.classList.toggle('ptr-off', !!window.WebToApk && !(state.settings && state.settings.appPullRefresh === true)); } catch (e) {} }
+  ptrClass(); setTimeout(ptrClass, 1500); window.qaPtrClass = ptrClass;
+  // только у самого верха страницы (где и срабатывает обновление) — ниже щипок для масштаба работает как обычно
+  function ptrTop() { try { document.documentElement.classList.toggle('ptr-top', (window.scrollY || document.documentElement.scrollTop || 0) <= 2); } catch (e) {} }
+  window.addEventListener('scroll', ptrTop, { passive: true }); ptrTop();
   window.addEventListener('touchstart', function () {
     try { if (window.WebToApk && typeof window.WebToApk.__pullRefreshEligible === 'function' && !(state.settings && state.settings.appPullRefresh === true)) setTimeout(function () { try { window.WebToApk.__pullRefreshEligible(false); } catch (e) {} }, 0); } catch (e) {}
   }, true);
@@ -67508,6 +67514,7 @@ document.addEventListener('click', function (e) {
   state.settings[k] = !(k === 'appPullRefresh' ? state.settings[k] === true : !!state.settings[k]);
   try { saveState(); } catch (er) {}
   try { window.qaKeepAwakeApply && window.qaKeepAwakeApply(); } catch (er) {}
+  try { window.qaPtrClass && window.qaPtrClass(); } catch (er) {}
   renderAppScreenSettings();
 });
 // виджет на главный экран: таблица времён (картинка, которую рисует сайт), следующий намаз выделен
@@ -67582,11 +67589,13 @@ async function appNotifSync(ask) {
     }
     var d0 = wantBar ? appNotifDay(0) : null;
     if (d0) {
-      var bar = { id: APPN_IDS.bar, title: d0.l1, body: d0.l2, largeBody: d0.col + (d0.city ? '\n' + d0.city : ''), summaryText: d0.city, channelId: 'qa-day', ongoing: true, autoCancel: false };
+      var bar = { id: APPN_IDS.bar, title: d0.l1, body: d0.l2, largeBody: d0.col + (d0.city ? '\n' + d0.city : ''), channelId: 'qa-day', ongoing: true, autoCancel: false };
       await LN.schedule({ notifications: [bar] });           // показать сразу
       var d1 = appNotifDay(1);                                 // и в полночь сменить на завтра
-      if (d1) { var mid = ptReal(new Date(d1.wall.getFullYear(), d1.wall.getMonth(), d1.wall.getDate(), 0, 1, 0, 0), d1.ptz); list.push({ id: APPN_IDS.bar, title: d1.l1, body: d1.l2, largeBody: d1.col + (d1.city ? '\n' + d1.city : ''), summaryText: d1.city, channelId: 'qa-day', ongoing: true, autoCancel: false, schedule: { at: mid, allowWhileIdle: true } }); }
-    } else { try { await LN.cancel({ notifications: [{ id: APPN_IDS.bar }] }); } catch (e) {} }
+      if (d1) { var mid = ptReal(new Date(d1.wall.getFullYear(), d1.wall.getMonth(), d1.wall.getDate(), 0, 1, 0, 0), d1.ptz); list.push({ id: APPN_IDS.bar, title: d1.l1, body: d1.l2, largeBody: d1.col + (d1.city ? '\n' + d1.city : ''), channelId: 'qa-day', ongoing: true, autoCancel: false, schedule: { at: mid, allowWhileIdle: true } }); }
+    } else if (!wantBar) { try { await LN.cancel({ notifications: [{ id: APPN_IDS.bar }] }); } catch (e) {} }
+    else { window._appnRetry = (window._appnRetry || 0) + 1; if (window._appnRetry <= 6) setTimeout(function () { appNotifSync(false); }, 10000); }
+    if (d0) window._appnRetry = 0;
     if (list.length) await LN.schedule({ notifications: list });
     _appnLast = Date.now();
     window._appnRes = { ok: true, n: list.length, bar: !!d0, at: new Date().toLocaleTimeString() };
