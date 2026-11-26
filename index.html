@@ -149,7 +149,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#0E1513" />
   <!-- build 6.04: манифест PWA — без него браузер/конвертеры не понимают,
        что за приложение, какая иконка, имя, цвета. С ним сайт уже можно
        «Добавить на экран» как настоящее приложение (иконка, без адресной
@@ -161,13 +161,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>/* 7.50: экран загрузки — стили прямо в странице, чтобы он появлялся раньше всего остального */
-#qa-boot{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:#eef1f5;color:#1a2332;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;transition:opacity .3s}
-#qa-boot.qb-dark{background:#0f172a;color:#e2e8f0}
+#qa-boot{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:#F6F4EE;color:#17201C;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;transition:opacity .3s}
+#qa-boot.qb-dark{background:#0E1513;color:#ECEFEA}
+#qa-boot.qb-dusk{background:#26302D;color:#EEF1EC}
 #qa-boot .qb-in{display:flex;flex-direction:column;align-items:center;gap:.55rem;width:min(78vw,320px);text-align:center}
-#qa-boot .qb-moon{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;background:linear-gradient(135deg,#10b981,#0f766e)}
+#qa-boot .qb-moon{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;background:linear-gradient(135deg,#1d6b58,#0b2e27);color:#E7BE68}
 #qa-boot b{font-size:1.25rem}
 #qa-boot .qb-bar{width:100%;height:6px;border-radius:99px;background:rgba(127,127,127,.25);overflow:hidden}
-#qa-boot .qb-bar i{display:block;height:100%;width:0;background:#10b981;border-radius:99px;transition:width .35s ease}
+#qa-boot .qb-bar i{display:block;height:100%;width:0;background:#B8913F;border-radius:99px;transition:width .35s ease}
 #qa-boot small{font-size:.85rem;opacity:.8}
 #qa-boot .qb-hint{font-size:.75rem;opacity:.6}
 </style>
@@ -178,7 +179,7 @@
 <body class="hide-ui-hints">
   <!-- 7.50: экран загрузки прямо в странице — виден сразу, полоска растёт по мере загрузки файлов сайта -->
   <div id="qa-boot"><div class="qb-in"><div class="qb-moon">☪</div><b>Quran Academy</b><div class="qb-bar"><i id="qa-boot-bar"></i></div><small id="qa-boot-msg">Загрузка…</small><small class="qb-hint" id="qa-boot-hint">Первый запуск может занять до минуты, дальше будет быстрее.</small></div></div>
-  <script>(function(){try{var t=localStorage.getItem('quran_theme')||'light',b=document.getElementById('qa-boot');if(/^(dark|indigo|night|amber|ocean|forest|graphite|teal|nord|solard|gruvd|mocha|ghdim|oled|contrast)$/.test(t))b.className='qb-dark';var s=localStorage.getItem('quran-study-v1')||'';if(/"lang":"kk"/.test(s)){document.getElementById('qa-boot-msg').textContent='Жүктелуде…';document.getElementById('qa-boot-hint').textContent='Алғашқы іске қосу бір минутқа дейін созылуы мүмкін, кейін тезірек болады.';}}catch(e){}window.qaBoot=function(p){try{var i=document.getElementById('qa-boot-bar');if(i)i.style.width=p+'%';}catch(e){}};window.qaBoot(5);})();</script>
+  <script>(function(){try{var t=localStorage.getItem('quran_theme')||'light',b=document.getElementById('qa-boot');if(t==='dusk')b.className='qb-dusk';else if(/^(dark|indigo|night|amber|ocean|forest|graphite|teal|nord|solard|gruvd|mocha|ghdim|oled|contrast)$/.test(t))b.className='qb-dark';var s=localStorage.getItem('quran-study-v1')||'';if(/"lang":"kk"/.test(s)){document.getElementById('qa-boot-msg').textContent='Жүктелуде…';document.getElementById('qa-boot-hint').textContent='Алғашқы іске қосу бір минутқа дейін созылуы мүмкін, кейін тезірек болады.';}}catch(e){}window.qaBoot=function(p){try{var i=document.getElementById('qa-boot-bar');if(i)i.style.width=p+'%';}catch(e){}};window.qaBoot(5);})();</script>
 
   <div id="lock-screen">
     <div class="lock-box" id="lock-box">
@@ -204,7 +205,7 @@
         <button type="button" class="lock-btn-header" id="btn-header-prayertimes" title="Время намаза и кибла" style="display:none">🕐</button>
       </div>
       <nav id="main-nav">
-        <button data-view="dailyhub" class="active">Лента</button>
+        <button data-view="dailyhub" class="active">Главная</button>
         <button data-view="home">Суры</button>
         <button data-view="study">Учёба</button>
         <button data-view="bookmarks">Папки</button>
@@ -341,11 +342,12 @@
       </div>
       <div class="reader-panel" id="reader-view-panel" style="display:none">
         <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
-          <button class="btn btn-sm" id="btn-hide-tr" title="Скрыть переводы">👁 Перевод</button>
+          <button class="btn btn-sm" id="btn-hide-tr" title="Скрыть переводы" style="display:none">👁 Перевод</button>
           <button class="btn btn-sm" id="btn-font-minus" title="Мельче">A−</button>
           <button class="btn btn-sm" id="btn-font-plus" title="Крупнее">A+</button>
           <button class="btn btn-sm" data-bigtext="1" title="Крупный текст одним нажатием">🔍 Крупный текст</button>
         </div>
+        <div id="reader-tr-row" class="reader-tl-row"></div>
         <div id="reader-tl-row" class="reader-tl-row"></div>
       <div class="card" id="home-reciter-quick" style="margin-bottom:0.5rem;padding:0.6rem 0.75rem">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
@@ -602,7 +604,7 @@
     <div id="view-more" class="view">
       <h2 class="section-title" data-i18n="more_title">Ещё</h2>
       <div style="margin-bottom:0.65rem">
-        <input id="more-quick-search" type="search" placeholder="🔍 Поиск по всему приложению..." style="width:100%;padding:0.6rem 0.85rem;border-radius:0.65rem;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:0.95rem">
+        <input id="more-quick-search" type="search" placeholder="Поиск по всему приложению…" style="width:100%;padding:0.6rem 0.85rem;border-radius:0.65rem;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:0.95rem">
       </div>
       <div style="display:flex;justify-content:flex-end;margin:-0.2rem 0 0.4rem"><button type="button" class="btn btn-sm" id="more-layout-toggle">⋯ Вид</button></div>
       <div id="more-layout-row" style="display:none;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem;align-items:center">
@@ -628,7 +630,7 @@
     </div>
 
     <div id="view-dailyhub" class="view">
-      <h2 class="section-title">Лента</h2>
+      <h2 class="section-title">Главная</h2>
       <div id="dailyhub-body"></div>
     </div>
 
@@ -1112,64 +1114,15 @@
           <span>Тема</span>
           <select id="setting-theme" style="display:none">
             <option value="light">Светлая</option>
-            <option value="eye">Зелёная для глаз</option>
-            <option value="warm">Тёплая серая</option>
-            <option value="soft">Мягкая</option>
-            <option value="paper">Бумага</option>
-            <option value="sepia">Сепия</option>
-            <option value="mint">Мята</option>
-            <option value="sage">Шалфей</option>
-            <option value="solarl">Solarized светлая</option>
-            <option value="gruvl">Gruvbox светлая</option>
-            <option value="latte">Catppuccin Latte</option>
+            <option value="dusk">Сумерки</option>
             <option value="dark">Тёмная</option>
-            <option value="indigo">Индиго</option>
-            <option value="night">Ночное</option>
-            <option value="amber">Янтарь</option>
-            <option value="ocean">Океан</option>
-            <option value="forest">Лес</option>
-            <option value="graphite">Графит</option>
-            <option value="teal">Бирюза</option>
-            <option value="nord">Nord</option>
-            <option value="solard">Solarized тёмная</option>
-            <option value="gruvd">Gruvbox тёмная</option>
-            <option value="mocha">Catppuccin Mocha</option>
-            <option value="ghdim">GitHub Dimmed</option>
-            <option value="oled">OLED</option>
-            <option value="contrast">Контраст</option>
           </select>
           <div class="size-pick-list" id="pick-theme">
-            <div class="theme-group-title section-title">Светлые</div>
-            <button type="button" class="size-pick-item" data-v="light" style="background:#eef1f5;color:#1a2332">Светлая</button>
-            <button type="button" class="size-pick-item" data-v="eye" style="background:#cfe8d2;color:#1f6b42">Зелёная для глаз</button>
-            <button type="button" class="size-pick-item" data-v="warm" style="background:#e8e4de;color:#0f6b66">Тёплая серая</button>
-            <button type="button" class="size-pick-item" data-v="soft" style="background:#e8eaed;color:#174ea6">Мягкая</button>
-            <button type="button" class="size-pick-item" data-v="paper" style="background:#f7f3ea;color:#b45309">Бумага</button>
-            <button type="button" class="size-pick-item" data-v="sepia" style="background:#f4ecd8;color:#3e2723">Сепия</button>
-            <button type="button" class="size-pick-item" data-v="mint" style="background:#ecfdf5;color:#047857">Мята</button>
-            <button type="button" class="size-pick-item" data-v="sage" style="background:#faf7f0;color:#587750">Шалфей</button>
-            <button type="button" class="size-pick-item" data-v="solarl" style="background:#fdf6e3;color:#1b699c">Solarized светлая</button>
-            <button type="button" class="size-pick-item" data-v="gruvl" style="background:#fbf1c7;color:#9d4a05">Gruvbox светлая</button>
-            <button type="button" class="size-pick-item" data-v="latte" style="background:#eff1f5;color:#6b2fd6">Catppuccin Latte</button>
-            <div class="theme-group-title section-title">Тёмные спокойные</div>
-            <button type="button" class="size-pick-item" data-v="dark" style="background:#0f172a;color:#e2e8f0">Тёмная</button>
-            <button type="button" class="size-pick-item" data-v="indigo" style="background:#181433;color:#a78bfa">Индиго</button>
-            <button type="button" class="size-pick-item" data-v="night" style="background:#1c1917;color:#d6b27c">Ночное</button>
-            <button type="button" class="size-pick-item" data-v="amber" style="background:#1a1208;color:#f59e0b">Янтарь</button>
-            <button type="button" class="size-pick-item" data-v="ocean" style="background:#0b1220;color:#38bdf8">Океан</button>
-            <button type="button" class="size-pick-item" data-v="forest" style="background:#0f1a14;color:#4ade80">Лес</button>
-            <button type="button" class="size-pick-item" data-v="graphite" style="background:#1b1f24;color:#8fb8a8">Графит</button>
-            <button type="button" class="size-pick-item" data-v="teal" style="background:#0d1f22;color:#5fc7bd">Бирюза</button>
-            <button type="button" class="size-pick-item" data-v="nord" style="background:#2e3440;color:#88c0d0">Nord</button>
-            <button type="button" class="size-pick-item" data-v="solard" style="background:#002b36;color:#2eafa5">Solarized тёмная</button>
-            <button type="button" class="size-pick-item" data-v="gruvd" style="background:#282828;color:#fabd2f">Gruvbox тёмная</button>
-            <button type="button" class="size-pick-item" data-v="mocha" style="background:#1e1e2e;color:#89b4fa">Catppuccin Mocha</button>
-            <button type="button" class="size-pick-item" data-v="ghdim" style="background:#22272e;color:#5fa2f6">GitHub Dimmed</button>
-            <div class="theme-group-title section-title">Особые (батарея, слабое зрение)</div>
-            <button type="button" class="size-pick-item" data-v="oled" style="background:#000000;color:#7fc8a0">OLED</button>
-            <button type="button" class="size-pick-item" data-v="contrast" style="background:#000000;color:#ffff00">Контраст</button>
+            <button type="button" class="size-pick-item" data-v="light" style="background:#F6F4EE;color:#0F5E4E">Светлая</button>
+            <button type="button" class="size-pick-item" data-v="dusk" style="background:#26302D;color:#5FCBA8">Сумерки</button>
+            <button type="button" class="size-pick-item" data-v="dark" style="background:#0E1513;color:#3FB592">Тёмная</button>
           </div>
-          <div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-top:0.35rem">Светлые — для дня, тёмные спокойные — для вечера. «OLED» — настоящий чёрный фон, экономит батарею на OLED-экранах. «Контраст» — максимальная читаемость для слабого зрения (жёлтое на чёрном — намеренно резко).</div>
+          <div class="ayah-translation" style="font-size:calc(0.8rem * var(--ru-scale, 1));margin-top:0.35rem">Светлая — для дня, «Сумерки» — мягкая середина, тёмная — для вечера и ночи.</div>
         </div>
         <div class="setting-row">
           <span>Авто «Тёмная» (22:00–6:00)</span>
@@ -1182,7 +1135,7 @@
           <span>Стартовый экран<br><small style="color:var(--text-muted);font-weight:400">Что открывается при заходе на сайт</small></span>
           <select id="setting-startup-view">
             <option value="last">Последний открытый раздел (по умолчанию)</option>
-            <option value="dailyhub">Лента</option>
+            <option value="dailyhub">Главная</option>
             <option value="home">Суры</option>
           </select>
         </div>
@@ -1450,7 +1403,7 @@
     <div class="pl-mini-prog" aria-hidden="true"><i id="pl-mini-prog"></i></div>
     <div class="pl-grab" id="pl-grab" aria-hidden="true"></div>
     <div class="player-top">
-      <button type="button" class="btn-player pl-down" id="audio-collapse" title="Свернуть плеер">⌄</button>
+      <button type="button" class="btn-player" id="audio-stop" title="Закрыть">✕</button>
       <div class="info" id="pl-info">
         <div class="title" id="audio-title">—</div>
         <div class="sub" id="audio-sub">—</div>
@@ -1459,7 +1412,7 @@
       <button type="button" class="btn-player primary" id="audio-mini-play" style="display:none" title="Пуск/пауза">▶</button>
       <button type="button" class="btn-player mini-nav" id="audio-mini-next" style="display:none" title="Следующий аят">⏭</button>
       <button type="button" class="btn-player pl-menu-btn" id="pl-menu-btn" title="Ещё">⋯</button>
-      <button type="button" class="btn-player" id="audio-stop" title="Закрыть">✕</button>
+      <button type="button" class="btn-player pl-down" id="audio-collapse" title="Свернуть плеер">⌄</button>
     </div>
     <div class="pl-now" id="pl-now"></div>
     <div class="pl-acts" id="pl-acts">
@@ -1547,7 +1500,7 @@
   <nav class="bottom-nav">
     <button data-view="dailyhub" class="active">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-      Лента
+      Главная
     </button>
     <button data-view="home">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
