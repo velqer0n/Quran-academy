@@ -12287,6 +12287,8 @@ function speakLetter(ch, name, ttsOnly) {
       var k = c2St().know, e = k[key] || { ok: 0, n: 0 };
       e.n++; if (ok) e.ok++; e.t = Date.now();
       k[key] = e;
+      // 7.66: ошибки по буквам из Курса попадают и в «Тренировку → Ошибки»
+      if (/^L:/.test(key)) { try { recordMistake('letters', key.slice(2), ok); } catch (er) {} }
     }
     function c2Weak(keys, n) {
       var k = c2St().know;
@@ -16486,6 +16488,7 @@ function renderMistakes() {
       };
       var html = '<p class="ayah-translation" style="margin-bottom:0.6rem;text-align:left" dir="ltr">' + (kk ? 'Сифат — әріптің сипаты: шығу орны бірдей әріптерді осылар ажыратады. Әріпті басыңыз — дыбысы естіледі.' : 'Сифат — качества буквы: именно они различают буквы с одним местом выхода. Нажмите букву — прозвучит.') + '</p>' +
         '<button type="button" class="btn btn-sm" data-ref-cheat="1" style="margin-bottom:0.7rem">📄 ' + (kk ? 'Шпаргалка: барлық әріптер бір парақта' : 'Шпаргалка: все буквы на одном листе') + '</button>' +
+        '<button type="button" class="btn btn-sm" data-pc-open="1" style="margin:0 0 0.7rem 0.4rem">🖨 ' + (kk ? 'Басып шығаруға карточкалар' : 'Карточки для печати') + '</button>' +
         '<h3 class="tw-group-title" dir="ltr">' + (kk ? 'Қарама-қарсы жұптар (әр әріпте әр жұптан біреуі)' : 'Противоположные пары (у каждой буквы — одно из пары)') + '</h3>';
       SIF_PAIRS.forEach(function(p) {
         var parts = [p.a].concat(p.m ? [p.m] : []).concat([p.b]);
@@ -16537,6 +16540,149 @@ function renderMistakes() {
         '</tbody></table>' +
         '<p class="cheat-src">' + T('Источники: «аль-Мукаддима аль-Джазарийя» Ибн аль-Джазари, «Тухфат аль-атфаль» аль-Джамзури. Quran Academy.', 'Дереккөздер: Ибн әл-Жәзәридің «әл-Мұқаддима әл-Жәзарийя», әл-Жәмзуридің «Тұхфат әл-атфал». Quran Academy.') + '</p>';
     }
+    // ===== 7.66: Тренировка — «Пары» и «Быстрый слух»; карточки для печати =====
+    function trT(ru, kk) { try { return isKk() ? kk : ru; } catch (e) { return ru; } }
+    function trLetters() { return (typeof ARABIC_LETTERS !== 'undefined' ? ARABIC_LETTERS : []).map(function (l) { return l.ch; }); }
+    function trName(ch) { var L = (typeof ARABIC_LETTERS !== 'undefined') ? ARABIC_LETTERS.find(function (x) { return x.ch === ch; }) : null; return L ? (isKk() && L.nameKk ? L.nameKk : L.name) : ch; }
+    function trSay(ch) { try { if (!playLetterRec(ch)) speakArText(ch, 0.7); } catch (e) {} }
+    function trArea() { var ga = document.getElementById('game-area'); if (ga) { ga.style.display = ''; } return ga; }
+    // «Пары»: карточки рубашкой вверх; найти букву и её название
+    var _trP = null;
+    function trPairsStart() {
+      var ga = trArea(); if (!ga) return;
+      var pool = trLetters();
+      try { var w = qzPickItems('letters', pool, function (x) { return x; }, 6); if (w && w.length === 6) pool = w; else pool = shuffle(pool).slice(0, 6); } catch (e) { pool = shuffle(pool).slice(0, 6); }
+      var cards = [];
+      pool.forEach(function (ch) { cards.push({ ch: ch, k: 'l' }); cards.push({ ch: ch, k: 'n' }); });
+      _trP = { cards: shuffle(cards), open: [], done: {}, moves: 0, lock: false };
+      trPairsPaint();
+    }
+    function trPairsPaint() {
+      var ga = trArea(); if (!ga || !_trP) return;
+      var P = _trP, all = Object.keys(P.done).length * 2 >= P.cards.length;
+      ga.innerHTML = '<div class="tr-box"><div class="tr-head"><b>🃏 ' + trT('Найдите пары: буква и её название', 'Жұптарды табыңыз: әріп және атауы') + '</b><span class="tr-mut">' + trT('Ходов: ', 'Жүріс: ') + P.moves + '</span></div>' +
+        '<div class="tr-pairs">' + P.cards.map(function (c, i) {
+          var up = P.done[c.ch] || P.open.indexOf(i) >= 0;
+          return '<button type="button" class="tr-card' + (up ? ' up' : '') + (P.done[c.ch] ? ' ok' : '') + '" data-tr-card="' + i + '">' + (up ? (c.k === 'l' ? '<span class="tr-ar" lang="ar">' + c.ch + '</span>' : '<span class="tr-nm">' + trName(c.ch) + '</span>') : '<span class="tr-back">?</span>') + '</button>';
+        }).join('') + '</div>' +
+        (all ? '<div class="tr-end">✅ ' + trT('Все пары найдены за ', 'Барлық жұп табылды: ') + P.moves + trT(' ходов.', ' жүріс.') + '</div><button type="button" class="btn btn-primary" data-tr="pairs">↻ ' + trT('Ещё раз', 'Тағы бір рет') + '</button>' : '<div class="tr-mut">' + trT('Открывайте по две карточки. Буква звучит, когда её открываете.', 'Екі карточкадан ашыңыз. Әріп ашылғанда дыбысталады.') + '</div>') + '</div>';
+    }
+    function trPairsTap(i) {
+      var P = _trP; if (!P || P.lock || !document.querySelector('#game-area .tr-pairs')) return;
+      var c = P.cards[i]; if (!c || P.done[c.ch] || P.open.indexOf(i) >= 0) return;
+      P.open.push(i); trSay(c.ch);
+      if (P.open.length === 2) {
+        P.moves++;
+        var a = P.cards[P.open[0]], b = P.cards[P.open[1]];
+        var ok = a.ch === b.ch && a.k !== b.k;
+        try { recordMistake('letters', b.ch, ok); } catch (e) {}
+        if (ok) { P.done[a.ch] = 1; P.open = []; trPairsPaint(); return; }
+        P.lock = true; trPairsPaint();
+        setTimeout(function () { P.open = []; P.lock = false; trPairsPaint(); }, 900);
+        return;
+      }
+      trPairsPaint();
+    }
+    // «Быстрый слух»: минута, буква звучит — выберите; без рекордов
+    var _trQ = null;
+    function trQuickStart() {
+      var ga = trArea(); if (!ga) return;
+      clearInterval(_trQ && _trQ.tm);
+      _trQ = { end: Date.now() + 60000, ok: 0, n: 0, wrong: {}, cur: null, tm: null };
+      _trQ.tm = setInterval(function () { if (!_trQ) return; if (!document.querySelector('#game-area .tr-box')) { clearInterval(_trQ.tm); _trQ = null; return; } var left = Math.max(0, Math.ceil((_trQ.end - Date.now()) / 1000)); var el = document.getElementById('tr-left'); if (el) el.textContent = left; if (left <= 0) trQuickEnd(); }, 250);
+      trQuickNext();
+    }
+    function trQuickNext() {
+      var Q = _trQ, ga = trArea(); if (!Q || !ga) return;
+      var all = trLetters(), ch = all[Math.floor(Math.random() * all.length)];
+      var sim = (typeof C2_SIMILAR !== 'undefined' && C2_SIMILAR[ch]) ? Array.from(C2_SIMILAR[ch]) : [];
+      var opts = [ch]; shuffle(sim.concat(shuffle(all))).forEach(function (x) { if (opts.length < 4 && opts.indexOf(x) < 0) opts.push(x); });
+      Q.cur = ch;
+      ga.innerHTML = '<div class="tr-box"><div class="tr-head"><b>⚡ ' + trT('Быстрый слух', 'Жылдам есту') + '</b><span class="tr-time">⏱ <span id="tr-left">' + Math.max(0, Math.ceil((Q.end - Date.now()) / 1000)) + '</span></span></div>' +
+        '<button type="button" class="tr-play" data-tr="qsay">🔊</button>' +
+        '<div class="tr-opts">' + shuffle(opts).map(function (x) { return '<button type="button" class="tr-opt" data-tr-q="' + x + '" lang="ar">' + x + '</button>'; }).join('') + '</div>' +
+        '<div class="tr-mut">' + trT('Верно: ', 'Дұрыс: ') + Q.ok + ' / ' + Q.n + '</div></div>';
+      setTimeout(function () { trSay(ch); }, 120);
+    }
+    function trQuickAns(x, btn) {
+      var Q = _trQ; if (!Q || !Q.cur) return;
+      var ok = x === Q.cur; Q.n++; if (ok) Q.ok++; else Q.wrong[Q.cur] = 1;
+      try { recordMistake('letters', Q.cur, ok); } catch (e) {}
+      btn.classList.add(ok ? 'ok' : 'no');
+      if (!ok) { var r = document.querySelector('[data-tr-q="' + Q.cur + '"]'); if (r) r.classList.add('ok'); }
+      Q.cur = null;
+      setTimeout(function () { if (_trQ && Date.now() < _trQ.end) trQuickNext(); }, ok ? 350 : 900);
+    }
+    function trQuickEnd() {
+      var Q = _trQ, ga = trArea(); if (!Q) return; clearInterval(Q.tm); _trQ = null;
+      var w = Object.keys(Q.wrong);
+      if (ga) ga.innerHTML = '<div class="tr-box"><div class="tr-end">⏱ ' + trT('Минута прошла. Верно: ', 'Бір минут өтті. Дұрыс: ') + '<b>' + Q.ok + '</b> ' + trT('из', '/') + ' ' + Q.n + '</div>' +
+        (w.length ? '<div class="tr-mut">' + trT('Стоит повторить: ', 'Қайталау керек: ') + '<span lang="ar" class="tr-arw">' + w.join(' ') + '</span></div>' : '<div class="tr-mut">' + trT('Без ошибок — машаАллах!', 'Қатесіз — машаАллаһ!') + '</div>') +
+        '<button type="button" class="btn btn-primary" data-tr="quick">↻ ' + trT('Ещё минуту', 'Тағы бір минут') + '</button></div>';
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      var c = t.closest('[data-tr-card]'); if (c) { trPairsTap(+c.getAttribute('data-tr-card')); return; }
+      var q = t.closest('[data-tr-q]'); if (q) { trQuickAns(q.getAttribute('data-tr-q'), q); return; }
+      var b = t.closest('[data-tr]'); if (!b) return;
+      var k = b.getAttribute('data-tr');
+      if (k === 'pairs') trPairsStart(); else if (k === 'quick') trQuickStart(); else if (k === 'qsay' && _trQ && _trQ.cur) trSay(_trQ.cur);
+    });
+
+    // ---------- карточки для печати ----------
+    var PC_SIZES = { L: [2, 4], M: [3, 5], S: [4, 6] };
+    function pcOpen() {
+      var ov = document.getElementById('pc-ov');
+      if (!ov) { ov = document.createElement('div'); ov.id = 'pc-ov'; document.body.appendChild(ov); }
+      var st = { kind: 'letters', size: 'M', tr: true, name: true, forms: true };
+      try { Object.assign(st, JSON.parse(localStorage.getItem('qa_pc') || '{}')); } catch (e) {}
+      var seg = function (key, vals) { return '<div class="pc-seg">' + vals.map(function (v) { return '<button type="button" data-pc-' + key + '="' + v[0] + '"' + (st[key] === v[0] ? ' class="on"' : '') + '>' + v[1] + '</button>'; }).join('') + '</div>'; };
+      var chk = function (key, label) { return '<label class="pc-chk"><input type="checkbox" data-pc-c="' + key + '"' + (st[key] ? ' checked' : '') + '> ' + label + '</label>'; };
+      ov.innerHTML = '<div class="pc-bar"><b>🖨 ' + trT('Карточки для печати', 'Басып шығаруға карточкалар') + '</b><button type="button" class="btn btn-sm" data-pc="close">✕</button></div>' +
+        '<div class="pc-cfg"><div class="pc-l">' + trT('Что печатать', 'Не басып шығару') + '</div>' + seg('kind', [['letters', trT('Буквы с формами', 'Әріптер пішінімен')], ['big', trT('Крупные буквы', 'Ірі әріптер')], ['syl', trT('Слоги ба-би-бу', 'Буындар бә-би-бү')]]) +
+        '<div class="pc-l">' + trT('Размер карточек на листе A4', 'A4 парағындағы карточка өлшемі') + '</div>' + seg('size', [['L', trT('Крупные · 8', 'Ірі · 8')], ['M', trT('Средние · 15', 'Орташа · 15')], ['S', trT('Мелкие · 24', 'Ұсақ · 24')]]) +
+        '<div class="pc-chks">' + chk('name', trT('Название', 'Атауы')) + chk('tr', trT('Транскрипция', 'Транскрипция')) + chk('forms', trT('Формы в слове', 'Сөздегі пішіндері')) + '</div>' +
+        '<button type="button" class="btn btn-primary" data-pc="print">🖨 ' + trT('Печать / сохранить в PDF', 'Басып шығару / PDF сақтау') + '</button>' +
+        '<div class="tr-mut">' + trT('Совет: в окне печати выберите «Сохранить как PDF», чтобы отправить файл или распечатать позже. Разрежьте по пунктиру.', 'Кеңес: басып шығару терезесінде «PDF ретінде сақтау» таңдаңыз — файлды жіберуге не кейін басуға болады. Қайшымен пунктир бойынша қиыңыз.') + '</div></div>' +
+        '<div id="pc-sheet">' + pcSheetHtml(st) + '</div>';
+      ov._st = st; ov.hidden = false; document.body.classList.add('pc-open');
+    }
+    function pcSheetHtml(st) {
+      var sz = PC_SIZES[st.size] || PC_SIZES.M, per = sz[0] * sz[1];
+      var L = typeof ARABIC_LETTERS !== 'undefined' ? ARABIC_LETTERS : [];
+      var MK = [{ h: 'َ', v: 'а', k: 'a' }, { h: 'ِ', v: 'и', k: 'i' }, { h: 'ُ', v: 'у', k: 'u' }];
+      var card = function (l) {
+        var nm = isKk() && l.nameKk ? l.nameKk : l.name, tr = isKk() && l.trKk ? l.trKk : l.tr;
+        if (st.kind === 'syl') {
+          if (l.ch === 'ا') return '';
+          return '<div class="pc-card"><div class="pc-syl" lang="ar">' + MK.map(function (m) { return '<span>' + l.ch + m.h + (st.tr ? '<small>' + (typeof sylTr === 'function' ? sylTr(l.ch, m) : '') + '</small>' : '') + '</span>'; }).join('') + '</div>' + (st.name ? '<div class="pc-nm">' + nm + '</div>' : '') + '</div>';
+        }
+        return '<div class="pc-card"><div class="pc-big" lang="ar">' + l.ch + '</div>' + (st.name ? '<div class="pc-nm">' + nm + '</div>' : '') + (st.tr ? '<div class="pc-tr">' + (tr || '') + '</div>' : '') +
+          (st.kind === 'letters' && st.forms && l.forms ? '<div class="pc-forms" lang="ar">' + l.forms.slice(1).join('  ') + '</div>' : '') + '</div>';
+      };
+      var cards = L.map(card).filter(Boolean), pages = [];
+      for (var i = 0; i < cards.length; i += per) pages.push(cards.slice(i, i + per));
+      return pages.map(function (p) { return '<div class="pc-page" style="--pc-c:' + sz[0] + ';--pc-r:' + sz[1] + '">' + p.join('') + '</div>'; }).join('');
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      if (t.closest('[data-pc-open]')) { pcOpen(); return; }
+      var ov = document.getElementById('pc-ov'); if (!ov || ov.hidden || !t.closest('#pc-ov')) return;
+      var st = ov._st || {};
+      var save = function () { try { localStorage.setItem('qa_pc', JSON.stringify(st)); } catch (e2) {} var sh = document.getElementById('pc-sheet'); if (sh) sh.innerHTML = pcSheetHtml(st); };
+      var kb = t.closest('[data-pc-kind]'), sb = t.closest('[data-pc-size]');
+      if (kb) { st.kind = kb.getAttribute('data-pc-kind'); ov.querySelectorAll('[data-pc-kind]').forEach(function (x) { x.classList.toggle('on', x === kb); }); save(); return; }
+      if (sb) { st.size = sb.getAttribute('data-pc-size'); ov.querySelectorAll('[data-pc-size]').forEach(function (x) { x.classList.toggle('on', x === sb); }); save(); return; }
+      var a = t.closest('[data-pc]'); if (!a) return;
+      if (a.getAttribute('data-pc') === 'close') { ov.hidden = true; document.body.classList.remove('pc-open'); }
+      else if (a.getAttribute('data-pc') === 'print') { document.body.classList.add('pc-printing'); setTimeout(function () { try { window.print(); } catch (er) {} setTimeout(function () { document.body.classList.remove('pc-printing'); }, 800); }, 60); }
+    });
+    document.addEventListener('change', function (e) {
+      var c = e.target && e.target.getAttribute && e.target.getAttribute('data-pc-c'); if (!c) return;
+      var ov = document.getElementById('pc-ov'); if (!ov) return; var st = ov._st || {};
+      st[c] = !!e.target.checked; try { localStorage.setItem('qa_pc', JSON.stringify(st)); } catch (e2) {}
+      var sh = document.getElementById('pc-sheet'); if (sh) sh.innerHTML = pcSheetHtml(st);
+    });
     function refOpenCheat() {
       var kk = isKk(), ov = document.getElementById('ref-cheat');
       if (!ov) { ov = document.createElement('div'); ov.id = 'ref-cheat'; document.body.appendChild(ov); }
@@ -17805,7 +17951,9 @@ function renderMistakes() {
         ['minimal-pairs', '👂', 'Услышь разницу', 'Айырмасын есті', 'похожие звуки на слух', 'ұқсас дыбыстар'],
         ['speak', '🎤', 'Произнеси букву', 'Әріпті айт', 'запись и сравнение', 'жазу және салыстыру'],
         ['write', '✍️', 'Напиши букву', 'Әріпті жаз', 'пальцем по экрану', 'саусақпен'],
-        ['listenwrite', '🎧', 'Послушай и напиши', 'Тыңдап жаз', 'звук → буква', 'дыбыс → әріп'] ] },
+        ['listenwrite', '🎧', 'Послушай и напиши', 'Тыңдап жаз', 'звук → буква', 'дыбыс → әріп'],
+        ['pairs', '🃏', 'Пары', 'Жұптар', 'буква ↔ название, на память', 'әріп ↔ атауы, есте сақтау'],
+        ['quick', '⚡', 'Быстрый слух', 'Жылдам есту', 'минута, без рекордов', 'бір минут, рекордсыз'] ] },
       { id: 'inword', ru: 'Буква в слове', kk: 'Сөздегі әріп', score: 'inword', items: [
         ['inword', '🔍', 'Найди в слове', 'Сөзден тап', 'и посмотри её форму', 'және пішінін көр'] ] },
       { id: 'syl', ru: 'Слоги', kk: 'Буындар', score: 'blend', items: [
@@ -17888,6 +18036,7 @@ function renderMistakes() {
       var b = e.target && e.target.closest && e.target.closest('[data-qz-game]');
       if (b) {
         var g = b.getAttribute('data-qz-game');
+        if (g === 'pairs' || g === 'quick') { document.querySelectorAll('.qz-tr').forEach(function(x) { x.classList.toggle('on', x === b); }); if (g === 'pairs') trPairsStart(); else trQuickStart(); var ga0 = document.getElementById('game-area'); if (ga0) setTimeout(function() { ga0.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); return; }
         var all = QZ_HUB.concat(QZ_HUB_EXTRA), grpId = null;
         var tab = document.querySelector('#games-tabs [data-game="' + g + '"]');
         if (tab && tab.dataset.group) { var gb = document.querySelector('[data-gamegroup="' + tab.dataset.group + '"]'); if (gb) gb.click(); }
