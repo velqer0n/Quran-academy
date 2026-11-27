@@ -5781,7 +5781,20 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       { id: 'w-minshawi', ayah: 'ar.minshawi', ru: 'Мухаммад Сыддык аль-Миншави (мураттал)', kk: 'Мұхаммад Сыддық әл-Миншауи (мураттал)', read: 112, timings: true, base: 'https://cdn.mp3quran.net/audio/muhammad-minshawi/r1/' },
       { id: 'w-abdulbasit', ayah: 'ar.abdulsamad', ru: 'Абдуль-Басит Абдус-Самад (мураттал)', kk: 'Абдұлбасит Абдұссамад (мураттал)', read: 53, timings: true, base: 'https://cdn.mp3quran.net/audio/abdulbasit-abdulsamad/r3/' },
       { id: 'w-minshawimuj', ayah: 'ar.minshawimujawwad', ru: 'Мухаммад Сыддык аль-Миншави (муджаввад)', kk: 'Мұхаммад Сыддық әл-Миншауи (мужәууад)', read: 113, timings: false, base: 'https://cdn.mp3quran.net/audio/muhammad-minshawi/r2/' },
-      { id: 'w-abdulbasitmuj', ayah: 'ar.abdulbasitmujawwad', ru: 'Абдуль-Басит Абдус-Самад (муджаввад)', kk: 'Абдұлбасит Абдұссамад (мужәууад)', read: 51, timings: true, base: 'https://cdn.mp3quran.net/audio/abdulbasit-abdulsamad/r1/' }
+      { id: 'w-abdulbasitmuj', ayah: 'ar.abdulbasitmujawwad', ru: 'Абдуль-Басит Абдус-Самад (муджаввад)', kk: 'Абдұлбасит Абдұссамад (мужәууад)', read: 51, timings: true, base: 'https://cdn.mp3quran.net/audio/abdulbasit-abdulsamad/r1/' },
+      // 7.65: новые чтецы (целые суры с mp3quran.net; папки и номера разметки сверены с mp3quran.net/api/v3/reciters и /ayat_timing/reads, 2026-11-27)
+      { id: 'sahl', ru: 'Сахль Ясин', kk: 'Сахл Ясин', read: 32, timings: true, base: 'https://cdn.mp3quran.net/audio/sahl-yassin/r1/' },
+      { id: 'ghamdi', ru: 'Саад аль-Гамди', kk: 'Сағд әл-Ғамиди', read: 30, timings: true, base: 'https://cdn.mp3quran.net/audio/saad-ghamdi/r1/' },
+      { id: 'ajmi', ru: 'Ахмад аль-Аджми', kk: 'Ахмад әл-Ажми', read: 5, timings: true, base: 'https://cdn.mp3quran.net/audio/ahmad-ajmi/r1/' },
+      { id: 'tunaiji', ru: 'Халифа ат-Тунайджи', kk: 'Халифа әт-Тунайжи', read: 24, timings: true, base: 'https://cdn.mp3quran.net/audio/khalifa-tunaiji/r1/' },
+      { id: 'souissi', ru: 'Али Хаджжадж ас-Сувайси', kk: 'Әли Хажжаж әс-Сувайси', read: 77, timings: true, base: 'https://cdn.mp3quran.net/audio/ali-souissi/r1/' },
+      { id: 'balilah', ru: 'Бандар Балила', kk: 'Бандар Балила', read: 217, timings: true, base: 'https://cdn.mp3quran.net/audio/bandar-baleela/r1/' },
+      { id: 'sufi', ru: 'Абдуррашид Суфи', kk: 'Әбдуррашид Суфи', read: 258, timings: true, base: 'https://cdn.mp3quran.net/audio/abdulrasheed-sufi/r3/' },
+      { id: 'masarawi', ru: 'Ахмад Иса аль-Масарави', kk: 'Ахмад Иса әл-Масарауи', read: 289, timings: true, base: 'https://cdn.mp3quran.net/audio/ahmad-masarawi/r1/' },
+      { id: 'alijon', ru: 'Алиджон Кори', kk: 'Әлижон Қари', read: 0, timings: false, base: 'https://cdn.mp3quran.net/audio/alijon-hamdan/r1/' },
+      { id: 'kalbani', ru: 'Адиль аль-Калбани', kk: 'Әділ әл-Кәлбани', read: 0, timings: false, base: 'https://cdn.mp3quran.net/audio/adel-kalbani/r1/' },
+      { id: 'kamel', ru: 'Абдуллах Камиль', kk: 'Абдулла Кәмил', read: 0, timings: false, base: 'https://cdn.mp3quran.net/audio/abdullah-kamel/r1/' },
+      { id: 'badrturki', ru: 'Бадр ат-Турки', kk: 'Бадр әт-Түрки', read: 0, timings: false, base: 'https://cdn.mp3quran.net/audio/badr-turki/r1/' }
     ];
     function wholeForAyah(recId) { return WHOLE_RECITERS.filter(function(r) { return r.ayah && r.ayah === recId; })[0] || null; }
     function wholeOnly(r) { return !!(r && !r.ayah); }
@@ -8426,7 +8439,7 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       { id: 'ar.abdulbasitmujawwad', ru: 'Абдуль-Басит Абдус-Самад (муджаввад)', kk: 'Абдұлбасит Абдұссамад (мужәууад)' }
     ];
     // общий порядок в списках выбора: whole:… — чтецы, у которых есть только целые суры
-    const RECITER_ORDER = ['ar.alafasy', 'whole:abkar', 'ar.dosari', 'ar.shaatree', 'ar.qatami', 'whole:luhaidan', 'ar.hanirifai', 'ar.alijaber', 'ar.aymansuwaid', 'ar.shuraim', 'ar.sudais', 'ar.budair', 'ar.muaiqly', 'ar.faresabbad', 'ar.husary', 'ar.husarymuallim', 'ar.minshawi', 'ar.abdulsamad', 'ar.minshawimujawwad', 'ar.abdulbasitmujawwad'];
+    const RECITER_ORDER = ['ar.alafasy', 'whole:abkar', 'ar.dosari', 'ar.shaatree', 'ar.qatami', 'whole:luhaidan', 'ar.hanirifai', 'ar.alijaber', 'ar.aymansuwaid', 'ar.shuraim', 'ar.sudais', 'ar.budair', 'ar.muaiqly', 'ar.faresabbad', 'ar.husary', 'ar.husarymuallim', 'ar.minshawi', 'ar.abdulsamad', 'ar.minshawimujawwad', 'ar.abdulbasitmujawwad', 'whole:sahl', 'whole:ghamdi', 'whole:ajmi', 'whole:tunaiji', 'whole:souissi', 'whole:balilah', 'whole:sufi', 'whole:masarawi', 'whole:alijon', 'whole:kalbani', 'whole:kamel', 'whole:badrturki'];
     // список для показа: [{ id, ru, kk, whole }] в общем порядке
     function reciterOrdered(withWhole) {
       var byId = {}; RECITER_LIST.forEach(function(r) { byId[r.id] = r; });
@@ -28772,6 +28785,23 @@ bKk:
     }
 
 
+    // 7.65: список городов — сверху крупные города и областные центры (в своём порядке), ниже сёла и малые города по алфавиту
+    function ptCityOptionsHtml(country, selName, esc) {
+      esc = esc || function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+      const C = (typeof PRAYER_COUNTRIES !== 'undefined' && PRAYER_COUNTRIES[country]) || null; if (!C) return '';
+      const all = C.cities || [], maj = C.major || null;
+      const opt = function (c) { return '<option value="' + c.lat + '|' + c.lon + '|' + esc(c.n) + '"' + (selName === c.n ? ' selected' : '') + '>' + esc(tLabel(c.n)) + '</option>'; };
+      if (!maj) return all.map(opt).join('');
+      const norm = function (s) { return String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-яәіңғүұқөһ]/g, ''); };
+      const mk = {}; maj.forEach(function (n, i) { mk[norm(n)] = i + 1; });
+      const top = [], rest = [], seen = {};
+      all.forEach(function (c) { const k = norm(c.n); if (mk[k]) { if (!seen[k]) { seen[k] = 1; top.push(c); } } else rest.push(c); });
+      top.sort(function (a, b) { return mk[norm(a.n)] - mk[norm(b.n)]; });
+      rest.sort(function (a, b) { return String(a.n).localeCompare(String(b.n), 'ru'); });
+      const kk = isKk();
+      return '<optgroup label="' + (kk ? 'Ірі қалалар мен облыс орталықтары' : 'Крупные города и областные центры') + '">' + top.map(opt).join('') + '</optgroup>' +
+        (rest.length ? '<optgroup label="' + (kk ? 'Ауылдар мен шағын қалалар' : 'Сёла и малые города') + '">' + rest.map(opt).join('') + '</optgroup>' : '');
+    }
     function fetchMuftyatCities() {
       return fetch('https://api.muftyat.kz/cities/')
         .then(function(res){ if (!res.ok) throw new Error('http'); return res.json(); })
@@ -29574,7 +29604,7 @@ bKk:
             '<label style="display:block;margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted)">'+tLabel('Город')+'</label>' +
             '<select id="pt-city" style="width:100%;padding:0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
             '<option value="">'+tLabel('— Выберите —')+'</option>' +
-            cities.map(function(c){ return '<option value="'+c.lat+'|'+c.lon+'|'+c.n+'" '+(loc.city===c.n?'selected':'')+'>'+tLabel(c.n)+'</option>'; }).join('') +
+            ptCityOptionsHtml(country, loc.city) +
             '</select>' +
             '<label style="display:block;margin-top:0.45rem;font-size:0.85rem;color:var(--text-muted)">'+tLabel('Метод')+'</label>' +
             '<select id="pt-method" style="width:100%;padding:0.5rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text)">' +
@@ -42369,7 +42399,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       if (!cs || !ct || typeof PRAYER_COUNTRIES === 'undefined') return;
       cs.addEventListener('change', function() {
         var cc = PRAYER_COUNTRIES[cs.value];
-        ct.innerHTML = '<option value="">' + tLabel('— Выберите —') + '</option>' + ((cc && cc.cities) || []).map(function(x) { return '<option value="' + x.lat + '|' + x.lon + '|' + String(x.n).replace(/"/g, '&quot;') + '">' + tLabel(x.n) + '</option>'; }).join('');
+        ct.innerHTML = '<option value="">' + tLabel('— Выберите —') + '</option>' + ptCityOptionsHtml(cs.value, '');
         try { ct.focus(); } catch (e) {}
       });
       ct.addEventListener('change', function() {
@@ -42534,7 +42564,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
                 '</select></label>' +
                 '<label class="qa-place-f"><span>' + tLabel('Город') + '</span><select id="dh-city">' +
                 (loc.city && !pcCities.some(function(c){ return c.n === loc.city; }) ? '<option value="" selected>' + escC(loc.city === 'GPS' ? (kk ? 'Менің орным' : 'Моё место') : loc.city) + '</option>' : '') +
-                pcCities.map(function(c){ return '<option value="' + c.lat + '|' + c.lon + '|' + escC(c.n) + '"' + (loc.city === c.n ? ' selected' : '') + '>' + tLabel(c.n) + '</option>'; }).join('') +
+                ptCityOptionsHtml(pcKey, loc.city, escC) +
                 '</select></label>' +
                 '<button type="button" class="qa-place-more" data-go="prayertimes">' + (kk ? 'Толығырақ' : 'Подробнее') + '</button></div>';
               let skyDay = 0, skyTz = 0;
