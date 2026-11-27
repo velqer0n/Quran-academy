@@ -5596,7 +5596,7 @@ body.rd-hide-tl #ayah-list .ayah-translit{display:none !important}
 .tr-mut { color: var(--text-muted, #888); font-size: 0.88rem; }
 .tr-pairs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.45rem; }
 .tr-card { aspect-ratio: 3/4; border-radius: 12px; border: 1px solid var(--border, #ccc); background: var(--accent, #2e7d5b); color: #fff; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0.2rem; transition: transform .2s, background .2s; }
-.tr-card.up { background: var(--card-bg, #fff); color: var(--text, #222); transform: rotateY(0); }
+.tr-card.up { background: var(--bg-card); color: var(--text); transform: rotateY(0); }
 .tr-card.ok { border-color: #2e9d5b; box-shadow: 0 0 0 2px #2e9d5b55 inset; opacity: .75; }
 .tr-card .tr-ar { font-family: 'Amiri Quran', 'Scheherazade New', serif; font-size: 2.2rem; line-height: 1; }
 .tr-card .tr-nm { font-size: 0.95rem; font-weight: 600; }
@@ -5605,7 +5605,7 @@ body.rd-hide-tl #ayah-list .ayah-translit{display:none !important}
 .tr-time { font-variant-numeric: tabular-nums; font-weight: 700; }
 .tr-play { align-self: center; width: 4.5rem; height: 4.5rem; border-radius: 50%; border: none; background: var(--accent, #2e7d5b); color: #fff; font-size: 1.8rem; cursor: pointer; }
 .tr-opts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
-.tr-opt { font-family: 'Amiri Quran', 'Scheherazade New', serif; font-size: 2.2rem; padding: 0.5rem; border-radius: 12px; border: 1px solid var(--border, #ccc); background: var(--card-bg, #fff); color: var(--text, #222); cursor: pointer; }
+.tr-opt { font-family: 'Amiri Quran', 'Scheherazade New', serif; font-size: 2.2rem; padding: 0.5rem; border-radius: 12px; border: 1px solid var(--border, #ccc); background: var(--bg-card); color: var(--text); cursor: pointer; }
 .tr-opt.ok { background: #2e9d5b; color: #fff; border-color: #2e9d5b; }
 .tr-opt.no { background: #c94a4a; color: #fff; border-color: #c94a4a; }
 .tr-arw { font-family: 'Amiri Quran', serif; font-size: 1.5rem; }
@@ -5619,7 +5619,7 @@ body.pc-open { overflow: hidden; }
 .pc-cfg { max-width: 820px; margin: 0 auto 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
 .pc-l { font-size: 0.85rem; color: var(--text-muted, #888); margin-top: 0.3rem; }
 .pc-seg { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.pc-seg button { border: 1px solid var(--border, #ccc); background: var(--card-bg, #fff); color: var(--text, #222); border-radius: 999px; padding: 0.4rem 0.8rem; cursor: pointer; font-size: 0.9rem; }
+.pc-seg button { border: 1px solid var(--border, #ccc); background: var(--bg-card); color: var(--text); border-radius: 999px; padding: 0.4rem 0.8rem; cursor: pointer; font-size: 0.9rem; }
 .pc-seg button.on { background: var(--accent, #2e7d5b); color: #fff; border-color: var(--accent, #2e7d5b); }
 .pc-chks { display: flex; flex-wrap: wrap; gap: 0.9rem; }
 .pc-chk { font-size: 0.92rem; }
@@ -5670,7 +5670,7 @@ body.pc-open { overflow: hidden; }
 .hz-lv span { margin-left: 0.4rem; }
 
 /* 7.68: Мусхаф → «Книга» */
-.mb-page { position: relative; background: var(--card-bg, #fffdf6); border: 1px solid var(--border); border-radius: 14px; padding: 0.7rem 0.9rem 1.6rem; box-shadow: 0 2px 10px #0001, inset 0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent); min-height: 60vh; }
+.mb-page { color: var(--text); position: relative; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 0.7rem 0.9rem 1.6rem; box-shadow: 0 2px 10px #0001, inset 0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent); min-height: 60vh; }
 .mb-hd { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; margin-bottom: 0.4rem; }
 .mb-no { position: absolute; bottom: 0.35rem; left: 0; right: 0; text-align: center; font-size: 0.9rem; color: var(--text-muted); }
 .mb-nav { display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; margin: 0.6rem 0 0.3rem; }
@@ -5680,10 +5680,59 @@ body.pc-open { overflow: hidden; }
 .mb-fol { font-size: 0.85rem; }
 .mushaf-ayah.mb-now { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 6px; }
 .mushaf-ayah.mb-sel { outline: 2px solid var(--accent); border-radius: 6px; }
-.mb-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px)); z-index: 60; display: flex; gap: 0.4rem; align-items: center; background: var(--card-bg, #fff); border: 1px solid var(--border); border-radius: 999px; padding: 0.35rem 0.5rem 0.35rem 0.9rem; box-shadow: 0 4px 18px #0003; white-space: nowrap; }
+.mb-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px)); z-index: 60; display: flex; gap: 0.4rem; align-items: center; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 0.35rem 0.5rem 0.35rem 0.9rem; box-shadow: 0 4px 18px #0003; white-space: nowrap; }
 .mb-in-next { animation: mbNext .28s ease-out; }
 .mb-in-prev { animation: mbPrev .28s ease-out; }
 @keyframes mbNext { from { opacity: .3; transform: translateX(28px); } to { opacity: 1; transform: none; } }
 @keyframes mbPrev { from { opacity: .3; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .mb-in-next, .mb-in-prev { animation: none; } }
 @media (min-width: 900px) { .mb-page { max-width: 720px; margin: 0 auto; } .mb-nav, .mb-acts { max-width: 720px; margin-left: auto; margin-right: auto; } }
+
+/* 7.69: «Книга» и новые экраны — фон из темы */
+body:has(.audio-bar.visible:not(.collapsed)) #ayah-scroll-rail, body:has(.audio-bar.visible:not(.collapsed)) #ayah-scroll-rail-left { display: none !important; }
+
+/* 7.70: развёрнутый плеер — сплошной фон, чтец в шапке, лента аятов, 5 кнопок, 4 кнопки внизу */
+.pl-rec-h, .pl-star-h { display: none; }
+.audio-bar.visible:not(.collapsed) { background: var(--bg) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.audio-bar:not(.collapsed) #audio-sub { display: none; }
+.audio-bar:not(.collapsed) .pl-rec-h { display: inline-flex; align-items: center; gap: 0.2rem; max-width: 100%; margin-top: 0.15rem; padding: 0.15rem 0.6rem; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text-muted); font: inherit; font-size: 0.82rem; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.audio-bar:not(.collapsed) .pl-star-h { display: inline-flex; align-items: center; justify-content: center; }
+.audio-bar:not(.collapsed) .pl-star-h.on { color: #f59e0b; border-color: #f59e0b; }
+.audio-bar:not(.collapsed) .pl-star-h:disabled { opacity: 0.35; }
+.audio-bar:not(.collapsed) .pl-acts, .audio-bar:not(.collapsed) .pl-where { display: none !important; }
+.audio-bar:not(.collapsed) .player-controls .pl-surbtn { display: none !important; }
+.audio-bar:not(.collapsed) .player-controls { display: grid !important; grid-template-columns: repeat(5, 1fr); justify-items: center; align-items: center; gap: 0.3rem; }
+.audio-bar:not(.collapsed) .player-controls .btn-player, .audio-bar:not(.collapsed) .player-controls .pl-sec { width: 3.2rem !important; height: 3.2rem !important; font-size: 1.1rem !important; }
+.audio-bar:not(.collapsed) .player-controls .btn-player.primary { width: 4.3rem !important; height: 4.3rem !important; font-size: 1.6rem !important; }
+.audio-bar:not(.collapsed) .pl-chips { display: grid !important; grid-template-columns: 0.7fr 1.25fr 1.45fr 0.6fr; gap: 0.4rem; }
+.audio-bar:not(.collapsed) .pl-chips .pl-chip { width: 100%; padding: 0.35rem 0.2rem !important; font-size: 0.85rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.audio-bar:not(.collapsed) .pl-chips #pl-mode-btn, .audio-bar:not(.collapsed) .pl-chips #pl-queue-btn, .audio-bar:not(.collapsed) .pl-chips .pl-help { display: none !important; }
+.audio-bar.collapsed #pl-text-btn { display: none; }
+.audio-bar .pl-chips #pl-sleep-btn span { font-variant-numeric: tabular-nums; }
+/* лента: соседние аяты бледнее, текущий крупно по центру; выделенный — с кнопкой «Слушать отсюда» */
+.pl-now .pl-ay:not(.on) { opacity: 0.55; transition: opacity .2s; }
+.pl-now .pl-ay.pl-sel { opacity: 1; outline: 2px solid var(--accent); }
+.pl-now .pl-go { display: block; margin: 0.45rem auto 0.1rem; padding: 0.4rem 1rem; border-radius: 999px; border: none; background: var(--accent); color: #fff; font: inherit; font-size: 0.9rem; cursor: pointer; }
+.pl-now .pl-ay.on .pl-now-ar { font-size: calc(1.75rem * var(--ar-scale, 1) * var(--pl-k, 1)); }
+@media (min-width: 641px) and (max-width: 999px) { .audio-bar:not(.collapsed) .pl-now, .audio-bar:not(.collapsed) .pl-now.pl-list { max-height: 45vh !important; overflow-y: auto !important; display: block !important; } }
+@media (max-width: 640px) {
+  .audio-bar.visible:not(.collapsed) { display: flex !important; flex-direction: column; overflow: hidden !important; }
+  .audio-bar:not(.collapsed) .pl-now, .audio-bar:not(.collapsed) .pl-now.pl-list { flex: 1 1 0 !important; min-height: 0 !important; max-height: none !important; overflow-y: auto !important; display: block !important; }
+  .audio-bar:not(.collapsed) > *:not(.pl-now) { flex: 0 0 auto; }
+}
+.audio-bar.collapsed .pl-star-h, .audio-bar.collapsed .pl-rec-h { display: none !important; }
+
+/* 7.71: панель «Aa» читалки — строки со стрелкой */
+.rd-rows { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.5rem; }
+.rd-row { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; width: 100%; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); font: inherit; font-size: 0.95rem; cursor: pointer; text-align: left; }
+.rd-row span { color: var(--text-muted); }
+.rd-row b { font-weight: 600; color: var(--accent); white-space: nowrap; }
+.rd-sz-prev { border: 1px solid var(--border); border-radius: 12px; padding: 0.5rem 0.7rem; margin-bottom: 0.6rem; text-align: center; }
+.rd-sz-prev .arabic { line-height: 2; }
+.rd-sz { display: flex; flex-direction: column; gap: 0.2rem; margin: 0.4rem 0; font-size: 0.85rem; color: var(--text-muted); }
+.rd-sz input { width: 100%; accent-color: var(--accent); }
+.reader-tl-row[hidden] { display: none !important; }
+#reader-view-panel #home-reciter-quick { display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0.5rem 0.3rem 0.8rem !important; border-radius: 12px; background: var(--bg); box-shadow: none; }
+#reader-view-panel #home-reciter-quick > div:first-child span { font-size: 0.95rem !important; white-space: nowrap; }
+#reader-view-panel #home-reciter-quick > div:last-child { margin-top: 0 !important; flex: 1; min-width: 0; }
+#reader-view-panel #home-reciter-select { border: none !important; background: transparent !important; color: var(--accent) !important; font-weight: 600; text-align: right; }

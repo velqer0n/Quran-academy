@@ -350,21 +350,22 @@
         </div>
       </div>
       <div class="reader-panel" id="reader-view-panel" style="display:none">
-        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <div id="rd-rows" class="rd-rows"></div>
+        <div style="display:none">
           <button class="btn btn-sm" id="btn-hide-tr" title="Скрыть переводы" style="display:none">👁 Перевод</button>
           <button class="btn btn-sm" id="btn-font-minus" title="Мельче">A−</button>
           <button class="btn btn-sm" id="btn-font-plus" title="Крупнее">A+</button>
           <button class="btn btn-sm" data-bigtext="1" title="Крупный текст одним нажатием">🔍 Крупный текст</button>
         </div>
-        <div id="reader-tr-row" class="reader-tl-row"></div>
-        <div id="reader-tl-row" class="reader-tl-row"></div>
+        <div id="reader-tr-row" class="reader-tl-row" hidden></div>
+        <div id="reader-tl-row" class="reader-tl-row" hidden></div>
       <div class="card" id="home-reciter-quick" style="margin-bottom:0.5rem;padding:0.6rem 0.75rem">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
           <span style="font-size:0.85rem;color:var(--text-muted)">🎧 Чтец для «Сур»</span>
         </div>
         <div style="display:flex;gap:0.4rem;margin-top:0.35rem"><select id="home-reciter-select" style="flex:1;min-width:0;padding:0.45rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select></div>
       </div>
-      <div class="audio-controls-bar" id="reader-audio-controls" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:1rem;padding:0.6rem 0.75rem;background:var(--bg-card);border:1px solid var(--border);border-radius:0.75rem">
+      <div class="audio-controls-bar" id="reader-audio-controls" hidden style="display:none !important;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:1rem;padding:0.6rem 0.75rem;background:var(--bg-card);border:1px solid var(--border);border-radius:0.75rem">
         <label style="font-size:0.8rem;color:var(--text-muted)">Скорость</label>
         <select id="audio-speed" autocomplete="off" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.5rem;border-radius:0.4rem;font-size:0.85rem">
           <option value="0.25">0.25×</option>
@@ -1416,10 +1417,12 @@
       <div class="info" id="pl-info">
         <div class="title" id="audio-title">—</div>
         <div class="sub" id="audio-sub">—</div>
+        <button type="button" class="pl-rec-h" id="pl-rec-h" data-pl-rec="1" title="Сменить чтеца"></button>
       </div>
       <button type="button" class="btn-player mini-nav" id="audio-mini-prev" style="display:none" title="Предыдущий аят">⏮</button>
       <button type="button" class="btn-player primary" id="audio-mini-play" style="display:none" title="Пуск/пауза">▶</button>
       <button type="button" class="btn-player mini-nav" id="audio-mini-next" style="display:none" title="Следующий аят">⏭</button>
+      <button type="button" class="btn-player pl-star-h" id="pl-star-h" data-pla="star" title="Закладка"><i>☆</i></button>
       <button type="button" class="btn-player pl-menu-btn" id="pl-menu-btn" title="Ещё">⋯</button>
       <button type="button" class="btn-player pl-down" id="audio-collapse" title="Свернуть плеер">⌄</button>
     </div>
@@ -1462,7 +1465,8 @@
       <button type="button" class="pl-chip" id="pl-mode-btn" title="Режим воспроизведения">⏭ Дальше</button>
       <button type="button" class="pl-chip" id="pl-speed-btn" title="Скорость">1×</button>
       <button type="button" class="pl-chip" id="pl-rep-btn" title="Повтор и заучивание">🔁 <span data-pk="rep">Повтор</span></button>
-      <button type="button" class="pl-chip" id="pl-sleep-btn" title="Таймер сна">🌙 <span data-pk="sleep">Сон</span></button>
+      <button type="button" class="pl-chip" id="pl-sleep-btn" title="Выключить через…">🌙 <span data-pk="sleep">Выключить</span></button>
+      <button type="button" class="pl-chip" id="pl-text-btn" data-pla="text" title="Размер и вид текста">Aa</button>
       <button type="button" class="pl-chip" id="pl-queue-btn" title="Очередь">☰ Очередь</button>
       <button type="button" class="pl-chip pl-help" id="audio-help" title="Как пользоваться плеером">?</button>
     </div>
