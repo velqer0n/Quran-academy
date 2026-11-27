@@ -5846,6 +5846,12 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       }
       if (opts.resumeFrac != null) audioQueue[0].resumeFrac = opts.resumeFrac;
       if (opts.hold) audioQueue[0].hold = true; // build 6.38: сменили чтеца на паузе — загрузить его запись, но не включать
+      // 7.63: Фатиха целиком с начала — сперва а‘узу (своя запись чтеца, а если её нет — Мишари Рашид), потом сура
+      try {
+        if (+surah === 1 && !(+startAyah > 1) && opts.resumeT == null && opts.resumeFrac == null && !opts.stopAfter && !opts.hold && !opts.resync && (!state.settings || state.settings.zeroAyah !== false)) {
+          var _za = zeroAyahItem(1); if (_za) audioQueue.unshift(_za);
+        }
+      } catch (eZ) {}
       audioQueueIdx = 0; audioRepeatTotal = 1; audioRepeatLeft = 1;
       try { updateAudioModeButtons(); } catch(e) {}
       if (!opts.noPlay) playQueueItem(0);
@@ -8428,8 +8434,9 @@ document.getElementById('audio-stop').addEventListener('click', () => {
       var host2 = hs && hs.closest('.card');
       if (host2) {
         var n2 = mk(host2);
-        if (wholeModeOn()) {
-          var wr = wholeReciter();
+        var wr = wholeReciter();
+        // 7.63: надпись — только у чтецов, у которых и правда лишь целые суры (раньше показывалась при любом чтеце в режиме «сура целиком»)
+        if (wholeModeOn() && wr && wholeOnly(wr)) {
           n2.style.display = '';
           n2.textContent = kk ? 'Бұл қариде тек толық сүрелер бар: аят бойынша ауыстыру жоқ' + (wr.timings ? '.' : ', аят жарықтанбайды.')
                               : 'У этого чтеца только целые суры: переключения по аятам нет' + (wr.timings ? '.' : ', подсветки аята нет.');
@@ -8985,6 +8992,8 @@ function speakLetter(ch, name, ttsOnly) {
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
       Object.keys(_letterRecCache).forEach(function(k) { if (k !== ch) { try { _letterRecCache[k].pause(); } catch(e) {} } });
       try { a.pause(); a.currentTime = 0; } catch(e) {}
+      // 7.63: «Медленно» в схеме рта — запись тоже медленнее (без искажения голоса)
+      try { const rt = window._letterRate || 1; a.playbackRate = rt; a.preservesPitch = true; a.mozPreservesPitch = true; a.webkitPreservesPitch = true; } catch(e) {}
       const p = a.play();
       if (p && p.catch) p.catch(function() {
         // build 6.15: не молча подменяем запись роботом — один раз говорим, что запись не открылась
@@ -13813,7 +13822,10 @@ function renderMistakes() {
     const MOUTH_REST = { T: [36, 61], H: [70, 45], R: [103, 63], F: [98, 98] }; // build 6.67: пропорции по МРТ — кончик за нижними резцами, спинка куполом
     // build 6.03: цикл короче (было 3.6 с, язык доходил до места только к 0.8 с).
     // Теперь язык на месте к MOUTH_T0 — в этот же момент звучит запись; «медленно» = всё ×MOUTH_SLOW.
-    const MOUTH_DUR = 2.0, MOUTH_KT = 0.11, MOUTH_SLOW = 3;
+    // 7.63: схема идёт в темпе записи буквы (0,4–0,7 с): касание → звук → раскрытие на «а» во время звука.
+    // Раньше было 2 с + 1,7 с огласовки — звук кончался, когда движение только начиналось. «Медленно» = ×2, и звук тоже ×0,5.
+    const MOUTH_DUR = 1.0, MOUTH_KT = 0.11, MOUTH_SLOW = 2, MOUTH_VDUR = 0.9;
+    function mouthSoundLead(slow) { var sc = slow ? MOUTH_SLOW : 1; return Math.max(0, 0.55 * MOUTH_DUR * sc - 0.12 * sc); }
     const MOUTH_T0 = MOUTH_DUR * MOUTH_KT;
     // build 6.67: губы — объёмные (заливка), одна и та же структура пути у всех состояний (нужно для плавного перехода)
     function mouthLipShape(px, ye, ix, lpx, le, lix) {
@@ -14176,7 +14188,7 @@ function renderMistakes() {
         s += '<path d="' + mouthTonguePath(gp) + '" fill="#60a5fa" fill-opacity="0.2" stroke="#93c5fd" stroke-width="1.5" stroke-dasharray="3 2.2" stroke-linejoin="round"/>';
       }
       // язык с частями
-      const vowT = (vow && animate) ? A('d', [tVals[tVals.length - 1], mouthTonguePath(vow.tongue), mouthTonguePath(vow.tongue), poseD], [0, 0.22, 0.82, 1], { dur: _mf(1.7 * sc), delay: VD }) : '';
+      const vowT = (vow && animate) ? A('d', [tVals[tVals.length - 1], mouthTonguePath(vow.tongue), mouthTonguePath(vow.tongue), poseD], [0, 0.22, 0.82, 1], { dur: _mf(MOUTH_VDUR * sc), delay: VD }) : '';
       s += '<path d="' + mouthTonguePath(curTongue) + '" class="mq-tongue" fill="url(#' + uid + 't)" stroke="#a8455a" stroke-width="1.3" stroke-linejoin="round">' + A('d', tVals, tKt) + vowT + '</path>';
       {
         let fib = '';
@@ -14218,7 +14230,7 @@ function renderMistakes() {
       s += jawBone;
       const teethS = '<g class="mq-jaw"' + (jaw ? ' transform="translate(0,' + jaw + ')"' : '') + '>' +
            (g.lips === 'wide' && animate ? '<animateTransform attributeName="transform" type="translate" begin="indefinite" dur="' + D + 's" values="0 0;0 5;0 5" keyTimes="0;' + KT + ';1" data-d="0"/>' : '') +
-           (vow && animate ? '<animateTransform attributeName="transform" type="translate" begin="indefinite" dur="' + _mf(1.7 * sc) + 's" values="0 ' + jaw + ';0 ' + vow.jaw + ';0 ' + vow.jaw + ';0 ' + jaw + '" keyTimes="0;0.22;0.82;1" data-d="' + VD + '"/>' : '') +
+           (vow && animate ? '<animateTransform attributeName="transform" type="translate" begin="indefinite" dur="' + _mf(MOUTH_VDUR * sc) + 's" values="0 ' + jaw + ';0 ' + vow.jaw + ';0 ' + vow.jaw + ';0 ' + jaw + '" keyTimes="0;0.22;0.82;1" data-d="' + VD + '"/>' : '') +
            loT + '</g>' + upT;
       // губы
       const lipW = cat === 'lips' && showPose;
@@ -14228,9 +14240,9 @@ function renderMistakes() {
       const lgr = function (id, x) { return '<linearGradient id="' + uid + id + '" gradientUnits="userSpaceOnUse" x1="' + (x - 1) + '" y1="0" x2="' + (x + 10) + '" y2="0"><stop offset="0" stop-color="#c8344e"/><stop offset="0.42" stop-color="#e0647c"/><stop offset="0.7" stop-color="#f2c6aa"/><stop offset="1" stop-color="#f2c6aa"/></linearGradient>'; };
       s += '<defs>' + lgr('lu', lpU) + lgr('ll', lpL) + '</defs>';
       s += '<path class="mq-lu" d="' + lipsNow.u + '" fill="url(#' + uid + 'lu)">' +
-           (g.lips !== 'open' ? (g.lips === 'closed' && info.flow === 'stop' ? A('d', [lipsRestU, MOUTH_LIPS.closed.u, MOUTH_LIPS.closed.u, lipsRestU, lipsRestU], [0, KT, 0.55, 0.62, 1]) : A('d', [lipsRestU, MOUTH_LIPS[g.lips].u, MOUTH_LIPS[g.lips].u], [0, KT, 1])) : '') + (vow && animate ? A('d', [lipsNow.u, MOUTH_LIPS[vow.lips].u, MOUTH_LIPS[vow.lips].u, lipsNow.u], [0, 0.22, 0.82, 1], { dur: _mf(1.7 * sc), delay: VD }) : '') + '</path>';
+           (g.lips !== 'open' ? (g.lips === 'closed' && info.flow === 'stop' ? A('d', [lipsRestU, MOUTH_LIPS.closed.u, MOUTH_LIPS.closed.u, lipsRestU, lipsRestU], [0, KT, 0.55, 0.62, 1]) : A('d', [lipsRestU, MOUTH_LIPS[g.lips].u, MOUTH_LIPS[g.lips].u], [0, KT, 1])) : '') + (vow && animate ? A('d', [lipsNow.u, MOUTH_LIPS[vow.lips].u, MOUTH_LIPS[vow.lips].u, lipsNow.u], [0, 0.22, 0.82, 1], { dur: _mf(MOUTH_VDUR * sc), delay: VD }) : '') + '</path>';
       s += '<path class="mq-ll" d="' + lipsNow.l + '" fill="url(#' + uid + 'll)">' +
-           (g.lips !== 'open' ? (g.lips === 'closed' && info.flow === 'stop' ? A('d', [lipsRestL, MOUTH_LIPS.closed.l, MOUTH_LIPS.closed.l, lipsRestL, lipsRestL], [0, KT, 0.55, 0.62, 1]) : A('d', [lipsRestL, MOUTH_LIPS[g.lips].l, MOUTH_LIPS[g.lips].l], [0, KT, 1])) : '') + (vow && animate ? A('d', [lipsNow.l, MOUTH_LIPS[vow.lips].l, MOUTH_LIPS[vow.lips].l, lipsNow.l], [0, 0.22, 0.82, 1], { dur: _mf(1.7 * sc), delay: VD }) : '') + '</path>';
+           (g.lips !== 'open' ? (g.lips === 'closed' && info.flow === 'stop' ? A('d', [lipsRestL, MOUTH_LIPS.closed.l, MOUTH_LIPS.closed.l, lipsRestL, lipsRestL], [0, KT, 0.55, 0.62, 1]) : A('d', [lipsRestL, MOUTH_LIPS[g.lips].l, MOUTH_LIPS[g.lips].l], [0, KT, 1])) : '') + (vow && animate ? A('d', [lipsNow.l, MOUTH_LIPS[vow.lips].l, MOUTH_LIPS[vow.lips].l, lipsNow.l], [0, 0.22, 0.82, 1], { dur: _mf(MOUTH_VDUR * sc), delay: VD }) : '') + '</path>';
       s += teethS;
       if (ghostInfo && ghostInfo.g && ghostInfo.g.lips !== g.lips) {
         const gl = MOUTH_LIPS[ghostInfo.g.lips];
@@ -14433,7 +14445,7 @@ function renderMistakes() {
         const now = S1;
         // 7.53: после буквы — «а»: рот раскрывается и возвращается (те же время и задержка, что у разреза)
         const W = P('wide'), E = stop ? R0 : S1, vOn = animate && ch !== 'ا' && opts.vowel !== null;
-        const AV = function (k) { return vOn ? '<animate attributeName="d" begin="indefinite" dur="' + _mf(1.7 * sc) + 's" values="' + [E[k], W[k], W[k], E[k]].join(';') + '" keyTimes="0;0.22;0.82;1" calcMode="spline" keySplines=".4 0 .2 1;.4 0 .2 1;.4 0 .2 1" data-d="' + _mf(D * 0.64) + '"/>' : ''; };
+        const AV = function (k) { return vOn ? '<animate attributeName="d" begin="indefinite" dur="' + _mf(MOUTH_VDUR * sc) + 's" values="' + [E[k], W[k], W[k], E[k]].join(';') + '" keyTimes="0;0.22;0.82;1" calcMode="spline" keySplines=".4 0 .2 1;.4 0 .2 1;.4 0 .2 1" data-d="' + _mf(D * 0.64) + '"/>' : ''; };
         s += '<defs><clipPath id="' + uid + 'o"><path d="' + now.o + '">' + A('d', vals('o'), kt) + AV('o') + '</path></clipPath>' +
           '<radialGradient id="' + uid + 's" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#f6d2bb"/><stop offset="1" stop-color="#e3ad8e"/></radialGradient>' +
           '<linearGradient id="' + uid + 'u" gradientUnits="userSpaceOnUse" x1="0" y1="51" x2="0" y2="63"><stop offset="0" stop-color="#e57a8b"/><stop offset="1" stop-color="#b8324c"/></linearGradient>' +
@@ -14599,10 +14611,10 @@ function renderMistakes() {
           li.style.color = on ? '#fff' : '';
         });
       };
-      const extra = sc > 1 ? 1200 : 0; // в «Медленно» схема на секунду замирает в момент касания
+      const extra = 0; // 7.63: без паузы в «Медленно» — звук идёт в такт
       const vw = !!svgEl.getAttribute('data-vow'), VT = D * 0.64 * 1000 + 0.25 * sc * 1000;
       ol._mt = [setTimeout(function () { set(1); }, 0), setTimeout(function () { set(2); }, D * MOUTH_KT * 1000),
-        setTimeout(function () { set(3); }, D * 0.55 * 1000 + extra)].concat(vw ? [setTimeout(function () { set(4); }, VT + extra), setTimeout(function () { set(0); }, VT + 1.7 * sc * 1000 + extra + 500)] : [setTimeout(function () { set(0); }, D * 1000 + extra + 900)]);
+        setTimeout(function () { set(3); }, D * 0.55 * 1000 + extra)].concat(vw ? [setTimeout(function () { set(4); }, VT + extra), setTimeout(function () { set(0); }, VT + MOUTH_VDUR * sc * 1000 + extra + 500)] : [setTimeout(function () { set(0); }, D * 1000 + extra + 900)]);
     }
     // build 6.79: простые подсказки «проверьте сами» — вместо терминов без объяснения
     function mouthTipsHtml(ch, info, kk) {
@@ -14677,6 +14689,7 @@ function renderMistakes() {
         likeHtml +
         '<div style="font-weight:700;font-size:0.84rem;color:' + col + ';margin:0.2rem 0">' + (kk ? 'Аймақ: ' : 'Зона: ') + t.how + '</div>' +
         // 7.52: губы спереди — окошком в углу схемы, двигаются вместе с ней; нажатие меняет местами; на широком экране — рядом
+        (g ? '<div class="mouth-vsw" role="group"><button type="button" data-mouth-vsw="side" aria-pressed="true">' + (kk ? '🗣 Бүйірінен' : '🗣 Сбоку') + '</button><button type="button" data-mouth-vsw="front" aria-pressed="false">' + (kk ? '👄 Алдынан' : '👄 Спереди') + '</button></div>' : '') +
         (g ? '<div class="mouth-stage">' + svg + '<button type="button" class="mouth-pip" data-mouth-pip="1" title="' + (kk ? 'Ерін алдынан — басыңыз, үлкейтеді' : 'Губы спереди — нажмите, чтобы увеличить') + '">' + mouthView2Svg(ch, 'front', { animate: !reduce }) + '<span class="mouth-pip-lab">👄</span></button></div>' : svg) + bar +
         (g ? mouthStepsHtml(info, kk) : '') +
         '<div class="mouth-cmp"></div>' +
@@ -14702,8 +14715,8 @@ function renderMistakes() {
     function mouthCmpPlay(box, a, b) {
       box.querySelectorAll('svg.mouth-anim').forEach(mouthPlay);
       const say = function (c) { try { const lo = ARABIC_LETTERS.find(function (x) { return x.ch === c; }); if (lo && typeof speakLetter === 'function') speakLetter(lo); } catch (e) {} };
-      setTimeout(function () { say(a); }, Math.max(0, MOUTH_T0 - 0.06) * 1000);
-      if (b) setTimeout(function () { say(b); }, (MOUTH_T0 + 1.5) * 1000);
+      setTimeout(function () { say(a); }, mouthSoundLead(false) * 1000);
+      if (b) setTimeout(function () { say(b); }, (mouthSoundLead(false) + 1.5) * 1000);
     }
     // ползунок «кадр за кадром»: ставит всю анимацию на паузу в выбранный момент
     document.addEventListener('input', function (e) {
@@ -14716,7 +14729,7 @@ function renderMistakes() {
       try {
         if (sv._scrub == null) { mouthPlay(sv); sv._scrub = sv.getCurrentTime(); }
         sv.pauseAnimations();
-        const sl = sv.getAttribute('data-slow') ? MOUTH_SLOW : 1, Dt = MOUTH_DUR * sl * (sv.getAttribute('data-vow') ? 1.85 : 1);
+        const sl = sv.getAttribute('data-slow') ? MOUTH_SLOW : 1, Dt = MOUTH_DUR * sl * (sv.getAttribute('data-vow') ? 0.64 : 1) + (sv.getAttribute('data-vow') ? MOUTH_VDUR * sl : 0);
         const f = (+r.value) / 100;
         sv.setCurrentTime(sv._scrub + f * Dt);
         mouthStepSet(w, f < MOUTH_KT ? 1 : f < 0.55 ? 2 : 3);
@@ -14729,8 +14742,17 @@ function renderMistakes() {
       if (w) w.querySelectorAll('.mouth-v2 svg, .mouth-pip svg').forEach(mouthPlay);
     }
     document.addEventListener('click', function (e) {
-      var p = e.target && e.target.closest && e.target.closest('[data-mouth-pip]'); if (!p) return;
-      var w = p.closest('.mouth-wrap'); if (w) w.classList.toggle('pip-big');
+      // 7.63: «Сбоку | Спереди» — переключатель над схемой; маленькое окошко тоже меняет виды местами (и обратно)
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      var sw = t.closest('[data-mouth-vsw]'), p = t.closest('[data-mouth-pip]');
+      var w = (sw || p || t).closest && (sw || p || t).closest('.mouth-wrap'); if (!w) return;
+      var sideSmall = !sw && !p && w.classList.contains('pip-big') && t.closest('.mouth-stage > svg');
+      if (!sw && !p && !sideSmall) return;
+      var big = sw ? sw.getAttribute('data-mouth-vsw') === 'front' : (p ? !w.classList.contains('pip-big') : false);
+      var st = w.querySelector('.mouth-stage');
+      if (st && !st.style.minHeight && !w.classList.contains('pip-big')) st.style.minHeight = st.getBoundingClientRect().height + 'px'; // размер не прыгает
+      w.classList.toggle('pip-big', big);
+      w.querySelectorAll('[data-mouth-vsw]').forEach(function (b) { b.setAttribute('aria-pressed', String((b.getAttribute('data-mouth-vsw') === 'front') === big)); });
     });
     function mouthPlay(svgEl) {
       if (!svgEl) return;
@@ -14739,7 +14761,7 @@ function renderMistakes() {
         if (br) {
           br.style.display = 'none'; clearTimeout(svgEl._brT);
           const sl = svgEl.getAttribute('data-slow') ? MOUTH_SLOW : 1;
-          svgEl._brT = setTimeout(function () { br.style.display = ''; }, (MOUTH_DUR * sl + (svgEl.getAttribute('data-vow') ? 1.8 * sl : 0) + 0.6) * 1000);
+          svgEl._brT = setTimeout(function () { br.style.display = ''; }, (MOUTH_DUR * sl + (svgEl.getAttribute('data-vow') ? MOUTH_VDUR * sl : 0) + 0.6) * 1000);
         }
         svgEl._scrub = null; svgEl.unpauseAnimations && svgEl.unpauseAnimations();
       } catch (e) {}
@@ -15420,7 +15442,7 @@ function renderMistakes() {
           tmpv.innerHTML = mouthFigureSvg(chv, { animate: true, vowel: v, labels: mouthLabelsOn() });
           const nv2 = tmpv.firstElementChild; if (nv2) { nv2.setAttribute('data-vow', v); old.replaceWith(nv2); mouthPlayAll(nv2); }
         }
-        setTimeout(function () { mouthSaySyl(chv + MOUTH_VOWELS[v].mark); }, Math.max(0, MOUTH_T0 - 0.05) * 1000);
+        setTimeout(function () { mouthSaySyl(chv + MOUTH_VOWELS[v].mark); }, mouthSoundLead(false) * 1000);
         return;
       }
       const pb = t.closest('[data-mouth-play],[data-mouth-slow]');
@@ -15444,19 +15466,11 @@ function renderMistakes() {
           if (bv && av) bv.innerHTML = mouthView2Svg(chx, av.getAttribute('data-mouth-view'), { animate: true, slow: slow });
         }
         mouthPlayAll(svgEl);
-        // build 6.65: в режиме «Медленно» движение на секунду замирает в момент касания — видно, где язык встал
-        try {
-          if (svgEl) {
-            clearTimeout(svgEl._mpT1); clearTimeout(svgEl._mpT2); svgEl.unpauseAnimations();
-            if (slow && mouthLetterInfo(chx).g && mouthLetterInfo(chx).g.contact) {
-              svgEl._mpT1 = setTimeout(function () { try { svgEl.pauseAnimations(); } catch (e3) {} }, (MOUTH_T0 * MOUTH_SLOW + 0.15) * 1000);
-              svgEl._mpT2 = setTimeout(function () { try { svgEl.unpauseAnimations(); } catch (e3) {} }, (MOUTH_T0 * MOUTH_SLOW + 1.35) * 1000);
-            }
-          }
-        } catch (e4) {}
-        const lead = Math.max(0, (slow ? MOUTH_T0 * MOUTH_SLOW : MOUTH_T0) - 0.06) * 1000;
+        try { if (svgEl) { clearTimeout(svgEl._mpT1); clearTimeout(svgEl._mpT2); svgEl.unpauseAnimations(); } } catch (e4) {}
+        const lead = mouthSoundLead(slow) * 1000;
         setTimeout(function () {
-          try { const lo = ARABIC_LETTERS.find(function (x) { return x.ch === chx; }); if (lo && typeof speakLetter === 'function') speakLetter(lo); } catch (e2) {}
+          try { window._letterRate = slow ? 0.5 : 1; const lo = ARABIC_LETTERS.find(function (x) { return x.ch === chx; }); if (lo && typeof speakLetter === 'function') speakLetter(lo); } catch (e2) {}
+          setTimeout(function () { window._letterRate = 1; }, 50);
         }, lead);
         };
         const au0 = (typeof letterRecAudio === 'function') ? letterRecAudio(chx) : null;
@@ -24767,7 +24781,6 @@ function renderDictation(area) {
         '<div id="hs-tap" style="display:none;position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border:2px solid #fbbf24;border-radius:50%;pointer-events:none"></div>' +
         '<button type="button" id="hs-full-btn" title="' + (kk ? 'Толық экран' : 'Во весь экран') + '" style="position:absolute;top:0.3rem;right:0.35rem;width:2rem;height:2rem;border-radius:0.45rem;border:1px solid rgba(148,163,184,0.4);background:rgba(15,23,42,0.55);color:#e2e8f0;font-size:1rem;line-height:1;padding:0;cursor:pointer">⛶</button>' +
         '<div id="hs-hints" style="display:flex;justify-content:space-between;align-items:baseline;gap:0.2rem 0.8rem;flex-wrap:wrap;padding:0.15rem 0.55rem 0.35rem;font-size:0.66rem;pointer-events:none">' +
-        '<span style="color:#fbbf24;white-space:nowrap">┄▸ ' + (kk ? 'көз қарау бағыты' : 'куда смотреть') + '</span>' +
         '<span id="hs-hint-g" style="color:#94a3b8">' + (kk ? '✥ айналдыру · екі рет басу — жақындату' : '✥ вращайте · двойное нажатие — приблизить') + '</span>' +
         '</div>' +
         '</div>' +
@@ -24777,14 +24790,10 @@ function renderDictation(area) {
         '<span style="flex:1"></span>' +
         '</div>' +
         '<div id="hs-mode-row" style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem;align-items:center">' + /* build 6.85: режимы видны и на телефоне */
-        (btn('cam-back', '🪞 ' + (kk ? 'Айнадағыдай' : 'Как в зеркале'), ' title="' + (kk ? 'Арттан: фигураның оң қолы — сіздің оң қолыңыз' : 'Со спины: правая рука фигуры — ваша правая рука') + '"')) +
-        btn('pov', '👁 ' + (kk ? 'Көзімен' : 'Взгляд'), ' title="' + (kk ? 'Намаз оқушының көзімен' : 'Взгляд молящегося') + '"') + btn('together', '🤲 ' + (kk ? 'Бірге оқу' : 'Намаз вместе')) +
-        '</div></div><div id="hs-text">' +
+        btn('together', '🤲 ' + (kk ? 'Бірге оқу' : 'Намаз вместе')) +
+        '</div><div id="hs-drag" class="hs-drag" title="' + (kk ? 'Шекараны жылжытыңыз' : 'Потяните, чтобы изменить размер') + '"><span></span></div></div><div id="hs-text">' +
         '<div id="hs-cam-row" style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem;align-items:center">' +
         btn('cam-0', kk ? 'Бүйірден' : 'Сбоку') + btn('cam-35', '3/4') + btn('cam-90', kk ? 'Алдынан' : 'Спереди') + btn('cam-top', kk ? 'Үстінен' : 'Сверху') +
-        '</div>' +
-        '<div id="salah-focus-row" style="display:none;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem;align-items:center"><span style="font-size:0.8rem;color:var(--text-muted)">' + (kk ? 'Жақыннан:' : 'Крупно:') + '</span>' +
-        btn('fx-hands', '✋ ' + (kk ? 'Қолдар' : 'Руки')) + (fem ? '' : btn('fx-feet', '🦶 ' + (kk ? 'Табандар' : 'Стопы')) + btn('fx-sit', '🦵 ' + (kk ? 'Қалай отырады' : 'Как сидеть'))) + btn('fx-head', (kk ? 'Бас' : 'Голова')) + btn('fx-all', '⤢ ' + (kk ? 'Толық' : 'Целиком')) +
         '</div>' +
         '<div id="salah-feet-note" class="card" style="display:none;margin-top:0.5rem;border-color:#fbbf24"></div>' +
         '<div id="salah-anim-cap" style="margin-top:0.6rem"></div>' +
@@ -24903,6 +24912,7 @@ function renderDictation(area) {
           }
         }
         cap.innerHTML = html;
+        try { if (box.classList.contains('hs-compact') && st._capI !== st.i) { st._capI = st.i; const _tx = box.querySelector('#hs-text'); if (_tx) _tx.scrollTop = 0; } } catch (eTx) {} // 7.63: новый шаг — текст с начала
         cap.querySelectorAll('[data-hs-pic]').forEach(function(b) { b.addEventListener('click', function() {
           const d = b.getAttribute('data-hs-pic'); setPlay(false);
           const m = document.createElement('div'); m.id = 'hs-pic-modal';
@@ -24959,10 +24969,10 @@ function renderDictation(area) {
         const k = gazeK();
         st.lastGazeK = k;
         if (r3d) {
-          try { r3dBusy = r3d.render(poseAt(), { yaw: st.yaw, el: st.el, zoom: st.zoom, panX: st.panX, panY: st.panY, focus: st.focus, ghost: st.ghost, frame: frameOf(), fingerW: fingerW(), pov: !!st.pov }, G.gaze, k, matX); return; }
+          try { r3dBusy = r3d.render(poseAt(), { yaw: st.yaw, el: st.el, zoom: st.zoom, panX: st.panX, panY: st.panY, focus: st.focus, ghost: st.ghost, frame: frameOf(), fingerW: fingerW(), pov: false }, null, 0, matX); return; } /* 7.63: стрелка взгляда убрана — «куда смотреть» написано в тексте шага */
           catch (e) { try { r3d.dispose(); } catch (_) {} r3d = null; if (host3d) host3d.innerHTML = ''; svg.style.display = ''; }
         }
-        svg.innerHTML = defs + salahRenderSvg(poseAt(), salahCamera(st.yaw, st.el), { qibla: kk ? 'құбыла' : 'кибла', gaze: G.gaze, gazeK: k, matX: matX });
+        svg.innerHTML = defs + salahRenderSvg(poseAt(), salahCamera(st.yaw, st.el), { qibla: kk ? 'құбыла' : 'кибла', gaze: null, gazeK: 0, matX: matX });
       };
       // build 6.46: крючок для проверочного стенда (работает только если стенд заранее завёл window.__HSDBG)
       try { if (window.__HSDBG) { window.__HSDBG.st = st; window.__HSDBG.steps = steps; window.__HSDBG.draw = draw; window.__HSDBG.poseOf = poseOf; window.__HSDBG.r3d = function() { return r3d; }; } } catch (e) {}
@@ -25226,7 +25236,7 @@ function renderDictation(area) {
             host3d._onRestore = function() { if (box.isConnected) { r3dBusy = true; draw(); } };
             if (r3d.onModel) r3d.onModel(function() { dropVeil(); if (box.isConnected) { r3dBusy = true; draw(); } });
             svg.style.display = 'none';
-            const fr = box.querySelector('#salah-focus-row'); if (fr) fr.style.display = 'flex';
+
             draw(); if (box._hsLayout) box._hsLayout();
             if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(function() { if (r3d && box.isConnected) { r3d.resize(); draw(); } else ro.disconnect(); }); ro.observe(host3d); }
           } catch (e) { dropVeil(); r3d = null; host3d.innerHTML = ''; svg.style.display = ''; salahDiag(host3d, 'WebGL/3D: ' + (e && e.message || e)); }
@@ -25247,13 +25257,32 @@ function renderDictation(area) {
           box.classList.toggle('hs-wide', wide);
           box.classList.toggle('hs-compact', !full && !wide && vh > vw);
           let hv = 0; try { hv = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-vis')) || 0; } catch (e) {}
-          const mh = full ? vh - 140 : wide ? vh - hv - 105 : (vh > vw ? Math.round(vh * 0.29) : 0) /* build 6.63: на телефоне фигура ниже (было 36%), тексту шага больше места */;
+          // 7.63: на телефоне анимация с кнопками — 40% экрана (можно двигать границу), остальное — текст шага
+          let _rt = 0.4; try { _rt = Math.min(0.7, Math.max(0.25, +(localStorage.getItem('qa_hs_ratio') || 0.4))); } catch (eR) {}
+          const mh = full ? vh - 140 : wide ? vh - hv - 105 : (vh > vw ? Math.max(150, Math.round((vh - hv) * _rt) - 118) : 0) /* build 6.63: на телефоне фигура ниже (было 36%), тексту шага больше места */;
           host3d.setAttribute('data-maxh', String(Math.max(0, mh)));
           host3d.setAttribute('data-full', full ? '1' : '0');
           if (fullBtn) { fullBtn.textContent = full ? '✕' : '⛶'; fullBtn.title = full ? (kk ? 'Жабу' : 'Закрыть') : (kk ? 'Толық экран' : 'Во весь экран'); }
           if (r3d) { try { r3d.resize(); draw(); } catch (e) {} }
         };
         if (fullBtn) fullBtn.addEventListener('click', function() { const on = !box.classList.contains('hs-full'); box.classList.toggle('hs-full', on); layout(); });
+        // 7.63: граница «анимация / текст» перетаскивается пальцем, размер запоминается
+        const drag = box.querySelector('#hs-drag');
+        if (drag) {
+          let dg = null;
+          drag.addEventListener('pointerdown', function (e) { dg = { y: e.clientY }; try { drag.setPointerCapture(e.pointerId); } catch (x) {} e.preventDefault(); });
+          drag.addEventListener('pointermove', function (e) {
+            if (!dg) return;
+            const stg = box.querySelector('#hs-stage'); if (!stg) return;
+            let hv2 = 0; try { hv2 = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-vis')) || 0; } catch (x) {}
+            const spl = box.querySelector('#hs-split'), top = stg.getBoundingClientRect().top, vh2 = (spl && spl.clientHeight) || ((box._hsVh || window.innerHeight) - hv2);
+            const r = Math.min(0.7, Math.max(0.25, (e.clientY - top) / vh2));
+            try { localStorage.setItem('qa_hs_ratio', r.toFixed(3)); } catch (x) {}
+            layout();
+          });
+          const end = function () { dg = null; };
+          drag.addEventListener('pointerup', end); drag.addEventListener('pointercancel', end);
+        }
         window.addEventListener('resize', layout);
         layout();
         box._hsLayout = layout;
@@ -29476,7 +29505,7 @@ bKk:
             '</select>' + ptMethodNoteHtml(loc, methodKey, country) +
             '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem">' +
             '<button type="button" class="btn btn-sm btn-primary" id="pt-geo">'+tLabel('📍 Моё место')+'</button>' +
-            '<button type="button" class="btn btn-sm" id="pt-save-loc">'+tLabel('Сохранить')+'</button></div>' +
+            '</div><div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem">'+(isKk() ? 'Таңдау бірден сақталады — басты бетте де, хабарландыруларда да.' : 'Выбор сохраняется сразу — и на главной, и в уведомлениях.')+'</div>' +
             '</div>' +
             '<div class="exp-hint" style="font-size:0.75rem;color:var(--accent);margin-top:0.3rem">▾ '+tLabel('подробнее')+'</div></div>';
 
@@ -29804,32 +29833,39 @@ let body = '';
             window._ptWorking = Object.assign({}, window._ptWorking || {}, { country: e.target.value, city: '', lat: null, lon: null });
             paint(tab);
           });
+          // 7.63: выбор города/метода применяется сразу (раньше без «Сохранить» главная и уведомления оставались со старым городом)
+          const ptApply = function () {
+            try {
+              const w = window._ptWorking;
+              if (w && w.lat != null && w.lon != null) state.prayerLoc = Object.assign({}, w);
+              if (window._ptMethodWorking) state.settings.prayerMethod = window._ptMethodWorking;
+              window._dhPrayerDayOff = 0; state._dhSelectedPrayerKey = null;
+              saveState();
+              try { if (typeof schedulePrayerNotifications === 'function') schedulePrayerNotifications(); } catch (e2) {}
+              try { if (typeof qaLN === 'function' && qaLN() && typeof appNotifSync === 'function') appNotifSync(false); } catch (e3) {}
+            } catch (e1) {}
+          };
           bindSel('pt-city', function(e){
             const p = (e.target.value || '').split('|');
             if (p.length < 2) return;
             window._ptWorking = { lat: +p[0], lon: +p[1], city: p[2] || '', country: (window._ptWorking && window._ptWorking.country) || country };
+            ptApply();
+            try { toast((isKk() ? 'Қала: ' : 'Город: ') + tLabel(p[2] || '')); } catch (e4) {}
             paint(tab);
           });
           bindSel('pt-method', function(e){
             window._ptMethodWorking = e.target.value;
+            ptApply();
             paint(tab);
-          });
-          const saveBtn = document.getElementById('pt-save-loc');
-          if (saveBtn) saveBtn.addEventListener('click', function(){
-            try {
-              if (window._ptWorking) state.prayerLoc = Object.assign({}, window._ptWorking);
-              if (window._ptMethodWorking) state.settings.prayerMethod = window._ptMethodWorking;
-              saveState();
-              toast(tLabel('Сохранено'));
-            } catch(err) { toast(tLabel('Ошибка')); }
           });
           const geoBtn = document.getElementById('pt-geo');
           if (geoBtn) geoBtn.addEventListener('click', function(){
             if (!navigator.geolocation) { toast(tLabel('Геолокация недоступна')); return; }
             navigator.geolocation.getCurrentPosition(function(pos){
               window._ptWorking = { lat: +pos.coords.latitude.toFixed(4), lon: +pos.coords.longitude.toFixed(4), city: 'GPS', country: (window._ptWorking && window._ptWorking.country) || country };
+              ptApply();
               paint(tab);
-              toast(tLabel('Место выбрано — нажмите «Сохранить»'));
+              toast(isKk() ? 'Орын таңдалды және сақталды' : 'Место выбрано и сохранено');
             }, function(err){ toast(geoErrMsg(err), 6000); }, { timeout: 8000 });
           });
 
@@ -31286,7 +31322,13 @@ function renderDict() {
       const meta = document.querySelector('meta[name="theme-color"]');
       if (meta) { var _tl = (typeof THEME_LIST !== 'undefined') ? THEME_LIST.find(function(x) { return x.v === t; }) : null; meta.content = _tl ? _tl.bg : '#0E1513'; }
       // 7.42: фон под страницей — в цвет темы (при оттягивании и когда браузер прячет панель не видно белой полосы)
-      try { var _hb = getComputedStyle(document.body).getPropertyValue('--bg').trim() || (_tl && _tl.bg) || ''; document.documentElement.style.backgroundColor = _hb; } catch (e) {}
+      try { var _hb = getComputedStyle(document.body).getPropertyValue('--bg').trim() || (_tl && _tl.bg) || ''; document.documentElement.style.backgroundColor = _hb;
+        // 7.63: браузер (Brave/Chrome) пока прячет свою панель рисует «пустоту» цветом схемы — для тёмной темы просим тёмную схему, иначе внизу мелькает белая полоса
+        var _m = /^#?([0-9a-f]{6})$/i.exec(_hb.replace('#', '')) ? _hb.replace('#', '') : '', _dark = true;
+        if (_m) { var _r = parseInt(_m.slice(0, 2), 16), _g = parseInt(_m.slice(2, 4), 16), _b = parseInt(_m.slice(4, 6), 16); _dark = (0.299 * _r + 0.587 * _g + 0.114 * _b) < 140; }
+        document.documentElement.style.colorScheme = _dark ? 'dark' : 'light';
+        var _cs = document.querySelector('meta[name="color-scheme"]'); if (!_cs) { _cs = document.createElement('meta'); _cs.name = 'color-scheme'; document.head.appendChild(_cs); } _cs.content = _dark ? 'dark' : 'light';
+      } catch (e) {}
       const stv = document.getElementById('setting-startup-view');
       if (stv) stv.value = state.settings.startupView || 'last';
       const rm = document.getElementById('setting-reduce-motion');

@@ -5535,3 +5535,20 @@ body.more-editing #more-menu .more-item::after { content: none; }
   .audio-bar .pl-chips .pl-chip { padding: 0.28rem 0.5rem; font-size: 0.78rem; }
   .audio-bar.whole-chips .pl-chips #pl-sleep-btn span, .audio-bar.whole-chips .pl-chips #pl-queue-btn { font-size: 0.76rem; }
 }
+
+/* 7.63: переключатель видов схемы рта */
+.mouth-vsw{display:inline-flex;background:var(--bg-hover);border-radius:10px;padding:3px;margin:0.2rem auto 0.4rem;gap:2px}
+.mouth-vsw button{border:0;background:none;color:var(--text);font:inherit;font-size:0.82rem;padding:0.3rem 0.8rem;border-radius:8px;cursor:pointer}
+.mouth-vsw button[aria-pressed="true"]{background:var(--accent);color:#fff;font-weight:700}
+.pip-big .mouth-pip{display:flex;align-items:center;justify-content:center;min-height:inherit}
+.pip-big .mouth-stage > svg{cursor:pointer}
+@media (min-width: 700px){ .mouth-vsw{display:none} }
+
+/* 7.63: «Как читать намаз» — граница «анимация / текст» */
+.hs-drag{display:none}
+#salah-anim.hs-compact .hs-drag{display:flex;justify-content:center;align-items:center;height:18px;margin-top:0.2rem;cursor:ns-resize;touch-action:none}
+#salah-anim.hs-compact .hs-drag span{width:46px;height:5px;border-radius:3px;background:var(--text-muted);opacity:0.6}
+/* 7.63: телефон вертикально — экран делится: анимация сверху (размер двигается), текст шага листается в своём окне снизу */
+#salah-anim.hs-compact #hs-split { display: flex; flex-direction: column; height: calc(100dvh - var(--hdr-vis, 0px) - var(--nav-h, 4.2rem) - 0.5rem); min-height: 420px; }
+#salah-anim.hs-compact #hs-stage { position: relative; top: auto; flex: none; box-shadow: 0 6px 10px -8px rgba(0,0,0,0.6); }
+#salah-anim.hs-compact #hs-text { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 0 0.15rem 1rem; }
