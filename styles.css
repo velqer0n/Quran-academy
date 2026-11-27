@@ -5640,3 +5640,31 @@ body.pc-open { overflow: hidden; }
   body.pc-printing .pc-page { box-shadow: none; max-width: none; width: 210mm; height: 297mm; aspect-ratio: auto; page-break-after: always; break-after: page; padding: 8mm; }
   @page { size: A4; margin: 0; }
 }
+
+/* 7.67: заучивание «аят за аятом» */
+.hz-setup { border-color: var(--accent); margin: 0.6rem 0; }
+.hz-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+.hz-row label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.82rem; color: var(--text-muted); flex: 1; min-width: 5.5rem; }
+.hz-row select, .hz-row input { padding: 0.45rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 1rem; width: 100%; box-sizing: border-box; }
+.hz-top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--text-muted); }
+.hz-prog { height: 5px; border-radius: 3px; background: var(--border); margin: 0.5rem 0; overflow: hidden; }
+.hz-prog i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+.hz-steps { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.hz-steps span { font-size: 0.78rem; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid var(--border); color: var(--text-muted); }
+.hz-steps span.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.hz-card { border-color: var(--accent); }
+.hz-ar { font-size: calc(1.7rem * var(--ar-scale, 1)); line-height: 2.3; text-align: right; }
+.hz-ay + .hz-ay { border-top: 1px dashed var(--border); margin-top: 0.3rem; padding-top: 0.3rem; }
+.hz-ay.hz-now .hz-ar { color: var(--accent); }
+.hz-n { font-size: 0.8rem; color: var(--text-muted); }
+.hz-w.hz-hid { color: var(--text-muted); background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 6px; padding: 0 0.3rem; cursor: pointer; }
+.hz-w.hz-peek { color: #c98a1e; }
+.hz-tr { margin-top: 0.5rem; line-height: 1.6; }
+.hz-acts { display: flex; gap: 0.45rem; margin: 0.6rem 0; flex-wrap: wrap; }
+.hz-acts .btn { flex: 1; min-width: 7rem; }
+.hz-acts #hz-play { flex: 0 0 auto; min-width: 3.2rem; }
+.hz-acts #hz-play.on { background: var(--accent); color: #fff; }
+.hz-lv { display: flex; align-items: center; gap: 0.3rem; margin: 0.5rem 0 0.2rem; font-size: 0.85rem; color: var(--text-muted); }
+.hz-lv i { width: 1.4rem; height: 5px; border-radius: 3px; background: var(--border); }
+.hz-lv i.on { background: var(--accent); }
+.hz-lv span { margin-left: 0.4rem; }

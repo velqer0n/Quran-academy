@@ -3069,7 +3069,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (name === 'quiz') try { if (!_qz) window._qzStep = 'mode'; renderQuiz(); } catch(e) {}
       if (name === 'quizmistakes') try { renderQuizMistakes(); } catch(e) {}
       if (name !== 'quiz') try { qzLeave(); } catch(e) {}
-      if (name !== 'memorize') try { memoStopAudio(); } catch(e) {}
+      if (name !== 'memorize') try { memoStopAudio(); hzStop(); } catch(e) {}
       if (name === 'qol') try { renderQol(); } catch(e) {}
       if (name === 'sunnahs') try { renderSunnahs(); } catch(e) {}
       if (name === 'stories') try { renderStories(); injectSectionQuizButton(document.getElementById('stories-body'), 'stories'); } catch(e) {}
@@ -49795,6 +49795,7 @@ function startApp() {
       const title = document.querySelector('#view-memorize .section-title');
       if (title) title.textContent = kk ? 'Жаттау' : 'Заучивание';
       if (_memoSession) { memoRenderReview(); return; }
+      if (window._hz) { hzRender(); return; }
       if (!window._memoTab) window._memoTab = 'mine';
       const o = memoLoad(), keys = Object.keys(o.items), due = memoDueKeys();
       const tabs = [['mine', kk ? 'Менің тізімім' : 'Мой список'], ['d', kk ? 'Дұғалар' : 'Дуа'], ['s', kk ? 'Сүрелер' : 'Суры']];
@@ -49804,6 +49805,7 @@ function startApp() {
           : 'Добавьте дуа и суры, которые хотите выучить. Сайт будет предлагать их повторить по очереди: чем лучше помните — тем реже, забыли — тем чаще.') + '</div>' +
         '<div style="margin-top:0.5rem;font-size:0.9rem">' + (kk ? 'Тізімде: ' : 'В списке: ') + '<b>' + keys.length + '</b> · ' + (kk ? 'бүгін қайталау: ' : 'сегодня повторить: ') + '<b>' + due.length + '</b></div>' +
         '<button type="button" class="btn btn-primary" id="memo-start" style="width:100%;margin-top:0.55rem"' + (due.length ? '' : ' disabled') + '>🧠 ' + (kk ? 'Қайталауды бастау' : 'Начать повторение') + (due.length ? ' (' + due.length + ')' : '') + '</button></div>' +
+        hzSetupHtml() +
         '<div style="display:flex;gap:0.35rem;margin:0.6rem 0;flex-wrap:wrap">' + tabs.map(function(t) {
           return '<button type="button" class="btn btn-sm' + (window._memoTab === t[0] ? ' btn-primary' : '') + '" data-memo-tab="' + t[0] + '">' + t[1] + '</button>';
         }).join('') + '</div>';
@@ -49924,6 +49926,145 @@ function startApp() {
         });
       });
     }
+
+    // ========== 7.67: ЗАУЧИВАНИЕ «АЯТ ЗА АЯТОМ» ==========
+    // Слушать аят N раз → читать, пока слова постепенно прячутся → вспомнить без текста → связать с предыдущими (1–2, 1–3…).
+    // В конце выученные аяты попадают в интервальное повторение (state.hifz). Прогресс урока хранится на устройстве (qa_hz).
+    var HZ_KEY = 'qa_hz';
+    function hzLoad() { try { return JSON.parse(localStorage.getItem(HZ_KEY) || 'null'); } catch (e) { return null; } }
+    function hzSave() { try { if (window._hz) localStorage.setItem(HZ_KEY, JSON.stringify({ s: _hz.s, from: _hz.from, to: _hz.to, rep: _hz.rep, cur: _hz.cur, step: _hz.step })); else localStorage.removeItem(HZ_KEY); } catch (e) {} }
+    var _hzAudio = null, _hzPlayTok = 0;
+    function hzStop() { _hzPlayTok++; try { if (_hzAudio) { _hzAudio.onended = null; _hzAudio.pause(); } } catch (e) {} var b = document.getElementById('hz-play'); if (b) b.classList.remove('on'); }
+    // играет аяты list[] по порядку, каждый times раз, с паузой gap мс
+    function hzPlay(list, times, gap) {
+      hzStop(); var tok = _hzPlayTok, i = 0, k = 0;
+      var b = document.getElementById('hz-play'); if (b) b.classList.add('on');
+      var next = function () {
+        if (tok !== _hzPlayTok) return;
+        if (i >= list.length) { var bb = document.getElementById('hz-play'); if (bb) bb.classList.remove('on'); return; }
+        var a = list[i];
+        document.querySelectorAll('.hz-ay').forEach(function (x) { x.classList.toggle('hz-now', +x.getAttribute('data-a') === a); });
+        var u = ayahAudioUrl(_hz.s, a), au = new Audio(u); _hzAudio = au;
+        au.onended = function () { k++; if (k >= times) { k = 0; i++; } setTimeout(next, gap); };
+        au.onerror = function () { var alt = audioAltUrl(u); if (alt && au.src.indexOf(alt) < 0) { au.src = alt; au.play().catch(function () {}); } else { i++; setTimeout(next, 50); } };
+        au.play().catch(function () {});
+      };
+      next();
+    }
+    // слово по уровню скрытия: 0 — всё видно, 1 — каждое второе спрятано, 2 — первая буква, 3 — ничего
+    function hzWord(w, idx, lvl, open) {
+      var hide = !open && (lvl >= 3 || (lvl === 2) || (lvl === 1 && idx % 2 === 1));
+      if (!hide) return '<span class="hz-w">' + memoEsc(w) + '</span>';
+      var base = w.replace(/[ً-ٰٟۖ-ۭ]/g, '');
+      var txt = lvl === 2 ? memoEsc(Array.from(base)[0] || '') + '…' : '·····';
+      return '<span class="hz-w hz-hid" data-hz-w="1">' + txt + '</span>';
+    }
+    function hzAyahHtml(a, lvl) {
+      var ay = _hz.data[a - 1]; if (!ay) return '';
+      var words = String(ay.text || '').replace(/^﻿/, '').split(/\s+/).filter(Boolean);
+      return '<div class="hz-ay" data-a="' + a + '"><div class="arabic hz-ar" dir="rtl" lang="ar">' + words.map(function (w, i) { return hzWord(w, i, lvl, false); }).join(' ') + ' <span class="hz-n">' + a + '</span></div></div>';
+    }
+    function hzStart(s, from, to, rep, cur, step) {
+      window._hz = { s: s, from: from, to: to, rep: rep || 3, cur: cur || from, step: step || 'listen', lvl: 0, data: null };
+      hzSave(); hzRender();
+    }
+    function hzSetupHtml() {
+      var kk = isKk(), saved = hzLoad(), meta = state.surahsMeta || [];
+      var s0 = saved ? saved.s : 1, opts = '';
+      for (var n = 1; n <= 114; n++) { var m = meta.find(function (x) { return x.number === n; }); opts += '<option value="' + n + '"' + (n === s0 ? ' selected' : '') + '>' + n + ' · ' + memoEsc(surahShortName(n, m ? (m.englishName || m.name) : '')) + '</option>'; }
+      return '<div class="card hz-setup"><b>📖 ' + (kk ? 'Жаңасын жаттау: аят артынан аят' : 'Выучить новое: аят за аятом') + '</b>' +
+        '<div class="ayah-translation" style="line-height:1.5;margin:0.35rem 0 0.5rem">' + (kk ? 'Тыңдаңыз → сөздер біртіндеп жасырылады → жатқа айтыңыз → алдыңғы аяттармен байланыстырыңыз. Соңында аяттар қайталауға түседі.' : 'Слушаете → слова постепенно прячутся → читаете по памяти → связываете с предыдущими аятами. В конце аяты попадают в повторение.') + '</div>' +
+        (saved ? '<button type="button" class="btn btn-primary" data-hz="resume" style="width:100%;margin-bottom:0.5rem">▶ ' + (kk ? 'Жалғастыру: сүре ' : 'Продолжить: сура ') + saved.s + ', ' + (kk ? 'аят ' : 'аят ') + saved.cur + ' / ' + saved.to + '</button>' : '') +
+        '<div class="hz-row"><label>' + (kk ? 'Сүре' : 'Сура') + '<select id="hz-s">' + opts + '</select></label></div>' +
+        '<div class="hz-row"><label>' + (kk ? 'Аяттан' : 'С аята') + '<input id="hz-from" type="number" min="1" value="1" inputmode="numeric"></label><label>' + (kk ? 'Аятқа дейін' : 'По аят') + '<input id="hz-to" type="number" min="1" value="" placeholder="5" inputmode="numeric"></label>' +
+        '<label>' + (kk ? 'Тыңдау' : 'Слушать') + '<select id="hz-rep"><option value="3">×3</option><option value="5">×5</option><option value="7">×7</option><option value="1">×1</option></select></label></div>' +
+        '<button type="button" class="btn' + (saved ? '' : ' btn-primary') + '" data-hz="go" style="width:100%">' + (kk ? 'Бастау' : 'Начать') + '</button></div>';
+    }
+    function hzRender() {
+      var el = document.getElementById('memorize-body'), H = window._hz, kk = isKk(); if (!el || !H) return;
+      if (!H.data) {
+        el.innerHTML = skeletonHtml(2);
+        fetchSurah(H.s).then(function (d) {
+          if (window._hz !== H) return;
+          H.data = (d.ayahs || []).map(function (a, i) { var tx = String(a.text || ''); try { if (i === 0 && H.s !== 1 && H.s !== 9 && qzNorm(tx).indexOf(QZ_BISM) === 0) { var ws = tx.split(/\s+/); if (ws.length > 4) tx = ws.slice(4).join(' '); } } catch (e) {} return { text: tx, tr: a.translation || '' }; });
+          H.to = Math.min(H.to || H.data.length, H.data.length); H.from = Math.max(1, Math.min(H.from, H.to)); H.cur = Math.max(H.from, Math.min(H.cur, H.to));
+          hzSave(); hzRender();
+        }).catch(function () { el.innerHTML = '<div class="empty-state">' + (kk ? 'Сүре ашылмады. Интернетті тексеріңіз не сүрені алдын ала жүктеңіз.' : 'Сура не открылась. Проверьте интернет или скачайте суру заранее.') + '</div><button type="button" class="btn" data-hz="quit">' + (kk ? 'Артқа' : 'Назад') + '</button>'; });
+        return;
+      }
+      var a = H.cur, total = H.to - H.from + 1, done = a - H.from, ay = H.data[a - 1] || {};
+      var stepsRu = { listen: 'Слушайте', recall: 'Читайте — слова прячутся', link: 'Свяжите с предыдущими' }, stepsKk = { listen: 'Тыңдаңыз', recall: 'Оқыңыз — сөздер жасырылады', link: 'Алдыңғылармен байланыстырыңыз' };
+      var h = '<div class="hz-top"><button type="button" class="btn btn-sm" data-hz="quit">‹ ' + (kk ? 'Тізім' : 'Список') + '</button><span>' + (kk ? 'Сүре ' : 'Сура ') + H.s + ' · ' + (kk ? 'аят ' : 'аят ') + a + ' · ' + (done + 1) + '/' + total + '</span></div>' +
+        '<div class="hz-prog"><i style="width:' + Math.round(done / total * 100) + '%"></i></div>' +
+        '<div class="hz-steps">' + ['listen', 'recall', 'link'].map(function (k, i) { if (k === 'link' && a === H.from) return ''; return '<span class="' + (H.step === k ? 'on' : '') + '">' + (i + 1) + '. ' + (kk ? stepsKk[k] : stepsRu[k]) + '</span>'; }).join('') + '</div>';
+      if (H.step === 'listen') {
+        h += '<div class="card hz-card">' + hzAyahHtml(a, 0) + (ay.tr ? '<div class="ayah-translation hz-tr">' + memoEsc(ay.tr) + '</div>' : '') + '</div>' +
+          '<div class="hz-acts"><button type="button" class="btn" id="hz-play" data-hz="play">🔊 ' + (kk ? 'Тағы тыңдау' : 'Слушать ещё') + ' ×' + H.rep + '</button><button type="button" class="btn btn-primary" data-hz="next">' + (kk ? 'Жаттай бастау ›' : 'Начать запоминать ›') + '</button></div>' +
+          '<div class="tr-mut">' + (kk ? 'Қаримен бірге іштей қайталаңыз. Мағынасын оқыңыз — мағынасы түсінікті аят жеңіл жатталады.' : 'Повторяйте про себя вместе с чтецом. Прочитайте смысл — понятный аят запоминается легче.') + '</div>';
+      } else if (H.step === 'recall') {
+        var lv = H.lvl, lvName = kk ? ['Толық мәтін', 'Әр екінші сөз жасырын', 'Тек бірінші әріптер', 'Мәтінсіз'] : ['Весь текст', 'Каждое второе слово спрятано', 'Только первые буквы', 'Без текста'];
+        h += '<div class="card hz-card">' + hzAyahHtml(a, lv) + '</div>' +
+          '<div class="hz-lv">' + [0, 1, 2, 3].map(function (i) { return '<i class="' + (i <= lv ? 'on' : '') + '"></i>'; }).join('') + '<span>' + lvName[lv] + '</span></div>' +
+          '<div class="tr-mut">' + (kk ? 'Аятты дауыстап оқыңыз. Жасырын сөзді басып көруге болады.' : 'Прочитайте аят вслух. Спрятанное слово можно подсмотреть нажатием.') + '</div>' +
+          '<div class="hz-acts"><button type="button" class="btn" id="hz-play" data-hz="play1">🔊</button>' +
+          (lv < 3 ? '<button type="button" class="btn btn-primary" data-hz="more">' + (kk ? 'Оқыдым — көбірек жасыру ›' : 'Прочитал — спрятать больше ›') + '</button>'
+                  : '<button type="button" class="btn" data-hz="again">↺ ' + (kk ? 'Әлі есімде жоқ' : 'Ещё не помню') + '</button><button type="button" class="btn btn-primary" data-hz="know">✓ ' + (kk ? 'Жатқа айттым' : 'Прочитал по памяти') + '</button>') + '</div>';
+      } else if (H.step === 'link') {
+        var list = []; for (var x = Math.max(H.from, a - 4); x <= a; x++) list.push(x);
+        h += '<div class="card hz-card">' + list.map(function (n) { return hzAyahHtml(n, H.lvl ? 3 : 2); }).join('') + '</div>' +
+          '<div class="tr-mut">' + (kk ? 'Аяттарды ' + list[0] + '-ден ' + a + '-ге дейін қатарынан жатқа оқыңыз.' : 'Прочитайте по памяти подряд аяты ' + list[0] + '–' + a + '.') + (a - 4 > H.from ? (kk ? ' (соңғы 5 аят)' : ' (последние 5)') : '') + '</div>' +
+          '<div class="hz-acts"><button type="button" class="btn" id="hz-play" data-hz="playlink">🔊 ' + (kk ? 'Қатарынан тыңдау' : 'Слушать подряд') + '</button>' +
+          (H.lvl ? '' : '<button type="button" class="btn" data-hz="hideall">' + (kk ? 'Әріптерді жасыру' : 'Спрятать буквы') + '</button>') +
+          '<button type="button" class="btn btn-primary" data-hz="linkok">✓ ' + (kk ? 'Қатарынан айттым' : 'Прочитал подряд') + '</button></div>';
+      } else if (H.step === 'end') {
+        h = '<div class="card hz-card" style="text-align:center"><div style="font-size:2rem">🌿</div><b>' + (kk ? 'БаракаЛлаһу фик! ' : 'БаракаЛлаху фик! ') + '</b><div class="ayah-translation" style="margin-top:0.4rem">' +
+          (kk ? 'Сүре ' + H.s + ', ' + H.from + '–' + H.to + ' аяттар жатталды. Олар қайталауға қосылды: ертең, содан кейін сирегірек.' : 'Сура ' + H.s + ', аяты ' + H.from + '–' + H.to + ' выучены. Они добавлены в повторение: завтра, потом всё реже.') + '</div></div>' +
+          '<div class="hz-acts"><button type="button" class="btn btn-primary" data-hz="cont">' + (kk ? 'Келесі аяттар ›' : 'Следующие аяты ›') + '</button><button type="button" class="btn" data-hz="quit">' + (kk ? 'Тізімге' : 'К списку') + '</button></div>';
+      }
+      el.innerHTML = h;
+      if (H.step === 'listen' && H._auto !== a) { H._auto = a; hzPlay([a], H.rep, 900); }
+    }
+    function hzFinishAyah() {
+      var H = window._hz; if (!H) return;
+      try { addAyahToHifz(H.s, H.cur, true); } catch (e) {}
+      if (H.cur >= H.to) {
+        H.step = 'end';
+        try { if (H.from === 1 && H.to >= H.data.length && !memoHas('s:' + H.s)) memoToggle('s:' + H.s); } catch (e) {}
+        try { saveState(); } catch (e) {}
+        try { localStorage.removeItem(HZ_KEY); } catch (e) {}
+        hzStop(); hzRender(); return;
+      }
+      H.cur++; H.step = 'listen'; H.lvl = 0; hzSave(); hzRender();
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      var w = t.closest('[data-hz-w]'); if (w && window._hz) { var ayEl = w.closest('.hz-ay'), ws = ayEl ? ayEl.querySelectorAll('.hz-w') : []; var i = Array.prototype.indexOf.call(ws, w); var ay = _hz.data && _hz.data[+ayEl.getAttribute('data-a') - 1]; if (ay) { var words = String(ay.text).replace(/^﻿/, '').split(/\s+/).filter(Boolean); if (words[i]) { w.textContent = words[i]; w.classList.remove('hz-hid'); w.classList.add('hz-peek'); w.removeAttribute('data-hz-w'); } } return; }
+      var b = t.closest('[data-hz]'); if (!b) return;
+      var k = b.getAttribute('data-hz'), H = window._hz, kk = isKk();
+      if (k === 'go') {
+        var s = +document.getElementById('hz-s').value, f = Math.max(1, +document.getElementById('hz-from').value || 1), to = +document.getElementById('hz-to').value || 0, rep = +document.getElementById('hz-rep').value || 3;
+        if (to && to < f) { var tmp = to; to = f; f = tmp; }
+        hzStart(s, f, to || (f + 4), rep); return;
+      }
+      if (k === 'resume') { var sv = hzLoad(); if (sv) hzStart(sv.s, sv.from, sv.to, sv.rep, sv.cur, sv.step === 'end' ? 'listen' : sv.step); return; }
+      if (k === 'quit') { hzStop(); window._hz = null; renderMemorize(); return; }
+      if (!H) return;
+      if (k === 'play') hzPlay([H.cur], H.rep, 900);
+      else if (k === 'play1') hzPlay([H.cur], 1, 0);
+      else if (k === 'playlink') { var l = []; for (var x = Math.max(H.from, H.cur - 4); x <= H.cur; x++) l.push(x); hzPlay(l, 1, 400); }
+      else if (k === 'next') { hzStop(); H.step = 'recall'; H.lvl = 0; hzSave(); hzRender(); }
+      else if (k === 'more') { hzStop(); H.lvl = Math.min(3, H.lvl + 1); hzRender(); }
+      else if (k === 'again') { H.lvl = 0; hzRender(); hzPlay([H.cur], 1, 0); }
+      else if (k === 'know') { hzStop(); if (H.cur > H.from) { H.step = 'link'; H.lvl = 0; hzSave(); hzRender(); } else hzFinishAyah(); }
+      else if (k === 'hideall') { H.lvl = 1; hzRender(); }
+      else if (k === 'linkok') { hzStop(); hzFinishAyah(); }
+      else if (k === 'cont') { var n = H.to + 1; if (H.data && n > H.data.length) { toast(kk ? 'Сүре толық жатталды ✓' : 'Сура выучена целиком ✓'); window._hz = null; renderMemorize(); return; } hzStart(H.s, n, Math.min(H.data.length, n + (H.to - H.from)), H.rep); }
+    });
+    document.addEventListener('change', function (e) {
+      if (!e.target || e.target.id !== 'hz-s') return;
+      var n = +e.target.value, m = (state.surahsMeta || []).find(function (x) { return x.number === n; }), to = document.getElementById('hz-to');
+      if (to) { to.value = ''; to.placeholder = m && m.numberOfAyahs ? String(Math.min(m.numberOfAyahs, 5)) : '5'; }
+    });
 
     // ========== ИГРЫ → ВИКТОРИНА (build 6.26): одиночный режим ==========
     // Вопросы строятся из данных сайта по случайному ключу (seed), поэтому позже все игроки комнаты смогут получить одинаковый набор.
