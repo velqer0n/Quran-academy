@@ -3476,6 +3476,11 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         sel.innerHTML = o; sel.value = String(ps); sel.style.display = '';
       }
       const cont = document.getElementById('mushaf-continue');
+      if (mode === 'book') {
+        let o = ''; for (let s = 1; s <= 114; s++) o += '<option value="' + s + '">' + s + ((typeof SURAH_RU !== 'undefined' && SURAH_RU[s]) ? '. ' + SURAH_RU[s] : '') + '</option>';
+        sel.innerHTML = o; sel.style.display = ''; if (cont) cont.style.display = 'none';
+        return mbRender(0);
+      }
       if (cont) {
         cont.style.display = st.s ? '' : 'none';
         cont.textContent = '▶ ' + (kk ? 'Жалғастыру: ' : 'Продолжить: ') + ps + ':' + pa;
@@ -3574,6 +3579,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (!e.target || e.target.id !== 'mushaf-sel') return;
       const st = mushafSt(), v = +e.target.value;
       if (st.mode === 'juz') { const L = mushafJuzList(); mushafSave({ juz: v, s: L[v][0], a: L[v][1] }); }
+      else if (st.mode === 'book') { mushafSave({ s: v, a: 1, page: mbPageOf(v, 1) }); }
       else if (st.mode === 'ayah') mushafSave({ s: v, a: 1 });
       else mushafSave({ s: v, a: 1 });
       mushafRender();
@@ -3592,6 +3598,102 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         }
       }, 400);
     }, { passive: true });
+    // ===== 7.68: Мусхаф → «Книга»: 604 страницы мединского мусхафа, листание свайпом, страницы сами переворачиваются за чтецом =====
+    // MB_PAGES[p-1] = первый аят страницы p в виде сура*1000+аят (по разметке страниц из данных Корана).
+    var MB_PAGES = [1001,2001,2006,2017,2025,2030,2038,2049,2058,2062,2070,2077,2084,2089,2094,2102,2106,2113,2120,2127,2135,2142,2146,2154,2164,2170,2177,2182,2187,2191,2197,2203,2211,2216,2220,2225,2231,2234,2238,2246,2249,2253,2257,2260,2265,2270,2275,2282,2283,3001,3010,3016,3023,3030,3038,3046,3053,3062,3071,3078,3084,3092,3101,3109,3116,3122,3133,3141,3149,3154,3158,3166,3174,3181,3187,3195,4001,4007,4012,4015,4020,4024,4027,4034,4038,4045,4052,4060,4066,4075,4080,4087,4092,4095,4102,4106,4114,4122,4128,4135,4141,4148,4155,4163,4171,4176,5003,5006,5010,5014,5018,5024,5032,5037,5042,5046,5051,5058,5065,5071,5077,5083,5090,5096,5104,5109,5114,6001,6009,6019,6028,6036,6045,6053,6060,6069,6074,6082,6091,6095,6102,6111,6119,6125,6132,6138,6143,6147,6152,6158,7001,7012,7023,7031,7038,7044,7052,7058,7068,7074,7082,7088,7096,7105,7121,7131,7138,7144,7150,7156,7160,7164,7171,7179,7188,7196,8001,8009,8017,8026,8034,8041,8046,8053,8062,8070,9001,9007,9014,9021,9027,9032,9037,9041,9048,9055,9062,9069,9073,9080,9087,9094,9100,9107,9112,9118,9123,10001,10007,10015,10021,10026,10034,10043,10054,10062,10071,10079,10089,10098,10107,11006,11013,11020,11029,11038,11046,11054,11063,11072,11082,11089,11098,11109,11118,12005,12015,12023,12031,12038,12044,12053,12064,12070,12079,12087,12096,12104,13001,13006,13014,13019,13029,13035,13043,14006,14011,14019,14025,14034,14043,15001,15016,15032,15052,15071,15091,16007,16015,16027,16035,16043,16055,16065,16073,16080,16088,16094,16103,16111,16119,17001,17008,17018,17028,17039,17050,17059,17067,17076,17087,17097,17105,18005,18016,18021,18028,18035,18046,18054,18062,18075,18084,18098,19001,19012,19026,19039,19052,19065,19077,19096,20013,20038,20052,20065,20077,20088,20099,20114,20126,21001,21011,21025,21036,21045,21058,21073,21082,21091,21102,22001,22006,22016,22024,22031,22039,22047,22056,22065,22073,23001,23018,23028,23043,23060,23075,23090,23105,24001,24011,24021,24028,24032,24037,24044,24054,24059,24062,25003,25012,25021,25033,25044,25056,25068,26001,26020,26040,26061,26084,26112,26137,26160,26184,26207,27001,27014,27023,27036,27045,27056,27064,27077,27089,28006,28014,28022,28029,28036,28044,28051,28060,28071,28078,28085,29007,29015,29024,29031,29039,29046,29053,29064,30006,30016,30025,30033,30042,30051,31001,31012,31020,31029,32001,32012,32021,33001,33007,33016,33023,33031,33036,33044,33051,33055,33063,34001,34008,34015,34023,34032,34040,34049,35004,35012,35019,35031,35039,35045,36013,36028,36041,36055,36071,37001,37025,37052,37077,37103,37127,37154,38001,38017,38027,38043,38062,38084,39006,39011,39022,39032,39041,39048,39057,39068,39075,40008,40017,40026,40034,40041,40050,40059,40067,40078,41001,41012,41021,41030,41039,41047,42001,42011,42016,42023,42032,42045,42052,43011,43023,43034,43048,43061,43074,44001,44019,44040,45001,45014,45023,45033,46006,46015,46021,46029,47001,47012,47020,47030,48001,48010,48016,48024,48029,49005,49012,50001,50016,50036,51007,51031,51052,52015,52032,53001,53027,53045,54007,54028,54050,55017,55041,55068,56017,56051,56077,57004,57012,57019,57025,58001,58007,58012,58022,59004,59010,59017,60001,60006,60012,61006,62001,62009,63005,64001,64010,65001,65006,66001,66008,67001,67013,67027,68016,68043,69009,69035,70011,70040,71011,72001,72014,73001,73020,74018,74048,75020,76006,76026,77020,78001,78031,79016,80001,81001,82001,83007,83035,85001,86001,87016,89001,89024,91001,92015,95001,97001,98008,100010,103001,106001,109001,112001];
+    function mbPageOf(s, a) { var c = s * 1000 + a, lo = 0, hi = 603; while (lo < hi) { var m = (lo + hi + 1) >> 1; if (MB_PAGES[m] <= c) lo = m; else hi = m - 1; } return lo + 1; }
+    var _mbTok = 0, _mbSel = null;
+    function mbRender(dir) {
+      var body = document.getElementById('mushaf-body'); if (!body) return;
+      var kk = isKk(), st = mushafSt(), P = Math.max(1, Math.min(604, +st.page || mbPageOf(st.s || 1, st.a || 1)));
+      var c0 = MB_PAGES[P - 1], c1 = P < 604 ? MB_PAGES[P] : 115000;
+      var s0 = Math.floor(c0 / 1000), s1 = P < 604 ? (c1 % 1000 === 1 ? Math.floor(c1 / 1000) - 1 : Math.floor(c1 / 1000)) : 114;
+      var list = []; for (var s = s0; s <= s1; s++) list.push(s);
+      var tok = ++_mbTok;
+      if (!body.querySelector('.mb-page')) body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+      Promise.all(list.map(function (n) { return mushafSurah(n); })).then(function (ds) {
+        if (tok !== _mbTok) return;
+        var html = '', juz = 0;
+        ds.forEach(function (d, i) {
+          var n = list[i]; if (!d || !d.ayahs) throw new Error('x');
+          var ay = d.ayahs.filter(function (a) { var c = n * 1000 + a.number; return c >= c0 && c < c1; });
+          if (!ay.length) return;
+          if (!juz) juz = mushafJuzOf(n, ay[0].number);
+          html += (ay[0].number === 1 ? mushafHeadHtml(n, d) : '') + '<div class="mushaf-text arabic" dir="rtl" lang="ar">' + ay.map(function (a) { return mushafAyahHtml(n, a); }).join('') + '</div>';
+        });
+        var nm = (typeof SURAH_RU !== 'undefined' && SURAH_RU[s0]) ? SURAH_RU[s0] : (kk ? s0 + '-сүре' : 'Сура ' + s0);
+        var fol = st.follow !== false;
+        body.innerHTML = '<div class="mb-page' + (dir ? (dir > 0 ? ' mb-in-next' : ' mb-in-prev') : '') + '" data-mbp="' + P + '">' +
+          '<div class="mb-hd"><span>' + nm + '</span><span>' + (kk ? juz + '-жүз' : 'Джуз ' + juz) + '</span></div>' + html +
+          '<div class="mb-no">' + toArabicDigits(P) + '</div></div>' +
+          '<div class="mb-nav"><button type="button" class="btn btn-sm" data-mb="1"' + (P >= 604 ? ' disabled' : '') + '>‹ ' + (kk ? 'Келесі' : 'Следующая') + '</button>' +
+          '<span class="mb-go"><input type="number" id="mb-go" min="1" max="604" value="' + P + '" inputmode="numeric" aria-label="' + (kk ? 'Бет' : 'Страница') + '"> / 604</span>' +
+          '<button type="button" class="btn btn-sm" data-mb="-1"' + (P <= 1 ? ' disabled' : '') + '>' + (kk ? 'Алдыңғы' : 'Предыдущая') + ' ›</button></div>' +
+          '<div class="mb-acts"><button type="button" class="btn btn-sm btn-primary" data-mb="play">▶ ' + (kk ? 'Осы беттен тыңдау' : 'Слушать с этой страницы') + '</button>' +
+          '<label class="mb-fol"><input type="checkbox" id="mb-follow"' + (fol ? ' checked' : '') + '> ' + (kk ? 'Қаримен бірге парақтау' : 'Листать за чтецом') + '</label></div>' +
+          '<div class="mushaf-hint">' + (kk ? 'Оңға сырғытыңыз — келесі бет, солға — алдыңғы (кітаптағыдай). Аятты басыңыз — тыңдау не аудармасы.' : 'Проведите вправо — следующая страница, влево — предыдущая (как в книге). Нажмите на аят — слушать или перевод.') + '</div>';
+        var sel = document.getElementById('mushaf-sel'); if (sel) sel.value = String(s0);
+        mbFollowTick(true);
+      }).catch(function () { if (tok === _mbTok) body.innerHTML = mushafFailHtml(s0); });
+    }
+    function mbGo(p, dir) { p = Math.max(1, Math.min(604, p)); var c = MB_PAGES[p - 1]; mushafSave({ page: p, s: Math.floor(c / 1000), a: c % 1000 }); mbRender(dir); }
+    function mbActive() { var pane = document.getElementById('home-mushaf-pane'); return !!(pane && pane.offsetParent && pane.style.display !== 'none' && mushafSt().mode === 'book' && document.querySelector('#mushaf-body .mb-page')); }
+    // за чтецом: подсветка текущего аята; если он на другой странице — переворачиваем
+    function mbFollowTick(force) {
+      if (!mbActive()) return;
+      var c = null; try { c = plCurAyah(); } catch (e) {}
+      document.querySelectorAll('#mushaf-body .mushaf-ayah.mb-now').forEach(function (x) { if (!c || +x.getAttribute('data-ms') !== c.s || +x.getAttribute('data-ma') !== c.a) x.classList.remove('mb-now'); });
+      var playing = false; try { playing = !!(audioEl && !audioEl.paused); } catch (e) {}
+      if (!c || !c.a || (!playing && !force)) return;
+      var el = document.querySelector('#mushaf-body [data-ms="' + c.s + '"][data-ma="' + c.a + '"]');
+      if (el) { el.classList.add('mb-now'); return; }
+      if (!playing || mushafSt().follow === false) return;
+      var P = +((document.querySelector('#mushaf-body .mb-page') || {}).getAttribute ? document.querySelector('#mushaf-body .mb-page').getAttribute('data-mbp') : 0), np = mbPageOf(c.s, c.a);
+      if (np !== P) mbGo(np, np > P ? 1 : -1);
+    }
+    setInterval(function () { try { mbFollowTick(false); } catch (e) {} }, 700);
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t || !t.closest('#mushaf-body')) return;
+      var b = t.closest('[data-mb]');
+      if (b) {
+        var k = b.getAttribute('data-mb'), P = +(mushafSt().page || 1);
+        if (k === 'play') { var c = MB_PAGES[P - 1]; setLastFromPos(Math.floor(c / 1000), c % 1000, true); return; }
+        if (k === 'from' && _mbSel) { setLastFromPos(_mbSel.s, _mbSel.a, true); mbBarClose(); return; }
+        if (k === 'tr' && _mbSel) { mushafSave({ s: _mbSel.s, a: _mbSel.a }); window._readerMode = 'normal'; openSurah(_mbSel.s, _mbSel.a); return; }
+        if (k === 'x') { mbBarClose(); return; }
+        mbGo(P + (+k), +k); return;
+      }
+      var ay = t.closest('.mb-page [data-ms]');
+      if (ay) {
+        e.stopPropagation();
+        _mbSel = { s: +ay.getAttribute('data-ms'), a: +ay.getAttribute('data-ma') };
+        document.querySelectorAll('#mushaf-body .mb-sel').forEach(function (x) { x.classList.remove('mb-sel'); }); ay.classList.add('mb-sel');
+        mbBarClose(); var kk = isKk();
+        var bar = document.createElement('div'); bar.className = 'mb-bar';
+        bar.innerHTML = '<b>' + _mbSel.s + ':' + _mbSel.a + '</b><button type="button" class="btn btn-sm btn-primary" data-mb="from">▶ ' + (kk ? 'Осы жерден' : 'Отсюда') + '</button><button type="button" class="btn btn-sm" data-mb="tr">📖 ' + (kk ? 'Аудармасы' : 'Перевод') + '</button><button type="button" class="btn btn-sm" data-mb="x">✕</button>';
+        document.getElementById('mushaf-body').appendChild(bar);
+      }
+    }, true);
+    function mbBarClose() { document.querySelectorAll('#mushaf-body .mb-bar').forEach(function (x) { x.remove(); }); }
+    document.addEventListener('change', function (e) {
+      if (!e.target) return;
+      if (e.target.id === 'mb-go') { mbGo(+e.target.value || 1, 0); return; }
+      if (e.target.id === 'mb-follow') { mushafSave({ follow: !!e.target.checked }); }
+    });
+    (function () {
+      var x0 = null, y0 = 0, t0 = 0;
+      document.addEventListener('touchstart', function (e) { if (!e.target.closest || !e.target.closest('#mushaf-body .mb-page') || e.touches.length !== 1) { x0 = null; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); }, { passive: true });
+      document.addEventListener('touchend', function (e) {
+        if (x0 == null) return; var t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+        if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - t0 > 800) return;
+        var P = +(mushafSt().page || 1); mbGo(P + (dx > 0 ? 1 : -1), dx > 0 ? 1 : -1);
+      }, { passive: true });
+      document.addEventListener('keydown', function (e) {
+        if (!mbActive() || /input|select|textarea/i.test((e.target && e.target.tagName) || '')) return;
+        var P = +(mushafSt().page || 1);
+        if (e.key === 'ArrowLeft') mbGo(P + 1, 1); else if (e.key === 'ArrowRight') mbGo(P - 1, -1);
+      });
+    })();
     // 7.26: кнопка «значок + подпись»; вид (оба / только значки) — Настройки → «Вид кнопок» (body.btn-icons)
     // ===== 7.27: фон приложения — фото, узоры (цвет темы), своё фото; затемнение под тему, в читалке фон приглушён =====
     const BG_LIST = [
