@@ -319,6 +319,13 @@
         <button type="button" id="zen-tr" aria-label="Перевод">Aa</button>
         <button type="button" id="zen-play" aria-label="Слушать">▶</button>
       </div>
+      <div id="rd-mini" class="rd-mini" hidden role="toolbar" aria-label="Чтение">
+        <button type="button" data-rdm="minus" title="Мельче">A−</button>
+        <button type="button" data-rdm="plus" title="Крупнее">A+</button>
+        <button type="button" data-rdm="tr" title="Перевод">Перевод</button>
+        <button type="button" data-rdm="tl" title="Транскрипция">Транскр.</button>
+        <button type="button" data-rdm="play" class="rdm-play" title="Слушать суру">▶</button>
+      </div>
       <div class="reader-header">
         <div>
           <button class="btn btn-sm" id="btn-back">← Назад</button>
@@ -1431,9 +1438,11 @@
     <div class="pl-ayahbar" aria-hidden="true"><i id="pl-ayahbar"></i></div>
     <div class="player-controls">
       <button type="button" class="btn-player pl-surbtn" id="audio-prev-surah" title="Предыдущая сура">⏮<small data-pk="sur">сура</small></button>
+      <button type="button" class="btn-player pl-sec" id="audio-back5" title="Назад 5 с">↺<small>5 с</small></button>
       <button type="button" class="btn-player" id="audio-prev" title="Предыдущий аят">◀<small data-pk="ay">аят</small></button>
       <button type="button" class="btn-player primary" id="audio-play-pause" title="Пауза">▶</button>
       <button type="button" class="btn-player" id="audio-next" title="Следующий аят">▶<small data-pk="ay">аят</small></button>
+      <button type="button" class="btn-player pl-sec" id="audio-fwd5" title="Вперёд 5 с">↻<small>5 с</small></button>
       <button type="button" class="btn-player pl-surbtn" id="audio-next-surah" title="Следующая сура">⏭<small data-pk="sur">сура</small></button>
     </div>
     <div class="player-dua" id="audio-dua-row" style="display:none">
@@ -1451,8 +1460,8 @@
     <div class="pl-chips" id="pl-chips">
       <button type="button" class="pl-chip" id="pl-mode-btn" title="Режим воспроизведения">⏭ Дальше</button>
       <button type="button" class="pl-chip" id="pl-speed-btn" title="Скорость">1×</button>
-      <button type="button" class="pl-chip" id="pl-rep-btn" title="Повтор и заучивание">🔂 <span data-pk="rep">Повтор</span></button>
-      <button type="button" class="pl-chip" id="pl-sleep-btn" title="Таймер сна">⏱ <span data-pk="timer">Таймер</span></button>
+      <button type="button" class="pl-chip" id="pl-rep-btn" title="Повтор и заучивание">🔁 <span data-pk="rep">Повтор</span></button>
+      <button type="button" class="pl-chip" id="pl-sleep-btn" title="Таймер сна">🌙 <span data-pk="sleep">Сон</span></button>
       <button type="button" class="pl-chip" id="pl-queue-btn" title="Очередь">☰ Очередь</button>
       <button type="button" class="pl-chip pl-help" id="audio-help" title="Как пользоваться плеером">?</button>
     </div>
