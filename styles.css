@@ -5760,3 +5760,19 @@ body:has(.audio-bar.visible:not(.collapsed)) #ayah-scroll-rail, body:has(.audio-
 .ms-signs .ms-ex { flex: 0 0 6.5rem; text-align: center; font-size: calc(1.45rem * var(--ar-scale, 1)); line-height: 2; }
 .ms-signs .ms-t { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.88rem; }
 .ms-signs .ms-t span { color: var(--text-muted); font-size: 0.82rem; line-height: 1.4; }
+
+/* 7.76: Справочник — список разделов */
+.acad-list { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.4rem; }
+.acad-row { display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.7rem 0.8rem; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-card); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.acad-n { flex: 0 0 1.6rem; height: 1.6rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.acad-ico { font-size: 1.3rem; }
+.acad-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.acad-t small { color: var(--text-muted); font-size: 0.78rem; line-height: 1.3; }
+.acad-pr { font-size: 0.78rem; color: var(--accent); font-weight: 700; white-space: nowrap; }
+.acad-chev { color: var(--text-muted); font-size: 1.3rem; }
+.acad-crumb { display: flex; align-items: center; gap: 0.6rem; margin: 0.2rem 0 0.6rem; }
+.acad-crumb[hidden] { display: none; }
+.acad-cur { font-weight: 700; }
+#acad-next { margin: 1rem 0 0.5rem; text-align: center; }
+#acad-next .btn { width: 100%; }
+#academy-main-tabs[hidden] { display: none !important; }

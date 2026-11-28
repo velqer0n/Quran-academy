@@ -3046,8 +3046,8 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         }
       }
       if (name === 'learn') {
-        let tab = 'alphabet';
-        try { tab = sessionStorage.getItem('quran_acad_tab') || localStorage.getItem('quran_acad_tab') || 'alphabet'; } catch(e) {} // 6.102: тема запоминается и после закрытия браузера
+        let tab = 'home'; // 7.76: Справочник открывается списком разделов
+        try { tab = sessionStorage.getItem('quran_acad_tab') || 'home'; } catch(e) {} // 6.102: тема запоминается и после закрытия браузера
         if (tab === 'courses') tab = 'alphabet';
         if (typeof switchAcademyTab === 'function') switchAcademyTab(tab);
         else {
@@ -9369,8 +9369,53 @@ function speakLetter(ch, name, ttsOnly) {
 
 
     
+    // ===== 7.76: Справочник — первый экран списком (как Настройки), разделы в порядке изучения =====
+    var ACAD_ORDER = [
+      ['alphabet', '🔤', 'Буквы', 'Әріптер', '28 букв: формы, звук, как пишется', '28 әріп: пішіні, дыбысы, жазылуы'],
+      ['harakat', '✏️', 'Огласовки', 'Харакаттар', 'фатха, касра, дамма, сукун, шадда, танвин, знаки мусхафа', 'фатха, кәсра, дамма, сукун, шадда, тәнуин, мұсхаф белгілері'],
+      ['rules', '🔗', 'Письмо', 'Жазу', 'как буквы соединяются, лям-алиф, та-марбута, знаки остановки', 'әріптер қалай қосылады, ләм-әліп, та-марбута, тоқтау белгілері'],
+      ['pron', '👄', 'Произношение', 'Айтылуы', 'места выхода звуков и их свойства — основа таджвида', 'дыбыстардың шығу орны мен сипаттары — тәжуидтің негізі'],
+      ['tajweed', '📘', 'Таджвид', 'Тәжуид', 'правила чтения: нун и мим сакин, мадд, вакф…', 'оқу ережелері: сукунды нун мен мим, мадд, уақф…']
+    ];
+    function acadKey(tab) { return (tab === 'makharij' || tab === 'sifat') ? 'pron' : tab; }
+    function acadProg(tab) { try { var p = JSON.parse(localStorage.getItem('qa_ref_prog_' + tab) || 'null'); return p; } catch (e) { return null; } }
+    function acadHomeRender() {
+      var el = document.getElementById('acad-home'); if (!el) return; var kk = isKk();
+      el.innerHTML = '<div class="acad-list">' + ACAD_ORDER.map(function (x, i) {
+        var p = x[0] === 'pron' ? (function () { var a = acadProg('makharij'), b = acadProg('sifat'); if (!a && !b) return null; a = a || [0, 0]; b = b || [0, 0]; return [a[0] + b[0], a[1] + b[1]]; })() : acadProg(x[0]);
+        var pr = p && p[1] ? '<span class="acad-pr">' + p[0] + '/' + p[1] + '</span>' : '';
+        return '<button type="button" class="acad-row" data-acad-open="' + x[0] + '"><span class="acad-n">' + (i + 1) + '</span><span class="acad-ico">' + x[1] + '</span><span class="acad-t"><b>' + (kk ? x[3] : x[2]) + '</b><small>' + (kk ? x[5] : x[4]) + '</small></span>' + pr + '<span class="acad-chev">›</span></button>';
+      }).join('') + '</div>';
+    }
+    function acadCrumbRender(tab) {
+      var c = document.getElementById('acad-crumb'), kk = isKk(); if (!c) return;
+      var k = acadKey(tab), i = ACAD_ORDER.findIndex(function (x) { return x[0] === k; });
+      if (i < 0) { c.hidden = true; return; }
+      c.hidden = false;
+      c.innerHTML = '<button type="button" class="btn btn-sm" data-acad-open="home">‹ ' + (kk ? 'Анықтамалық' : 'Справочник') + '</button><span class="acad-cur">' + (i + 1) + '. ' + (kk ? ACAD_ORDER[i][3] : ACAD_ORDER[i][2]) + '</span>';
+      var old = document.getElementById('acad-next'); if (old) old.remove();
+      var nx = ACAD_ORDER[i + 1], view = document.getElementById('view-learn');
+      if (nx && view) { var d = document.createElement('div'); d.id = 'acad-next'; d.innerHTML = '<button type="button" class="btn btn-primary" data-acad-open="' + nx[0] + '">' + (kk ? 'Келесі: ' : 'Дальше: ') + (i + 2) + '. ' + (kk ? nx[3] : nx[2]) + ' ›</button>'; view.appendChild(d); }
+    }
+    function acadShowHome() {
+      try { sessionStorage.setItem('quran_acad_tab', 'home'); } catch (e) {}
+      ['path','alphabet','harakat','syllables','rules','tajweed','makharij','sifat','practice','surahs','ayahs','twcolor','srs','mistakes'].forEach(function (t) { var el = document.getElementById('acad-' + t); if (el) el.style.display = 'none'; });
+      var h = document.getElementById('acad-home'); if (h) h.style.display = '';
+      var c = document.getElementById('acad-crumb'); if (c) c.hidden = true;
+      var nx = document.getElementById('acad-next'); if (nx) nx.remove();
+      try { refEnsureSearch(); } catch (e) {}
+      acadHomeRender();
+    }
+    document.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-acad-open]'); if (!b) return;
+      var t = b.getAttribute('data-acad-open');
+      if (t === 'home') acadShowHome(); else switchAcademyTab(t);
+      try { var v = document.getElementById('view-learn'); if (v) window.scrollTo({ top: 0, behavior: 'auto' }); } catch (er) {}
+    });
     function switchAcademyTab(tab) {
       tab = tab || 'alphabet';
+      if (tab === 'home') { acadShowHome(); return; }
+      try { var _ah = document.getElementById('acad-home'); if (_ah) _ah.style.display = 'none'; } catch (e) {}
       // 7.57: Махаридж и Сифат — один раздел «Произношение» с двумя вкладками
       if (tab === 'pron') { try { tab = localStorage.getItem('qa_pron_sub') || 'makharij'; } catch (e) { tab = 'makharij'; } }
       if (tab === 'makharij' || tab === 'sifat') { try { localStorage.setItem('qa_pron_sub', tab); } catch (e) {} }
@@ -9388,6 +9433,7 @@ function speakLetter(ch, name, ttsOnly) {
         const el = document.getElementById('acad-' + t);
         if (el) el.style.display = (t === tab) ? '' : 'none';
       });
+      try { acadCrumbRender(tab); } catch (e) {}
       if (tab === 'path') try { renderAcademy(); } catch(e) {}
       if (tab === 'alphabet') try { renderAlphabet(); refDecorate('alphabet'); } catch(e) {}
       if (tab === 'harakat') try { renderHarakat(); } catch(e) {}
@@ -17131,6 +17177,7 @@ function renderMistakes() {
       var root = document.getElementById(REF_ROOTS[tab]); if (!root) return;
       var keys = Array.prototype.map.call(root.querySelectorAll('[data-ref-key]'), function(x) { return x.getAttribute('data-ref-key'); });
       var done = keys.filter(refIsDone).length, kk = isKk();
+      try { if (keys.length) localStorage.setItem('qa_ref_prog_' + tab, JSON.stringify([done, keys.length])); } catch (e) {}
       root.querySelectorAll('[data-ref-key]').forEach(function(x) { x.classList.toggle('ref-is-done', refIsDone(x.getAttribute('data-ref-key'))); });
       var p = document.querySelector('.ref-bar[data-ref-tab="' + tab + '"]');
       if (p) {

@@ -473,13 +473,15 @@
         <button type="button" class="btn btn-sm btn-primary study-switch-btn" data-study="learn" style="flex:1">📚 Справочник</button>
       </div>
       <h2 class="section-title" data-i18n="learn_title">Справочник</h2>
-      <div class="learn-nav" id="academy-main-tabs">
+      <div class="learn-nav" id="academy-main-tabs" hidden>
         <button class="btn btn-primary btn-sm" data-acad-tab="alphabet">Буквы</button>
         <button class="btn btn-sm" data-acad-tab="harakat">Огласовки</button>
         <button class="btn btn-sm" data-acad-tab="rules">Письмо</button>
-        <button class="btn btn-sm" data-acad-tab="tajweed">Таджвид</button>
         <button class="btn btn-sm" data-acad-tab="pron">Произношение</button>
+        <button class="btn btn-sm" data-acad-tab="tajweed">Таджвид</button>
       </div>
+      <div id="acad-home"></div>
+      <div id="acad-crumb" class="acad-crumb" hidden></div>
       <div id="acad-path" style="display:none">
         <div id="academy-body"></div>
       </div>
