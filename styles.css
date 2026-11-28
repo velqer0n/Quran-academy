@@ -5919,3 +5919,17 @@ body:has(.audio-bar.visible:not(.collapsed)) #ayah-scroll-rail, body:has(.audio-
 .c2-lch .c2-ar{font-size:1.9rem;line-height:1.3}
 .c2-lch small{font-size:0.8rem;color:var(--accent);font-weight:700}
 .c2-lall{display:block;margin:0.3rem auto 0.6rem}
+
+/* 7.85: Практика — игры курса, «вам сейчас полезно», пометки «после главы» */
+.qz-c2{margin-bottom:0.6rem}
+.qz-tips{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:0.6rem 0.7rem;margin-bottom:0.6rem}
+.qz-tips-h{font-weight:700;font-size:0.9rem;margin-bottom:0.45rem}
+.qz-tips-row{display:grid;grid-template-columns:1fr;gap:0.4rem}
+.qz-tip{display:flex;align-items:center;gap:0.4rem;width:100%;text-align:left;font:inherit;font-size:0.9rem;color:inherit;background:var(--bg-hover);border:1px solid var(--border);border-radius:12px;padding:0.55rem 0.7rem;cursor:pointer}
+.qz-cgames{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:0 0.7rem;margin-bottom:0.6rem}
+.qz-cgames .qz-trs{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:0.45rem;padding-bottom:0.7rem}
+.qz-tr.locked{opacity:0.55}
+.qz-after{margin-left:auto;font-size:0.68rem;font-weight:600;color:var(--text-muted);background:var(--bg-hover);border-radius:10px;padding:0.05rem 0.45rem;white-space:nowrap}
+.c2-note{border-color:#8b5cf6;background:color-mix(in srgb,#8b5cf6 8%,var(--bg-card))}
+.c2-note .btn{margin-top:0.4rem}
+.qz-trs{grid-auto-rows:1fr}.qz-tr{height:100%}

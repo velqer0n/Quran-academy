@@ -788,7 +788,7 @@ window.addEventListener('unhandledrejection', function(e) { qaErrLog('promise', 
         'Теория': 'Теория', 'Практика': 'Тәжірибе', 'Практика и тесты': 'Тәжірибе және тесттер',
         '⋯ Вид': '⋯ Түрі', 'Проверь себя': 'Өзіңді тексер', 'Сайт': 'Сайт', '📈 Мой прогресс': '📈 Менің прогресім',
         'Все': 'Барлығы', '🕘 Недавние': '🕘 Соңғы', 'Короткие': 'Қысқа', 'Джуз…': 'Жүз…', '📄 Обычный': '📄 Әдеттегі', '📖 Мусхаф': '📖 Мұсхаф', '🎧 По словам': '🎧 Сөзбе-сөз',
-        '👨‍🏫 Курс': '👨‍🏫 Курс', '🎯 Тренировка': '🎯 Жаттығу', '📚 Справочник': '📚 Анықтамалық', '🔍 Буква в слове': '🔍 Сөздегі әріп', '👄 Фатиха: как произносить (схема за чтецом)': '👄 Фатиха: қалай айтылады (қаридың артынан сызба)', 'Справочник': 'Анықтамалық', 'Тренировка': 'Жаттығу', 'Письмо': 'Жазу',
+        '👨‍🏫 Курс': '👨‍🏫 Курс', '🎯 Тренировка': '🎯 Машықтану', '🎯 Практика': '🎯 Машықтану', '📚 Справочник': '📚 Анықтамалық', '🔍 Буква в слове': '🔍 Сөздегі әріп', '👄 Фатиха: как произносить (схема за чтецом)': '👄 Фатиха: қалай айтылады (қаридың артынан сызба)', 'Справочник': 'Анықтамалық', 'Тренировка': 'Жаттығу', 'Письмо': 'Жазу',
         '🔤 Буквы': '🔤 Әріптер', '🧩 Слоги': '🧩 Буындар', '📖 Чтение': '📖 Оқу', '🎨 Таджвид': '🎨 Тәжуид',
         '⭐ Избранные аяты по словам': '⭐ Таңдаулы аяттар сөзбе-сөз', '⚠️ Мои ошибки — повторить слабые места': '⚠️ Менің қателерім — әлсіз тұстарды қайталау',
         '📥 Подготовить сайт к офлайну': '📥 Сайтты офлайнға дайындау', '⬇ Скачать всё для офлайна': '⬇ Офлайн үшін бәрін жүктеу',
@@ -3809,7 +3809,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       { cat: 'read', ico: '📖', ru: 'Чтение', kk: 'Оқу', dRu: 'перевод, транскрипция, тафсир', dKk: 'аударма, транскрипция, тәпсір' },
       { cat: 'audio', ico: '🎧', ru: 'Аудио', kk: 'Аудио', dRu: 'чтецы, скорость, повтор', dKk: 'қарилер, жылдамдық, қайталау' },
       { go: 'prayertimes', ico: '🕌', ru: 'Намаз', kk: 'Намаз', dRu: 'город, метод, уведомления о намазе', dKk: 'қала, әдіс, намаз хабарламалары' },
-      { cat: 'study', ico: '🎓', ru: 'Учёба', kk: 'Оқу бағдарламасы', dRu: 'курс, тренировка, повторение', dKk: 'курс, жаттығу, қайталау' },
+      { cat: 'study', ico: '🎓', ru: 'Учёба', kk: 'Оқу бағдарламасы', dRu: 'курс, практика, повторение', dKk: 'курс, машықтану, қайталау' },
       { cat: 'lang', ico: '🌐', ru: 'Язык', kk: 'Тіл', dRu: 'язык сайта и перевода', dKk: 'сайт пен аударма тілі' },
       { cat: 'notif', ico: '🔔', ru: 'Уведомления', kk: 'Хабарландырулар', dRu: 'напоминания и звуки', dKk: 'еске салғыштар мен дыбыстар' },
       { cat: 'morecfg', ico: '🧭', ru: 'Меню и главная', kk: 'Мәзір және басты бет', dRu: 'вкладки внизу, кнопки шапки, Лента', dKk: 'төменгі қойындылар, жоғарғы батырмалар, Лента' },
@@ -12922,9 +12922,9 @@ function speakLetter(ch, name, ttsOnly) {
       }
       return out;
     }
-    function c2RevStart() {
+    function c2RevStart(ret) {
       var steps = c2RevSteps(); if (steps.length < 3) { toast(c2T('Пока нечего повторять — пройдите ещё урок.', 'Әзірге қайталайтын ештеңе жоқ — тағы бір сабақ өтіңіз.')); return; }
-      C2.lesson = { id: 'rev_day', ch: null, t: ['Повторение дня', 'Күн қайталауы'], type: 'revday' };
+      C2.lesson = { id: 'rev_day', ch: null, t: ['Повторение дня', 'Күн қайталауы'], type: 'revday' }; C2.ret = ret || null;
       C2.steps = steps; C2.i = 0; C2.ok = 0; C2.n = 0; C2.bad = 0; C2.good = 0; C2.easy = false;
       try { loadTajweedData(); } catch (e) {}
       try { showView('teacher'); } catch (e) {}
@@ -12941,8 +12941,10 @@ function speakLetter(ch, name, ttsOnly) {
       root.innerHTML = '<div class="c2-end"><div class="c2-endico">🔁</div><h3>' + c2T('Повторение готово', 'Қайталау дайын') + '</h3>' +
         '<div class="card">' + c2T('С первого раза верно: ', 'Бірінші реттен дұрыс: ') + '<b>' + okFirst + ' / ' + first + '</b>. ' + c2T('Ошибки вернутся в следующих повторениях — так память крепче.', 'Қателер келесі қайталауларда қайта келеді — осылай есте берік қалады.') + '</div>' +
         (next ? '<button type="button" class="btn btn-primary c2-next" data-c2="go" data-id="' + next.id + '">' + c2T('Следующий урок', 'Келесі сабақ') + ': ' + c2Esc(c2Title(next)) + '</button>' : '') +
-        '<button type="button" class="btn c2-later" data-c2="home">' + c2T('К карте курса', 'Курс картасына') + '</button></div>';
+        (C2.ret ? '<button type="button" class="btn c2-later" data-c2="back" data-ret="' + C2.ret + '">' + c2T('Назад к практике', 'Машықтануға оралу') + '</button>' : '<button type="button" class="btn c2-later" data-c2="home">' + c2T('К карте курса', 'Курс картасына') + '</button>') + '</div>';
+      C2.ret = null;
     }
+    window.c2RevStart = c2RevStart; window.c2RevSteps = c2RevSteps;
     // шпаргалка главы: что уже пройдено — буквы, знаки, правила с примерами
     function c2Sheet(chId) {
       var c = c2Chapter(chId), root = c2Root(); if (!c || !root) return;
@@ -13060,9 +13062,106 @@ function speakLetter(ch, name, ttsOnly) {
       root.innerHTML = '<div class="c2-end"><div class="c2-endico c2-cele">⏱</div><h3>' + c2T('Время вышло!', 'Уақыт бітті!') + '</h3>' +
         '<div class="card">' + c2T('Вы дошли до уровня ', 'Сіз жеткен деңгей: ') + '<b>' + lvl + '</b>. ' + c2T('Верно: ', 'Дұрыс: ') + '<b>' + ok + ' / ' + n + '</b>. ' + c2T('Ошибки попали в повторение — они вернутся.', 'Қателер қайталауға түсті — олар қайта келеді.') + '</div>' +
         '<button type="button" class="btn btn-primary c2-next" data-c2="arcade"' + (ret ? ' data-ret="' + ret + '"' : '') + '>🎮 ' + c2T('Ещё 3 минуты', 'Тағы 3 минут') + '</button>' +
-        '<button type="button" class="btn c2-later" data-c2="' + (ret ? 'back' : 'home') + '"' + (ret ? ' data-ret="' + ret + '"' : '') + '>' + (ret ? c2T('Назад к тренировке', 'Жаттығуға оралу') : c2T('К карте курса', 'Курс картасына')) + '</button></div>';
+        '<button type="button" class="btn c2-later" data-c2="' + (ret ? 'back' : 'home') + '"' + (ret ? ' data-ret="' + ret + '"' : '') + '>' + (ret ? c2T('Назад к практике', 'Машықтануға оралу') : c2T('К карте курса', 'Курс картасына')) + '</button></div>';
     }
     window.c2ArcadeStart = c2ArcadeStart;
+    // ---------- 7.85: «Игры курса» в Практике — те же игры, уровень по прогрессу курса, разминка на уровень ниже ----------
+    function c2ChDoneN(c) { var cc = c2Chapter(c), S = c2St(); return cc ? cc.lessons.filter(function (l) { return S.done[l.id]; }).length : 0; }
+    function c2ChAll(c) { var cc = c2Chapter(c), S = c2St(); return cc ? cc.lessons.every(function (l) { return S.done[l.id]; }) : false; }
+    // какой уровень игры открыт (0 — ещё не открыт) и после какой главы откроется
+    function c2GameUnlock(kind) {
+      var any = function (c) { return c2ChDoneN(c) > 0; };
+      if (kind === 'balloon' || kind === 'match') return { lvl: any('c2') || any('c3') ? 1 : 0, after: 2 };
+      if (kind === 'catch') return { lvl: c2ChAll('c3') || any('c4') ? 3 : c2ChDoneN('c3') >= 5 ? 2 : any('c3') ? 1 : 0, after: 3 };
+      if (kind === 'lines') return { lvl: c2St().done.c4_sukun ? 1 : 0, after: 4 };
+      if (kind === 'scatter' || kind === 'fix') return { lvl: any('c6') || any('c7') || any('c8') || any('c9') ? 3 : any('c5') ? 2 : any('c4') ? 1 : 0, after: 4 };
+      if (kind === 'pair') return { lvl: 1, after: 2 };
+      return { lvl: 0, after: 2 };
+    }
+    var C2_GAMES = [
+      ['balloon', '🎈', 'Шарики', 'Шарлар', 'услышь букву — лопни шарик', 'әріпті есті — шарды жар'],
+      ['match', '🔗', 'Соедини пары', 'Жұптарды қос', 'буква — название, слог — чтение', 'әріп — атауы, буын — оқылуы'],
+      ['catch', '🪂', 'Поймай букву', 'Әріпті ұста', 'ловить только нужную', 'тек керегін ұстау'],
+      ['lines', '📜', 'Строки чтения', 'Оқу жолдары', 'как в Каиде', 'Қайдадағыдай'],
+      ['scatter', '🧩', 'Слово рассыпалось', 'Сөз шашылды', 'собери слово, выбери форму буквы', 'сөзді жина, әріп пішінін таңда'],
+      ['fix', '🛠', 'Почини слово', 'Сөзді түзет', 'найди неверную огласовку', 'қате қозғалысты тап']
+    ];
+    function c2GameSteps(kind, lvl, opt) {
+      var kn = c2ArcadeKn(), lets = kn.letters.filter(function (c) { return c !== 'ا'; }), ws = c2ReadableWords({ letters: kn.letters, marks: kn.marks, rules: kn.rules }), out = [], g = 0;
+      if (kind === 'pair' && opt && opt.pair) { for (var i = 0; i < 6; i++) { var ch = opt.pair[i % 2]; out.push({ k: 'pair', ch: ch, other: opt.pair[(i + 1) % 2], key: 'L:' + ch }); } return shuffle(out); }
+      if (kind === 'lines') { var a = c2LineItems(kn, null, 5), b2 = c2LineItems(kn, null, 5); if (a.length) out.push({ k: 'line', items: a }); if (b2.length) out.push({ k: 'line', items: b2 }); return out.concat(c2LineReadSteps(shuffle(a.concat(b2)), 'W', 6).map(function (x) { delete x.must; return x; })); }
+      while (out.length < 8 && g++ < 40) {
+        var L = out.length < 3 && lvl > 1 ? lvl - 1 : lvl, st = null; // разминка на уровень ниже
+        if (kind === 'balloon') { var pr = c2LetterPractice(c2Pick(kn.letters, 1)[0], kn.letters, kn).filter(function (x) { return x.k === 'listen'; }); st = pr[0]; if (st) st.ui = 'balloon'; }
+        else if (kind === 'match') st = (out.length % 2 && kn.marks.length && lets.length >= 3) ? c2MatchSyl(lets, kn.marks) : c2MatchLetters(c2Pick(kn.letters, 4));
+        else if (kind === 'catch') st = c2CatchStep(c2Pick(lets, 1)[0], kn.letters, L);
+        else if (kind === 'scatter') st = c2ScatterFrom(ws, 1, L)[0];
+        else if (kind === 'fix') st = c2FixFrom(ws, L)[0];
+        if (st) { delete st.must; out.push(st); }
+      }
+      return out;
+    }
+    function c2GameStart(kind, opt) {
+      var u = c2GameUnlock(kind); if (!u.lvl) { toast(c2T('Откроется после главы ' + u.after + ' курса.', 'Курстың ' + u.after + '-тарауынан кейін ашылады.')); return; }
+      var steps = c2GameSteps(kind, u.lvl, opt); if (!steps.length) { toast(c2T('Пока мало пройденного для этой игры — пройдите ещё урок.', 'Бұл ойынға өтілгені әзірге аз — тағы бір сабақ өтіңіз.')); return; }
+      var gm = C2_GAMES.filter(function (x) { return x[0] === kind; })[0] || ['pair', '👂', 'Услышь разницу', 'Айырмасын есті'];
+      C2.lesson = { id: 'game_' + kind, ch: null, t: [gm[2], gm[3]], type: 'practice', game: kind, opt: opt || null };
+      C2.steps = steps; C2.i = 0; C2.ok = 0; C2.n = 0; C2.bad = 0; C2.good = 0; C2.easy = false; C2.ret = (opt && opt.ret) || 'games'; C2.combo = 0;
+      try { showView('teacher'); } catch (e) {}
+      c2Render(); try { window.scrollTo(0, 0); } catch (e) {}
+    }
+    window.c2GameStart = c2GameStart;
+    function c2PracFinish() {
+      var l = C2.lesson, root = c2Root(), first = C2.steps.filter(function (x) { return !x.rev2; }).length, okF = Math.max(0, first - C2.steps.filter(function (x) { return x.rev2; }).length), ret = C2.ret;
+      C2.lesson = null; try { saveState(); } catch (e) {}
+      if (!root) return;
+      root.innerHTML = '<div class="c2-end"><div class="c2-endico c2-cele">🎯</div><h3>' + c2Esc(c2Title(l)) + '</h3><div class="card">' + c2T('С первого раза верно: ', 'Бірінші реттен дұрыс: ') + '<b>' + okF + ' / ' + first + '</b></div>' +
+        '<button type="button" class="btn btn-primary c2-next" data-c2="game" data-g="' + c2Esc(l.game) + '"' + (l.opt && l.opt.pair ? ' data-pair="' + c2Esc(l.opt.pair.join('')) + '"' : '') + '>↻ ' + c2T('Ещё раз', 'Тағы бір рет') + '</button>' +
+        '<button type="button" class="btn c2-later" data-c2="back" data-ret="' + (ret || 'games') + '">' + (ret === 'teacher' ? c2T('К карте курса', 'Курс картасына') : c2T('Назад к практике', 'Машықтануға оралу')) + '</button></div>';
+    }
+    // блок для Практики: «Играть 3 минуты», «Вам сейчас полезно», «Игры курса»
+    window.c2PracticeHtml = function () {
+      var kk = isKk(), S = c2St(), h = '';
+      h += '<button type="button" class="c2-arcbtn" data-qz-arcade="1"><b>🎮 ' + (kk ? '3 минут ойнау' : 'Играть 3 минуты') + '</b><span>' + (kk ? 'өткен тақырыптан аралас тапсырмалар, деңгей ойын барысында өседі' : 'смесь заданий по пройденному, уровни растут по ходу игры') + '</span></button>';
+      // вам сейчас полезно
+      var tips = [];
+      try { var conf = S.conf || {}, worst = Object.keys(conf).sort(function (a, b) { return conf[b] - conf[a]; })[0]; if (worst && conf[worst] >= 3) tips.push('<button type="button" class="qz-tip" data-c2g="pair" data-pair="' + c2Esc(worst) + '">👂 ' + (kk ? 'Жиі шатасады: ' : 'Часто путаете: ') + '<b dir="rtl">' + c2Esc(worst.split('').join(' / ')) + '</b></button>'); } catch (e) {}
+      try { if (S.revDay !== c2Today() && c2KnownDone().letters.length) tips.push('<button type="button" class="qz-tip" data-c2="rev" data-ret="games">🔁 ' + (kk ? 'Күн қайталауы' : 'Повторение дня') + '</button>'); } catch (e) {}
+      try { var best = null; ['fix', 'scatter', 'lines', 'catch', 'match', 'balloon'].some(function (k) { if (c2GameUnlock(k).lvl) { best = k; return true; } return false; }); if (best) { var gm = C2_GAMES.filter(function (x) { return x[0] === best; })[0]; tips.push('<button type="button" class="qz-tip" data-c2g="' + best + '">' + gm[1] + ' ' + (kk ? gm[3] : gm[2]) + ' · ' + (kk ? 'дең. ' : 'ур. ') + c2GameUnlock(best).lvl + '</button>'); } } catch (e) {}
+      if (tips.length) h += '<div class="qz-tips"><div class="qz-tips-h">✨ ' + (kk ? 'Сізге қазір пайдалы' : 'Вам сейчас полезно') + '</div><div class="qz-tips-row">' + tips.slice(0, 3).join('') + '</div></div>';
+      h += '<details class="qz-hstep qz-cgames" open><summary><i>🎲</i><b>' + (kk ? 'Курс ойындары' : 'Игры курса') + '</b></summary><div class="qz-trs">' + C2_GAMES.map(function (g) {
+        var u = c2GameUnlock(g[0]);
+        return '<button type="button" class="qz-tr' + (u.lvl ? '' : ' locked') + '" data-c2g="' + g[0] + '"><span class="qz-tr-ico">' + g[1] + '</span><span class="qz-tr-t"><b>' + (kk ? g[3] : g[2]) + '</b><small>' + (u.lvl ? (kk ? g[5] : g[4]) + ' · ' + (kk ? 'дең. ' : 'ур. ') + u.lvl : (kk ? u.after + '-тараудан кейін' : 'после главы ' + u.after)) + '</small></span></button>';
+      }).join('') + '</div></details>';
+      return h;
+    };
+    // для старых игр Практики: после какой главы курса они по силам (подсказка, не запрет)
+    window.c2AfterChapter = function (stepId) { var m = { inword: 'c3', syl: 'c2', read: 'c4', words: 'c4', ayah: 'c5', tajweed: 'c6' }; var c = m[stepId]; if (!c) return 0; return c2ChDoneN(c) ? 0 : +c.slice(1); };
+    // ---------- 7.85: «наблюдения» — редкие сообщения с настоящими цифрами; каждое один раз ----------
+    function c2Observe(l) {
+      var S = c2St(); if (!S.notes) S.notes = {};
+      var once = function (id, html) { if (S.notes[id]) return ''; S.notes[id] = Date.now(); return '<div class="card c2-note">👀 ' + html + '</div>'; };
+      var rate = function (id) { var x = (S.ls || {})[id]; return x && x.n ? (x.n - x.ok) / x.n : null; };
+      // все 28 букв без ошибок
+      var letters = C2_LETTER_ORDER, k = S.know;
+      if (l.ch === 'c3' && c2ChAll('c3') && letters.every(function (c) { var e = k['L:' + c]; return e && e.n && e.ok === e.n; })) { var o = once('perfect28', c2T('Ого, все 28 букв курса — без единой ошибки. Вы точно учите арабский впервые? Если тема знакома — любой урок можно открыть сразу на карте.', 'Ойпырмай, курстың 28 әрпі де — бірде-бір қатесіз. Арабшаны шынымен алғаш үйреніп жүрсіз бе? Тақырып таныс болса — картадан кез келген сабақты бірден ашуға болады.')); if (o) return o; }
+      // рост за главу
+      var ch = c2Chapter(l.ch);
+      if (ch && c2ChAll(l.ch)) {
+        var rs = ch.lessons.map(function (x) { return rate(x.id); }).filter(function (x) { return x != null; });
+        if (rs.length >= 4) { var a = (rs[0] + rs[1]) / 2, b = (rs[rs.length - 1] + rs[rs.length - 2]) / 2; if (a >= 0.25 && a - b >= 0.15) { var o2 = once('grow_' + l.ch, c2T('Главу «' + c2Title(ch) + '» начинали с ' + Math.round(a * 100) + '% ошибок, а закончили с ' + Math.round(b * 100) + '%. Это заметный рост.', '«' + c2Title(ch) + '» тарауын ' + Math.round(a * 100) + '% қатемен бастап, ' + Math.round(b * 100) + '% қатемен аяқтадыңыз. Бұл — айтарлықтай өсу.')); if (o2) return o2; } }
+      }
+      // постоянно путает две буквы
+      var conf = S.conf || {}, worst = Object.keys(conf).sort(function (x, y) { return conf[y] - conf[x]; })[0];
+      if (worst && conf[worst] >= 4 && !S.notes['conf_' + worst]) { S.notes['conf_' + worst] = Date.now(); return '<div class="card c2-note">👀 ' + c2T(worst.split('').join(' и ') + ' путаются уже ' + conf[worst] + ' раз — это частая трудность.', worst.split('').join(' мен ') + ' ' + conf[worst] + ' рет шатасты — бұл жиі кездесетін қиындық.') + ' <button type="button" class="btn btn-sm" data-c2="game" data-g="pair" data-pair="' + c2Esc(worst) + '" data-ret="teacher">👂 ' + c2T('2 минуты только на них', 'Тек соларға 2 минут') + '</button></div>'; }
+      // два трудных урока подряд
+      var all = c2AllLessons(), ix = all.indexOf(l), prev = ix > 0 ? all[ix - 1] : null, r1 = rate(l.id), r0 = prev ? rate(prev.id) : null;
+      if (r1 != null && r0 != null && r1 >= 0.5 && r0 >= 0.5 && !S.notes['hard_' + l.id]) { S.notes['hard_' + l.id] = Date.now(); return '<div class="card c2-note">👀 ' + c2T('Два урока подряд дались трудно — это нормально, тема непростая. Можно повторить прошлый урок или выбрать спокойный темп.', 'Қатарынан екі сабақ қиын болды — бұл қалыпты, тақырып оңай емес. Алдыңғы сабақты қайталауға не баяу қарқынды таңдауға болады.') + ' <button type="button" class="btn btn-sm" data-c2="go" data-id="' + prev.id + '">↻ ' + c2T('Повторить прошлый', 'Алдыңғыны қайталау') + '</button> <button type="button" class="btn btn-sm" data-c2="pace" data-v="calm">' + c2T('Спокойный темп', 'Баяу қарқын') + '</button></div>'; }
+      // уверенно и без ошибок три урока подряд
+      var last3 = all.slice(Math.max(0, ix - 2), ix + 1).map(function (x) { return rate(x.id); });
+      if (last3.length === 3 && last3.every(function (x) { return x === 0; })) { var o3 = once('confident', c2T('Три урока подряд без ошибок — вы идёте уверенно. Если следующая тема уже знакома, её урок можно открыть сразу на карте.', 'Қатарынан үш сабақ қатесіз — сенімді келе жатырсыз. Келесі тақырып таныс болса, оның сабағын картадан бірден ашуға болады.')); if (o3) return o3; }
+      return '';
+    }
     // значок урока на карте пути
     function c2NodeIco(l) {
       if (l.letters) return '<span class="c2-ar">' + c2Esc(Array.from(l.letters).join(' ')) + '</span>';
@@ -13085,8 +13184,8 @@ function speakLetter(ch, name, ttsOnly) {
       try { showView('teacher'); } catch (e) {}
       c2Save(); c2Render(); try { window.scrollTo(0, 0); } catch (e) {}
     }
-    function c2Save() { var S = c2St(); if (C2.lesson && (C2.lesson.type === 'test' || C2.lesson.type === 'revday' || C2.lesson.type === 'arcade')) { try { saveState(); } catch (e) {} return; } S.cur = C2.lesson ? { id: C2.lesson.id, steps: C2.steps, i: C2.i, ok: C2.ok, n: C2.n } : null; try { saveState(); } catch (e) {} }
-    function c2Exit() { var ret = C2.ret; C2.ret = null; clearInterval(C2.tm); C2.lesson = null; try { saveState(); } catch (e) {} if (ret) { try { showView(ret); } catch (e) {} return; } c2Home(); }
+    function c2Save() { var S = c2St(); if (C2.lesson && (C2.lesson.type === 'test' || C2.lesson.type === 'revday' || C2.lesson.type === 'arcade' || C2.lesson.type === 'practice')) { try { saveState(); } catch (e) {} return; } S.cur = C2.lesson ? { id: C2.lesson.id, steps: C2.steps, i: C2.i, ok: C2.ok, n: C2.n } : null; try { saveState(); } catch (e) {} }
+    function c2Exit() { var ret = C2.ret; C2.ret = null; clearInterval(C2.tm); C2.lesson = null; try { saveState(); } catch (e) {} if (ret && ret !== 'teacher') { try { showView(ret); } catch (e) {} try { if (typeof qzHubRefresh === 'function') qzHubRefresh(); } catch (e) {} return; } c2Home(); }
     window.c2Back = function () {
       var v = document.getElementById('view-teacher');
       if (!C2.lesson || !v || !v.classList.contains('active')) return false;
@@ -13096,7 +13195,7 @@ function speakLetter(ch, name, ttsOnly) {
     function c2Ar(t, cls) { return '<span class="c2-ar' + (cls ? ' ' + cls : '') + '" dir="rtl" lang="ar">' + c2Esc(t) + '</span>'; }
     function c2Render() {
       var root = c2Root(); if (!root || !C2.lesson) return;
-      var s = C2.steps[C2.i]; if (!s) { if (C2.lesson.type === 'test') c2TestFinish(); else if (C2.lesson.type === 'revday') c2RevFinish(); else c2Finish(); return; }
+      var s = C2.steps[C2.i]; if (!s) { if (C2.lesson.type === 'test') c2TestFinish(); else if (C2.lesson.type === 'revday') c2RevFinish(); else if (C2.lesson.type === 'practice') c2PracFinish(); else c2Finish(); return; }
       C2.answered = false;
       var total = C2.steps.length, pct = Math.round(C2.i / total * 100), arc = C2.lesson.type === 'arcade';
       if (arc) pct = Math.min(100, Math.round((Date.now() - C2.t0) / C2.dur * 100));
@@ -13557,6 +13656,7 @@ function speakLetter(ch, name, ttsOnly) {
       var praise = c2T('Верно', 'Дұрыс'); // 7.84: без лишней похвалы
       fb.className = 'c2-fb ' + (ok ? 'good' : 'bad');
       var isLet = ['listen', 'form', 'name', 'pair'].indexOf(s.k) >= 0;
+      if (isLet && !ok && val && val !== s.ch && val.length === 1) { try { var Sc = c2St(); if (!Sc.conf) Sc.conf = {}; var pk = [s.ch, val].sort().join(''); Sc.conf[pk] = (Sc.conf[pk] || 0) + 1; } catch (e) {} }
       var simil = isLet && ((C2_SIMILAR[s.ch] || '').indexOf(val) >= 0 || (C2_SIMILAR[val] || '').indexOf(s.ch) >= 0);
       var badT = simil ? c2T('Почти — эти буквы похожи.', 'Сәл қалды — бұл әріптер ұқсас.') : (isLet ? c2T('Другая буква.', 'Басқа әріп.') : c2T('Неверно.', 'Дұрыс емес.'));
       fb.innerHTML = extra + '<b>' + (ok ? praise : badT) + '</b>' + (!ok ? ' <span>' + c2T('Правильно: ', 'Дұрысы: ') + '<span class="c2-ar-in" dir="auto">' + c2Esc(right) + '</span></span>' + (why ? '<div class="c2-why">' + c2Esc(why) + '</div>' : '') + '<div class="c2-why">' + c2T('Это задание вернётся в конце урока.', 'Бұл тапсырма сабақ соңында қайта келеді.') + '</div>' : '') +
@@ -13577,6 +13677,8 @@ function speakLetter(ch, name, ttsOnly) {
       var l = C2.lesson, S = c2St();
       S.done[l.id] = Date.now();
       S.cur = null;
+      // 7.85: статистика урока для «наблюдений» (первые ответы)
+      try { if (!S.ls) S.ls = {}; var fst = C2.steps.filter(function (x) { return !x.rev2 && C2_PRAC.indexOf(x.k) >= 0; }).length, rv = C2.steps.filter(function (x) { return x.rev2; }).length; if (fst) S.ls[l.id] = { n: fst, ok: Math.max(0, fst - rv) }; } catch (e) {}
       S.lastT = Date.now(); S.lastDay = c2Today();
       // 7.81: сложность подстраивается — без ошибок уроки короче, с ошибками — больше практики
       var adaptMsg = '', errs = C2.n - C2.ok;
@@ -13601,6 +13703,7 @@ function speakLetter(ch, name, ttsOnly) {
       else h += '<h3>' + c2T('Урок пройден', 'Сабақ өтілді') + '</h3>';
       if (learned) h += '<div class="card"><div class="c2-mut">' + c2T('В этом уроке', 'Осы сабақта') + '</div>' + learned + '</div>';
       if (adaptMsg) h += '<div class="card c2-adapt">' + adaptMsg + '</div>';
+      try { h += c2Observe(l); } catch (e) {}
       if (insp) h += '<div class="card c2-insp"><div class="c2-mut">' + c2T('Вдохновение', 'Шабыт') + '</div><div class="c2-ar c2-insp-ar" dir="rtl">' + insp.ar + '</div><div>' + c2Esc(c2T(insp.ru, insp.kk)) + '</div><div class="c2-mut">' + insp.ref + '</div></div>';
       h += (next ? '<button type="button" class="btn btn-primary c2-next" data-c2="go" data-id="' + next.id + '">' + c2T('Следующий урок', 'Келесі сабақ') + ': ' + c2Esc(c2Title(next)) + '</button>' : '<div class="card">' + c2T('Курс пройден целиком. Читайте Коран в разделе «Суры» — с подсветкой таджвида и чтецом.', 'Курс толық өтілді. Құранды «Сүрелер» бөлімінде — тәжуид түстерімен және қаримен оқыңыз.') + '</div>') +
         '<button type="button" class="btn c2-later" data-c2="home">' + c2T('На сегодня хватит', 'Бүгінге жетеді') + '</button></div>';
@@ -13650,7 +13753,7 @@ function speakLetter(ch, name, ttsOnly) {
       var curL = S.cur && c2Lesson(S.cur.id);
       var h = '';
       if (!S.started && !Object.keys(S.done).length) {
-        h += '<div class="card c2-hello"><b>' + c2T('С чего начнём?', 'Неден бастаймыз?') + '</b><p>' + c2T('Курс ведёт от первой буквы до чтения сур — короткими уроками по 3–5 минут. Если уже читаете — пройдите «Проверить себя» в знакомых главах, и они засчитаются.', 'Курс алғашқы әріптен сүрелерді оқуға дейін 3–5 минуттық қысқа сабақтармен апарады. Оқи алсаңыз — таныс тарауларда «Өзіңізді тексеру» өтіңіз, олар есептеледі.') + '</p>' +
+        h += '<div class="card c2-hello"><b>' + c2T('С чего начнём?', 'Неден бастаймыз?') + '</b><p>' + c2T('Курс ведёт от первой буквы до чтения сур — короткими уроками по 3–5 минут. Если уже читаете — любой урок можно открыть сразу: нажмите на него на карте.', 'Курс алғашқы әріптен сүрелерді оқуға дейін 3–5 минуттық қысқа сабақтармен апарады. Оқи алсаңыз — кез келген сабақты бірден ашуға болады: картада соны басыңыз.') + '</p>' +
           '<div class="c2-hrow"><button type="button" class="btn btn-primary" data-c2="go" data-id="c1_orient">🌱 ' + c2T('С нуля', 'Нөлден') + '</button><button type="button" class="btn" data-c2="known">📖 ' + c2T('Уже немного читаю', 'Сәл оқимын') + '</button></div></div>';
       }
       // 7.81: прогресс понятными числами
@@ -13689,7 +13792,6 @@ function speakLetter(ch, name, ttsOnly) {
             '<button type="button" class="c2-node' + (d ? ' d' : '') + (now ? ' now' : '') + (l.type === 'final' ? ' fin' : '') + '" data-c2="go" data-id="' + l.id + '"' + (now && curL ? ' data-resume="1"' : '') + (d ? ' data-c2-repeat="' + l.id + '"' : '') + ' aria-label="' + c2Esc(c2Title(l)) + '">' + c2NodeIco(l) + (d ? '<em>✓</em>' : '') + '</button>' +
             '<span class="c2-nodet">' + c2Esc(c2Title(l)) + (d ? ' · <span class="c2-rep">🔁 ' + c2T('повторить', 'қайталау') + '</span>' : '') + '</span></div>';
         });
-        if (!isDone && c.id !== 'c1') h += '<button type="button" class="btn btn-sm c2-test" data-c2="test" data-ch="' + c.id + '">✅ ' + c2T('Уже знаю — проверить себя', 'Білемін — өзімді тексеру') + '</button>';
         if (done) h += '<button type="button" class="btn btn-sm c2-test" data-c2="sheet" data-ch="' + c.id + '">📋 ' + c2T('Шпаргалка главы', 'Тарау кестесі') + '</button>';
         h += '</div></details>';
       });
@@ -13698,7 +13800,7 @@ function speakLetter(ch, name, ttsOnly) {
       var seg2 = function (k, on, offL, onL) { return '<div class="c2-seg">' + [[0, offL], [1, onL]].map(function (x) { return '<button type="button" class="' + ((on ? 1 : 0) === x[0] ? 'on' : '') + '" data-c2="opt" data-k="' + k + '" data-v="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>'; };
       h += '<div class="card c2-setrow"><div class="c2-mut">' + c2T('Темп уроков', 'Сабақ қарқыны') + '</div><div class="c2-seg">' +
         [['calm', 'Спокойно', 'Баяу'], ['normal', 'Обычно', 'Қалыпты'], ['fast', 'Быстро', 'Жылдам']].map(function (x) { return '<button type="button" class="' + (pc === x[0] ? 'on' : '') + '" data-c2="pace" data-v="' + x[0] + '">' + c2T(x[1], x[2]) + '</button>'; }).join('') + '</div>' +
-        '<div class="c2-mut" style="margin-top:0.6rem">' + c2T('Звук и вибрация ответа (курс и тренировка)', 'Жауап дыбысы мен дірілі (курс және жаттығу)') + '</div>' + seg2('sfx', S.sfx !== false, c2T('Выкл', 'Өшік'), c2T('Вкл', 'Қосулы')) +
+        '<div class="c2-mut" style="margin-top:0.6rem">' + c2T('Звук и вибрация ответа (курс и практика)', 'Жауап дыбысы мен дірілі (курс және машықтану)') + '</div>' + seg2('sfx', S.sfx !== false, c2T('Выкл', 'Өшік'), c2T('Вкл', 'Қосулы')) +
         '<div class="c2-mut" style="margin-top:0.6rem">' + c2T('Детский режим — крупнее, больше звука и игр', 'Балалар режимі — ірірек, дыбыс пен ойын көбірек') + '</div>' + seg2('kids', !!S.kids, c2T('Выкл', 'Өшік'), c2T('Вкл', 'Қосулы')) +
         '<div class="c2-mut" style="margin-top:0.6rem">' + c2T('Напоминание об уроке', 'Сабақ туралы еске салу') + '</div>';
       if (typeof qaLN === 'function' && qaLN()) {
@@ -13797,12 +13899,13 @@ function speakLetter(ch, name, ttsOnly) {
       if (k === 'exit') { c2Exit(); return; }
       if (k === 'home') { c2Home(); try { window.scrollTo(0, 0); } catch (e2) {} return; }
       if (k === 'go') { c2St().started = 1; c2Start(b.getAttribute('data-id'), !!b.getAttribute('data-resume')); return; }
-      if (k === 'known') { c2St().started = 1; var S2 = c2St(); S2.openCh = { c2: 1, c3: 1, c4: 1 }; c2Home(); toast(c2T('Откройте знакомую главу и нажмите «Уже знаю — проверить себя».', 'Таныс тарауды ашып, «Білемін — өзімді тексеру» басыңыз.')); return; }
+      if (k === 'known') { c2St().started = 1; var S2 = c2St(); S2.openCh = { c2: 1, c3: 1, c4: 1 }; c2Home(); toast(c2T('Любой урок можно открыть сразу — начните с того, что ещё не знаете.', 'Кез келген сабақты бірден ашуға болады — әлі білмейтініңізден бастаңыз.')); return; }
       if (k === 'test') { c2Test(b.getAttribute('data-ch')); return; }
-      if (k === 'rev') { c2RevStart(); return; }
+      if (k === 'rev') { c2RevStart(b.getAttribute('data-ret') || null); return; }
+      if (k === 'game') { var pr2 = b.getAttribute('data-pair'); c2GameStart(b.getAttribute('data-g'), { pair: pr2 ? pr2.split('') : null, ret: b.getAttribute('data-ret') || C2.ret || 'games' }); return; }
       if (k === 'lall') { c2Root().querySelectorAll('.c2-lch small').forEach(function (x) { x.hidden = false; }); return; }
       if (k === 'arcade') { c2ArcadeStart(b.getAttribute('data-ret') || null); return; }
-      if (k === 'back') { C2.lesson = null; try { showView(b.getAttribute('data-ret') || 'games'); } catch (e) {} return; }
+      if (k === 'back') { C2.lesson = null; var rt = b.getAttribute('data-ret') || 'games'; if (rt === 'teacher') { c2Home(); return; } try { showView(rt); } catch (e) {} try { if (typeof qzHubRefresh === 'function') qzHubRefresh(); } catch (e) {} return; }
       if (k === 'opt') { var S11 = c2St(), ok2 = b.getAttribute('data-k'); S11[ok2] = b.getAttribute('data-v') === '1'; try { saveState(); } catch (e11) {} c2Home(); if (ok2 === 'sfx' && S11.sfx) c2Sfx(true); return; }
       if (k === 'racheck' && cur) { var ra = c2Root().querySelector('.c2-ra'); if (ra) ra.hidden = false; c2PlayWord(cur.w); return; }
       if (k === 'sheet') { c2Sheet(b.getAttribute('data-ch')); return; }
@@ -16221,7 +16324,7 @@ function renderMistakes() {
             '<div class="qa-onb-map">' +
             [['☀️', kk ? 'Басты бет' : 'Главная', kk ? 'намаз уақыты, күн дұғасы, «Бүгін»' : 'время намаза, дуа дня, «Сегодня»'],
              ['📜', kk ? 'Сүрелер' : 'Суры', kk ? 'Құранды оқу және тыңдау, мұсхаф' : 'чтение и слушание Корана, мусхаф'],
-             ['📚', kk ? 'Оқу' : 'Учёба', kk ? 'Курс, жаттығу, анықтамалық' : 'Курс, тренировка, справочник'],
+             ['📚', kk ? 'Оқу' : 'Учёба', kk ? 'Курс, машықтану, анықтамалық' : 'Курс, практика, справочник'],
              ['📁', kk ? 'Қалталар' : 'Папки', kk ? 'сақталған аяттар мен дайын топтамалар' : 'сохранённые аяты и готовые подборки'],
              ['💬', kk ? 'Онлайн' : 'Онлайн', kk ? 'форум, сұрақтар, достар' : 'форум, вопросы, друзья'],
              ['☰', kk ? 'Тағы' : 'Ещё', kk ? 'намаз, дұғалар, білім, баптаулар' : 'намаз, дуа, знания, настройки']].map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b> — ' + r[2] + '</div>'; }).join('') +
@@ -18738,7 +18841,7 @@ function renderMistakes() {
         '• Тесттер нәтиже санайды, жаттықтырғыштар — өз қарқыныңызбен.<br>' +
         '• <b>⚠️ Менің қателерім</b> — жиі шатастыратын әріптер мен ережелер жиналады, сол жерден қайталаңыз.'
       :
-        'Тренировки разложены по этапам обучения: <b>🔤 Буквы</b> → <b>🧩 Слоги</b> → <b>📖 Чтение</b> → <b>🎨 Таджвид</b>. Выберите этап, который уже прошли в Курсе, и нажмите «Начать».<br>' +
+        'Игры практики разложены по этапам обучения: <b>🔤 Буквы</b> → <b>🧩 Слоги</b> → <b>📖 Чтение</b> → <b>🎨 Таджвид</b>. Выберите этап, который уже прошли в Курсе, и нажмите «Начать».<br>' +
         '• Тесты считают результат, тренажёры — в своём темпе.<br>' +
         '• <b>⚠️ Мои ошибки</b> — сюда собираются буквы и правила, которые вы путаете; повторяйте прямо отсюда.'
       );
@@ -19234,10 +19337,11 @@ function renderMistakes() {
       };
       var stepHtml = function(s, i, numbered) {
         var ok = s.score && last[s.score] >= 80;
-        return '<details class="qz-hstep' + (ok ? ' ok' : '') + (i === nextIx ? ' next' : '') + '"' + (i === nextIx ? ' open' : '') + '><summary><i>' + (numbered ? (ok ? '✓' : (i + 1)) : '•') + '</i><b>' + (kk ? s.kk : s.ru) + '</b>' + (i === nextIx ? '<span class="qz-hnext">' + (kk ? 'келесі' : 'дальше') + '</span>' : '') + '</summary><div class="qz-trs">' + s.items.map(btn).join('') + '</div></details>';
+        var aft = 0; try { aft = window.c2AfterChapter ? window.c2AfterChapter(s.id) : 0; } catch (e) {}
+        return '<details class="qz-hstep' + (ok ? ' ok' : '') + (i === nextIx ? ' next' : '') + '"' + (i === nextIx ? ' open' : '') + '><summary><i>' + (numbered ? (ok ? '✓' : (i + 1)) : '•') + '</i><b>' + (kk ? s.kk : s.ru) + '</b>' + (aft ? '<span class="qz-after">' + (kk ? aft + '-тараудан кейін' : 'после главы ' + aft) + '</span>' : '') + (i === nextIx ? '<span class="qz-hnext">' + (kk ? 'келесі' : 'дальше') + '</span>' : '') + '</summary><div class="qz-trs">' + s.items.map(btn).join('') + '</div></details>';
       };
       var nMist = qzMistakesCount();
-      return '<div class="qz-mix"><button type="button" class="btn btn-primary qz-daily" data-qz-daily="1">▶ ' + (kk ? 'Бүгінгі жаттығу' : 'Тренировка дня') + '<small>' + (kk ? '10 тапсырма: қайталау + жаңа' : '10 заданий: повтор + новое') + '</small></button>' +
+      return (typeof window.c2PracticeHtml === 'function' ? '<div class="qz-c2" id="qz-c2">' + window.c2PracticeHtml() + '</div>' : '') + '<div class="qz-mix"><button type="button" class="btn btn-primary qz-daily" data-qz-daily="1">🔁 ' + (kk ? 'Күн қайталауы' : 'Повторение дня') + '<small>' + (kk ? 'курс пен ойындардан: қайталау + жаңа' : 'из курса и игр: повтор + новое') + '</small><span hidden>' + (kk ? '10 тапсырма: қайталау + жаңа' : '10 заданий: повтор + новое') + '</small></button>' +
         (nMist ? '<button type="button" class="btn qz-mixmist" data-qz-mixmist="1">⚠️ ' + (kk ? 'Қателер' : 'Ошибки') + ' <b>' + nMist + '</b></button>' : '') +
         '<button type="button" class="btn qz-mixmap" data-qz-lmap="1" title="' + (kk ? 'Әріптер картасы' : 'Карта букв') + '">🗺 ' + (kk ? 'Әріптер' : 'Буквы') + '</button></div>' +
         '<div class="qz-hub" id="qz-hub"><div class="qz-ladder-h">🪜 ' + (kk ? 'Оқу сатылары' : 'Ступени чтения') + '<span>' + (kk ? 'келесісіне — 80% және жоғары болғанда' : 'дальше — когда результат 80% и выше') + '</span></div>' +
@@ -19268,7 +19372,7 @@ function renderMistakes() {
     }
     function qzHubRefresh() {
       var grp = document.getElementById('games-group-switch'); if (!grp) return;
-      ['qz-hub', 'qz-ladder'].forEach(function(id) { var x = document.getElementById(id); if (x) x.remove(); });
+      ['qz-hub', 'qz-ladder', 'qz-c2'].forEach(function(id) { var x = document.getElementById(id); if (x) x.remove(); });
       document.querySelectorAll('#view-games .qz-mix').forEach(function(x) { x.remove(); });
       var tmp = document.createElement('div'); tmp.innerHTML = qzHubHtml();
       while (tmp.firstChild) grp.parentNode.insertBefore(tmp.firstChild, grp);
@@ -19383,7 +19487,10 @@ function renderMistakes() {
     }
     document.addEventListener('click', function(e) {
       var t = e.target && e.target.closest ? e.target : null; if (!t) return;
-      if (t.closest('[data-qz-daily]')) { qzSetPicked('_daily'); qzStartMixed('daily'); return; }
+      // 7.85: одно «Повторение дня» для курса и практики: есть пройденное в курсе — его повторение, иначе — смешанное из игр
+      if (t.closest('[data-qz-daily]')) { try { if (typeof window.c2RevSteps === 'function' && window.c2RevSteps().length >= 3) { window.c2RevStart('games'); return; } } catch (e) {} qzSetPicked('_daily'); qzStartMixed('daily'); return; }
+      var cg = t.closest('[data-c2g]'); if (cg && typeof window.c2GameStart === 'function') { var pp = cg.getAttribute('data-pair'); window.c2GameStart(cg.getAttribute('data-c2g'), { pair: pp ? pp.split('') : null, ret: 'games' }); return; }
+      if (t.closest('[data-c2="rev"][data-ret="games"]') && typeof window.c2RevStart === 'function') { window.c2RevStart('games'); return; }
       if (t.closest('[data-qz-mixmist]')) { qzSetPicked('_mistakes'); qzStartMixed('mistakes'); return; }
       if (t.closest('[data-qz-back]')) {
         _qzDaily = null; try { gameQueue = []; } catch(er) {}
@@ -42836,7 +42943,7 @@ async function trackSectionVisit(sectionId) {
       data: 'Данные', help: 'Справка', changelog: 'Обновления', sources: 'Источники', export: 'Экспорт', cache: 'Кэш',
       appupdate: 'Обновить сайт', account: 'Мой аккаунт', stats: 'Статистика',
       settings: 'Настройки', dailyhub: 'Главная', bookmarks: 'Папки', home: 'Суры', learn: 'Справочник', teacher: 'Курс',
-      games: 'Тренировка', more: 'Ещё', reader: 'Чтение',
+      games: 'Практика', more: 'Ещё', reader: 'Чтение',
       registration: 'Регистрация', myqa: 'Мои вопросы/ответы', forum: 'Форум', publicchat: 'Общий чат', friends: 'Друзья', groups: 'Групповые чаты', dmlist: 'Личные сообщения', notifications: 'Уведомления'
     };
     var SECTION_STAT_LABELS_KK = {
