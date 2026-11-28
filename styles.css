@@ -5776,3 +5776,10 @@ body:has(.audio-bar.visible:not(.collapsed)) #ayah-scroll-rail, body:has(.audio-
 #acad-next { margin: 1rem 0 0.5rem; text-align: center; }
 #acad-next .btn { width: 100%; }
 #academy-main-tabs[hidden] { display: none !important; }
+/* 7.79: словарь терминов */
+.rd-gloss { display: flex; flex-direction: column; }
+.rd-g { padding: 0.45rem 0; border-top: 1px dashed var(--border); }
+.rd-g-h { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.rd-g-h .arabic { font-size: 1.2rem; line-height: 1.6; color: var(--accent); }
+.rd-g-t { font-size: 0.86rem; color: var(--text-muted); line-height: 1.45; }
+.rd-gloss { direction: ltr; text-align: left; }
