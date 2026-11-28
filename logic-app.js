@@ -2,6 +2,10 @@
 // logic-app.js — вся логика приложения (функции, обработчики, состояние).
 // Загружается ПОСЛЕДНИМ, после всех data-*.js файлов, от которых зависит.
 
+// 7.73: голос (синтез речи) телефона не используется нигде — решение владельца. Сайт считает, что синтеза нет,
+// и берёт только записи (буквы, слова Корана, аяты, дуа). Где записи нет — звука нет, без сообщений про «голос».
+try { Object.defineProperty(window, 'speechSynthesis', { value: undefined, configurable: true, writable: true }); } catch (e) { try { window.speechSynthesis = undefined; } catch (e2) {} }
+
 // build 5.76: доступность — у иконок-кнопок (🔒 🌐 🔍 ⚙️ 🔊 📤 ← → и т.д.)
 // почти везде уже есть title (всплывающая подсказка), но title не всегда
 // озвучивается скринридерами так же надёжно, как aria-label, а переписывать
@@ -9312,7 +9316,7 @@ function speakLetter(ch, name, ttsOnly) {
       const p = a.play();
       if (p && p.catch) p.catch(function() {
         // build 6.15: не молча подменяем запись роботом — один раз говорим, что запись не открылась
-        if (!window._letterFailToast) { window._letterFailToast = 1; try { toast(isKk() ? 'Әріптің жазбасы ашылмады — қосалқы синтез ойнайды' : 'Запись буквы не открылась — играет запасной синтез речи', 3500); } catch(e) {} }
+        if (!window._letterFailToast) { window._letterFailToast = 1; try { toast(isKk() ? 'Әріптің жазбасы ашылмады' : 'Запись буквы не открылась', 3000); } catch(e) {} }
         if (onFail) onFail();
       });
       return true;
@@ -9592,6 +9596,24 @@ function speakLetter(ch, name, ttsOnly) {
       try { if (window._hkQA) window._hkQA.pause(); window._hkQA = new Audio(wbwAudioUrl(+p[0], +p[1], +p[2])); document.querySelectorAll('.hk-qw.on').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on');
         window._hkQA.addEventListener('ended', function () { b.classList.remove('on'); }); window._hkQA.play().catch(function () { b.classList.remove('on'); toast(isKk() ? 'Дыбыс жүктелмеді — интернетті тексеріңіз' : 'Звук не загрузился — нужен интернет'); }); } catch (er) {}
     });
+    // 7.73: «Знаки мусхафа» — значки мединского мусхафа (риваят Хафса), которые встречаются на каждой странице
+    var MUSHAF_SIGNS = [
+      ['ٱ', 'ٱلْحَمْدُ', 'Хамзат-васль (знак над алифом)', 'Хамзат-уасл (әліп үстіндегі белгі)', 'Алиф при соединении со словом перед ним не читается; читается, только если с него начинают.', 'Алдыңғы сөзбен жалғағанда әліп оқылмайды; тек одан бастағанда оқылады.'],
+      ['ۥ', 'إِنَّهُۥ', 'Маленькая вав', 'Кішкентай уау', 'Дамма у ه местоимения тянется как долгое «у» на 2 счёта (мадд сыля).', 'Есімдік ه-сының даммасы 2 есептік ұзын «у» болып созылады (сыла мадд).'],
+      ['ۦ', 'بِهِۦ', 'Маленькая йа', 'Кішкентай йа', 'Касра у ه местоимения тянется как долгое «и» на 2 счёта.', 'Есімдік ه-сының кәсрасы 2 есептік ұзын «и» болып созылады.'],
+      ['ۢ', 'مِنۢ بَعْدِ', 'Маленькая мим над нун или танвином', 'Нун не тәнуин үстіндегі кішкентай мим', 'Иклаб: нун/танвин перед ب читается как «м» с гунной.', 'Иқлаб: ب алдындағы нун/тәнуин ғуннамен «м» болып оқылады.'],
+      ['۟', 'أُو۟لَٰٓئِكَ', 'Круглый ноль над буквой', 'Әріп үстіндегі дөңгелек нөл', 'Буква пишется, но не читается никогда.', 'Әріп жазылады, бірақ ешқашан оқылмайды.'],
+      ['۠', 'أَنَا۠', 'Продолговатый ноль над алифом', 'Әліп үстіндегі сопақ нөл', 'Алиф не читается при соединении, но читается при остановке на слове.', 'Жалғап оқығанда әліп оқылмайды, сөзде тоқтағанда оқылады.'],
+      ['ۜ', 'عِوَجًا ۜ', 'Маленькая син (сакта)', 'Кішкентай син (сакта)', 'Короткая пауза без вдоха — в 4 местах у Хафса (подробно — Таджвид → «Особые места»).', 'Демсіз қысқа үзіліс — Хафста 4 жерде (толығырақ — Тәжуид → «Ерекше жерлер»).'],
+      ['ً', 'عَلِيمًا حَكِيمًا', 'Танвин в мединском мусхафе', 'Мәдина мұсхафындағы тәнуин', 'В бумажном мединском мусхафе знаки танвина стоят ровно один над другим, если «н» читается ясно (изхар), и сдвинуты «лесенкой», если дальше слияние или скрытие (идгам, ихфа, иклаб). Шрифт на экране эту разницу не показывает — смотрите в книге.', 'Қағаз Мәдина мұсхафында «н» анық оқылса (изһар), тәнуин белгілері бірінің үстінде бірі тұрады, ал кейін қосылу не жасыру (идғам, ихфа, иқлаб) болса — «сатылап» ығысады. Экрандағы қаріп бұл айырмашылықты көрсетпейді — кітаптан қараңыз.']
+    ];
+    function mushafSignsHtml(kk) {
+      return '<div class="card ms-signs"><b>📖 ' + (kk ? 'Мұсхаф белгілері' : 'Знаки мусхафа') + '</b>' +
+        '<div class="ayah-translation" style="font-size:0.8rem;margin:0.2rem 0 0.4rem;text-align:left" dir="ltr">' + (kk ? 'Мәдина мұсхафының (Хафс риуаяты) әр бетінде кездесетін белгілер.' : 'Значки мединского мусхафа (риваят Хафса) — встречаются на каждой странице.') + '</div>' +
+        MUSHAF_SIGNS.map(function (s) {
+          return '<div class="ms-row"><span class="ms-ex arabic" dir="rtl" lang="ar">' + s[1] + '</span><div class="ms-t" dir="ltr"><b>' + (kk ? s[3] : s[2]) + '</b><span>' + (kk ? s[5] : s[4]) + '</span></div></div>';
+        }).join('') + '</div>';
+    }
     function renderHarakat() {
       const el = document.getElementById('learn-harakat');
       if (!el) return;
@@ -9610,9 +9632,10 @@ function speakLetter(ch, name, ttsOnly) {
               '<span class="tw-rc-text"><span class="tw-rc-title">' + (kkH ? (h.nameKk || h.name) : h.name) + '</span><span class="tw-rc-short">' + (kkH ? (h.noteKk || h.note) : h.note) + '</span></span>' +
               '<span class="tw-rc-chev" aria-hidden="true">▾</span></button>' +
             '<div class="tw-rc-body" hidden>' +
-              '<button type="button" class="hk-ex" data-hk-say="' + h.example + '"><span class="arabic" dir="rtl" lang="ar">' + h.example + '</span> <span class="hk-cell-tr">' + ((kkH && h.exampleTrKk) ? h.exampleTrKk : (h.exampleTr || '')) + '</span> 🔊</button>' +
+              '<button type="button" class="hk-ex" data-hk-say="' + h.example + '"><span class="arabic" dir="rtl" lang="ar">' + h.example + '</span> <span class="hk-cell-tr">' + ((kkH && h.exampleTrKk) ? h.exampleTrKk : (h.exampleTr || '')) + '</span></button>' +
             '</div></div>';
         }).join('') +
+        mushafSignsHtml(kkH) +
         // 7.49: «Как звучит в Коране» — каждый знак на настоящем слове голосом чтеца (пословные записи quran.com)
         (function () {
           var EX = [['Фатха', 'Фатха', 'خَلَقَ', 96, 2, 1], ['Касра', 'Кәсра', 'بِسْمِ', 1, 1, 1], ['Дамма', 'Дамма', 'قُلْ', 112, 1, 1], ['Сукун', 'Сукун', 'لَمْ', 112, 3, 1],
@@ -9637,7 +9660,7 @@ function speakLetter(ch, name, ttsOnly) {
         '<div class="card hk-table"><b>🔤 ' + (kkH ? 'Әріп × харакат' : 'Буква × огласовка') + '</b>' +
           '<div class="hk-letpick" dir="rtl">' + HK_LETTERS.split('').map(function(ch) { return '<button type="button" class="hk-let' + (ch === L0 ? ' on' : '') + '" data-hk-let="' + ch + '" lang="ar">' + ch + '</button>'; }).join('') + '</div>' +
           '<div class="hk-grid">' + _hkGridHtml(L0) + '</div>' +
-          '<div class="ayah-translation" style="font-size:0.75rem;margin-top:0.35rem;text-align:left" dir="ltr">' + (kkH ? 'Дыбыс — құрылғының араб дауыс синтезі (жазба емес). Әріптің жазбасы — «Әріптер» бөлімінде.' : 'Звук — арабский синтез речи устройства (не запись). Живая запись буквы — в разделе «Буквы».') + '</div></div>' +
+          '<div class="ayah-translation" style="font-size:0.75rem;margin-top:0.35rem;text-align:left" dir="ltr">' + (kkH ? 'Әріпті басыңыз — оның жазбасы естіледі. Буындарды өзіңіз дауыстап оқыңыз.' : 'Нажмите на букву сверху — прозвучит её запись. Слоги читайте вслух сами.') + '</div></div>' +
         // тренажёр
         '<div class="card hkq"><b>🎯 ' + (kkH ? 'Буынды оқы' : 'Прочитай слог') + '</b>' +
           '<div class="ayah-translation" style="font-size:0.82rem;margin-top:0.2rem;text-align:left" dir="ltr">' + (kkH ? 'Қалай оқылады? Дұрыс нұсқаны таңдаңыз.' : 'Как читается? Выберите верный вариант.') + '</div>' +
@@ -9819,6 +9842,7 @@ function speakLetter(ch, name, ttsOnly) {
 
 
     function speakArText(text, rate) {
+      return false; // 7.73: без синтеза речи телефона
       text = (text || '').toString();
       text = text.replace(/[۝ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪]/g, ' ').replace(/\s+/g, ' ').trim();
       if (!text) { toast('Нет текста для озвучки'); return; }
@@ -9978,7 +10002,7 @@ function speakLetter(ch, name, ttsOnly) {
           '<div style="text-align:center;margin:0.5rem 0"><span style="color:var(--accent)">'+a.words[wordIdx].tr+'</span>' +
           '<div class="ayah-translation">'+a.words[wordIdx].meaning+'</div></div>' +
           '<div style="display:flex;gap:0.4rem;justify-content:center;flex-wrap:wrap">' +
-          '<button type="button" class="btn btn-sm btn-primary" id="fh-speak">🔊 Слушать</button>' +
+          '<button type="button" class="btn btn-sm btn-primary tts-only" id="fh-speak">🔊 Слушать</button>' +
           '<button type="button" class="btn btn-sm" id="fh-know">Знаю ✓</button>' +
           '<button type="button" class="btn btn-sm" id="fh-prev">←</button>' +
           '<button type="button" class="btn btn-sm" id="fh-next">→</button></div></div>' +
@@ -13871,9 +13895,9 @@ function speakLetter(ch, name, ttsOnly) {
               '<button type="button" class="btn btn-primary" id="srs-easy">' + (kkR ? 'Білемін' : 'Знаю') + '</button>' +
               // build 5.96: кнопку озвучки убирали после переворота — теперь
               // можно переслушать произношение и уже увидев ответ, не только до.
-              ((c.speakable || c.isRuleFront) ? '<button type="button" class="btn btn-sm" id="srs-speak">🔊</button>' : '')
+              ((c.speakable || c.isRuleFront) ? '<button type="button" class="btn btn-sm tts-only" id="srs-speak">🔊</button>' : '')
             : '<button type="button" class="btn btn-primary" id="srs-flip">' + (kkR ? 'Көрсету' : 'Показать') + '</button>' +
-              ((c.speakable || c.isRuleFront) ? '<button type="button" class="btn btn-sm" id="srs-speak">🔊</button>' : '')) +
+              ((c.speakable || c.isRuleFront) ? '<button type="button" class="btn btn-sm tts-only" id="srs-speak">🔊</button>' : '')) +
           '</div>';
         document.getElementById('srs-card')?.addEventListener('click', () => { flipped = !flipped; paint(); });
         document.getElementById('srs-flip')?.addEventListener('click', () => { flipped = true; paint(); });
@@ -13943,7 +13967,7 @@ function speakLetter(ch, name, ttsOnly) {
           '<div class="arabic" dir="rtl" style="font-size:calc(1.8rem * var(--ar-scale, 1));margin:0.75rem 0">'+w+'</div>' +
           (ayah.translation ? '<div class="ayah-translation">'+ayah.translation+'</div>' : '') +
           '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.5rem">' +
-          '<button type="button" class="btn btn-sm" id="swp-speak">🔊</button>' +
+          '<button type="button" class="btn btn-sm tts-only" id="swp-speak">🔊</button>' +
           '<button type="button" class="btn btn-sm" id="swp-prev">←</button>' +
           '<button type="button" class="btn btn-sm btn-primary" id="swp-next">→</button>' +
           '<button type="button" class="btn btn-sm" id="swp-ayah">Весь аят</button></div></div>';
@@ -15337,8 +15361,7 @@ function renderMistakes() {
         { id: 'qurandua', ru: 'Дуа из Корана', kk: 'Құрандағы дұғалар' },
         { id: 'dhikr', ru: 'Счётчик зикров', kk: 'Зікір санағыш' }] },
       { id: 'salah', ico: '🕌', ru: 'Научиться намазу', kk: 'Намаз оқуды үйрену', sub: [
-        { id: 'm', ru: 'Мужской намаз', kk: 'Ер адамның намазы' },
-        { id: 'f', ru: 'Женский намаз', kk: 'Әйел адамның намазы' }] },
+        { id: 'm', ru: 'Намаз шаг за шагом (ханафитский мазхаб)', kk: 'Намаз қадам-қадаммен (ханафи мазхабы)' }] },
       { id: 'listen', ico: '🎧', ru: 'Слушать Коран', kk: 'Құран тыңдау', sub: [
         { id: 'ar.husary', ru: 'аль-Хусари — спокойно, для учёбы', kk: 'әл-Хусари — байыпты, оқуға' },
         { id: 'ar.minshawi', ru: 'аль-Миншави', kk: 'әл-Миншауи' },
@@ -15364,7 +15387,7 @@ function renderMistakes() {
       }
       if (g === 'learn') { showView('teacher'); if (s === 'reader') setTimeout(function () { try { startTeacherPlacementTest(); } catch (er) {} }, 300); try { localStorage.setItem('qa_course_start', s || 'zero'); } catch (e) {} return; }
       if (g === 'dua') { showView(s === 'hisn' ? 'duabuilder' : (s || 'adhkar')); return; }
-      if (g === 'salah') { window._hsGender = s === 'f' ? 'f' : 'm'; try { localStorage.setItem('quran_hs_gender', window._hsGender); } catch (e) {} showView('howsalah'); return; }
+      if (g === 'salah') { window._hsGender = 'm'; showView('howsalah'); return; }
       if (g === 'listen') { try { if (s && _reciterValid(s)) _applyPlayerReciter(s); } catch (e) {} showView('home'); return; }
       if (g === 'know') { showView(s || 'hadiths'); return; }
       if (g === 'look') { showView('dailyhub'); setTimeout(function () { try { openSiteTour(); } catch (e) {} }, 400); }
@@ -17048,8 +17071,8 @@ function renderMistakes() {
         kk: 'Әріптердің шығу орны мен сипаттары — Ибн әл-Жәзәридің (1429 ж. қайтыс болған) «әл-Мұқаддима әл-Жәзарийя» еңбегі бойынша. Ауыз сызбасы оқу үшін: орны — Ибн әл-Жәзәридің 17 махраджы бойынша, тілдің қалпы — фонетикалық сипаттамалар бойынша.'
       },
       harakat: {
-        ru: 'Знаки огласовки — как в мусхафах риваята Хафса (например, мединский мусхаф комплекса короля Фахда); система знаков восходит к аль-Халилю ибн Ахмаду (ум. 170 г. х. / 786 г.). Звук слогов — синтез речи устройства, не запись чтеца.',
-        kk: 'Харакат белгілері — Хафс риуаятындағы мұсхафтардағыдай (мысалы, Фәһд патша кешенінің Мәдина мұсхафы); белгілер жүйесі әл-Халил ибн Ахмадқа (786 ж. қайтыс болған) барып тіреледі. Буындардың дыбысы — құрылғының сөз синтезі, қари жазбасы емес.'
+        ru: 'Знаки огласовки — как в мусхафах риваята Хафса (например, мединский мусхаф комплекса короля Фахда); система знаков восходит к аль-Халилю ибн Ахмаду (ум. 170 г. х. / 786 г.).',
+        kk: 'Харакат белгілері — Хафс риуаятындағы мұсхафтардағыдай (мысалы, Фәһд патша кешенінің Мәдина мұсхафы); белгілер жүйесі әл-Халил ибн Ахмадқа (786 ж. қайтыс болған) барып тіреледі.'
       },
       rules: {
         ru: 'Соединение букв, четыре формы, хамза, та марбута, артикль — стандартная арабская орфография, как в мусхафе риваята Хафса. Цветная разметка примеров — проект quran-tajweed (cpfair, лицензия CC BY 4.0).',
@@ -19229,7 +19252,9 @@ function renderMistakes() {
       const cs = consSound(ch);
       if (!(typeof isKk === 'function' && isKk())) return cs + mk.v;
       const hard = KK_HARD_LETTERS.indexOf(ch) >= 0 || (ch === 'ر' && mk.k !== 'i');
-      const v = { a: hard ? 'о' : 'ә', i: hard ? 'ы' : 'и', u: hard ? 'у' : 'ү' }[mk.k] || mk.v;
+      // 7.73: по учебнику Муфтията «Құран оқып-үйренейік» (2011): дамма — всегда «у», касра — всегда «и»,
+      // фатха — «ә» после лёгких букв и «а» после тяжёлых (там сказано «между а и о»; «о» не пишем — фатху не округляют)
+      const v = { a: hard ? 'а' : 'ә', i: 'и', u: 'у' }[mk.k] || mk.v;
       return cs + v;
     }
     // 6.104: у букв — по языку интерфейса; у дуа и слов (есть поле ar) — по выбору транскрипции в настройках
@@ -19653,7 +19678,7 @@ function renderMistakes() {
           '<div class="quiz-q">' + (kk ? 'Сөзді дауыстап айтыңыз' : 'Произнесите слово вслух') + '</div>' +
           '<div class="arabic" dir="rtl" style="font-size:calc(3rem * var(--ar-scale, 1));margin:0.4rem 0">' + it.ar + '</div>' +
           '<div style="color:var(--accent);font-weight:700">' + it.tr + '</div>' +
-          '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.7rem"><button class="btn" id="mic-listen">🔊 ' + (kk ? 'Үлгі' : 'Образец') + '</button><button class="btn btn-primary" id="mic-rec">🎤 ' + (kk ? 'Айту' : 'Сказать') + '</button></div>' +
+          '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.7rem"><button class="btn tts-only" id="mic-listen">🔊 ' + (kk ? 'Үлгі' : 'Образец') + '</button><button class="btn btn-primary" id="mic-rec">🎤 ' + (kk ? 'Айту' : 'Сказать') + '</button></div>' +
           '<div id="mic-res" style="margin-top:0.7rem">' + (resultHtml || '') + '</div>' +
           '<div style="margin-top:0.7rem;display:flex;gap:0.5rem;justify-content:center"><button class="btn btn-sm" id="mic-back">← ' + (_activeTeacherSkill ? (kk ? 'Мұғалім' : 'Учитель') : (kk ? 'Жаттықтырғыштар' : 'Тренажёры')) + '</button><button class="btn btn-sm" id="mic-next">' + (kk ? 'Келесі →' : 'Дальше →') + '</button></div>' +
           '<div style="margin-top:0.8rem;font-size:0.75rem;color:var(--text-muted)">' + (kk ? 'Сөз ' : 'Слово ') + (i + 1) + ' / ' + items.length + ' · ' + (kk ? 'Браузердің сөйлеуді тануы — шамамен ғана; интернет керек.' : 'Распознавание речи браузера — приблизительное; нужен интернет.') + '</div></div>';
@@ -21758,7 +21783,7 @@ function renderDictation(area) {
         area.innerHTML =
           '<div class="card"><b>' + (kkD ? 'Диктант' : 'Диктовка') + '</b><div class="ayah-translation">' + (kkD ? 'Тыңдаңыз, содан кейін араб мәтінін теріңіз (харакатсыз болуы мүмкін).' : 'Слушайте, затем введите арабский текст (можно без огласовок).') + '</div>' +
           '<div style="margin:0.5rem 0;display:flex;gap:0.4rem;flex-wrap:wrap">' +
-          '<button type="button" class="btn btn-primary btn-sm" id="dict-play">▶ ' + (kkD ? 'Тыңдау' : 'Слушать') + '</button>' +
+          '<button type="button" class="btn btn-primary btn-sm tts-only" id="dict-play">▶ ' + (kkD ? 'Тыңдау' : 'Слушать') + '</button>' +
           '<button type="button" class="btn btn-sm" id="dict-skip">' + (kkD ? 'Басқа аят' : 'Другой аят') + '</button></div>' +
           '<div class="surah-meta">'+(item.ref||'')+' · ' + (kkD ? 'есеп: ' : 'счёт: ') + score+'/'+total+'</div>' +
           '<textarea id="dict-input" rows="3" placeholder="' + (kkD ? 'Естігеніңізді теріңіз...' : 'Введите услышанное...') + '" style="width:100%;margin:0.5rem 0;padding:0.55rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:1.15rem;direction:rtl"></textarea>' +
@@ -24529,26 +24554,6 @@ function renderDictation(area) {
         nk: 'Отырыс — бірінші отырыстағыдай: әйел бөксесіне отырады, сандары жерде, аяғы оң жамбасының астынан шығарылған; алақан санда, саусақтар созулы. Көз — тізеде.' }
     };
     // карточка-уведомление женской версии
-    const HOWSALAH_F_CARD = {
-      ru: { sum: 'Женский намаз: что отличается (по книге)', lead: 'Показаны отличия женского намаза: руки, суджуд, сидение. Фигура мужская — для удобства; показаны женские положения.', all: 'Все отличия', items: [
-        'Вступительный такбир: руки поднимаются до плеч, а не до ушей.',
-        'В кыяме руки лежат на груди (правая на левой) и без «кольца» — мизинец и большой палец запястье не обхватывают.',
-        'При такбире женщине желательно не вынимать руки из-под одежды (мужчине — вынуть). В анимации кисти показаны открытыми — для наглядности.',
-        'В руку‘ отведение рук от боков названо только для мужчины — в анимации женщина держит руки у боков.',
-        'В суджуде женщина прижимает живот к бёдрам, локти держит у боков; предплечья на землю не кладёт.',
-        'Сидение — между суджудами, первое и последнее: на ягодицы, бёдра на земле, ногу выводит из-под правого бедра.',
-        'Аурат женщины в намазе — всё тело, кроме лица, кистей рук и стоп.'],
-        foot: 'Остальное — как у мужчины. Фигура и одежда в анимации мужские — для удобства, отличаются только положения. О чём в книге не сказано (например, положение рук в кауме и ног между суджудами), в тексте не утверждается.' },
-      kk: { sum: 'Әйел намазы: айырмашылығы (кітап бойынша)', lead: 'Әйел намазының айырмашылықтары көрсетілген: қол, сәжде, отырыс. Фигура ер адамдікі — ыңғайлы болу үшін; әйелдің қалыптары көрсетілген.', all: 'Барлық айырмашылық', items: [
-        'Ашу тәкбірі: қол құлаққа емес, иыққа дейін көтеріледі.',
-        'Қиямда қол кеудеде (оң қол сол қолдың үстінде) және «сақинасыз» — шынашақ пен бас бармақ білезікті орамайды.',
-        'Тәкбір кезінде әйелге қолын киімнің астынан шығармағаны жөн (ер адам шығарады). Анимацияда қол көрнекілік үшін ашық көрсетілген.',
-        'Рукұғта қолды бүйірден алшақ ұстау тек ер адамға айтылған — анимацияда әйел қолын бүйіріне жақын ұстайды.',
-        'Сәждеде әйел ішін санына қысады, шынтағын бүйіріне жақын ұстайды; білегін жерге қоймайды.',
-        'Отырыс — екі сәжде арасында, бірінші және соңғы отырыста: бөксеге отырып, сандар жерде, аяқты оң жамбастың астынан шығарады.',
-        'Әйелдің намаздағы ауыраты — беті, қолдары мен табандарынан басқа бүкіл дене.'],
-        foot: 'Қалғаны — ер адамдағыдай. Анимациядағы фигура мен киім ер адамдікі — ыңғайлы болу үшін, тек қалыптары өзгеше. Кітапта айтылмаған нәрсе (мысалы, қауманың қолдың тұрған жері, екі сәжде арасындағы аяқ қалпы) мәтінде бекітілмейді.' }
-    };
     // ----- «Что читать» в каждом действии намаза (build 6.05) -----
     // Арабский текст и смысловой перевод зикров — из «Дуа и зикры» (Хисн
     // аль-муслим, там же живая запись ▶); аль-Фатиха и сура — из того же
@@ -25177,14 +25182,6 @@ function renderDictation(area) {
         '<div style="font-weight:700;color:' + color + ';font-size:0.85rem">' + title + '</div>' +
         items.map(function(x) { return '<div class="ayah-translation" style="margin-top:0.25rem;line-height:1.5;font-size:calc(0.88rem * var(--ru-scale, 1))">• ' + x + '</div>'; }).join('') + '</div>';
     }
-    function hsFemaleCardHtml(kk) {
-      const C = HOWSALAH_F_CARD[kk ? 'kk' : 'ru'];
-      return '<div class="card" style="margin-top:0.6rem;border-color:#c4b5fd"><b style="color:#c4b5fd">🌙 ' + C.sum + '</b>' +
-        '<div class="ayah-translation" style="margin-top:0.3rem;line-height:1.5;font-size:calc(0.88rem * var(--ru-scale, 1))">' + C.lead + '</div>' +
-        '<details style="margin-top:0.4rem"><summary style="cursor:pointer;font-weight:700;font-size:0.85rem">' + C.all + '</summary>' +
-        C.items.map(function(x) { return '<div class="ayah-translation" style="margin-top:0.25rem;line-height:1.5;font-size:calc(0.88rem * var(--ru-scale, 1))">• ' + x + '</div>'; }).join('') +
-        '<div class="ayah-translation" style="margin-top:0.5rem;font-size:0.78rem;opacity:0.8;line-height:1.45">' + C.foot + '</div></details></div>';
-    }
     function hsSahwCardHtml(kk) {
       const C = HOWSALAH_SAHW_CARD[kk ? 'kk' : 'ru'];
       const colors = ['#fbbf24', '#f87171', '#60a5fa', '#4ade80', '#a78bfa', '#fb923c'];
@@ -25273,20 +25270,18 @@ function renderDictation(area) {
       if (!window._hsTab) window._hsTab = 'during';
       if (!window._hsPrayer) window._hsPrayer = 'fajr';
       if (!window._hsSurah) window._hsSurah = 112;
-      if (!window._hsGender) { try { window._hsGender = localStorage.getItem('quran_hs_gender') === 'f' ? 'f' : 'm'; } catch (e) { window._hsGender = 'm'; } }
-      const fem = window._hsGender === 'f';
-      if (fem) { try { sgFemWarn(false); } catch (e) {} }
+      // 7.73: только мужской намаз и ханафитский мазхаб — без выбора (женский вариант — в archive-female-salah.js)
+      window._hsGender = 'm';
+      const fem = false;
       // тексты зикров — из «Дуа и зикры»
       if (typeof HISN_ITEMS === 'undefined' && typeof loadHisnData === 'function' && !window._hsHisnAsked) { window._hsHisnAsked = true; loadHisnData().then(function() { if (document.getElementById('howsalah-body') && window._hsTab === 'during') renderHowSalah(); }).catch(function() {}); }
       const P = HS_PRAYERS.find(function(x) { return x.id === window._hsPrayer; }) || HS_PRAYERS[0];
       if (P.v && !P.v.some(function(v) { return v.k === window._hsVar; })) window._hsVar = 'f';
       const V = P.v ? P.v.find(function(v) { return v.k === window._hsVar; }) : null;
-      const madh = [['hanafi', kk ? 'Ханафи' : 'Ханафитский'], ['maliki', kk ? 'Мәлики' : 'Маликитский'], ['shafii', kk ? 'Шафиғи' : 'Шафиитский'], ['hanbali', kk ? 'Ханбали' : 'Ханбалитский'], ['salaf', kk ? 'Сәләфи' : 'Саляфитский подход']];
       const tabs = [['before', kk ? '1. Намазға дейін' : '1. До намаза'], ['during', kk ? '2. Намаз ішінде' : '2. Во время намаза'], ['after', kk ? '3. Не бұзады' : '3. Что нарушает'], ['quiz', kk ? '4. Өзіңізді тексеріңіз' : '4. Проверьте себя'], ['extra', kk ? '5. Қосымша' : '5. Доп. инфо']];
       let h = (B && (B.source || B.sourceKk) ? '<div style="margin:0 0.15rem 0.45rem;font-size:0.74rem;line-height:1.35;color:var(--text-muted)">' + (kk ? 'Дереккөз: ' + (B.sourceKk || B.source) : 'Источник: ' + (B.source || B.sourceKk)) + '</div>' : '') +
         '<div class="card" style="border-color:var(--accent)">' +
-        '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">' + hsPickBtn('gender', kk ? 'Жынысы:' : 'Пол:', fem ? (kk ? 'әйел' : 'женский') : (kk ? 'ер' : 'мужской')) + hsPickBtn('madh', kk ? 'Мазһаб:' : 'Мазхаб:', madh[0][1]) + '</div>' +
-        '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.6rem">' +
+        '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">' +
         tabs.map(function(t) { return '<button type="button" class="btn btn-sm' + (window._hsTab === t[0] ? ' btn-primary' : '') + '" data-hs-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') +
         '</div></div>';
       const legend = '<div class="card" style="margin-top:0.6rem"><b>' + (kk ? 'Белгілер' : 'Что значат пометки') + '</b>' +
@@ -25328,7 +25323,7 @@ function renderDictation(area) {
           (V ? hsPickBtn('var', '', hsVarLabel(V, kk)) : '') + (P.special ? '' : hsPickBtn('surah', kk ? 'Сүре:' : 'Сура:', (HS_SURAHS.find(function(x) { return x[0] === window._hsSurah; }) || HS_SURAHS[0])[kk ? 2 : 1])) + '</div>' +
           (V ? '<div class="ayah-translation" style="margin-top:0.5rem;line-height:1.5;font-size:0.88rem">' + (V.kind === 'f' ? '' : hsKindLabel(V.kind, kk, V).replace(/^./, function(c) { return c.toUpperCase(); }) + '. ') + hsJahr(P, V, 1, kk) + '</div>' : '') +
           (P.special ? '<div class="ayah-translation" style="margin-top:0.6rem;line-height:1.55;border-left:3px solid #fbbf24;padding-left:0.55rem">' + (kk ? HOWSALAH_MODE_INFO.sahw.kk : HOWSALAH_MODE_INFO.sahw.ru) + '</div>' + hsSahwCardHtml(kk) : '') +
-          (fem ? hsFemaleCardHtml(kk) : '') + howSalahPlayerHtml(kk, fem) + '</div>' + legend + (P.v ? hsDiffTable(P, kk) : '');
+          howSalahPlayerHtml(kk, fem) + '</div>' + legend + (P.v ? hsDiffTable(P, kk) : '');
         el.innerHTML = h;
         const steps = buildHowSalahSteps(P.special ? 'sahw' : 'v', { v: V });
         initHowSalahPlayer(el, steps, kk, { P: P, V: V, surah: window._hsSurah, niyyah: V ? hsNiyyah(P, V) : null, female: fem });
@@ -25340,9 +25335,7 @@ function renderDictation(area) {
         b.addEventListener('click', function() {
           const id = b.getAttribute('data-hs-pick');
           const soon = kk ? 'жақында' : 'скоро';
-          if (id === 'gender') hsPicker(kk ? 'Жынысы' : 'Пол', [{ v: 'm', label: kk ? 'Ер адам' : 'Мужской' }, { v: 'f', label: kk ? 'Әйел адам' : 'Женский' }], window._hsGender, function(v) { window._hsGender = v; try { localStorage.setItem('quran_hs_gender', v); } catch (e) {} renderHowSalah(); if (v === 'f') { try { sgFemWarn(true); } catch (e) {} } });
-          else if (id === 'madh') hsPicker(kk ? 'Мазһаб' : 'Мазхаб', madh.map(function(m, i) { return { v: m[0], label: m[1], disabled: i > 0, note: i > 0 ? soon : '' }; }), 'hanafi', function() {});
-          else if (id === 'prayer') hsPicker(kk ? 'Намаз' : 'Намаз', [{ head: kk ? 'Бес парыз намаз' : 'Пять обязательных намазов' }].concat(HS_PRAYERS.slice(0, 5).map(function(x) { return { v: x.id, label: kk ? x.kk : x.ru }; }),
+          if (id === 'prayer') hsPicker(kk ? 'Намаз' : 'Намаз', [{ head: kk ? 'Бес парыз намаз' : 'Пять обязательных намазов' }].concat(HS_PRAYERS.slice(0, 5).map(function(x) { return { v: x.id, label: kk ? x.kk : x.ru }; }),
             [{ head: kk ? 'Басқа' : 'Другое' }], HS_PRAYERS.slice(5).map(function(x) { return { v: x.id, label: kk ? x.kk : x.ru, disabled: !!x.soon, note: x.soon ? soon : '' }; })), window._hsPrayer, function(v) { window._hsPrayer = v; window._hsVar = 'f'; renderHowSalah(); });
           else if (id === 'var') hsPicker(kk ? 'Парыз немесе сүннет' : 'Фарз или сунна', P.v.map(function(v) { return { v: v.k, label: hsVarLabel(v, kk), note: hsKindLabel(v.kind, kk, v) }; }), window._hsVar, function(v) { window._hsVar = v; renderHowSalah(); });
           else if (id === 'surah') hsPicker(kk ? 'Әл-Фатихадан кейінгі сүре' : 'Сура после аль-Фатихи', HS_SURAHS.map(function(x) { return { v: x[0], label: x[kk ? 2 : 1] + ' (' + x[0] + ')' }; }), window._hsSurah, function(v) { window._hsSurah = +v; renderHowSalah(); });
@@ -25897,11 +25890,6 @@ function renderDictation(area) {
       { q: ['Чем закрывают рот, если не удалось сдержать зевоту?', 'Есінеуді тежей алмаса, аузды немен жабады?'], a: [['Тыльной стороной правой руки', 'Оң қолдың сыртымен'], ['Левой ладонью', 'Сол алақанмен'], ['Обеими руками', 'Екі қолмен'], ['Рот не закрывают', 'Аузды жаппайды']] },
       { m: 1, q: ['Когда в витре поднимают руки до ушей и говорят такбир?', 'Уітірде қолды құлаққа дейін көтеріп, тәкбірді қашан айтады?'], a: [['В 3-м ракаате после суры, перед кунутом', '3-ракағатта сүреден кейін, құнұттан бұрын'], ['В самом начале витра', 'Уітірдің ең басында'], ['После руку‘ в 3-м ракаате', '3-ракағатта рукұғтан кейін'], ['Перед сурой', 'Сүреден бұрын']] },
       // build 6.21: вопросы для женской версии (по книге)
-      { f: 1, q: ['До какого уровня женщина поднимает руки во вступительном такбире?', 'Әйел ашу тәкбірінде қолын қай деңгейге дейін көтереді?'], a: [['До плеч', 'Иыққа дейін'], ['До ушей', 'Құлаққа дейін'], ['До груди', 'Кеудеге дейін'], ['Выше головы', 'Бастан жоғары']] },
-      { f: 1, q: ['Где женщина держит руки в кыяме?', 'Әйел қиямда қолын қайда ұстайды?'], a: [['На груди, правая на левой', 'Кеудеде, оң қол сол қолдың үстінде'], ['Ниже пупка', 'Кіндіктен төмен'], ['Опущены вдоль тела', 'Дене бойымен түсірулі'], ['На животе выше пупка', 'Кіндіктен жоғары, ішінде']] },
-      { f: 1, q: ['Чего женщина не делает при сложенных руках?', 'Әйел қолын байлағанда нені жасамайды?'], a: [['Не обхватывает запястье мизинцем и большим пальцем («кольцо»)', 'Шынашақ пен бас бармақпен білезікті орамайды («сақина»)'], ['Не кладёт правую руку на левую', 'Оң қолды сол қолдың үстіне қоймайды'], ['Не складывает руки вообще', 'Қолын мүлде байламайды'], ['Не смотрит на место суджуда', 'Сәжде орнына қарамайды']] },
-      { f: 1, q: ['Что делает женщина в суджуде (по книге)?', 'Әйел сәждеде не істейді (кітап бойынша)?'], a: [['Прижимает живот к бёдрам', 'Ішін санына қысады'], ['Отводит локти от боков', 'Шынтағын бүйірден алшақ ұстайды'], ['Кладёт предплечья на землю', 'Білегін жерге жайады'], ['Поднимает пальцы ног', 'Аяқ саусақтарын көтереді']] },
-      { f: 1, q: ['Как женщина сидит между суджудами и в ташаххуде (по книге)?', 'Әйел екі сәжде арасында және тәшәһһудта қалай отырады (кітап бойынша)?'], a: [['На ягодицы, бёдра на земле, ногу выводит из-под правого бедра', 'Бөксесіне отырып, санын жерге қойып, аяғын оң жамбасының астынан шығарады'], ['На левой стопе, правая стоит на пальцах', 'Сол табанның үстінде, оң табан саусақтарда тұрады'], ['Скрестив ноги', 'Аяқты айқастырып'], ['На пятках, колени вместе', 'Өкшесіне отырып, тізе біріктіріліп']] }
     ];
     function howSalahQuiz(box, kk) {
       if (!box) return;
@@ -26200,7 +26188,7 @@ function renderDictation(area) {
               '<div class="arabic" dir="rtl" style="font-size:calc(1.2rem * var(--ar-scale, 1))">' + esc(d.ar) + '</div>' +
               (d.tr ? '<div style="color:var(--accent)">' + esc(d.tr) + '</div>' : '') +
               (d.ru ? '<div class="ayah-translation">' + esc(d.ru) + '</div>' : '') +
-              '<div style="display:flex;gap:0.35rem;margin-top:0.35rem"><button type="button" class="btn btn-sm" data-mydua-speak="' + i + '">🔊</button>' +
+              '<div style="display:flex;gap:0.35rem;margin-top:0.35rem"><button type="button" class="btn btn-sm tts-only" data-mydua-speak="' + i + '">🔊</button>' +
               '<button type="button" class="btn btn-sm" data-mydua-del="' + i + '">' + (kk ? 'Өшіру' : 'Удалить') + '</button></div></div>';
           }).join('') + '</details>';
       }
@@ -28393,7 +28381,6 @@ bKk:
         [ 'Буквы и произношение', 'Әріптер мен айтылым', [
           ['Записи 28 букв (папка audio-letters)', '28 әріптің жазбалары (audio-letters қалтасы)', 'Происхождение записей в проекте не зафиксировано. В версии 6.14 они обработаны (убрана тишина, выровнена громкость). Запланирована замена на записи с открытой лицензией', 'Жазбалардың шығу тегі жобада тіркелмеген. 6.14 нұсқасында өңделді (тыныштық алынды, дыбыс деңгейі теңестірілді). Ашық лицензиялы жазбаларға ауыстыру жоспарда', 'не подтверждена', 'расталмаған', ''],
           ['Схема произношения', 'Айтылым сызбасы', 'Положения языка у эмфатических и глоточных — по фонетическим работам (Ghazeli; Heselwood; Al-Tamimi); схема нарисована в приложении', 'Эмфатикалық және көмей дыбыстарында тіл орны — фонетикалық еңбектер бойынша (Ghazeli; Heselwood; Al-Tamimi); сызба қосымшада салынған', 'собственная схема', 'өз сызбамыз', ''],
-          ['Запасной синтез речи', 'Қосалқы дыбыстау', 'Синтез речи браузера (Web Speech, голос устройства) — только когда нет живой записи', 'Браузердің дыбыс синтезі (Web Speech, құрылғы дауысы) — тірі жазба жоқ кезде ғана', U, UK, '']
         ]],
         [ 'Программные компоненты', 'Бағдарламалық компоненттер', [
           ['Шрифты', 'Қаріптер', 'Amiri, Scheherazade New, Noto Naskh Arabic, Inter — Google Fonts', 'Amiri, Scheherazade New, Noto Naskh Arabic, Inter — Google Fonts', 'открытые лицензии шрифтов (SIL OFL)', 'ашық қаріп лицензиялары (SIL OFL)', 'https://fonts.google.com'],
@@ -48749,7 +48736,7 @@ function getMyVocab() {
           '<div class="arabic" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0" dir="rtl">'+IFTAR_DUA.ar+'</div>' +
           '<div style="color:var(--accent);font-size:0.9rem">'+letterTr(IFTAR_DUA)+'</div>' +
           '<div class="ayah-translation">'+IFTAR_DUA.kkTr+'</div>' +
-          '<button type="button" class="btn btn-sm btn-primary" id="ram-speak-iftar" style="margin-top:0.4rem">🔊 Дұғаны тыңдау</button></div>' +
+          '<button type="button" class="btn btn-sm btn-primary" id="ram-speak-iftar" data-tts-only="1" style="margin-top:0.4rem">🔊 Дұғаны тыңдау</button></div>' +
           '<div style="margin-top:0.75rem"><b>💚 Күннің ісі</b><div class="ayah-translation">Садақа беру, ата-анаға хабарласу, көршіге көмектесу немесе намаздан кейін тыныш зікір ету.</div></div>' +
           '<div style="margin-top:0.5rem"><b>🕌 Түн</b><div class="ayah-translation">Тарауих / қиям — шамаңызша. Соңғы 10 күнде — «10 түн» қойындысын қараңыз.</div></div></div>'
           :
@@ -48763,7 +48750,7 @@ function getMyVocab() {
           '<div class="arabic" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0" dir="rtl">'+IFTAR_DUA.ar+'</div>' +
           '<div style="color:var(--accent);font-size:0.9rem">'+letterTr(IFTAR_DUA)+'</div>' +
           '<div class="ayah-translation">'+IFTAR_DUA.ru+'</div>' +
-          '<button type="button" class="btn btn-sm btn-primary" id="ram-speak-iftar" style="margin-top:0.4rem">🔊 Слушать дуа</button></div>' +
+          '<button type="button" class="btn btn-sm btn-primary" id="ram-speak-iftar" data-tts-only="1" style="margin-top:0.4rem">🔊 Слушать дуа</button></div>' +
           '<div style="margin-top:0.75rem"><b>💚 Дело дня</b><div class="ayah-translation">Садака, звонок родителям, помощь соседу или тихий зикр после намаза.</div></div>' +
           '<div style="margin-top:0.5rem"><b>🕌 Ночь</b><div class="ayah-translation">Таравих / киям по силам. В последние 10 — вкладка «10 ночей».</div></div></div>';
       } else if (tab === 'khatm') {
@@ -48948,7 +48935,7 @@ function getMyVocab() {
             '<div class="arabic" dir="rtl" style="font-size:calc(1.25rem * var(--ar-scale, 1));margin:0.4rem 0">'+IFTAR_DUA.ar+'</div>' +
             '<div style="color:var(--accent)">'+letterTr(IFTAR_DUA)+'</div>' +
             '<div class="ayah-translation">'+(kk ? IFTAR_DUA.kkTr : IFTAR_DUA.ru)+'</div>' +
-            '<button type="button" class="btn btn-sm btn-primary" id="ram-speak-iftar2" style="margin-top:0.4rem">🔊 '+(kk?'Дұғаны тыңдау':'Слушать дуа')+'</button></div>' +
+            '<button type="button" class="btn btn-sm btn-primary" id="ram-speak-iftar2" data-tts-only="1" style="margin-top:0.4rem">🔊 '+(kk?'Дұғаны тыңдау':'Слушать дуа')+'</button></div>' +
             '<div class="card"><b>'+(kk ? 'Балама нұсқа' : 'Альтернативный вариант')+'</b>' +
             '<div class="arabic" dir="rtl" style="font-size:calc(1.15rem * var(--ar-scale, 1));margin:0.4rem 0">'+IFTAR_DUA_ALT.ar+'</div>' +
             '<div style="color:var(--accent);font-size:0.9rem">'+letterTr(IFTAR_DUA_ALT)+'</div>' +
@@ -51323,19 +51310,6 @@ function startApp() {
     }
 
     // Окно-предупреждение при открытии женской версии намаза
-    function sgFemWarn(force) {
-      try { if (localStorage.getItem('quran_hs_fem_ok') === '1') return; } catch (e) {}
-      try { if (!force && sessionStorage.getItem('quran_hs_fem_seen') === '1') return; sessionStorage.setItem('quran_hs_fem_seen', '1'); } catch (e) {}
-      var kk = tourLang();
-      sgShow({
-        title: kk ? 'Әйелдер нұсқасы туралы' : 'О женской версии',
-        body: kk
-          ? '• Мұнда ханафи мазхабындағы кітап бойынша әйелдерге арналған намаз реті көрсетілген. Кітап үнсіз қалған жерде жалпы тәртіп көрсетіледі.\n\n• Фигура мен киім шартты: киім кең, бет пен қол ғана ашық, артқы көрініс жабық. Бұл оқуға арналған көрнекілік, «қалай көріну керек» үлгісі емес.\n\n• Тәкбірде қол анимацияда көрнекілік үшін ашық көрсетілген, ал кітап бойынша әйелге қолды шығармаған жөн — бұл карточкада айтылған.\n\n• Бұл оқу құралы, пәтуа емес. Күмән болса, білімді имамнан не ғалымнан сұраңыз.'
-          : '• Здесь показан женский порядок намаза по ханафитской книге-источнику. Где книга молчит — показан общий порядок.\n\n• Фигура и одежда условны: одежда свободная, открыты только лицо и кисти, вид сзади закрыт. Это учебная наглядность, а не образец «как должно выглядеть».\n\n• Руки при такбире в анимации раскрыты ради наглядности, а по книге женщине предпочтительнее не освобождать их — это сказано в карточке.\n\n• Это учебное пособие, а не фетва. Если сомневаетесь — спросите знающего имама или учёного.',
-        check: { label: kk ? 'Қайта көрсетпеу' : 'Больше не показывать', key: 'quran_hs_fem_ok' },
-        buttons: [{ label: kk ? 'Түсінікті' : 'Понятно', cls: 'btn-primary', fn: sgClose }]
-      });
-    }
 
     // Подсказки — только через кнопку «?»: всплывающие title убираем везде (по просьбе пользователя).
     // Текст не теряется: если у элемента нет aria-label, он переносится туда (для экранных читалок).
@@ -52661,7 +52635,7 @@ function startApp() {
             for (var j = 0; j < r.length; j++) {
               var c2 = r.charAt(j);
               if (c2 === 'а' || c2 === 'А') {
-                var v2 = (p2 === 'а' || p2 === 'о') ? lastV : (/[\uE001-\uE007рР]/.test(p2) ? 'о' : 'а');
+                var v2 = 'а'; // 7.73: «о» после тяжёлых убрано — по учебнику Муфтията фатха не округляется, пишем «а»
                 lastV = v2; o2 += c2 === 'А' ? v2.toUpperCase() : v2; p2 = v2;
               } else { o2 += c2; p2 = c2; }
             }
@@ -52675,13 +52649,13 @@ function startApp() {
             var ch = r.charAt(i);
             if (ch === 'а' || ch === 'А') {
               // 7.62: после тяжёлых (ص ض ط ظ خ ق غ) и ر с фатхой — «о» (как в названиях букв: Ро, Дод); после ع — «а»; иначе «ә»
-              var v = (prev === 'а' || prev === 'о' || prev === 'ә') ? lastK : (/[\uE001-\uE005қғрҚҒР]/.test(prev) ? 'о' : (/[ъЪ]/.test(prev) ? 'а' : 'ә'));
+              var v = (prev === 'а' || prev === 'ә') ? lastK : (/[\uE001-\uE005қғрҚҒРъЪ]/.test(prev) ? 'а' : 'ә'); // 7.73: после тяжёлых и ر — «а» (Муфтият), не «о»
               lastK = v; out += ch === 'А' ? v.toUpperCase() : v; prev = v; continue;
             } else out += ch;
             if (ch !== '\u0303') prev = ch;
           }
-          out = out.replace(/([әоа])\1(?=-)/g, '$1');   // 7.62: долгая гласная перед слиянием с артиклем сокращается («иһдинә-с-сироото»)
-          out = out.replace(/([рР])охмәә?н/g, '$1охмаан').replace(/([хХ])әқ/g, '$1ақ');   // «Рохмаан», «хақ», «Исхақ»
+          out = out.replace(/([әа])\1(?=-)/g, '$1');   // 7.62: долгая гласная перед слиянием с артиклем сокращается («иһдинә-с-сироото»)
+          out = out.replace(/([рР])ахмәә?н/g, '$1ахмаан').replace(/([хХ])әқ/g, '$1ақ');   // «Рохмаан», «хақ», «Исхақ»
           return out.replace(/\uE001/g, 'с').replace(/\uE002/g, 'д').replace(/\uE003/g, 'т').replace(/\uE004/g, 'з').replace(/\uE005/g, 'х');
         }
         var W = KZ ? 'у' : 'в';
@@ -53083,7 +53057,7 @@ function startApp() {
   function problems(res) {
     var out = [];
     if (res.data.length) out.push({ k: 'data:' + res.data.join(','), ru: 'Не загрузились файлы данных: ' + res.data.join(', ') + '. Часть разделов может не работать — обновите страницу.', kz: 'Дерек файлдары жүктелмеді: ' + res.data.join(', ') + '. Кейбір бөлімдер істемеуі мүмкін — бетті жаңартыңыз.' });
-    if (res.letters) out.push({ k: 'letters', ru: 'Не найдены записи букв (папка audio-letters). Пока вместо них звучит синтез речи.', kz: 'Әріп жазбалары табылмады (audio-letters қалтасы). Әзірге синтезделген дыбыс естіледі.' });
+    if (res.letters) out.push({ k: 'letters', ru: 'Не найдены записи букв (папка audio-letters).', kz: 'Әріп жазбалары табылмады (audio-letters қалтасы).' });
     if (res.hisn) out.push({ k: 'hisn', ru: 'Не найдены записи дуа (папка audio-hisn).', kz: 'Дұға жазбалары табылмады (audio-hisn қалтасы).' });
     if (res.hisnData) out.push({ k: 'hisndata', ru: 'Не найден файл data-hisn.js — раздел «Дуа и зикры» не откроется.', kz: 'data-hisn.js файлы табылмады — «Дұғалар мен зікірлер» бөлімі ашылмайды.' });
     return out;

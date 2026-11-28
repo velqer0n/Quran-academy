@@ -5754,3 +5754,9 @@ body:has(.audio-bar.visible:not(.collapsed)) #ayah-scroll-rail, body:has(.audio-
 .rl-ch { font-size: 1.7rem; width: 2.4rem; text-align: center; }
 .rl-nm { flex: 1; }
 .tw-mark { display: inline-block; font-size: 2.6em; line-height: 0.9; vertical-align: -0.3em; color: var(--accent); padding: 0 0.1em; }
+.tts-only, [data-tts-only] { display: none !important; } /* 7.73: без синтеза речи телефона */
+/* 7.73: знаки мусхафа */
+.ms-signs .ms-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.45rem 0; border-top: 1px dashed var(--border); }
+.ms-signs .ms-ex { flex: 0 0 6.5rem; text-align: center; font-size: calc(1.45rem * var(--ar-scale, 1)); line-height: 2; }
+.ms-signs .ms-t { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.88rem; }
+.ms-signs .ms-t span { color: var(--text-muted); font-size: 0.82rem; line-height: 1.4; }
