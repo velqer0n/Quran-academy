@@ -5808,3 +5808,59 @@ body:has(.audio-bar.visible:not(.collapsed)) #ayah-scroll-rail, body:has(.audio-
 .c2-shl:first-of-type{border-top:0}
 .c2-shl .c2-ar{font-size:1.9rem;min-width:2.6rem;text-align:center}
 .c2-shl span:last-child{font-size:0.85rem;line-height:1.4}
+
+/* 7.82: Курс как игра — путь, шарики, пары, сборка слова, отклик на ответ, детский режим */
+.c2-trail{border-left:0;margin:0 0 0.8rem;padding:0.3rem 0 0.4rem;align-items:center;gap:0.15rem}
+.c2-story{font-size:0.82rem;line-height:1.45;color:var(--text-muted);background:var(--bg-hover);border-radius:12px;padding:0.55rem 0.7rem;margin:0 0 0.6rem;align-self:stretch}
+.c2-story small{white-space:nowrap}
+.c2-chbar{display:block;height:4px;border-radius:2px;background:var(--bg-hover);margin-top:0.3rem;overflow:hidden;width:100%}
+.c2-chbar>i{display:block;height:100%;background:var(--accent);border-radius:2px}
+.c2-nodew{display:flex;flex-direction:column;align-items:center;transform:translateX(calc(var(--x) * 2.6rem));position:relative;max-width:12rem;margin-bottom:0.25rem}
+.c2-node{position:relative;width:4.1rem;height:4.1rem;border-radius:50%;border:0;cursor:pointer;font:inherit;font-size:1.25rem;color:var(--text);background:var(--bg-hover);box-shadow:0 5px 0 color-mix(in srgb,var(--text) 18%,transparent);display:flex;align-items:center;justify-content:center;transition:transform .1s}
+.c2-node .c2-ar{font-size:1.35rem;line-height:1}
+.c2-node:active{transform:translateY(3px);box-shadow:0 2px 0 color-mix(in srgb,var(--text) 18%,transparent)}
+.c2-node.d{background:var(--accent);color:#fff;box-shadow:0 5px 0 color-mix(in srgb,var(--accent) 60%,#000)}
+.c2-node.d em{position:absolute;right:-0.15rem;top:-0.15rem;font-style:normal;font-size:0.7rem;background:#fff;color:var(--accent);border-radius:50%;width:1.2rem;height:1.2rem;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm)}
+.c2-node.now{background:var(--warning);color:#1a1200;box-shadow:0 5px 0 color-mix(in srgb,var(--warning) 60%,#000);animation:c2pulse 1.8s ease-in-out infinite}
+.c2-node.fin:not(.d):not(.now){background:color-mix(in srgb,var(--warning) 25%,var(--bg-hover))}
+@keyframes c2pulse{0%,100%{outline:0 solid color-mix(in srgb,var(--warning) 50%,transparent)}50%{outline:8px solid color-mix(in srgb,var(--warning) 0%,transparent);outline-offset:2px}}
+.c2-nodet{font-size:0.74rem;color:var(--text-muted);text-align:center;margin-top:0.45rem;line-height:1.25}
+.c2-bubble{position:relative;background:var(--bg-card);border:2px solid var(--warning);border-radius:10px;padding:0.15rem 0.6rem;font-size:0.78rem;font-weight:700;margin-bottom:0.45rem}
+.c2-bubble:after{content:"";position:absolute;left:50%;bottom:-7px;margin-left:-6px;border:6px solid transparent;border-top-color:var(--warning);border-bottom:0}
+.c2-arcbtn{display:flex;flex-direction:column;gap:0.15rem;width:100%;text-align:left;font:inherit;cursor:pointer;color:inherit;background:linear-gradient(135deg,color-mix(in srgb,#8b5cf6 18%,var(--bg-card)),var(--bg-card));border:2px solid #8b5cf6;border-radius:16px;padding:0.7rem 1rem;margin-bottom:0.6rem}
+.c2-arcbtn span{font-size:0.82rem;color:var(--text-muted)}
+/* шарики */
+.c2-sky{position:relative;display:flex;flex-wrap:wrap;justify-content:center;gap:0.9rem;padding:0.6rem 0 1rem;min-height:9rem}
+.c2-ball{position:relative;width:4.4rem;height:5.2rem;border:0;border-radius:50% 50% 48% 48%;background:radial-gradient(circle at 35% 30%,#fff8,transparent 40%),var(--bc);color:#fff;font:inherit;cursor:pointer;animation:c2float 2.6s ease-in-out infinite;animation-delay:var(--bd);box-shadow:inset -6px -8px 0 #0002}
+.c2-ball:after{content:"";position:absolute;left:50%;bottom:-0.9rem;width:1px;height:0.9rem;background:var(--text-muted)}
+.c2-ball .c2-ar{font-size:1.9rem;text-shadow:0 1px 2px #0005}
+.c2-ball.ok{animation:c2popball .35s ease-out forwards}
+.c2-ball.no{filter:grayscale(.7);opacity:.6}
+@keyframes c2float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes c2popball{0%{transform:scale(1)}60%{transform:scale(1.35)}100%{transform:scale(0);opacity:0}}
+/* пары */
+.c2-match{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem}
+.c2-mcol{display:flex;flex-direction:column;gap:0.5rem}
+.c2-mt{min-height:3.4rem;border:2px solid var(--border);border-radius:14px;background:var(--bg-card);color:var(--text);font:inherit;font-size:0.95rem;cursor:pointer;padding:0.4rem;box-shadow:0 3px 0 var(--border)}
+.c2-mt-ar .c2-ar{font-size:1.7rem}
+.c2-mt.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.c2-mt.done{opacity:0;transform:scale(.85);transition:opacity .35s,transform .35s;pointer-events:none}
+.c2-mt.c2-glow{box-shadow:0 0 0 3px var(--accent)}
+/* отклик */
+.c2-pop{animation:c2popbtn .35s ease-out}
+.c2-shake{animation:c2shake .4s ease-in-out}
+@keyframes c2popbtn{50%{transform:scale(1.07)}}
+@keyframes c2shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.c2-combo{display:inline-block;background:color-mix(in srgb,var(--warning) 25%,transparent);color:inherit;border-radius:20px;padding:0.1rem 0.6rem;font-size:0.8rem;font-weight:700;margin:0 0.4rem 0.3rem 0;animation:c2popbtn .4s ease-out}
+.c2-cele{display:inline-block;animation:c2cele .9s ease-out}
+@keyframes c2cele{0%{transform:scale(.3) rotate(-20deg);opacity:0}60%{transform:scale(1.25) rotate(8deg);opacity:1}100%{transform:scale(1) rotate(0)}}
+.c2-ra{text-align:center;margin:0.4rem 0}.c2-ra-tr{font-size:1.2rem;font-weight:700}
+.c2-racheck{display:block;margin:0.4rem auto 0.6rem}
+@media (prefers-reduced-motion:reduce){.c2-node.now,.c2-ball,.c2-pop,.c2-shake,.c2-cele,.c2-combo{animation:none}}
+/* детский режим */
+.c2-kids .c2-q{font-size:1.35rem}
+.c2-kids .c2-opt{font-size:1.2rem;min-height:4rem}
+.c2-kids .c2-big{font-size:4.4rem}.c2-kids .c2-big-opt .c2-ar{font-size:3.2rem}.c2-kids .c2-opt{border-width:3px;border-radius:18px}
+.c2-kids .c2-ball{width:5.2rem;height:6rem}
+.c2-kids .c2-node{width:4.8rem;height:4.8rem}
+.c2-kids .c2-howto,.c2-kids .c2-story{font-size:1rem}
