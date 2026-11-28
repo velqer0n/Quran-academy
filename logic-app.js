@@ -18281,7 +18281,10 @@ function renderMistakes() {
     function qzRuleDistractors(r, pool, n) {
       var d = (typeof getQuizDifficulty === 'function') ? getQuizDifficulty() : 'medium';
       var grp = qzRuleGroup(r.title);
-      var others = pool.filter(function(x) { return x.title !== r.title; });
+      // 7.78: «родственные» темы не ставим вариантами друг к другу — иначе правильных ответов два
+      var SIB = [['Алиф-лям', 'Солнечные и лунные'], ['· Мадд', 'Виды мадда'], ['Вакф (знаки', 'Как останавливаться'], ['إدغام · Идгам', 'Идгам сходных'], ['Огласовки', 'Шадда'], ['Танвин', 'Огласовки']];
+      var sib = function (a, b) { return SIB.some(function (p) { return (a.indexOf(p[0]) >= 0 && b.indexOf(p[1]) >= 0) || (a.indexOf(p[1]) >= 0 && b.indexOf(p[0]) >= 0); }); };
+      var others = pool.filter(function(x) { return x.title !== r.title && !sib(r.title, x.title); });
       var same = shuffle(others.filter(function(x) { return qzRuleGroup(x.title) === grp; }));
       var diff = shuffle(others.filter(function(x) { return qzRuleGroup(x.title) !== grp; }));
       var take = d === 'easy' ? 0 : d === 'hard' ? n : Math.ceil(n / 2);
@@ -18775,7 +18778,7 @@ function renderMistakes() {
         var tr = it.syl ? it.syl.map(function(s) { return _hkTr(s); }).join(' · ') : trAuto(it.ar, it.tr);
         var noNow = noBox ? noBox.checked : noH;
         rv.innerHTML = (noNow ? '<div class="sr-full arabic" dir="rtl" lang="ar">' + it.ar + '</div>' : '') + (tr ? '<div class="sr-tr">' + tr + '</div>' : '') +
-          '<button type="button" class="btn btn-sm sr-again">🔊 ' + (kk ? 'Тағы тыңдау' : 'Послушать ещё') + '</button>' +
+          (it.syl ? '' : '<button type="button" class="btn btn-sm sr-again">🔊 ' + (kk ? 'Тағы тыңдау' : 'Послушать ещё') + '</button>') +
           '<div class="sr-ask">' + (kk ? 'Сіздің оқуыңыз сәйкес келді ме?' : 'Ваше чтение совпало?') + '</div>' + qzSelfRowHtml();
         var play = function() {
           if (it.syl) { try { speakArText(it.syl.join(' '), 0.6); } catch(e) {} }
@@ -18783,7 +18786,7 @@ function renderMistakes() {
           else { try { playExtTrack({ kind: 'sr', key: 'sr:' + it.s + ':' + it.a, urls: [ayahAudioUrl(it.s, it.a)], title: (kk ? 'Аят ' : 'Аят ') + it.s + ':' + it.a, restart: true }); } catch(e) {} }
         };
         play();
-        rv.querySelector('.sr-again').addEventListener('click', play);
+        var _sa = rv.querySelector('.sr-again'); if (_sa) _sa.addEventListener('click', play);
         rv.querySelectorAll('[data-qz-self]').forEach(function(b) { b.addEventListener('click', function() {
           var ok = b.getAttribute('data-qz-self') === '1';
           var cat = it.syl ? 'syl' : (it.w ? 'readw' : 'read'), key = it.syl ? it.syl.join('') : (it.s + ':' + it.a + (it.w ? ':' + it.w : ''));
@@ -20286,25 +20289,39 @@ function renderMistakes() {
       const ayObj = ayahs.find(function(a){ return a.ayah === item.ayah; });
       if (!ayObj) { area.innerHTML = '<div class="empty-state">' + (kkA ? 'Деректер жоқ' : 'Нет данных') + '</div>'; return; }
       const text = ayObj.full || (ayObj.words || []).map(function(w){ return w.ar; }).join(' ');
-      const translation = ayObj.fullTr || '';
+      let translation = ayObj.fullTr || '';
       const pool = getWbwAyahsWithDifficulty().filter(function(x){ return x.surah !== item.surah || x.ayah !== item.ayah; });
       const wrong = [];
       while (wrong.length < 3 && pool.length) {
         const o = pool[Math.floor(Math.random() * pool.length)];
         const oAyahs = (o.surah === 1 && typeof FATIHA_LESSON !== 'undefined') ? FATIHA_LESSON : (WBW_STUDY_SURAHS[o.surah] || []);
         const oObj = oAyahs.find(function(a){ return a.ayah === o.ayah; });
-        if (oObj && oObj.fullTr && oObj.fullTr !== translation && wrong.indexOf(oObj.fullTr) < 0) wrong.push(oObj.fullTr.slice(0, 100));
+        if (oObj && oObj.fullTr && oObj.fullTr !== translation && wrong.indexOf(oObj.fullTr) < 0) wrong.push(oObj.fullTr); // 7.78: без обрезки здесь — все варианты режем одинаково ниже
+      }
+      // 7.78: в казахском режиме — казахский перевод (тот же, что в читалке), а не русский
+      if (kkA) {
+        try {
+          const trOf = async function (s, a) { const d = await fetchSurah(s); const x = d && d.ayahs ? d.ayahs.find(function (y) { return +y.number === +a; }) : null; return x && x.translation ? String(x.translation).replace(/<[^>]+>/g, '') : ''; };
+          const kt = await trOf(item.surah, item.ayah);
+          if (kt) {
+            const wrongKk = [];
+            for (const o of shuffle(pool).slice(0, 14)) { if (wrongKk.length >= 3) break; const w = await trOf(o.surah, o.ayah); if (w && w !== kt && wrongKk.indexOf(w) < 0) wrongKk.push(w); }
+            // все варианты на одном языке: иначе правильный ответ выдаёт себя языком
+            if (wrongKk.length >= 3) { translation = kt; wrong.length = 0; wrongKk.forEach(function (w) { wrong.push(w); }); }
+          }
+        } catch (eK) {}
       }
       const reverse = Math.random() < 0.5; // по-арабски→перевод, либо наоборот
       gameTotal = 1;
       try {
         if (!reverse) {
-          const opts = shuffle([translation.slice(0, 120)].concat(wrong.map(w => w.slice(0, 120))));
+          const cut = function (s) { s = String(s || ''); return s.length > 110 ? s.slice(0, 110).replace(/\s+\S*$/, '') + '…' : s; };
+          const opts = shuffle([cut(translation)].concat(wrong.map(cut)));
           area.innerHTML =
             '<div class="quiz-card"><div class="quiz-q"><span class="arabic-q">'+text+'</span>' +
             (kkA ? 'Сүре '+item.surah+', аят '+item.ayah+'<br>Дұрыс аударманы таңдаңыз:' : 'Сура '+item.surah+', аят '+item.ayah+'<br>Выберите правильный перевод:') + '</div>' +
             '<div class="quiz-opts" id="quiz-opts"></div></div>';
-          bindAyahOpts(opts, translation.slice(0, 120));
+          bindAyahOpts(opts, cut(translation));
         } else {
           // показан перевод — нужно узнать аят среди 4 арабских вариантов
           const wrongAr = [];
@@ -21371,6 +21388,21 @@ const MINIMAL_PAIR_SETS = {
 // одну пару (ح/ه, ع/ا, ص/س, ق/ك) или все сразу; после ответа показано название буквы.
 const MP_FOCUS_PAIRS = [['ح','ه'], ['ع','ا'], ['ص','س'], ['ق','ك']];
 let _mpFocus = -1;
+// слова из уроков по сурам (есть пословная запись чтеца), сгруппированные по первой букве
+var _mpWords = null;
+function mpWordFor(ch) {
+  if (!_mpWords) {
+    _mpWords = {};
+    var N = { 'أ': 'ء', 'إ': 'ء', 'ؤ': 'ء', 'ئ': 'ء', 'ء': 'ء', 'آ': 'ء' };
+    var add = function (s, arr) { (arr || []).forEach(function (ay) { (ay.words || []).forEach(function (w, i) {
+      var ar = String(w.ar || ''); if (!ar || ar.charAt(0) === 'ٱ') return;
+      var f = ar.charAt(0), b = N[f] || f; (_mpWords[b] = _mpWords[b] || []).push({ s: s, a: ay.ayah, w: i + 1, ar: ar });
+    }); }); };
+    try { add(1, typeof FATIHA_LESSON !== 'undefined' ? FATIHA_LESSON : []); Object.keys(WBW_STUDY_SURAHS || {}).forEach(function (n) { add(+n, WBW_STUDY_SURAHS[n]); }); } catch (e) {}
+    _mpWords['ا'] = _mpWords['ء']; // в паре ع/ا слово начинается с хамзы на алифе (أَ)
+  }
+  var list = _mpWords[ch]; return list && list.length ? list[Math.floor(Math.random() * list.length)] : null;
+}
 function renderMinimalPairs(area) {
   const kkP = isKk();
   let score = 0, total = 0;
@@ -21379,23 +21411,25 @@ function renderMinimalPairs(area) {
     const sets = (_mpFocus >= 0) ? [MP_FOCUS_PAIRS[_mpFocus]] : (MINIMAL_PAIR_SETS[getQuizDifficulty()] || MINIMAL_PAIR_SETS.medium);
     const pair = sets[Math.floor(Math.random() * sets.length)];
     const answerCh = pair[Math.random() < 0.5 ? 0 : 1];
+    const word = mpWordFor(answerCh); // 7.78: слово из Корана с этой буквой в начале
     const chips = '<div class="tabs-row" id="mp-focus" style="justify-content:center;margin-bottom:0.6rem;flex-wrap:wrap">' +
       '<button type="button" class="btn btn-sm' + (_mpFocus < 0 ? ' btn-primary' : '') + '" data-mpf="-1">' + (kkP ? 'Барлығы' : 'Все') + '</button>' +
       MP_FOCUS_PAIRS.map((pp, i) => '<button type="button" class="btn btn-sm' + (_mpFocus === i ? ' btn-primary' : '') + '" data-mpf="' + i + '" dir="rtl" style="font-family:Amiri,serif;font-size:1.1rem">' + pp.join(' / ') + '</button>').join('') +
       '</div>';
     area.innerHTML =
       '<div class="quiz-card" style="text-align:center">' + chips +
-      '<div class="quiz-q">' + (kkP ? 'Тыңдап, қай әріпті естігеніңізді таңдаңыз' : 'Послушайте и выберите, какую букву вы услышали') + '</div>' +
+      '<div class="quiz-q">' + (word ? (kkP ? 'Қари Құраннан бір сөз оқиды. Ол қай әріптен басталады?' : 'Чтец читает слово из Корана. С какой буквы оно начинается?') : (kkP ? 'Тыңдап, қай әріпті естігеніңізді таңдаңыз' : 'Послушайте и выберите, какую букву вы услышали')) + '</div>' +
       '<button type="button" class="btn btn-primary" id="mp-play" style="margin:0.5rem 0 1rem">🔊 ' + (kkP ? 'Тыңдау' : 'Слушать') + '</button>' +
       '<div class="quiz-opts" id="mp-opts"></div>' +
       '<div style="margin-top:1rem;color:var(--text-muted);font-size:0.85rem">' + (kkP ? 'Есеп: ' : 'Счёт: ') + score + ' / ' + total + '</div>' +
       '</div>';
     area.querySelectorAll('[data-mpf]').forEach(btn => btn.addEventListener('click', () => { _mpFocus = parseInt(btn.getAttribute('data-mpf'), 10); score = 0; total = 0; paint(); }));
     // живая запись буквы; синтез (с фатхой, чтобы звук был слышен явно) — только если записи нет
+    // 7.78: звучит настоящее слово из Корана, которое начинается с этой буквы (голос чтеца) — так слышна сама разница звуков,
+    // а не названия букв («син»/«сад»). Если такого слова нет или нет сети — запись буквы.
     const play = () => {
-      let ok = false;
-      try { ok = playLetterRec(answerCh, function() { try { speakArText(answerCh + '\u064E', 0.6); } catch(e) {} }); } catch(e) {}
-      if (!ok) { try { speakArText(answerCh + '\u064E', 0.6); } catch(e) {} }
+      if (word) { try { playWbwWordAudio(word.s, word.a, word.w, word.ar); return; } catch (e) {} }
+      try { playLetterRec(answerCh); } catch(e) {}
     };
     document.getElementById('mp-play').addEventListener('click', play);
     play();
@@ -21411,11 +21445,12 @@ function renderMinimalPairs(area) {
         const correct = (ch === answerCh);
         try { recordMistake('minimal-pairs', pair.slice().sort().join('-'), correct); } catch(e) {}
         const nm = letterName(answerCh);
-        if (correct) { b.classList.add('correct'); score++; toast((kkP ? 'Дұрыс!' : 'Верно!') + (nm ? ' ' + answerCh + ' — ' + nm : '')); }
+        const wtxt = word ? ' · ' + word.ar + ' (' + word.s + ':' + word.a + ')' : '';
+        if (correct) { b.classList.add('correct'); score++; toast((kkP ? 'Дұрыс!' : 'Верно!') + (nm ? ' ' + answerCh + ' — ' + nm : '') + wtxt); }
         else {
           b.classList.add('wrong');
           optsEl.querySelectorAll('button').forEach(x => { if (x.textContent === answerCh) x.classList.add('correct'); });
-          toast((kkP ? 'Дұрысы: ' : 'Было: ') + answerCh + (nm ? ' — ' + nm : ''));
+          toast((kkP ? 'Дұрысы: ' : 'Было: ') + answerCh + (nm ? ' — ' + nm : '') + wtxt, 3000);
         }
         setTimeout(paint, 1400);
       });
