@@ -16040,6 +16040,119 @@ function renderMistakes() {
       if (wrap) playLetterWrite(wrap, b.getAttribute('data-lw-play') === 'slow');
     });
 
+    // ===== 7.71: «Особые знаки» под буквами (ء لا ة ى — темы Справочника → Письмо) =====
+    function letterSpecialHtml(kk) {
+      var S = [['ء', 'hamza', kk ? 'Һамза' : 'Хамза'], ['لا', 'lamalif', kk ? 'Ләм-әліп' : 'Лям-алиф'], ['ة', 'tam', kk ? 'Та-марбута' : 'Та-марбута'], ['ى', 'maqsura', kk ? 'Әліп-мақсура' : 'Алиф-максура']];
+      return '<div class="lt-special"><div class="lt-sp-h">' + (kk ? 'Ерекше белгілер — 28 әріпке кірмейді, бірақ Құранда жиі кездеседі:' : 'Особые знаки — не входят в 28 букв, но часто встречаются в Коране:') + '</div>' +
+        '<div class="lt-sp-row">' + S.map(function (x) { return '<button type="button" class="lt-sp" data-lt-sp="' + x[1] + '"><span class="arabic" dir="rtl" lang="ar">' + x[0] + '</span><small>' + x[2] + '</small></button>'; }).join('') + '</div>' +
+        '<div class="lt-sp-acts"><button type="button" class="btn btn-sm" data-pc-open="1">🖨 ' + (kk ? 'Басып шығаруға карточкалар' : 'Карточки для печати') + '</button>' +
+        '<button type="button" class="btn btn-sm" data-ref-cheat="1">📄 ' + (kk ? 'Шпаргалка' : 'Шпаргалка') + '</button></div></div>';
+    }
+    document.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-lt-sp]'); if (!b) return;
+      try { refOpenHit({ tab: 'rules', card: 'wr-' + b.getAttribute('data-lt-sp') }); } catch (er) {}
+    });
+
+    // ===== 7.71: запись своих букв (скрытая страница: адрес сайта + #rec-letters) =====
+    // Чтец записывает 28 названий букв; сайт обрезает тишину, выравнивает громкость и отдаёт ZIP с WAV (имена — как у нынешних файлов).
+    var RL_DB = 'qa_rec_letters', _rlRec = null, _rlCur = null;
+    function rlDb() { return new Promise(function (res, rej) { var r = indexedDB.open(RL_DB, 1); r.onupgradeneeded = function () { r.result.createObjectStore('l'); }; r.onsuccess = function () { res(r.result); }; r.onerror = function () { rej(r.error); }; }); }
+    function rlPut(k, blob) { return rlDb().then(function (db) { return new Promise(function (res) { var tx = db.transaction('l', 'readwrite'); if (blob) tx.objectStore('l').put(blob, k); else tx.objectStore('l').delete(k); tx.oncomplete = function () { res(); }; }); }); }
+    function rlAll() { return rlDb().then(function (db) { return new Promise(function (res) { var out = {}, tx = db.transaction('l'), st = tx.objectStore('l'), c = st.openCursor(); c.onsuccess = function () { var cur = c.result; if (cur) { out[cur.key] = cur.value; cur.continue(); } else res(out); }; }); }); }
+    function rlFile(l) { return String(l.audio || '').replace(/\.mp3$/, '.wav'); }
+    // обработка: моно, обрезка тишины (порог по громкости), нормализация до -1 дБ, плавные края 15 мс → WAV 16 бит 44,1 кГц
+    function rlProcess(blob) {
+      return blob.arrayBuffer().then(function (buf) {
+        var AC = window.AudioContext || window.webkitAudioContext, ac = new AC();
+        return ac.decodeAudioData(buf).then(function (ab) {
+          var n = ab.length, sr = ab.sampleRate, x = new Float32Array(n);
+          for (var c = 0; c < ab.numberOfChannels; c++) { var d = ab.getChannelData(c); for (var i = 0; i < n; i++) x[i] += d[i] / ab.numberOfChannels; }
+          var win = Math.round(sr * 0.01), peak = 0; for (i = 0; i < n; i++) peak = Math.max(peak, Math.abs(x[i]));
+          var thr = Math.max(0.02, peak * 0.06), rms = function (s) { var e = 0, k = 0; for (var j = s; j < Math.min(n, s + win); j++) { e += x[j] * x[j]; k++; } return Math.sqrt(e / (k || 1)); };
+          var a = 0, z = n; for (i = 0; i < n; i += win) if (rms(i) > thr) { a = i; break; } for (i = n - win; i > 0; i -= win) if (rms(i) > thr) { z = i + win; break; }
+          a = Math.max(0, a - Math.round(sr * 0.06)); z = Math.min(n, z + Math.round(sr * 0.12));
+          var y = x.slice(a, z), g = peak ? 0.89 / peak : 1, f = Math.round(sr * 0.015);
+          for (i = 0; i < y.length; i++) { var w = Math.min(1, i / f, (y.length - 1 - i) / f); y[i] = Math.max(-1, Math.min(1, y[i] * g * w)); }
+          try { ac.close(); } catch (e) {}
+          return rlWav(y, sr);
+        });
+      });
+    }
+    function rlWav(y, sr) {
+      var b = new ArrayBuffer(44 + y.length * 2), v = new DataView(b), s = function (o, t) { for (var i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+      s(0, 'RIFF'); v.setUint32(4, 36 + y.length * 2, true); s(8, 'WAVE'); s(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); s(36, 'data'); v.setUint32(40, y.length * 2, true);
+      for (var i = 0; i < y.length; i++) v.setInt16(44 + i * 2, y[i] < 0 ? y[i] * 0x8000 : y[i] * 0x7fff, true);
+      return new Blob([b], { type: 'audio/wav' });
+    }
+    // ZIP без сжатия (store) — без сторонних библиотек
+    function rlZip(files) {
+      var crcT = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; crcT[n] = c >>> 0; }
+      var crc = function (u) { var c = 0xFFFFFFFF; for (var i = 0; i < u.length; i++) c = crcT[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+      var parts = [], cen = [], off = 0, enc = new TextEncoder();
+      files.forEach(function (f) {
+        var nm = enc.encode(f.name), d = f.data, cr = crc(d), h = new DataView(new ArrayBuffer(30));
+        h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint32(14, cr, true); h.setUint32(18, d.length, true); h.setUint32(22, d.length, true); h.setUint16(26, nm.length, true);
+        parts.push(new Uint8Array(h.buffer), nm, d);
+        var ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint32(16, cr, true); ch.setUint32(20, d.length, true); ch.setUint32(24, d.length, true); ch.setUint16(28, nm.length, true); ch.setUint32(42, off, true);
+        cen.push(new Uint8Array(ch.buffer), nm); off += 30 + nm.length + d.length;
+      });
+      var cs = cen.reduce(function (s, u) { return s + u.length; }, 0), e = new DataView(new ArrayBuffer(22));
+      e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cs, true); e.setUint32(16, off, true);
+      return new Blob(parts.concat(cen).concat([new Uint8Array(e.buffer)]), { type: 'application/zip' });
+    }
+    function rlOpen() {
+      var ov = document.getElementById('rl-ov'); if (!ov) { ov = document.createElement('div'); ov.id = 'rl-ov'; document.body.appendChild(ov); }
+      ov.hidden = false; document.body.classList.add('pc-open'); rlPaint();
+    }
+    function rlPaint() {
+      var ov = document.getElementById('rl-ov'); if (!ov || ov.hidden) return; var kk = isKk();
+      rlAll().then(function (have) {
+        var L = ARABIC_LETTERS, done = L.filter(function (l) { return have[l.ch]; }).length;
+        ov.innerHTML = '<div class="pc-bar"><b>🎙 ' + (kk ? 'Әріптерді жазу' : 'Запись букв') + ' · ' + done + '/28</b><button type="button" class="btn btn-sm" data-rl="close">✕</button></div>' +
+          '<div class="pc-cfg"><div class="tr-mut">' + (kk ? 'Әр әріптің атауын анық айтыңыз (әліф, бә, тә…). Тыныш бөлмеде, телефонды аузыңыздан 20–30 см ұстаңыз. Үнсіздік өзі қиылады, дыбыс деңгейі теңестіріледі. Жазбалар осы құрылғыда сақталады — кейін жалғастыруға болады.' : 'Чётко произнесите название каждой буквы (алиф, ба, та…). В тихой комнате, телефон в 20–30 см ото рта. Тишина обрежется сама, громкость выровняется. Записи хранятся на этом устройстве — можно продолжить позже.') + '</div>' +
+          '<button type="button" class="btn btn-primary" data-rl="zip"' + (done ? '' : ' disabled') + '>📦 ' + (kk ? 'ZIP жүктеу' : 'Скачать ZIP') + ' (' + done + ')</button></div>' +
+          '<div class="rl-list">' + L.map(function (l) {
+            var on = !!have[l.ch], rec = _rlCur === l.ch;
+            return '<div class="rl-row' + (on ? ' ok' : '') + (rec ? ' rec' : '') + '"><span class="rl-ch arabic" lang="ar">' + l.ch + '</span><span class="rl-nm">' + (kk ? (l.nameKk || l.name) : l.name) + '</span>' +
+              '<button type="button" class="btn btn-sm' + (rec ? ' btn-primary' : '') + '" data-rl="rec" data-ch="' + l.ch + '">' + (rec ? '⏹ ' + (kk ? 'Тоқтату' : 'Стоп') : '🎙') + '</button>' +
+              (on ? '<button type="button" class="btn btn-sm" data-rl="play" data-ch="' + l.ch + '">▶</button><button type="button" class="btn btn-sm" data-rl="old" data-ch="' + l.ch + '" title="' + (kk ? 'Бұрынғы жазба' : 'Прежняя запись') + '">⇄</button>' : '') + '</div>';
+          }).join('') + '</div>';
+      }).catch(function () { ov.innerHTML = '<div class="pc-bar"><b>🎙</b><button type="button" class="btn btn-sm" data-rl="close">✕</button></div><div class="empty-state">' + (isKk() ? 'Бұл браузерде сақтау қолжетімсіз.' : 'В этом браузере хранилище недоступно.') + '</div>'; });
+    }
+    function rlStart(ch) {
+      if (!navigator.mediaDevices || !window.MediaRecorder) { toast(isKk() ? 'Бұл браузерде жазу жоқ' : 'В этом браузере нет записи'); return; }
+      navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: false } }).then(function (stream) {
+        var chunks = [], mr = new MediaRecorder(stream); _rlRec = { mr: mr, stream: stream, ch: ch }; _rlCur = ch;
+        mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+        mr.onstop = function () {
+          stream.getTracks().forEach(function (t) { t.stop(); }); _rlRec = null; _rlCur = null;
+          rlProcess(new Blob(chunks, { type: mr.mimeType || 'audio/webm' })).then(function (wav) { return rlPut(ch, wav); }).then(function () { rlPaint(); var a = new Audio(); rlAll().then(function (h) { if (h[ch]) { a.src = URL.createObjectURL(h[ch]); a.play().catch(function () {}); } }); })
+            .catch(function () { toast(isKk() ? 'Жазба өңделмеді — қайталап көріңіз' : 'Не удалось обработать запись — попробуйте ещё раз'); rlPaint(); });
+        };
+        mr.start(); rlPaint();
+        setTimeout(function () { if (_rlRec && _rlRec.mr === mr && mr.state === 'recording') mr.stop(); }, 6000); // не дольше 6 секунд
+      }).catch(function () { toast(isKk() ? 'Микрофонға рұқсат жоқ' : 'Нет доступа к микрофону'); });
+    }
+    document.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-rl]'); if (!b) return;
+      var k = b.getAttribute('data-rl'), ch = b.getAttribute('data-ch');
+      if (k === 'close') { if (_rlRec) try { _rlRec.mr.stop(); } catch (er) {} var ov = document.getElementById('rl-ov'); if (ov) ov.hidden = true; document.body.classList.remove('pc-open'); if (location.hash === '#rec-letters') history.replaceState(null, '', location.pathname + location.search); return; }
+      if (k === 'rec') { if (_rlRec) { var same = _rlRec.ch === ch; try { _rlRec.mr.stop(); } catch (er) {} if (same) return; setTimeout(function () { rlStart(ch); }, 300); return; } rlStart(ch); return; }
+      if (k === 'play') { rlAll().then(function (h) { if (h[ch]) { var a = new Audio(URL.createObjectURL(h[ch])); a.play().catch(function () {}); } }); return; }
+      if (k === 'old') { try { playLetterRec(ch); } catch (er) {} return; }
+      if (k === 'zip') {
+        rlAll().then(function (h) {
+          var list = ARABIC_LETTERS.filter(function (l) { return h[l.ch]; });
+          return Promise.all(list.map(function (l) { return h[l.ch].arrayBuffer().then(function (ab) { return { name: rlFile(l), data: new Uint8Array(ab) }; }); }));
+        }).then(function (files) {
+          var a = document.createElement('a'); a.href = URL.createObjectURL(rlZip(files)); a.download = 'quran-academy-letters.zip'; document.body.appendChild(a); a.click(); setTimeout(function () { a.remove(); }, 1000);
+        });
+      }
+    });
+    function rlCheckHash() { if (location.hash === '#rec-letters') rlOpen(); }
+    window.addEventListener('hashchange', rlCheckHash);
+    setTimeout(rlCheckHash, 1500);
     function renderAlphabet() {
       let grid = document.getElementById('letter-grid');
       const wrap = document.getElementById('learn-alphabet');
@@ -16057,6 +16170,7 @@ function renderMistakes() {
       grid.innerHTML = ARABIC_LETTERS.map((l, i) =>
         '<div class="letter-card" data-i="'+i+'" data-ref-key="L:'+l.ch+'"><div class="char" dir="rtl">'+l.ch+'</div><div class="name">'+(kkA ? (l.nameKk||l.name) : l.name)+'</div><div style="font-size:0.75rem;color:var(--text-muted)">'+(letterTr(l)||'')+'</div></div>'
       ).join('');
+      try { var _sp = document.getElementById('letter-special'); if (!_sp) { _sp = document.createElement('div'); _sp.id = 'letter-special'; grid.parentNode.insertBefore(_sp, grid.nextSibling); } _sp.innerHTML = letterSpecialHtml(kkA); } catch (e) {}
       grid.querySelectorAll('.letter-card').forEach(card => {
         card.addEventListener('click', () => {
           grid.querySelectorAll('.letter-card').forEach(c => c.classList.remove('active'));
