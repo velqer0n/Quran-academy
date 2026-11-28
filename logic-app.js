@@ -13111,10 +13111,146 @@ function speakLetter(ch, name, ttsOnly) {
       c2Render(); try { window.scrollTo(0, 0); } catch (e) {}
     }
     window.c2GameStart = c2GameStart;
+    // ---------- 7.86: игры Практики на движке курса — уровни «Лёгкий / Средний / Сложный», меняется само задание ----------
+    var C2_NAME_CONF = [['ح', 'خ', 'ه'], ['ت', 'ط'], ['ث', 'س', 'ص'], ['ذ', 'ز', 'ظ'], ['د', 'ض'], ['ك', 'ق']];
+    function c2PKn() { var kn = c2KnownDone(); if (kn.letters.length < 6) kn = { letters: C2_LETTER_ORDER.slice(), marks: ['fatha', 'kasra', 'damma'], rules: c2AllLessons().filter(function (l) { return l.type === 'rule'; }).map(function (l) { return l.rule; }), surahs: [] }; return kn; }
+    var C2_PG = {
+      letters: { fam: 'L', lv: [['непохожие буквы', 'ұқсамайтын әріптер'], ['похожие: ب ت ث', 'ұқсастар: ب ت ث'], ['буква в слове: ـبـ', 'сөз ішіндегі әріп: ـبـ']], how: ['Прочитайте название и нажмите эту букву.', 'Атауын оқып, сол әріпті басыңыз.'] },
+      names: { fam: 'L', lv: [['отдельная буква', 'жеке әріп'], ['похожие по виду', 'пішіні ұқсастар'], ['буква в слове + похожие названия', 'сөз ішіндегі әріп + ұқсас атаулар']], how: ['Посмотрите на букву и выберите её название.', 'Әріпке қарап, атауын таңдаңыз.'] },
+      'minimal-pairs': { fam: 'L', lv: [['далёкие звуки', 'алыс дыбыстар'], ['трудные пары: س/ص, ت/ط', 'қиын жұптар: س/ص, ت/ط'], ['те же пары в словах Корана', 'сол жұптар Құран сөздерінде']], how: ['Послушайте и выберите, что прозвучало. 🔊 — ещё раз.', 'Тыңдап, не естілгенін таңдаңыз. 🔊 — тағы бір рет.'] },
+      listenwrite: { fam: 'L', lv: [['одна буква', 'бір әріп'], ['слог с огласовкой', 'қозғалысы бар буын'], ['короткое слово', 'қысқа сөз']], how: ['Послушайте и выберите, что услышали.', 'Тыңдап, естігеніңізді таңдаңыз.'] },
+      quick: { fam: 'L', lv: [['буква показана', 'әріп көрсетілген'], ['только название, мешают похожие', 'тек атауы, ұқсастар кедергі'], ['только звук, любая форма', 'тек дыбыс, кез келген пішін']], how: ['Буквы падают — ловите только нужную.', 'Әріптер түседі — тек керегін ұстаңыз.'] },
+      inword: { fam: 'W', lv: [['короткое слово, буква показана', 'қысқа сөз, әріп көрсетілген'], ['любое слово, только название', 'кез келген сөз, тек атауы'], ['все места в аяте', 'аяттағы барлық орны']], how: ['Нажмите в слове все места, где стоит эта буква.', 'Сөзден осы әріп тұрған барлық орынды басыңыз.'] },
+      blend: { fam: 'S', lv: [['буква + фатха', 'әріп + фатха'], ['все огласовки, похожие буквы', 'барлық қозғалыс, ұқсас әріптер'], ['собрать слово из кусочков', 'бөліктерден сөз құрау']], how: ['Послушайте и соберите: буква + огласовка.', 'Тыңдап, құраңыз: әріп + қозғалыс.'] },
+      construct: { fam: 'S', alias: 'blend' },
+      fillgap: { fam: 'S', lv: [['услышь и выбери знак', 'естіп, белгіні таңда'], ['посмотри и прочитай', 'қарап, оқы'], ['почини слово из Корана', 'Құран сөзін түзет']], how: ['Найдите верный знак огласовки.', 'Дұрыс қозғалыс белгісін табыңыз.'] },
+      'sr-syl': { fam: 'S', lv: [['отдельные слоги', 'жеке буындар'], ['пары слогов', 'буын жұптары'], ['слоги с сукуном, шаддой, танвином', 'сукун, шәдда, тануинмен буындар']], how: ['Прочитайте и выберите, как это звучит.', 'Оқып, қалай естілетінін таңдаңыз.'] },
+      qaida: { fam: 'S', lv: [['простые слоги', 'қарапайым буындар'], ['сукун и долгота', 'сукун мен созылу'], ['шадда и танвин, без подсказки', 'шәдда мен тануин, кеңессіз']], how: ['Прочитайте строку вслух справа налево, потом проверьте себя.', 'Жолды оңнан солға дауыстап оқып, сосын өзіңізді тексеріңіз.'] },
+      'sr-word': { fam: 'W', lv: [['короткие слова', 'қысқа сөздер'], ['с сукуном и шаддой', 'сукун мен шәддамен'], ['длинные, с «аль-» и хамзой', 'ұзын, «әл-» және һамзамен']], how: ['Прочитайте слово из Корана и выберите, как оно звучит.', 'Құран сөзін оқып, қалай естілетінін таңдаңыз.'] },
+      rules: { fam: 'R', lv: [['описание → правило', 'сипаттама → ереже'], ['пример → правило', 'мысал → ереже'], ['найди правило в аяте', 'аяттан ережені тап']], how: ['Определите правило таджвида.', 'Тәжуид ережесін анықтаңыз.'] }
+    };
+    function c2PG(g) { var d = C2_PG[g]; return d && d.alias ? C2_PG[d.alias] : d; }
+    function c2PRec(g) {
+      var d = c2PG(g); if (!d) return 1; var any = function (c) { return c2ChDoneN(c) > 0; };
+      if (d.fam === 'L') return any('c4') ? 3 : c2ChAll('c3') ? 2 : 1;
+      if (d.fam === 'S') return any('c5') ? 3 : any('c4') ? 2 : 1;
+      if (d.fam === 'W') return any('c6') ? 3 : any('c5') ? 2 : 1;
+      return any('c7') ? 3 : c2ChAll('c6') ? 2 : 1;
+    }
+    function c2PSteps(g, lvl) {
+      var kn = c2PKn(), L = kn.letters, lets = L.filter(function (c) { return c !== 'ا'; }), ws = c2ReadableWords({ letters: L, marks: kn.marks, rules: kn.rules }), out = [], tries = 0;
+      if (!ws.length) ws = c2WordsAll().filter(function (w) { return w.cl.length >= 2 && w.cl.length <= 7; });
+      var sim = function (ch) { return Array.from(C2_SIMILAR[ch] || '').filter(function (x) { return L.indexOf(x) >= 0 && x !== ch; }); };
+      var far = function (ch) { var sm = sim(ch); return L.filter(function (x) { return x !== ch && sm.indexOf(x) < 0; }); };
+      var conf = function (ch) { var g2 = C2_NAME_CONF.filter(function (x) { return x.indexOf(ch) >= 0; })[0] || []; return g2.filter(function (x) { return x !== ch && L.indexOf(x) >= 0; }); };
+      var fill = function (ch, first, n) { var o = [ch]; first.concat(shuffle(far(ch))).forEach(function (x) { if (o.length < n && o.indexOf(x) < 0) o.push(x); }); return shuffle(o); };
+      var forms = ['ini', 'mid', 'fin'];
+      var V = [['fatha', 'َ'], ['kasra', 'ِ'], ['damma', 'ُ']].filter(function (x) { return kn.marks.indexOf(x[0]) >= 0; }); if (!V.length) V = [['fatha', 'َ']];
+      var gg = (C2_PG[g] && C2_PG[g].alias) || g;
+      if (gg === 'qaida') {
+        var rl = lvl === 1 ? [null, null] : lvl === 2 ? ['sukun', 'madd'] : ['shadda', 'tanween'], all = [];
+        rl.forEach(function (r) { var it = r ? c2LineItems({ letters: L, marks: kn.marks, rules: ['sukun', 'madd', 'shadda', 'tanween'] }, r, 5) : c2LineItems({ letters: L, marks: kn.marks, rules: [] }, '', 4); if (it.length) { out.push({ k: 'line', items: it, noReveal: lvl === 3 }); all = all.concat(it); } });
+        return out.concat(c2LineReadSteps(shuffle(all), 'W', 4).map(function (x) { delete x.must; return x; }));
+      }
+      while (out.length < 8 && tries++ < 80) {
+        var ch = c2Pick(lets, 1)[0], st = null;
+        if (gg === 'letters') { var f = lvl === 3 ? (c2NoJoin(ch) ? 'fin' : c2Pick(forms, 1)[0]) : 'iso'; st = { k: 'nameq', ch: ch, f: f, o: lvl === 1 ? fill(ch, [], 3) : fill(ch, sim(ch), 4), key: 'L:' + ch }; }
+        else if (gg === 'names') { var o2 = lvl === 1 ? fill(ch, [], 3) : lvl === 2 ? fill(ch, sim(ch), 4) : fill(ch, conf(ch).concat(sim(ch)), 4); st = { k: 'name', ch: ch, o: o2, key: 'L:' + ch }; if (lvl === 3) st.fg = c2FormGlyph(ch, c2NoJoin(ch) ? 'fin' : c2Pick(forms, 1)[0]); }
+        else if (gg === 'minimal-pairs') {
+          if (lvl === 1) { var fr = far(ch); if (fr.length) st = { k: 'pair', ch: ch, other: c2Pick(fr, 1)[0], key: 'L:' + ch }; }
+          else { var sm2 = sim(ch).concat(conf(ch)); if (sm2.length) { var oth = c2Pick(sm2, 1)[0]; if (lvl === 2) st = { k: 'pair', ch: ch, other: oth, key: 'L:' + ch }; else { var wa = typeof mpWordFor === 'function' ? mpWordFor(ch) : null, wb = typeof mpWordFor === 'function' ? mpWordFor(oth) : null; if (wa && wb && wa.ar !== wb.ar) st = { k: 'listenword', w: wa, o: shuffle([wa.ar, wb.ar]), key: 'L:' + ch }; } } }
+        }
+        else if (gg === 'listenwrite') {
+          if (lvl === 1) st = { k: 'listen', ch: ch, o: fill(ch, sim(ch).slice(0, 1), 4), key: 'L:' + ch };
+          else if (lvl === 2) { var v2 = c2Pick(V, 1)[0], others = shuffle(V.filter(function (x) { return x !== v2; }).map(function (x) { return ch + x[1]; }).concat(c2Pick(sim(ch).concat(far(ch)), 2).map(function (c) { return c + v2[1]; }))).slice(0, 3); st = { k: 'listensyl', ar: ch + v2[1], o: shuffle([ch + v2[1]].concat(others)), key: 'M:' + v2[0] }; }
+          else { var w3 = c2Pick(ws, 1)[0], ow = c2Pick(ws.filter(function (x) { return x.ar !== w3.ar && Math.abs(x.cl.length - w3.cl.length) <= 1; }), 2); if (w3 && ow.length === 2) st = { k: 'listenword', w: w3, o: shuffle([w3].concat(ow)).map(function (x) { return x.ar; }), key: 'W' }; }
+        }
+        else if (gg === 'quick') st = c2CatchStep(ch, L, lvl);
+        else if (gg === 'inword') st = c2FindStep(ch, ws, lvl);
+        else if (gg === 'blend') {
+          if (lvl === 3) st = c2ScatterFrom(ws, 1, 1)[0] || null;
+          else { var v3 = lvl === 1 ? V[0] : c2Pick(V, 1)[0], dl = lvl === 1 ? c2Pick(far(ch), 1)[0] : (c2Pick(sim(ch), 1)[0] || c2Pick(far(ch), 1)[0]); st = { k: 'build', ar: ch + v3[1], tiles: shuffle([ch, dl].concat((lvl === 1 ? [V[0], V[1] || V[0]] : V).map(function (x) { return '◌' + x[1]; }).filter(function (x, i, a) { return a.indexOf(x) === i; }))), key: 'M:' + v3[0] }; }
+        }
+        else if (gg === 'fillgap') {
+          var v4 = c2Pick(V, 1)[0], vs = V.map(function (x) { return ch + x[1]; });
+          if (lvl === 1 && V.length >= 2) { var alt = c2Pick(V.filter(function (x) { return x !== v4; }), 1)[0]; st = { k: 'listensyl', ar: ch + v4[1], o: shuffle([ch + v4[1], ch + alt[1]]), key: 'M:' + v4[0] }; }
+          else if (lvl <= 2) st = { k: 'readsyl', ar: ch + v4[1], ans: c2Syl(ch, C2_MARKS[v4[0]]), o: c2Uniq(c2Syl(ch, C2_MARKS[v4[0]]), V.map(function (x) { return c2Syl(ch, C2_MARKS[x[0]]); }), 3), key: 'M:' + v4[0] };
+          else st = c2FixFrom(ws, 2)[0] || null;
+        }
+        else if (gg === 'sr-syl') {
+          if (lvl === 1) { var v5 = c2Pick(V, 1)[0]; st = { k: 'readsyl', ar: ch + v5[1], ans: c2Syl(ch, C2_MARKS[v5[0]]), o: c2Uniq(c2Syl(ch, C2_MARKS[v5[0]]), c2Pick(lets, 4).map(function (c) { return c2Syl(c, C2_MARKS[v5[0]]); }).concat(V.map(function (x) { return c2Syl(ch, C2_MARKS[x[0]]); })), 3), key: 'M:' + v5[0] }; }
+          else { var its = c2LineItems({ letters: L, marks: kn.marks, rules: lvl === 2 ? [] : ['sukun', 'madd', 'shadda', 'tanween'] }, lvl === 2 ? '' : null, 4); st = c2LineReadSteps(its, 'W', 1)[0] || null; if (st) delete st.must; }
+        }
+        else if (gg === 'sr-word') {
+          var pool = ws.filter(function (w) { var a = w.ar; if (lvl === 1) return w.cl.length <= 3 && !/[ّْۡٱأإآؤئء]/.test(a); if (lvl === 2) return /[ّْۡ]/.test(a) && !/[ٱ]/.test(a); return /[ٱأإآؤئء]/.test(a) || w.cl.length >= 5; });
+          if (!pool.length) pool = ws;
+          var w4 = c2Pick(pool, 1)[0], ow4 = c2Pick(pool.filter(function (x) { return x.ar !== w4.ar; }), 2);
+          if (w4 && ow4.length) st = { k: 'readword', ar: w4.ar, ans: c2Tr(w4.ar), o: c2Uniq(c2Tr(w4.ar), ow4.map(function (x) { return c2Tr(x.ar); }), 3), w: w4, key: 'W' };
+        }
+        else if (gg === 'rules') {
+          var rids = kn.rules.filter(function (r) { return !!c2Rule(r); }); if (!rids.length) break;
+          var rs = c2Steps({ id: '__arc', type: 'rule', rule: c2Pick(rids, 1)[0] }).filter(function (x) { return lvl === 1 ? x.k === 'choice' : lvl === 2 ? (x.k === 'cls' || x.k === 'noon' || x.k === 'readword') : x.k === 'findrule'; });
+          if (!rs.length && lvl === 3) rs = c2Steps({ id: '__arc', type: 'rule', rule: c2Pick(rids, 1)[0] }).filter(function (x) { return x.k === 'cls' || x.k === 'noon'; });
+          st = rs.length ? c2Pick(rs, 1)[0] : null;
+        }
+        if (st) { st = JSON.parse(JSON.stringify(st)); delete st.must; if (!out.some(function (x) { return JSON.stringify(x) === JSON.stringify(st); })) out.push(st); }
+      }
+      return out;
+    }
+    // «Найди в слове»: 1 — короткое слово, буква показана; 2 — любое слово, только название; 3 — все места в аяте
+    function c2FindStep(ch, ws, lvl) {
+      var has = function (cl) { return cl.map(function (c, i) { return (C2_NORM[c[0]] || c[0]) === ch ? i : -1; }).filter(function (i) { return i >= 0; }); };
+      if (lvl < 3) {
+        var pool = ws.filter(function (w) { var h = has(w.cl); return h.length >= 1 && (lvl === 2 || (w.cl.length <= 4 && h.length === 1)); });
+        var w = c2Pick(pool, 1)[0]; if (!w) return null;
+        return { k: 'findl', ch: ch, lvl: lvl, words: [{ cl: w.cl }], need: has(w.cl).map(function (i) { return '0:' + i; }), w: w, key: 'L:' + ch };
+      }
+      var ays = []; try { [1, 112, 113, 114, 108, 103].concat(Object.keys(WBW_STUDY_SURAHS || {}).map(Number)).forEach(function (sn) { (typeof wbwStudyAyahsFor === 'function' ? wbwStudyAyahsFor(sn) : []).forEach(function (ay) { var wd = (ay.words || []).map(function (x) { return { cl: _wrClusters(x.ar) }; }); var need = []; wd.forEach(function (x, wi) { has(x.cl).forEach(function (ci) { need.push(wi + ':' + ci); }); }); if (wd.length >= 2 && wd.length <= 6 && need.length >= 2) ays.push({ words: wd, need: need }); }); }); } catch (e) {}
+      var a = c2Pick(ays, 1)[0]; if (!a) return null;
+      return { k: 'findl', ch: ch, lvl: 3, words: a.words, need: a.need, key: 'L:' + ch };
+    }
+    function c2PHowInit() {
+    C2_HOWTO.nameq = ['Прочитайте название буквы и нажмите её среди вариантов.', 'Әріптің атауын оқып, оны нұсқалардан басыңыз.'];
+    C2_HOWTO.findl = ['Нажмите в слове все места, где стоит эта буква — в любой форме.', 'Сөзден осы әріп тұрған барлық орынды басыңыз — кез келген пішінде.'];
+    if (!C2_HOWTO.choice) C2_HOWTO.choice = ['Прочитайте вопрос и выберите один ответ.', 'Сұрақты оқып, бір жауапты таңдаңыз.'];
+    if (!C2_HOWTO.cls) C2_HOWTO.cls = ['Посмотрите на пример и выберите, какое правило здесь действует.', 'Мысалға қарап, мұнда қай ереже әрекет ететінін таңдаңыз.'];
+    }
+    function c2PStart(g, lvl) {
+      var d = c2PG(g); if (!d) return false; c2PHowInit();
+      var steps = c2PSteps(g, lvl); if (steps.length < 3) { toast(c2T('Для этого уровня пока мало пройденного — попробуйте уровень полегче.', 'Бұл деңгейге өтілгені әзірге аз — жеңілірек деңгейді байқап көріңіз.')); return true; }
+      var S = c2St(); if (!S.glvl) S.glvl = {}; S.glvl[g] = lvl;
+      var title = (typeof qzGameName === 'function' && qzGameName(g)) || g;
+      C2.lesson = { id: 'pg_' + g, ch: null, t: [title, title], type: 'practice', pgame: g, plvl: lvl };
+      C2.steps = steps; C2.i = 0; C2.ok = 0; C2.n = 0; C2.bad = 0; C2.good = 0; C2.easy = false; C2.ret = 'games'; C2.combo = 0;
+      if (g === 'rules') { try { loadTajweedData(); } catch (e) {} }
+      try { showView('teacher'); } catch (e) {}
+      c2Render(); try { window.scrollTo(0, 0); } catch (e) {}
+      return true;
+    }
+    function c2PCardHtml(g) {
+      var d = c2PG(g), kk = isKk(), S = c2St(), rec = c2PRec(g), cur = (S.glvl && S.glvl[g]) || rec, title = (typeof qzGameName === 'function' && qzGameName(g)) || g;
+      var names = [['Лёгкий', 'Жеңіл'], ['Средний', 'Орташа'], ['Сложный', 'Қиын']];
+      return '<div class="qz-start c2-pcard"><div class="qz-start-title">' + c2Esc(title) + '</div><div class="qz-start-desc">💡 ' + c2Esc(c2T(d.how[0], d.how[1])) + '</div>' +
+        '<div class="c2-plv">' + d.lv.map(function (x, i) { var n = i + 1; return '<button type="button" class="c2-plvb' + (n === cur ? ' on' : '') + '" data-c2-plv="' + n + '"><b>' + c2T(names[i][0], names[i][1]) + (n === rec ? ' <span>' + c2T('по курсу', 'курс бойынша') + '</span>' : '') + '</b><small>' + c2Esc(c2T(x[0], x[1])) + '</small></button>'; }).join('') + '</div>' +
+        '<div class="qz-start-note">' + c2T('Без спешки: нет таймера и рекордов. В каждом задании есть «💡 Подсказка».', 'Асықпаңыз: таймер мен рекорд жоқ. Әр тапсырмада «💡 Көмек» бар.') + '</div>' +
+        '<button type="button" class="btn btn-primary qz-start-btn" data-c2-pgo="' + c2Esc(g) + '">▶ ' + c2T('Начать', 'Бастау') + '</button></div>';
+    }
+    window.c2PHas = function (g) { return !!c2PG(g); };
+    window.c2PCardHtml = c2PCardHtml; window.c2PStart = c2PStart;
     function c2PracFinish() {
       var l = C2.lesson, root = c2Root(), first = C2.steps.filter(function (x) { return !x.rev2; }).length, okF = Math.max(0, first - C2.steps.filter(function (x) { return x.rev2; }).length), ret = C2.ret;
       C2.lesson = null; try { saveState(); } catch (e) {}
       if (!root) return;
+      if (l.pgame) {
+        var pct = first ? Math.round(okF / first * 100) : 0;
+        try { var lq = JSON.parse(localStorage.getItem('qz_last') || '{}'); lq[l.pgame] = pct; localStorage.setItem('qz_last', JSON.stringify(lq)); } catch (e) {}
+        var nm = [['Лёгкий', 'Жеңіл'], ['Средний', 'Орташа'], ['Сложный', 'Қиын']];
+        root.innerHTML = '<div class="c2-end"><div class="c2-endico c2-cele">🎯</div><h3>' + c2Esc(c2Title(l)) + ' · ' + c2T(nm[l.plvl - 1][0], nm[l.plvl - 1][1]) + '</h3><div class="card">' + c2T('С первого раза верно: ', 'Бірінші реттен дұрыс: ') + '<b>' + okF + ' / ' + first + '</b></div>' +
+          (l.plvl < 3 && pct >= 90 ? '<button type="button" class="btn btn-primary c2-next" data-c2="plvl" data-g="' + c2Esc(l.pgame) + '" data-l="' + (l.plvl + 1) + '">⬆ ' + c2T('Попробуем «' + nm[l.plvl][0] + '»?', '«' + nm[l.plvl][1] + '» байқап көрейік пе?') + '</button>' : '') +
+          '<button type="button" class="btn' + (l.plvl < 3 && pct >= 90 ? '' : ' btn-primary') + ' c2-next" data-c2="plvl" data-g="' + c2Esc(l.pgame) + '" data-l="' + l.plvl + '">↻ ' + c2T('Ещё раз', 'Тағы бір рет') + '</button>' +
+          '<button type="button" class="btn c2-later" data-c2="back" data-ret="games">' + c2T('Назад к практике', 'Машықтануға оралу') + '</button></div>';
+        return;
+      }
       root.innerHTML = '<div class="c2-end"><div class="c2-endico c2-cele">🎯</div><h3>' + c2Esc(c2Title(l)) + '</h3><div class="card">' + c2T('С первого раза верно: ', 'Бірінші реттен дұрыс: ') + '<b>' + okF + ' / ' + first + '</b></div>' +
         '<button type="button" class="btn btn-primary c2-next" data-c2="game" data-g="' + c2Esc(l.game) + '"' + (l.opt && l.opt.pair ? ' data-pair="' + c2Esc(l.opt.pair.join('')) + '"' : '') + '>↻ ' + c2T('Ещё раз', 'Тағы бір рет') + '</button>' +
         '<button type="button" class="btn c2-later" data-c2="back" data-ret="' + (ret || 'games') + '">' + (ret === 'teacher' ? c2T('К карте курса', 'Курс картасына') : c2T('Назад к практике', 'Машықтануға оралу')) + '</button></div>';
@@ -13144,22 +13280,26 @@ function speakLetter(ch, name, ttsOnly) {
       var rate = function (id) { var x = (S.ls || {})[id]; return x && x.n ? (x.n - x.ok) / x.n : null; };
       // все 28 букв без ошибок
       var letters = C2_LETTER_ORDER, k = S.know;
-      if (l.ch === 'c3' && c2ChAll('c3') && letters.every(function (c) { var e = k['L:' + c]; return e && e.n && e.ok === e.n; })) { var o = once('perfect28', c2T('Ого, все 28 букв курса — без единой ошибки. Вы точно учите арабский впервые? Если тема знакома — любой урок можно открыть сразу на карте.', 'Ойпырмай, курстың 28 әрпі де — бірде-бір қатесіз. Арабшаны шынымен алғаш үйреніп жүрсіз бе? Тақырып таныс болса — картадан кез келген сабақты бірден ашуға болады.')); if (o) return o; }
+      if (l.type === 'final' && !S.notes.firstAyah) { var oa = once('firstAyah', c2T('🌟 Вы только что сами прочитали Коран. Запомните этот момент 🤍', '🌟 Сіз жаңа ғана Құранды өзіңіз оқыдыңыз. Осы сәтті есте сақтаңыз 🤍')); if (oa) return oa; }
+      if (l.ch === 'c3' && c2ChAll('c3') && letters.every(function (c) { var e = k['L:' + c]; return e && e.n && e.ok === e.n; })) { var o = once('perfect28', c2T('😮 Все 28 букв — ни одной ошибки! Похоже, вы очень хорошо учитесь… или тайно уже знаете арабский? 🕵️', '😮 28 әріптің бәрі — бірде-бір қатесіз! Өте жақсы оқитын сияқтысыз… әлде арабшаны жасырын білесіз бе? 🕵️')); if (o) return o; }
+      if (l.ch === 'c2' && c2ChAll('c2') && ['fatha', 'kasra', 'damma'].every(function (m) { var e = k['M:' + m]; return e && e.n && e.ok === e.n; })) { var om = once('perfectMarks', c2T('🎯 Фатха, кясра, дамма — всё без единой ошибки. Глаз уже цепляется за знаки 👀', '🎯 Фатха, кәсра, дамма — бәрі бірде-бір қатесіз. Көз белгілерді бірден байқайды 👀')); if (om) return om; }
+      var chP = c2Chapter(l.ch);
+      if (chP && c2ChAll(l.ch)) { var lsx = chP.lessons.map(function (x) { return (S.ls || {})[x.id]; }).filter(Boolean); if (lsx.length >= Math.ceil(chP.lessons.length / 2) && lsx.every(function (x) { return x.ok === x.n; })) { var tj = l.ch === 'c6' || l.ch === 'c7'; var op = once('perfectCh_' + l.ch, tj ? c2T('🎵 Все правила главы — без единой ошибки. Так уже читают знающие люди!', '🎵 Тараудың барлық ережесі — бірде-бір қатесіз. Білетін адамдар осылай оқиды!') : c2T('🔥 Целая глава — и ни одной ошибки! Или вы подсматриваете? 😏 Шучу, так держать!', '🔥 Тұтас тарау — бірде-бір қатесіз! Әлде сығалап отырсыз ба? 😏 Әзілім ғой, осылай жалғастырыңыз!')); if (op) return op; } }
       // рост за главу
       var ch = c2Chapter(l.ch);
       if (ch && c2ChAll(l.ch)) {
         var rs = ch.lessons.map(function (x) { return rate(x.id); }).filter(function (x) { return x != null; });
-        if (rs.length >= 4) { var a = (rs[0] + rs[1]) / 2, b = (rs[rs.length - 1] + rs[rs.length - 2]) / 2; if (a >= 0.25 && a - b >= 0.15) { var o2 = once('grow_' + l.ch, c2T('Главу «' + c2Title(ch) + '» начинали с ' + Math.round(a * 100) + '% ошибок, а закончили с ' + Math.round(b * 100) + '%. Это заметный рост.', '«' + c2Title(ch) + '» тарауын ' + Math.round(a * 100) + '% қатемен бастап, ' + Math.round(b * 100) + '% қатемен аяқтадыңыз. Бұл — айтарлықтай өсу.')); if (o2) return o2; } }
+        if (rs.length >= 4) { var a = (rs[0] + rs[1]) / 2, b = (rs[rs.length - 1] + rs[rs.length - 2]) / 2; if (a >= 0.25 && a - b >= 0.15) { var o2 = once('grow_' + l.ch, c2T('📈 Главу «' + c2Title(ch) + '» начинали с ' + Math.round(a * 100) + '% ошибок, а закончили с ' + Math.round(b * 100) + '% — вот это рост 💪', '📈 «' + c2Title(ch) + '» тарауын ' + Math.round(a * 100) + '% қатемен бастап, ' + Math.round(b * 100) + '% қатемен аяқтадыңыз — міне, өсу 💪')); if (o2) return o2; } }
       }
       // постоянно путает две буквы
       var conf = S.conf || {}, worst = Object.keys(conf).sort(function (x, y) { return conf[y] - conf[x]; })[0];
-      if (worst && conf[worst] >= 4 && !S.notes['conf_' + worst]) { S.notes['conf_' + worst] = Date.now(); return '<div class="card c2-note">👀 ' + c2T(worst.split('').join(' и ') + ' путаются уже ' + conf[worst] + ' раз — это частая трудность.', worst.split('').join(' мен ') + ' ' + conf[worst] + ' рет шатасты — бұл жиі кездесетін қиындық.') + ' <button type="button" class="btn btn-sm" data-c2="game" data-g="pair" data-pair="' + c2Esc(worst) + '" data-ret="teacher">👂 ' + c2T('2 минуты только на них', 'Тек соларға 2 минут') + '</button></div>'; }
+      if (worst && conf[worst] >= 4 && !S.notes['conf_' + worst]) { S.notes['conf_' + worst] = Date.now(); return '<div class="card c2-note">👀 ' + c2T('🤔 ' + worst.split('').join(' и ') + ' снова поменялись местами — уже ' + conf[worst] + ' раз. Это частая трудность, давайте 2 минуты только на них?', '🤔 ' + worst.split('').join(' мен ') + ' тағы орын ауыстырды — ' + conf[worst] + ' рет. Бұл жиі кездесетін қиындық, тек соларға 2 минут бөлейік пе?') + ' <button type="button" class="btn btn-sm" data-c2="game" data-g="pair" data-pair="' + c2Esc(worst) + '" data-ret="teacher">👂 ' + c2T('2 минуты только на них', 'Тек соларға 2 минут') + '</button></div>'; }
       // два трудных урока подряд
       var all = c2AllLessons(), ix = all.indexOf(l), prev = ix > 0 ? all[ix - 1] : null, r1 = rate(l.id), r0 = prev ? rate(prev.id) : null;
-      if (r1 != null && r0 != null && r1 >= 0.5 && r0 >= 0.5 && !S.notes['hard_' + l.id]) { S.notes['hard_' + l.id] = Date.now(); return '<div class="card c2-note">👀 ' + c2T('Два урока подряд дались трудно — это нормально, тема непростая. Можно повторить прошлый урок или выбрать спокойный темп.', 'Қатарынан екі сабақ қиын болды — бұл қалыпты, тақырып оңай емес. Алдыңғы сабақты қайталауға не баяу қарқынды таңдауға болады.') + ' <button type="button" class="btn btn-sm" data-c2="go" data-id="' + prev.id + '">↻ ' + c2T('Повторить прошлый', 'Алдыңғыны қайталау') + '</button> <button type="button" class="btn btn-sm" data-c2="pace" data-v="calm">' + c2T('Спокойный темп', 'Баяу қарқын') + '</button></div>'; }
+      if (r1 != null && r0 != null && r1 >= 0.5 && r0 >= 0.5 && !S.notes['hard_' + l.id]) { S.notes['hard_' + l.id] = Date.now(); return '<div class="card c2-note">👀 ' + c2T('🌧 Два урока подряд дались непросто — это нормально, тема сложная. Повторим прошлый или пойдём спокойнее?', '🌧 Қатарынан екі сабақ оңай болмады — бұл қалыпты, тақырып күрделі. Алдыңғыны қайталаймыз ба, әлде баяу жүреміз бе?') + ' <button type="button" class="btn btn-sm" data-c2="go" data-id="' + prev.id + '">↻ ' + c2T('Повторить прошлый', 'Алдыңғыны қайталау') + '</button> <button type="button" class="btn btn-sm" data-c2="pace" data-v="calm">' + c2T('Спокойный темп', 'Баяу қарқын') + '</button></div>'; }
       // уверенно и без ошибок три урока подряд
       var last3 = all.slice(Math.max(0, ix - 2), ix + 1).map(function (x) { return rate(x.id); });
-      if (last3.length === 3 && last3.every(function (x) { return x === 0; })) { var o3 = once('confident', c2T('Три урока подряд без ошибок — вы идёте уверенно. Если следующая тема уже знакома, её урок можно открыть сразу на карте.', 'Қатарынан үш сабақ қатесіз — сенімді келе жатырсыз. Келесі тақырып таныс болса, оның сабағын картадан бірден ашуға болады.')); if (o3) return o3; }
+      if (last3.length === 3 && last3.every(function (x) { return x === 0; })) { var o3 = once('confident', c2T('😎 Три урока подряд без ошибок — вы идёте уверенно. Если следующая тема уже знакома, её урок можно открыть сразу на карте.', '😎 Қатарынан үш сабақ қатесіз — сенімді келе жатырсыз. Келесі тақырып таныс болса, оның сабағын картадан бірден ашуға болады.')); if (o3) return o3; }
       return '';
     }
     // значок урока на карте пути
@@ -13361,7 +13501,8 @@ function speakLetter(ch, name, ttsOnly) {
         case 'choice': case 'first': return String(v) === '0';
         case 'cls': return +v === s.ans;
         case 'findrule': return (s.hitNums || []).indexOf(+v) >= 0;
-        case 'listen': case 'form': case 'name': case 'pair': return v === s.ch;
+        case 'listen': case 'form': case 'name': case 'pair': case 'nameq': return v === s.ch;
+        case 'findl': return false;
         case 'readsyl': case 'readword': return v === s.ans;
         case 'listensyl': case 'build': return v === s.ar;
         case 'listenword': return v === s.w.ar;
@@ -13421,6 +13562,11 @@ function speakLetter(ch, name, ttsOnly) {
           return h + '<div class="c2-q">' + c2T('Нажмите букву, с которой начинается слово', 'Сөз басталатын әріпті басыңыз') + '</div><div class="c2-first" dir="rtl">' + s.cl.map(function (c, i) { return '<button type="button" class="c2-tile" data-c2-a="' + i + '">' + c2Ar(c) + '</button>'; }).join('') + '</div>';
         case 'choice':
           return h + '<div class="c2-q">' + c2Esc(c2T(s.q[0], s.q[1])) + '</div><div class="c2-opts c2-col">' + shuffle(s.o.map(function (o, i) { return { o: o, i: i }; })).map(function (x) { return c2OptBtn(x.i, c2Esc(c2T(x.o[0], x.o[1]))); }).join('') + '</div>';
+        case 'nameq':
+          return h + '<div class="c2-q">' + c2T('Найдите букву: ', 'Әріпті табыңыз: ') + '<b>' + c2Esc(c2LName(s.ch)) + '</b>' + (s.f && s.f !== 'iso' ? ' <small class="c2-mut">(' + c2T('как она пишется в слове', 'сөз ішінде қалай жазылады') + ')</small>' : '') + '</div><div class="c2-opts">' + s.o.map(function (c) { return c2OptBtn(c, c2Ar(c2FormGlyph(c, s.f && !(c2NoJoin(c) && s.f !== 'iso') ? s.f : (s.f && s.f !== 'iso' ? 'fin' : 'iso'))), 'c2-big-opt'); }).join('') + '</div>';
+        case 'findl':
+          return h + '<div class="c2-q">' + c2T('Найдите все буквы ', 'Барлық әріпті табыңыз: ') + (s.lvl === 1 ? c2Ar(s.ch) + ' ' : '') + '<b>' + c2Esc(c2LName(s.ch)) + '</b> <span class="c2-mut">(<span data-c2-fg>0</span> / ' + s.need.length + ')</span></div>' +
+            '<div class="c2-fixw c2-findw" dir="rtl">' + s.words.map(function (wd, wi) { var cl = wd.cl; return '<span class="c2-fword">' + cl.map(function (c, ci) { return '<button type="button" class="c2-fixc" data-c2-fl="' + wi + ':' + ci + '">' + c2Ar(c2FormGlyph(c, c2Form(cl, ci))) + '</button>'; }).join('') + '</span>'; }).join('') + '</div>';
         case 'match': {
           // 7.83: одна сетка — пары рядов строго напротив, все карточки одной высоты
           var rs = s._rs || (s._rs = shuffle(s.items.map(function (x, i) { return i; })));
@@ -13449,7 +13595,7 @@ function speakLetter(ch, name, ttsOnly) {
         case 'line':
           return h + '<div class="c2-q">' + c2T('Прочитайте строку вслух', 'Жолды дауыстап оқыңыз') + '</div>' + (c2St().seen.line ? '' : (c2St().seen.line = 1, '<div class="c2-howto">💡 ' + c2Esc(c2T(C2_HOWTO.line[0], C2_HOWTO.line[1])) + '</div>')) +
             '<div class="c2-line" dir="rtl">' + s.items.map(function (ar, i) { return '<button type="button" class="c2-lch" data-c2-lc="' + i + '">' + c2Ar(ar) + '<small hidden>' + c2Esc(c2TrF(ar)) + '</small></button>'; }).join('') + '</div>' +
-            '<button type="button" class="btn btn-sm c2-lall" data-c2="lall">👁 ' + c2T('Показать чтение всей строки', 'Бүкіл жолдың оқылуын көрсету') + '</button>' +
+            (s.noReveal ? '' : '<button type="button" class="btn btn-sm c2-lall" data-c2="lall">👁 ' + c2T('Показать чтение всей строки', 'Бүкіл жолдың оқылуын көрсету') + '</button>') +
             '<button type="button" class="btn btn-primary c2-next" data-c2="next">' + c2T('Прочитал(а), дальше', 'Оқыдым, әрі қарай') + '</button>';
         case 'readaloud':
           return h + '<div class="c2-q">' + c2T('Прочитайте вслух сами, потом проверьте', 'Өзіңіз дауыстап оқып, сосын тексеріңіз') + '</div><div class="c2-big">' + c2Ar(s.w.ar) + '</div><div class="c2-ra" hidden><div class="c2-ra-tr">' + c2Esc(c2Tr(s.w.ar)) + '</div><div class="c2-mut">' + c2Esc(c2Mean(s.w.m, s.w.ar)) + '</div></div>' +
@@ -13462,7 +13608,7 @@ function speakLetter(ch, name, ttsOnly) {
           }
           return h + '<div class="c2-q">' + c2T('Послушайте и выберите букву', 'Тыңдап, әріпті таңдаңыз') + '</div><button type="button" class="c2-play" data-c2="sayl" data-ch="' + c2Esc(s.ch) + '">🔊</button><div class="c2-opts">' + s.o.map(function (c) { return c2OptBtn(c, c2Ar(c), 'c2-big-opt'); }).join('') + '</div>';
         case 'name':
-          return h + '<div class="c2-q">' + c2T('Как называется эта буква?', 'Бұл әріп қалай аталады?') + '</div><div class="c2-big">' + c2Ar(s.ch) + '</div><div class="c2-opts c2-col">' + s.o.map(function (c) { return c2OptBtn(c, c2Esc(c2LName(c))); }).join('') + '</div>';
+          return h + '<div class="c2-q">' + c2T('Как называется эта буква?', 'Бұл әріп қалай аталады?') + '</div><div class="c2-big">' + c2Ar(s.fg || s.ch) + (s.fg ? '<small>' + c2T('буква в слове', 'сөз ішіндегі әріп') + '</small>' : '') + '</div><div class="c2-opts c2-col">' + s.o.map(function (c) { return c2OptBtn(c, c2Esc(c2LName(c))); }).join('') + '</div>';
         case 'form':
           return h + '<div class="c2-q">' + c2T('Какая это буква?', 'Бұл қай әріп?') + '</div><div class="c2-big">' + c2Ar(s.form) + '<small>' + [c2T('отдельно', 'жеке'), c2T('в начале слова', 'сөз басында'), c2T('в середине слова', 'сөз ортасында'), c2T('в конце слова', 'сөз соңында')][s.fi] + '</small></div><div class="c2-opts">' + s.o.map(function (c) { return c2OptBtn(c, c2Ar(c), 'c2-big-opt'); }).join('') + '</div>';
         case 'pair':
@@ -13603,7 +13749,7 @@ function speakLetter(ch, name, ttsOnly) {
       switch (s.k) {
         case 'first': ok = +val === 0; right = s.cl[0]; why = c2T('Арабское слово начинается справа: первая буква — крайняя правая.', 'Арабша сөз оң жақтан басталады: бірінші әріп — ең оң жақтағысы.'); break;
         case 'choice': ok = +val === 0; right = c2T(s.o[0][0], s.o[0][1]); break;
-        case 'listen': case 'form': case 'name': case 'pair':
+        case 'listen': case 'form': case 'name': case 'pair': case 'nameq':
           ok = val === s.ch; right = s.ch;
           if (!ok) why = c2T('Вы выбрали ', 'Сіз таңдадыңыз: ') + val + ' (' + c2LName(val) + ') — ' + c2Tip(val) + ' ' + c2T('Правильно ', 'Дұрысы ') + s.ch + ' (' + c2LName(s.ch) + ') — ' + c2Tip(s.ch);
           break;
@@ -13620,6 +13766,7 @@ function speakLetter(ch, name, ttsOnly) {
         case 'scatter': ok = val === 'ok'; right = s.w.ar; break;
         case 'fix': ok = val === 'ok'; right = s.w.ar; break;
         case 'catch': ok = val === 'ok'; right = c2LName(s.ch) + ' ' + s.ch; break;
+        case 'findl': ok = val === 'ok'; right = c2LName(s.ch) + ' ' + s.ch; break;
       }
       C2.answered = true; C2.n++; if (ok) C2.ok++;
       c2Know(s.key, ok);
@@ -13631,10 +13778,10 @@ function speakLetter(ch, name, ttsOnly) {
         var v = b.getAttribute('data-c2-a');
         b.disabled = true;
         var isRight = (s.k === 'choice' && v === '0') || (s.k === 'first' && v === '0') || (s.k === 'cls' && +v === s.ans) || (s.k === 'findrule' && (s.hitNums || []).indexOf(+v) >= 0) ||
-          (['listen', 'form', 'name', 'pair'].indexOf(s.k) >= 0 && v === s.ch) || (['readsyl', 'readword'].indexOf(s.k) >= 0 && v === s.ans) || (s.k === 'listensyl' && v === s.ar) || (s.k === 'listenword' && v === s.w.ar) || (s.k === 'meaning' && v === (s.mean || s.w.m)) || (s.k === 'noon' && v === s.ans);
+          (['listen', 'form', 'name', 'pair', 'nameq'].indexOf(s.k) >= 0 && v === s.ch) || (['readsyl', 'readword'].indexOf(s.k) >= 0 && v === s.ans) || (s.k === 'listensyl' && v === s.ar) || (s.k === 'listenword' && v === s.w.ar) || (s.k === 'meaning' && v === (s.mean || s.w.m)) || (s.k === 'noon' && v === s.ans);
         if (isRight) b.classList.add('ok'); else if (b === btn) b.classList.add('no');
       });
-      if (!ok && !s.rev2 && C2.lesson.type !== 'arcade') { var cp = JSON.parse(JSON.stringify(s)); cp.rev2 = 1; delete cp.hitNums; delete cp._rs; delete cp._found; delete cp._got; delete cp._err; delete cp._pos; delete cp._sel; C2.steps.push(cp); }
+      if (!ok && !s.rev2 && C2.lesson.type !== 'arcade') { var cp = JSON.parse(JSON.stringify(s)); cp.rev2 = 1; delete cp.hitNums; delete cp._rs; delete cp._found; delete cp._got; delete cp._ex; delete cp._err; delete cp._pos; delete cp._sel; C2.steps.push(cp); }
       // 7.82: звук, вибрация, анимация кнопки, «подряд»
       c2Sfx(ok);
       if (btn) btn.classList.add(ok ? 'c2-pop' : 'c2-shake');
@@ -13646,7 +13793,7 @@ function speakLetter(ch, name, ttsOnly) {
       // озвучить правильный ответ
       var _say = function () { try {
         if (['readsyl', 'listensyl'].indexOf(s.k) >= 0) c2Say(s.ar);
-        else if (['listen', 'form', 'name', 'pair'].indexOf(s.k) >= 0) c2SayLetter(s.ch);
+        else if (['listen', 'form', 'name', 'pair', 'nameq'].indexOf(s.k) >= 0) c2SayLetter(s.ch);
         else if (s.k === 'readword' && s.w) c2PlayWord(s.w); else if (s.k === 'readword') c2Say(s.ar);
         else if (s.k === 'findrule' && s._ex && s.hitNums && s.hitNums.length) _twPlayWords(s._ex.surah, s._ex.ayah, s.hitNums.slice(0, 1), null, '');
         else if ((s.k === 'order' || s.k === 'scatter' || s.k === 'fix') && s.w) c2PlayWord(s.w);
@@ -13655,7 +13802,7 @@ function speakLetter(ch, name, ttsOnly) {
       var fb = root.querySelector('.c2-fb');
       var praise = c2T('Верно', 'Дұрыс'); // 7.84: без лишней похвалы
       fb.className = 'c2-fb ' + (ok ? 'good' : 'bad');
-      var isLet = ['listen', 'form', 'name', 'pair'].indexOf(s.k) >= 0;
+      var isLet = ['listen', 'form', 'name', 'pair', 'nameq'].indexOf(s.k) >= 0;
       if (isLet && !ok && val && val !== s.ch && val.length === 1) { try { var Sc = c2St(); if (!Sc.conf) Sc.conf = {}; var pk = [s.ch, val].sort().join(''); Sc.conf[pk] = (Sc.conf[pk] || 0) + 1; } catch (e) {} }
       var simil = isLet && ((C2_SIMILAR[s.ch] || '').indexOf(val) >= 0 || (C2_SIMILAR[val] || '').indexOf(s.ch) >= 0);
       var badT = simil ? c2T('Почти — эти буквы похожи.', 'Сәл қалды — бұл әріптер ұқсас.') : (isLet ? c2T('Другая буква.', 'Басқа әріп.') : c2T('Неверно.', 'Дұрыс емес.'));
@@ -13769,8 +13916,8 @@ function speakLetter(ch, name, ttsOnly) {
       // 7.81: повторение дня; после перерыва — «с возвращением»
       if (nDone && S.revDay !== c2Today() && kd.letters.length) {
         var away = S.lastT && Date.now() - S.lastT > 3 * 86400000;
-        h += '<button type="button" class="c2-revcard" data-c2="rev"><b>' + (away ? c2T('С возвращением! 🤍', 'Қош келдіңіз! 🤍') : '🔁 ' + c2T('Повторение дня', 'Күн қайталауы')) + '</b><span>' +
-          (away ? c2T('Вспомним пройденное за минуту, потом — дальше.', 'Өткенді бір минутта еске түсірейік, сосын — әрі қарай.') : c2T('5 заданий из пройденного, около минуты — чтобы не забывалось.', 'Өткен тақырыптан 5 тапсырма, шамамен бір минут — ұмытылмас үшін.')) + '</span></button>';
+        h += '<button type="button" class="c2-revcard" data-c2="rev"><b>' + (away ? c2T('👋 С возвращением!', '👋 Қош келдіңіз!') : '🔁 ' + c2T('Повторение дня', 'Күн қайталауы')) + '</b><span>' +
+          (away ? c2T('Буквы не убежали — вспомним за минуту?', 'Әріптер қашып кеткен жоқ — бір минутта еске түсірейік пе?') : c2T('5 заданий из пройденного, около минуты — чтобы не забывалось.', 'Өткен тақырыптан 5 тапсырма, шамамен бір минут — ұмытылмас үшін.')) + '</span></button>';
       }
       if (nDone) h += '<button type="button" class="c2-arcbtn" data-c2="arcade"><b>🎮 ' + c2T('Играть 3 минуты', '3 минут ойнау') + '</b><span>' + c2T('смесь заданий по пройденному, уровни растут', 'өткен тақырыптан аралас тапсырмалар, деңгей өседі') + '</span></button>';
       var cont = curL || next;
@@ -13857,6 +14004,12 @@ function speakLetter(ch, name, ttsOnly) {
         return;
       }
       var lcb = t.closest('[data-c2-lc]'); if (lcb) { var sm2 = lcb.querySelector('small'); if (sm2) sm2.hidden = !sm2.hidden; return; }
+      // 7.86: «Найди в слове»
+      var flb = t.closest('[data-c2-fl]');
+      if (flb && C2.lesson && !C2.answered) { var sfl = C2.steps[C2.i]; if (!sfl || sfl.k !== 'findl' || flb.disabled) return; var id = flb.getAttribute('data-c2-fl'); sfl._got = sfl._got || [];
+        if (sfl.need.indexOf(id) >= 0) { flb.disabled = true; flb.classList.add('found'); sfl._got.push(id); try { c2Sfx(true); } catch (e) {} var fg = c2Root().querySelector('[data-c2-fg]'); if (fg) fg.textContent = sfl._got.length; if (sfl._got.length >= sfl.need.length) setTimeout(function () { c2Answer(sfl._err ? 'bad' : 'ok', null); }, 250); }
+        else { sfl._err = (sfl._err || 0) + 1; flb.classList.remove('c2-shake'); void flb.offsetWidth; flb.classList.add('c2-shake'); try { c2Sfx(false); } catch (e) {} }
+        return; }
       // 7.83: «Слово рассыпалось»
       var spb = t.closest('[data-c2-sp]');
       if (spb && C2.lesson && !C2.answered) { var ss = C2.steps[C2.i]; if (!ss || ss.k !== 'scatter' || spb.disabled) return; var kk2 = +spb.getAttribute('data-c2-sp'); if ((ss.lvl || 1) >= 2) c2ScatterForms(ss, kk2); else c2ScatterPlace(ss, kk2, null); return; }
@@ -13902,6 +14055,7 @@ function speakLetter(ch, name, ttsOnly) {
       if (k === 'known') { c2St().started = 1; var S2 = c2St(); S2.openCh = { c2: 1, c3: 1, c4: 1 }; c2Home(); toast(c2T('Любой урок можно открыть сразу — начните с того, что ещё не знаете.', 'Кез келген сабақты бірден ашуға болады — әлі білмейтініңізден бастаңыз.')); return; }
       if (k === 'test') { c2Test(b.getAttribute('data-ch')); return; }
       if (k === 'rev') { c2RevStart(b.getAttribute('data-ret') || null); return; }
+      if (k === 'plvl') { c2PStart(b.getAttribute('data-g'), +b.getAttribute('data-l')); return; }
       if (k === 'game') { var pr2 = b.getAttribute('data-pair'); c2GameStart(b.getAttribute('data-g'), { pair: pr2 ? pr2.split('') : null, ret: b.getAttribute('data-ret') || C2.ret || 'games' }); return; }
       if (k === 'lall') { c2Root().querySelectorAll('.c2-lch small').forEach(function (x) { x.hidden = false; }); return; }
       if (k === 'arcade') { c2ArcadeStart(b.getAttribute('data-ret') || null); return; }
@@ -13916,6 +14070,7 @@ function speakLetter(ch, name, ttsOnly) {
         if (cur.k === 'listen' || cur.k === 'pair') c2SayLetter(cur.ch); else if (cur.k === 'listensyl') c2Say(cur.ar); else if (cur.k === 'listenword') c2PlayWord(cur.w);
         if (cur.k === 'order') { var o0 = c2Root().querySelectorAll('[data-c2-o]'), need = (cur._sel || []).length, wantC = (cur.w.cl || _wrClusters(cur.w.ar))[need]; o0.forEach(function (x) { x.classList.remove('c2-glow'); }); for (var oi = 0; oi < o0.length; oi++) if (!o0[oi].disabled && cur.tiles[+o0[oi].getAttribute('data-c2-o')] === wantC) { o0[oi].classList.add('c2-glow'); break; } c2PlayWord(cur.w); }
         if (cur.k === 'scatter') { var nx2 = cur.cl[cur._pos || 0]; c2Root().querySelectorAll('[data-c2-sp]').forEach(function (x) { x.classList.remove('c2-glow'); }); var hit = Array.prototype.filter.call(c2Root().querySelectorAll('[data-c2-sp]'), function (x) { return !x.disabled && cur.pcs[+x.getAttribute('data-c2-sp')].c === nx2; })[0]; if (hit) hit.classList.add('c2-glow'); if ((cur.lvl || 1) >= 2 && hd) { var fn2 = WR_FORM_NAMES[cur.forms[cur._pos || 0]]; hd.textContent += ' ' + c2T('Следующая буква стоит: ', 'Келесі әріп: ') + c2T(fn2[0], fn2[1]) + '.'; } c2PlayWord(cur.w); }
+        if (cur.k === 'findl') { var gotL = cur._got || []; var nxt = cur.need.filter(function (x) { return gotL.indexOf(x) < 0; })[0]; var fb2 = nxt && c2Root().querySelector('[data-c2-fl="' + nxt + '"]'); if (fb2) fb2.classList.add('c2-glow'); var hd2 = c2Root().querySelector('.c2-hint'); if (hd2) hd2.textContent += ' ' + c2T('Буква выглядит так: ', 'Әріп былай көрінеді: ') + cur.ch + ' ' + cur.ch + 'ـ ـ' + cur.ch + 'ـ ـ' + cur.ch; }
         if (cur.k === 'fix' && !cur._found) { var fx0 = c2Root().querySelector('[data-c2-fx="' + cur.bi + '"]'); if (fx0) fx0.classList.add('c2-glow'); }
         if (cur.k === 'catch') { c2SayLetter(cur.ch); var ct = c2Root().querySelector('.c2-catchT'); if (ct) ct.innerHTML = c2Ar(cur.ch) + ' <small>' + c2Esc(c2LName(cur.ch)) + '</small>'; }
         if (cur.k === 'match') { var ml = c2Root().querySelector('[data-c2-ml]:not(.done)'); if (ml) { var mi = ml.getAttribute('data-c2-ml'); ml.classList.add('c2-glow'); var mr = c2Root().querySelector('[data-c2-mr="' + mi + '"]'); if (mr) mr.classList.add('c2-glow'); } }
@@ -19277,6 +19432,46 @@ function renderMistakes() {
       var old = document.getElementById('qz-ladder');
       var tmp = document.createElement('div'); tmp.innerHTML = qzLadderHtml();
       if (old) old.replaceWith(tmp.firstChild); else grp.parentNode.insertBefore(tmp.firstChild, grp);
+    }
+    // 7.86: игры с уровнями «Лёгкий / Средний / Сложный» открываются на движке курса
+    document.addEventListener('click', function(e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      var gb = t.closest('[data-qz-game]');
+      if (gb && typeof window.c2PHas === 'function' && window.c2PHas(gb.getAttribute('data-qz-game'))) {
+        e.preventDefault(); e.stopPropagation();
+        var g = gb.getAttribute('data-qz-game'), area = document.getElementById('game-area');
+        document.querySelectorAll('.qz-tr').forEach(function(x) { x.classList.toggle('on', x === gb); });
+        var hb = document.getElementById('qz-helpbar'); if (hb) hb.hidden = true;
+        if (area) { area.innerHTML = window.c2PCardHtml(g); area.setAttribute('data-pg', g); try { area.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e2) {} }
+        return;
+      }
+      var lv = t.closest('[data-c2-plv]'); if (lv) { lv.parentNode.querySelectorAll('[data-c2-plv]').forEach(function(x) { x.classList.toggle('on', x === lv); }); return; }
+      var go = t.closest('[data-c2-pgo]'); if (go) { var on = go.parentNode.querySelector('[data-c2-plv].on'); window.c2PStart(go.getAttribute('data-c2-pgo'), on ? +on.getAttribute('data-c2-plv') : 1); return; }
+      // остальные игры — общая кнопка «💡 Подсказка»
+      if (gb) { try { qzHelpShow(gb.getAttribute('data-qz-game')); } catch(e3) {} }
+      if (t.closest('[data-qz-help]')) { var bx = document.getElementById('qz-helpbox'); if (bx) bx.hidden = !bx.hidden; }
+    }, true);
+    var QZ_HELP = {
+      speak: ['Нажмите «Записать», произнесите букву, потом сравните свою запись с образцом. Лучше в тихом месте.', 'Тянуть не нужно: буква — коротко, ясно. Сравните, откуда идёт звук: губы, зубы, горло.', '«Жазу» басып, әріпті айтыңыз, сосын жазбаңызды үлгімен салыстырыңыз. Тыныш жерде жақсырақ.', 'Созудың қажеті жоқ: әріп — қысқа, анық. Дыбыс қайдан шығатынын салыстырыңыз: ерін, тіс, тамақ.'],
+      'speak-ayah': ['Прочитайте аят вслух и запишите, потом послушайте чтеца и сравните.', 'Сначала прочитайте про себя, найдите долгие гласные и шадды — потом вслух.', 'Аятты дауыстап оқып жазыңыз, сосын қариді тыңдап салыстырыңыз.', 'Алдымен іштей оқып, созылыңқы дауыстылар мен шәддаларды табыңыз — сосын дауыстап.'],
+      ayah: ['Прочитайте аят и выберите его перевод или продолжение.', 'Ищите знакомые слова: имена, «Аллах», повторяющиеся окончания аятов.', 'Аятты оқып, аудармасын не жалғасын таңдаңыз.', 'Таныс сөздерді іздеңіз: есімдер, «Аллаһ», аят соңындағы қайталанатын жалғаулар.'],
+      findrule: ['Нажмите в аяте слово, где есть нужное правило таджвида.', 'Ищите букву, к которой правило относится (например, ن с сукуном или танвин), и смотрите на следующую букву.', 'Аяттан керекті тәжуид ережесі бар сөзді басыңыз.', 'Ереже қатысты әріпті іздеңіз (мысалы, сукунды ن не тануин) және келесі әріпке қараңыз.'],
+      write: ['Напишите букву пальцем, потом сравните с образцом и честно отметьте 👍 или 👎.', 'Сначала основа буквы, потом точки. Направление — справа налево.', 'Әріпті саусақпен жазып, үлгімен салыстырыңыз да, шынайы 👍 не 👎 белгілеңіз.', 'Алдымен әріптің негізі, сосын нүктелер. Бағыты — оңнан солға.'],
+      pairs: ['Открывайте по две карточки и найдите пары: буква и её название.', 'Запоминайте, где лежат открытые карточки, — так пары найдутся быстрее.', 'Екі карточкадан ашып, жұптарын табыңыз: әріп пен оның атауы.', 'Ашылған карточкалардың орнын есте сақтаңыз — жұптар тезірек табылады.'],
+      join: ['Прочитайте слово, где буквы соединены, и выберите верное чтение.', 'Разбейте слово на буквы по точкам и основам, справа налево.', 'Әріптері жалғанған сөзді оқып, дұрыс оқылуын таңдаңыз.', 'Сөзді нүктелер мен негіздері бойынша әріптерге бөліңіз, оңнан солға.'],
+      joinmic: ['Произнесите слово вслух и сравните с образцом.', 'Читайте по слогам, затем слитно.', 'Сөзді дауыстап айтып, үлгімен салыстырыңыз.', 'Буындап, сосын тұтас оқыңыз.'],
+      dictation: ['Послушайте и наберите услышанное из плиток.', 'Сначала определите буквы, потом огласовки над и под ними.', 'Тыңдап, естігеніңізді плиткалардан теріңіз.', 'Алдымен әріптерді, сосын олардың үстіндегі және астындағы қозғалыстарды анықтаңыз.'],
+      'sr-ayah': ['Прочитайте короткий аят сами, потом послушайте чтеца и отметьте 👍 или 👎.', 'Не спешите: долгие гласные тянутся на 2 счёта, на конце аята — остановка.', 'Қысқа аятты өзіңіз оқып, сосын қариді тыңдап, 👍 не 👎 белгілеңіз.', 'Асықпаңыз: созылыңқы дауыстылар 2 есепке созылады, аят соңында — тоқтау.'],
+      srs: ['Посмотрите на карточку, вспомните ответ, переверните и честно оцените, вспомнили ли.', 'Трудные карточки вернутся раньше, лёгкие — позже. Это нормально.', 'Карточкаға қарап, жауапты еске түсіріп, аударыңыз да, есіңізге түсті ме — шынайы бағалаңыз.', 'Қиын карточкалар ертерек, жеңілдері кейінірек қайтады. Бұл қалыпты.']
+    };
+    function qzHelpShow(g) {
+      var area = document.getElementById('game-area'); if (!area) return;
+      var hb = document.getElementById('qz-helpbar');
+      if (!hb) { hb = document.createElement('div'); hb.id = 'qz-helpbar'; hb.className = 'qz-helpbar'; area.parentNode.insertBefore(hb, area); }
+      var h = QZ_HELP[g]; if (!h) { hb.hidden = true; return; }
+      var kk = isKk();
+      hb.innerHTML = '<button type="button" class="btn btn-sm" data-qz-help="1">💡 ' + (kk ? 'Көмек' : 'Подсказка') + '</button><div class="qz-helpbox" id="qz-helpbox" hidden><b>' + (kk ? 'Қалай ойнау: ' : 'Как играть: ') + '</b>' + (kk ? h[2] : h[0]) + '<br><b>' + (kk ? 'Кеңес: ' : 'Совет: ') + '</b>' + (kk ? h[3] : h[1]) + '</div>';
+      hb.hidden = false;
     }
     document.addEventListener('click', function(e) { var ab = e.target && e.target.closest && e.target.closest('[data-qz-arcade]'); if (ab && typeof window.c2ArcadeStart === 'function') window.c2ArcadeStart('games'); });
     document.addEventListener('click', function(e) {

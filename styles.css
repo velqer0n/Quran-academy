@@ -5933,3 +5933,15 @@ body:has(.audio-bar.visible:not(.collapsed)) #ayah-scroll-rail, body:has(.audio-
 .c2-note{border-color:#8b5cf6;background:color-mix(in srgb,#8b5cf6 8%,var(--bg-card))}
 .c2-note .btn{margin-top:0.4rem}
 .qz-trs{grid-auto-rows:1fr}.qz-tr{height:100%}
+
+/* 7.86: уровни игр Практики, «Найди в слове», общая подсказка */
+.c2-plv{display:grid;grid-template-columns:1fr;gap:0.45rem;width:100%;margin:0.6rem 0}
+.c2-plvb{display:flex;flex-direction:column;align-items:flex-start;gap:0.1rem;text-align:left;font:inherit;color:inherit;background:var(--bg-card);border:2px solid var(--border);border-radius:14px;padding:0.55rem 0.8rem;cursor:pointer}
+.c2-plvb b span{font-size:0.7rem;font-weight:600;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:10px;padding:0.05rem 0.45rem;margin-left:0.3rem}
+.c2-plvb small{font-size:0.8rem;color:var(--text-muted)}
+.c2-plvb.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--bg-card))}
+.c2-findw{gap:0.7rem}
+.c2-fword{display:inline-flex;gap:0.1rem;padding:0.15rem;border-radius:12px;background:color-mix(in srgb,var(--text) 4%,transparent)}
+.c2-fixc.found{background:var(--accent);color:#fff}
+.qz-helpbar{margin:0.4rem 0}
+.qz-helpbox{margin-top:0.4rem;background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:12px;padding:0.55rem 0.75rem;font-size:0.88rem;line-height:1.45}
