@@ -6694,6 +6694,54 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
         }); });
       });
     });
+    // 7.87: шторка «Ещё» над полосой времени вместо меню «⋯»: тянешь вверх или нажимаешь — выезжают доп. функции
+    (function() {
+      var bar = document.getElementById('audio-bar'), pr = bar && bar.querySelector('.progress-row'); if (!bar || !pr || !pr.parentNode) return;
+      var dr = document.createElement('div'); dr.className = 'pl-drawer'; dr.id = 'pl-drawer';
+      var paint = function() {
+        var kk = isKk();
+        var B = [['open', '📖', 'Открыть суру', 'Сүрені ашу'], ['queue', '☰', 'Очередь', 'Кезек'], ['fold', '📁', 'В папку', 'Папкаға'], ['share', '📤', 'Поделиться', 'Бөлісу'],
+          ['dl', '📥', 'Скачать', 'Жүктеу'], ['prevs', '⏮', 'Пред. сура', 'Алдыңғы сүре'], ['nexts', '⏭', 'След. сура', 'Келесі сүре'], ['help', '❓', 'Как пользоваться', 'Қалай қолдану']];
+        dr.innerHTML = '<button type="button" class="pl-drh" data-pl-dr="1" aria-expanded="' + (dr.classList.contains('open') ? 'true' : 'false') + '"><i></i><span>' + (dr.classList.contains('open') ? (kk ? 'Жасыру' : 'Скрыть') : (kk ? 'Тағы' : 'Ещё')) + '</span></button>' +
+          '<div class="pl-drg">' + B.map(function(x) { return '<button type="button" class="pl-drb" data-pl-dv="' + x[0] + '"><b>' + x[1] + '</b><span>' + (kk ? x[3] : x[2]) + '</span></button>'; }).join('') + '</div>';
+      };
+      paint(); pr.parentNode.insertBefore(dr, pr);
+      var toggle = function(open) { dr.classList.toggle('open', open == null ? !dr.classList.contains('open') : open); paint(); };
+      dr.addEventListener('click', function(e) {
+        if (e.target.closest('[data-pl-dr]')) { toggle(); return; }
+        var b = e.target.closest('[data-pl-dv]'); if (!b) return;
+        var v = b.getAttribute('data-pl-dv'), it = audioQueue && audioQueue[audioQueueIdx];
+        var clk = function(id) { var x = document.getElementById(id); if (x) x.click(); };
+        toggle(false);
+        if (v === 'open') { if (it && it.surah && !it.ext) { clk('audio-collapse'); try { openSurah(+it.surah, it.whole ? null : +it.ayah); } catch(er) {} } }
+        else if (v === 'queue') clk('pl-queue-btn');
+        else if (v === 'fold' || v === 'share') { var pb = document.querySelector('.pl-acts [data-pla="' + v + '"]'); if (pb) pb.click(); }
+        else if (v === 'dl') clk('audio-download');
+        else if (v === 'prevs') clk('audio-prev-surah');
+        else if (v === 'nexts') clk('audio-next-surah');
+        else if (v === 'help') openPlayerHelp();
+      });
+      // смахнуть вверх по шторке — открыть, вниз — закрыть
+      var y0 = null;
+      dr.addEventListener('touchstart', function(e) { y0 = e.touches[0].clientY; }, { passive: true });
+      dr.addEventListener('touchend', function(e) { if (y0 == null) return; var dy = e.changedTouches[0].clientY - y0; y0 = null; if (dy < -25) toggle(true); else if (dy > 25) toggle(false); }, { passive: true });
+      // смахнуть влево/вправо по названию суры (в полном плеере) — следующая/предыдущая сура
+      var info = document.getElementById('pl-info'), x0 = null, yy0 = null;
+      if (info) {
+        info.addEventListener('touchstart', function(e) { if (bar.classList.contains('collapsed')) return; x0 = e.touches[0].clientX; yy0 = e.touches[0].clientY; }, { passive: true });
+        info.addEventListener('touchend', function(e) { if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - yy0; x0 = null; if (Math.abs(dx) > 70 && Math.abs(dy) < 40) { var id = dx < 0 ? 'audio-next-surah' : 'audio-prev-surah'; var x = document.getElementById(id); if (x) x.click(); } }, { passive: true });
+      }
+      document.addEventListener('qa-lang', paint);
+    })();
+    // 7.87: кнопки в уведомлении телефона и на наушниках делают то же, что кнопки на экране, и телефон знает, играет ли плеер
+    (function() {
+      if (!('mediaSession' in navigator)) return;
+      var tg = function() { var b = document.getElementById('audio-play-pause'); if (b) b.click(); };
+      try { navigator.mediaSession.setActionHandler('play', function() { if (audioEl.paused) tg(); }); } catch(e) {}
+      try { navigator.mediaSession.setActionHandler('pause', function() { if (!audioEl.paused) tg(); }); } catch(e) {}
+      var st = function() { try { navigator.mediaSession.playbackState = audioEl.paused ? 'paused' : 'playing'; } catch(e) {} };
+      ['play', 'playing', 'pause', 'ended', 'emptied'].forEach(function(ev) { audioEl.addEventListener(ev, st); });
+    })();
     document.addEventListener('click', function(e) { var b = e.target && e.target.closest && e.target.closest('[data-pl-rec]'); if (b) { try { plRecOpen(); } catch(er) { var x = document.getElementById('audio-pick-reciter'); if (x) x.click(); } } });
     // мини-плеер: нажатие — развернуть; смахнуть влево/вправо — следующий/предыдущий аят; полный экран — смахнуть вниз
     (function() {
@@ -13127,6 +13175,10 @@ function speakLetter(ch, name, ttsOnly) {
       'sr-syl': { fam: 'S', lv: [['отдельные слоги', 'жеке буындар'], ['пары слогов', 'буын жұптары'], ['слоги с сукуном, шаддой, танвином', 'сукун, шәдда, тануинмен буындар']], how: ['Прочитайте и выберите, как это звучит.', 'Оқып, қалай естілетінін таңдаңыз.'] },
       qaida: { fam: 'S', lv: [['простые слоги', 'қарапайым буындар'], ['сукун и долгота', 'сукун мен созылу'], ['шадда и танвин, без подсказки', 'шәдда мен тануин, кеңессіз']], how: ['Прочитайте строку вслух справа налево, потом проверьте себя.', 'Жолды оңнан солға дауыстап оқып, сосын өзіңізді тексеріңіз.'] },
       'sr-word': { fam: 'W', lv: [['короткие слова', 'қысқа сөздер'], ['с сукуном и шаддой', 'сукун мен шәддамен'], ['длинные, с «аль-» и хамзой', 'ұзын, «әл-» және һамзамен']], how: ['Прочитайте слово из Корана и выберите, как оно звучит.', 'Құран сөзін оқып, қалай естілетінін таңдаңыз.'] },
+      pairs: { fam: 'L', lv: [['буква ↔ та же буква', 'әріп ↔ сол әріп'], ['буква ↔ название', 'әріп ↔ атауы'], ['буква ↔ её форма в слове', 'әріп ↔ сөздегі пішіні']], how: ['Открывайте по две карточки и находите пары. Не совпало — карточки закроются, запоминайте, где что лежит.', 'Екі карточкадан ашып, жұптарын табыңыз. Сәйкес келмесе — жабылады, қайда не жатқанын есте сақтаңыз.'] },
+      dictation: { fam: 'W', lv: [['только буквы слова', 'тек сөздің әріптері'], ['буквы с огласовками', 'қозғалысы бар әріптер'], ['среди кусочков есть лишние', 'бөліктер арасында артығы бар']], how: ['Послушайте слово и соберите его из кусочков справа налево. 🔊 — ещё раз.', 'Сөзді тыңдап, оны бөліктерден оңнан солға жинаңыз. 🔊 — тағы бір рет.'] },
+      join: { fam: 'W', lv: [['2 буквы', '2 әріп'], ['3–4 буквы', '3–4 әріп'], ['ا د ر و рвут соединение', 'ا د ر و жалғауды үзеді']], how: ['Посмотрите на слитное слово и выберите, из каких букв оно состоит.', 'Жалғасқан сөзге қарап, оның қай әріптерден тұратынын таңдаңыз.'] },
+      findrule: { fam: 'R', lv: [['подсвечен кусок аята', 'аяттың бір бөлігі көрсетілген'], ['весь аят', 'бүкіл аят'], ['найти все места', 'барлық орнын табу']], how: ['Нажмите в аяте слово, где есть это правило.', 'Аяттан осы ережесі бар сөзді басыңыз.'] },
       rules: { fam: 'R', lv: [['описание → правило', 'сипаттама → ереже'], ['пример → правило', 'мысал → ереже'], ['найди правило в аяте', 'аяттан ережені тап']], how: ['Определите правило таджвида.', 'Тәжуид ережесін анықтаңыз.'] }
     };
     function c2PG(g) { var d = C2_PG[g]; return d && d.alias ? C2_PG[d.alias] : d; }
@@ -13187,6 +13239,31 @@ function speakLetter(ch, name, ttsOnly) {
           var w4 = c2Pick(pool, 1)[0], ow4 = c2Pick(pool.filter(function (x) { return x.ar !== w4.ar; }), 2);
           if (w4 && ow4.length) st = { k: 'readword', ar: w4.ar, ans: c2Tr(w4.ar), o: c2Uniq(c2Tr(w4.ar), ow4.map(function (x) { return c2Tr(x.ar); }), 3), w: w4, key: 'W' };
         }
+        else if (gg === 'pairs') {
+          var pc = c2Pick(lets, 4), nm2 = [];
+          if (lvl === 1) nm2 = pc.map(function (c) { return { a: c, b: c, bar: true }; });
+          else if (lvl === 2) nm2 = pc.map(function (c) { return { a: c, b: c2LName(c) }; });
+          else nm2 = pc.map(function (c) { return { a: c, b: c2FormGlyph(c, c2NoJoin(c) ? 'fin' : c2Pick(forms, 1)[0]), bar: true }; });
+          st = { k: 'memory', pairs: nm2, lvl: lvl };
+          if (out.length >= 3) break;
+        }
+        else if (gg === 'dictation') {
+          var wd = c2Pick(ws.filter(function (w) { return w.cl.length >= 3 && w.cl.length <= 5; }), 1)[0];
+          if (wd) {
+            if (lvl === 1) { var bare = wd.cl.map(function (c) { return c[0]; }); st = { k: 'order', w: wd, tiles: shuffle(bare.slice()), ans: bare.join(''), auto: 1, key: 'W' }; }
+            else { st = c2OrderStep(wd); if (st) { st.auto = 1; if (lvl === 3) { var ex = []; wd.cl.slice(0, 2).forEach(function (c) { var sm = (C2_SIMILAR[c[0]] || '').split('').filter(function (x) { return L.indexOf(x) >= 0; })[0]; if (sm) ex.push(sm + c.slice(1)); }); st.need = st.tiles.length; st.tiles = shuffle(st.tiles.concat(ex)); } } }
+          }
+        }
+        else if (gg === 'join') {
+          var jpool = ws.filter(function (w) { var b = w.cl.map(function (c) { return C2_NORM[c[0]] || c[0]; }); if (b.some(function (x) { return x === 'ء'; })) return false; if (lvl === 1) return b.length === 2; if (lvl === 2) return b.length >= 3 && b.length <= 4 && !b.slice(0, -1).some(function (x) { return WR_NOJOIN.indexOf(x) >= 0; }); return b.length >= 3 && b.slice(0, -1).some(function (x) { return WR_NOJOIN.indexOf(x) >= 0; }); });
+          var jw = c2Pick(jpool, 1)[0];
+          if (jw) { var bs = jw.cl.map(function (c) { return c[0]; }), ansJ = bs.join(' '), vars = []; bs.forEach(function (c, i) { (C2_SIMILAR[C2_NORM[c] || c] || '').split('').forEach(function (r) { if (L.indexOf(r) >= 0) { var x = bs.slice(); x[i] = r; vars.push(x.join(' ')); } }); }); var oJ = c2Uniq(ansJ, shuffle(vars), 3); if (oJ.length >= 2) st = { k: 'readword', join: 1, ar: bs.join(''), ans: ansJ, o: oJ, w: jw, key: 'W' }; }
+        }
+        else if (gg === 'findrule') {
+          var rids2 = kn.rules.filter(function (r) { var R = c2Rule(r); return R && R.tags && R.tags.length; });
+          if (!rids2.length) rids2 = c2AllLessons().filter(function (l) { var R = l.type === 'rule' && c2Rule(l.rule); return R && R.tags && R.tags.length; }).map(function (l) { return l.rule; });
+          var rr = c2Pick(rids2, 1)[0], R2 = rr && c2Rule(rr); if (R2) st = { k: 'findrule', r: rr, tags: R2.tags, key: 'R:' + rr, lvl: lvl };
+        }
         else if (gg === 'rules') {
           var rids = kn.rules.filter(function (r) { return !!c2Rule(r); }); if (!rids.length) break;
           var rs = c2Steps({ id: '__arc', type: 'rule', rule: c2Pick(rids, 1)[0] }).filter(function (x) { return lvl === 1 ? x.k === 'choice' : lvl === 2 ? (x.k === 'cls' || x.k === 'noon' || x.k === 'readword') : x.k === 'findrule'; });
@@ -13211,6 +13288,7 @@ function speakLetter(ch, name, ttsOnly) {
     }
     function c2PHowInit() {
     C2_HOWTO.nameq = ['Прочитайте название буквы и нажмите её среди вариантов.', 'Әріптің атауын оқып, оны нұсқалардан басыңыз.'];
+    C2_HOWTO.memory = ['Открывайте по две карточки — найдите пары. Не совпало — карточки закроются.', 'Екі карточкадан ашыңыз — жұптарын табыңыз. Сәйкес келмесе — жабылады.'];
     C2_HOWTO.findl = ['Нажмите в слове все места, где стоит эта буква — в любой форме.', 'Сөзден осы әріп тұрған барлық орынды басыңыз — кез келген пішінде.'];
     if (!C2_HOWTO.choice) C2_HOWTO.choice = ['Прочитайте вопрос и выберите один ответ.', 'Сұрақты оқып, бір жауапты таңдаңыз.'];
     if (!C2_HOWTO.cls) C2_HOWTO.cls = ['Посмотрите на пример и выберите, какое правило здесь действует.', 'Мысалға қарап, мұнда қай ереже әрекет ететінін таңдаңыз.'];
@@ -13222,7 +13300,7 @@ function speakLetter(ch, name, ttsOnly) {
       var title = (typeof qzGameName === 'function' && qzGameName(g)) || g;
       C2.lesson = { id: 'pg_' + g, ch: null, t: [title, title], type: 'practice', pgame: g, plvl: lvl };
       C2.steps = steps; C2.i = 0; C2.ok = 0; C2.n = 0; C2.bad = 0; C2.good = 0; C2.easy = false; C2.ret = 'games'; C2.combo = 0;
-      if (g === 'rules') { try { loadTajweedData(); } catch (e) {} }
+      if (g === 'rules' || g === 'findrule') { try { loadTajweedData(); } catch (e) {} }
       try { showView('teacher'); } catch (e) {}
       c2Render(); try { window.scrollTo(0, 0); } catch (e) {}
       return true;
@@ -13494,7 +13572,7 @@ function speakLetter(ch, name, ttsOnly) {
       return out;
     }
     C2_HOWTO.line = ['Читайте вслух, справа налево, каждый слог ясно и не спеша. Нажмите на слог — покажу, как он читается.', 'Дауыстап, оңнан солға, әр буынды анық әрі асықпай оқыңыз. Буынды бассаңыз — қалай оқылатынын көрсетемін.'];
-    var C2_PRAC = ['scatter', 'fix', 'catch', 'match', 'order', 'first', 'choice', 'listen', 'name', 'form', 'pair', 'readsyl', 'readword', 'listensyl', 'listenword', 'meaning', 'build', 'cls', 'noon', 'findrule'];
+    var C2_PRAC = ['memory', 'findl', 'nameq', 'scatter', 'fix', 'catch', 'match', 'order', 'first', 'choice', 'listen', 'name', 'form', 'pair', 'readsyl', 'readword', 'listensyl', 'listenword', 'meaning', 'build', 'cls', 'noon', 'findrule'];
     // правильный ли вариант (значение data-c2-a) — для подсказки и упрощения
     function c2IsRight(s, v) {
       switch (s.k) {
@@ -13502,7 +13580,7 @@ function speakLetter(ch, name, ttsOnly) {
         case 'cls': return +v === s.ans;
         case 'findrule': return (s.hitNums || []).indexOf(+v) >= 0;
         case 'listen': case 'form': case 'name': case 'pair': case 'nameq': return v === s.ch;
-        case 'findl': return false;
+        case 'findl': case 'memory': return false;
         case 'readsyl': case 'readword': return v === s.ans;
         case 'listensyl': case 'build': return v === s.ar;
         case 'listenword': return v === s.w.ar;
@@ -13562,6 +13640,10 @@ function speakLetter(ch, name, ttsOnly) {
           return h + '<div class="c2-q">' + c2T('Нажмите букву, с которой начинается слово', 'Сөз басталатын әріпті басыңыз') + '</div><div class="c2-first" dir="rtl">' + s.cl.map(function (c, i) { return '<button type="button" class="c2-tile" data-c2-a="' + i + '">' + c2Ar(c) + '</button>'; }).join('') + '</div>';
         case 'choice':
           return h + '<div class="c2-q">' + c2Esc(c2T(s.q[0], s.q[1])) + '</div><div class="c2-opts c2-col">' + shuffle(s.o.map(function (o, i) { return { o: o, i: i }; })).map(function (x) { return c2OptBtn(x.i, c2Esc(c2T(x.o[0], x.o[1]))); }).join('') + '</div>';
+        case 'memory': {
+          var cards = s._cards || (s._cards = shuffle(s.pairs.reduce(function (a, p, i) { a.push({ i: i, t: p.a, ar: p.aar !== false }); a.push({ i: i, t: p.b, ar: !!p.bar }); return a; }, [])));
+          return h + '<div class="c2-q">' + c2T('Найдите пары: открывайте по две карточки', 'Жұптарды табыңыз: екі карточкадан ашыңыз') + '</div><div class="c2-mem c2-mem' + cards.length + '">' + cards.map(function (c, j) { return '<button type="button" class="c2-mc" data-c2-mm="' + j + '"><span class="c2-mcf">' + (c.ar ? c2Ar(c.t) : c2Esc(c.t)) + '</span><span class="c2-mcb">?</span></button>'; }).join('') + '</div>';
+        }
         case 'nameq':
           return h + '<div class="c2-q">' + c2T('Найдите букву: ', 'Әріпті табыңыз: ') + '<b>' + c2Esc(c2LName(s.ch)) + '</b>' + (s.f && s.f !== 'iso' ? ' <small class="c2-mut">(' + c2T('как она пишется в слове', 'сөз ішінде қалай жазылады') + ')</small>' : '') + '</div><div class="c2-opts">' + s.o.map(function (c) { return c2OptBtn(c, c2Ar(c2FormGlyph(c, s.f && !(c2NoJoin(c) && s.f !== 'iso') ? s.f : (s.f && s.f !== 'iso' ? 'fin' : 'iso'))), 'c2-big-opt'); }).join('') + '</div>';
         case 'findl':
@@ -13614,6 +13696,7 @@ function speakLetter(ch, name, ttsOnly) {
         case 'pair':
           return h + '<div class="c2-q">' + c2T('Какую из двух букв вы слышите?', 'Екі әріптің қайсысын естисіз?') + '</div><button type="button" class="c2-play" data-c2="sayl" data-ch="' + c2Esc(s.ch) + '">🔊</button><div class="c2-opts">' + shuffle([s.ch, s.other]).map(function (c) { return c2OptBtn(c, c2Ar(c), 'c2-big-opt'); }).join('') + '</div>';
         case 'readsyl': case 'readword':
+          if (s.join) return h + '<div class="c2-q">' + c2T('Из каких букв состоит слово?', 'Сөз қай әріптерден тұрады?') + '</div><div class="c2-big">' + c2Ar(s.ar) + '</div><div class="c2-opts c2-col">' + s.o.map(function (o) { return c2OptBtn(o, c2Ar(o)); }).join('') + '</div>';
           return h + '<div class="c2-q">' + c2T('Как это читается?', 'Бұл қалай оқылады?') + '</div><div class="c2-big">' + c2Ar(s.ar) + '</div><div class="c2-opts c2-col">' + s.o.map(function (o) { return c2OptBtn(o, c2Esc(o)); }).join('') + '</div>';
         case 'listensyl':
           return h + '<div class="c2-q">' + c2T('Послушайте и выберите слог', 'Тыңдап, буынды таңдаңыз') + '</div><button type="button" class="c2-play" data-c2="say" data-ar="' + c2Esc(s.ar) + '">🔊</button><div class="c2-opts">' + s.o.map(function (o) { return c2OptBtn(o, c2Ar(o), 'c2-big-opt'); }).join('') + '</div>';
@@ -13660,6 +13743,8 @@ function speakLetter(ch, name, ttsOnly) {
       if (s.k === 'findrule') c2FillFind(s, root);
       if (s.k === 'build') { s._sel = []; }
       if (s.k === 'scatter') c2ScatterRun(s);
+      if (s.k === 'order' && s.auto) setTimeout(function () { try { c2PlayWord(s.w); } catch (e) {} }, 300);
+      if (s.k === 'memory') s._open = [];
       if (s.k === 'catch') c2CatchRun(s);
       if (s.k === 'ayah' && isKk()) c2AyahTrFill(root.querySelector('[data-c2-tr]'), s.s, s.a, '');
     }
@@ -13735,8 +13820,12 @@ function speakLetter(ch, name, ttsOnly) {
         if (!pool.length) { s.k = 'info'; s.ico = '📚'; s.txt = [c2Rule(s.r).meet[0], c2Rule(s.r).meet[1]]; c2Render(); return; }
         var ex = s.ex || (s.ex = c2Pick(pool, 1)[0]);
         var words = _twSplitWords(ex.text), hit = _twHitWords(words, ex.anns, s.tags).hit;
-        s.hitNums = [];
-        box.innerHTML = words.map(function (w, i) { if (!w.num) return c2Esc(w.text); if (hit[i]) s.hitNums.push(w.num); return '<button type="button" class="c2-w c2-wf" data-c2-a="' + w.num + '">' + c2Ar(w.text) + '</button>'; }).join(' ') + '<div class="c2-ayref">' + ex.surah + ':' + ex.ayah + '</div>';
+        s.hitNums = []; words.forEach(function (w, i) { if (w.num && hit[i]) s.hitNums.push(w.num); });
+        // 7.87: уровни — 1: показан только кусок аята вокруг нужного слова; 3: найти все места
+        var lo = 0, hi = 1e9, h1 = s.hitNums[0], all3 = s.lvl === 3 && s.hitNums.length >= 2;
+        if (s.lvl === 1 && h1) { lo = h1 - 1; hi = h1 + 1; }
+        if (all3) { var qe = root.querySelector('.c2-q'); if (qe) qe.innerHTML += ' <span class="c2-mut">(' + c2T('все места: ', 'барлық орны: ') + '<span data-c2-frg>0</span> / ' + s.hitNums.length + ')</span>'; }
+        box.innerHTML = words.map(function (w, i) { if (!w.num) return c2Esc(w.text); if (w.num < lo || w.num > hi) return '<span class="c2-wdim">…</span>'; return '<button type="button" class="c2-w c2-wf" ' + (all3 ? 'data-c2-fr' : 'data-c2-a') + '="' + w.num + '">' + c2Ar(w.text) + '</button>'; }).join(' ').replace(/(<span class="c2-wdim">…<\/span>\s*)+/g, '<span class="c2-wdim">…</span> ') + '<div class="c2-ayref">' + ex.surah + ':' + ex.ayah + '</div>';
         s._ex = ex;
       };
       if (typeof _twCache !== 'undefined' && _twCache) go();
@@ -13759,7 +13848,7 @@ function speakLetter(ch, name, ttsOnly) {
         case 'meaning': ok = val === (s.mean || s.w.m); right = s.mean || s.w.m; break;
         case 'cls': { var R = c2Rule(s.r).cls; ok = +val === s.ans; right = c2T(R.o[s.ans][0], R.o[s.ans][1]); break; }
         case 'noon': ok = val === s.ans; right = c2T(C2_NOON_NAMES[s.ans][0], C2_NOON_NAMES[s.ans][1]); why = c2T('Буквы: изхар ء ه ع ح غ خ · идгам ي ر م ل و ن · иклаб ب · ихфа — остальные 15.', 'Әріптер: изһар ء ه ع ح غ خ · идғам ي ر م ل و ن · иқлаб ب · ихфа — қалған 15.'); break;
-        case 'findrule': ok = (s.hitNums || []).indexOf(+val) >= 0; right = c2T('подсвеченное слово', 'белгіленген сөз'); break;
+        case 'findrule': ok = (s.hitNums || []).indexOf(+val) >= 0 && s._allok !== false; right = c2T('подсвеченное слово', 'белгіленген сөз'); break;
         case 'build': ok = val === s.ar; right = s.ar; break;
         case 'match': ok = val === 'ok'; right = s.items.map(function (x) { return x.l + ' — ' + x.r; }).join(' · '); break;
         case 'order': ok = val === s.ans; right = s.w.ar; break;
@@ -13767,6 +13856,7 @@ function speakLetter(ch, name, ttsOnly) {
         case 'fix': ok = val === 'ok'; right = s.w.ar; break;
         case 'catch': ok = val === 'ok'; right = c2LName(s.ch) + ' ' + s.ch; break;
         case 'findl': ok = val === 'ok'; right = c2LName(s.ch) + ' ' + s.ch; break;
+        case 'memory': ok = val === 'ok'; right = s.pairs.map(function (p) { return p.a + ' — ' + p.b; }).join(' · '); break;
       }
       C2.answered = true; C2.n++; if (ok) C2.ok++;
       c2Know(s.key, ok);
@@ -13781,7 +13871,7 @@ function speakLetter(ch, name, ttsOnly) {
           (['listen', 'form', 'name', 'pair', 'nameq'].indexOf(s.k) >= 0 && v === s.ch) || (['readsyl', 'readword'].indexOf(s.k) >= 0 && v === s.ans) || (s.k === 'listensyl' && v === s.ar) || (s.k === 'listenword' && v === s.w.ar) || (s.k === 'meaning' && v === (s.mean || s.w.m)) || (s.k === 'noon' && v === s.ans);
         if (isRight) b.classList.add('ok'); else if (b === btn) b.classList.add('no');
       });
-      if (!ok && !s.rev2 && C2.lesson.type !== 'arcade') { var cp = JSON.parse(JSON.stringify(s)); cp.rev2 = 1; delete cp.hitNums; delete cp._rs; delete cp._found; delete cp._got; delete cp._ex; delete cp._err; delete cp._pos; delete cp._sel; C2.steps.push(cp); }
+      if (!ok && !s.rev2 && C2.lesson.type !== 'arcade') { var cp = JSON.parse(JSON.stringify(s)); cp.rev2 = 1; delete cp.hitNums; delete cp._rs; delete cp._found; delete cp._got; delete cp._ex; delete cp._cards; delete cp._open; delete cp._fr; delete cp._allok; delete cp._err; delete cp._pos; delete cp._sel; C2.steps.push(cp); }
       // 7.82: звук, вибрация, анимация кнопки, «подряд»
       c2Sfx(ok);
       if (btn) btn.classList.add(ok ? 'c2-pop' : 'c2-shake');
@@ -14004,6 +14094,21 @@ function speakLetter(ch, name, ttsOnly) {
         return;
       }
       var lcb = t.closest('[data-c2-lc]'); if (lcb) { var sm2 = lcb.querySelector('small'); if (sm2) sm2.hidden = !sm2.hidden; return; }
+      // 7.87: «Пары» на память
+      var mmb = t.closest('[data-c2-mm]');
+      if (mmb && C2.lesson && !C2.answered) { var sm3 = C2.steps[C2.i]; if (!sm3 || sm3.k !== 'memory' || mmb.classList.contains('open') || mmb.classList.contains('done') || (sm3._open || []).length >= 2) return;
+        var j = +mmb.getAttribute('data-c2-mm'), cd = sm3._cards[j]; mmb.classList.add('open'); sm3._open = (sm3._open || []).concat([j]);
+        if (cd.ar && cd.t.length <= 3) { try { c2SayLetter(cd.t.replace(/\u200D/g, '')[0]); } catch (e) {} }
+        if (sm3._open.length === 2) { var a1 = sm3._open[0], a2 = sm3._open[1], rootM2 = c2Root();
+          if (sm3._cards[a1].i === sm3._cards[a2].i) { [a1, a2].forEach(function (x) { var el = rootM2.querySelector('[data-c2-mm="' + x + '"]'); if (el) el.classList.add('done'); }); sm3._open = []; sm3._got = (sm3._got || 0) + 1; try { c2Sfx(true); } catch (e) {} if (sm3._got >= sm3.pairs.length) setTimeout(function () { c2Answer((sm3._err || 0) <= sm3.pairs.length ? 'ok' : 'bad', null); }, 300); }
+          else { sm3._err = (sm3._err || 0) + 1; setTimeout(function () { [a1, a2].forEach(function (x) { var el = rootM2.querySelector('[data-c2-mm="' + x + '"]'); if (el) el.classList.remove('open'); }); sm3._open = []; }, 750); }
+        }
+        return; }
+      var frb = t.closest('[data-c2-fr]');
+      if (frb && C2.lesson && !C2.answered) { var sfr = C2.steps[C2.i]; var nn = +frb.getAttribute('data-c2-fr'); sfr._fr = sfr._fr || [];
+        if (sfr.hitNums.indexOf(nn) >= 0) { if (sfr._fr.indexOf(nn) < 0) { sfr._fr.push(nn); frb.classList.add('found'); frb.disabled = true; try { c2Sfx(true); } catch (e) {} var fg2 = c2Root().querySelector('[data-c2-frg]'); if (fg2) fg2.textContent = sfr._fr.length; if (sfr._fr.length >= sfr.hitNums.length) { sfr._allok = !sfr._err; c2Answer(String(sfr.hitNums[0]), null); } } }
+        else { sfr._err = (sfr._err || 0) + 1; frb.classList.remove('c2-shake'); void frb.offsetWidth; frb.classList.add('c2-shake'); try { c2Sfx(false); } catch (e) {} }
+        return; }
       // 7.86: «Найди в слове»
       var flb = t.closest('[data-c2-fl]');
       if (flb && C2.lesson && !C2.answered) { var sfl = C2.steps[C2.i]; if (!sfl || sfl.k !== 'findl' || flb.disabled) return; var id = flb.getAttribute('data-c2-fl'); sfl._got = sfl._got || [];
@@ -14033,7 +14138,7 @@ function speakLetter(ch, name, ttsOnly) {
         var so = C2.steps[C2.i]; if (C2.answered || otb.disabled) return;
         so._sel = so._sel || []; so._sel.push(so.tiles[+otb.getAttribute('data-c2-o')]); otb.disabled = true;
         var bo = so._sel.join(''), slo = c2Root().querySelector('.c2-slot'); if (slo) slo.innerHTML = c2Ar(bo);
-        if (so._sel.length >= so.tiles.length) c2Answer(bo, null);
+        if (so._sel.length >= (so.need || so.tiles.length)) c2Answer(bo, null);
         return;
       }
       var tile = t.closest('[data-c2-t]');
@@ -14070,6 +14175,7 @@ function speakLetter(ch, name, ttsOnly) {
         if (cur.k === 'listen' || cur.k === 'pair') c2SayLetter(cur.ch); else if (cur.k === 'listensyl') c2Say(cur.ar); else if (cur.k === 'listenword') c2PlayWord(cur.w);
         if (cur.k === 'order') { var o0 = c2Root().querySelectorAll('[data-c2-o]'), need = (cur._sel || []).length, wantC = (cur.w.cl || _wrClusters(cur.w.ar))[need]; o0.forEach(function (x) { x.classList.remove('c2-glow'); }); for (var oi = 0; oi < o0.length; oi++) if (!o0[oi].disabled && cur.tiles[+o0[oi].getAttribute('data-c2-o')] === wantC) { o0[oi].classList.add('c2-glow'); break; } c2PlayWord(cur.w); }
         if (cur.k === 'scatter') { var nx2 = cur.cl[cur._pos || 0]; c2Root().querySelectorAll('[data-c2-sp]').forEach(function (x) { x.classList.remove('c2-glow'); }); var hit = Array.prototype.filter.call(c2Root().querySelectorAll('[data-c2-sp]'), function (x) { return !x.disabled && cur.pcs[+x.getAttribute('data-c2-sp')].c === nx2; })[0]; if (hit) hit.classList.add('c2-glow'); if ((cur.lvl || 1) >= 2 && hd) { var fn2 = WR_FORM_NAMES[cur.forms[cur._pos || 0]]; hd.textContent += ' ' + c2T('Следующая буква стоит: ', 'Келесі әріп: ') + c2T(fn2[0], fn2[1]) + '.'; } c2PlayWord(cur.w); }
+        if (cur.k === 'memory') { var mi2 = cur._cards.map(function (c, j) { return j; }).filter(function (j) { var el = c2Root().querySelector('[data-c2-mm="' + j + '"]'); return el && !el.classList.contains('done'); }); var pi = mi2.length ? cur._cards[mi2[0]].i : -1; if (pi >= 0) { var els = mi2.filter(function (j) { return cur._cards[j].i === pi; }).map(function (j) { return c2Root().querySelector('[data-c2-mm="' + j + '"]'); }); els.forEach(function (el) { el.classList.add('c2-glow', 'open'); }); setTimeout(function () { els.forEach(function (el) { el.classList.remove('c2-glow'); if (!el.classList.contains('done')) el.classList.remove('open'); }); }, 1200); } }
         if (cur.k === 'findl') { var gotL = cur._got || []; var nxt = cur.need.filter(function (x) { return gotL.indexOf(x) < 0; })[0]; var fb2 = nxt && c2Root().querySelector('[data-c2-fl="' + nxt + '"]'); if (fb2) fb2.classList.add('c2-glow'); var hd2 = c2Root().querySelector('.c2-hint'); if (hd2) hd2.textContent += ' ' + c2T('Буква выглядит так: ', 'Әріп былай көрінеді: ') + cur.ch + ' ' + cur.ch + 'ـ ـ' + cur.ch + 'ـ ـ' + cur.ch; }
         if (cur.k === 'fix' && !cur._found) { var fx0 = c2Root().querySelector('[data-c2-fx="' + cur.bi + '"]'); if (fx0) fx0.classList.add('c2-glow'); }
         if (cur.k === 'catch') { c2SayLetter(cur.ch); var ct = c2Root().querySelector('.c2-catchT'); if (ct) ct.innerHTML = c2Ar(cur.ch) + ' <small>' + c2Esc(c2LName(cur.ch)) + '</small>'; }
@@ -43666,8 +43772,7 @@ async function renderStats() {
           artist: 'Изучение Корана',
           album: 'Quran Study'
         });
-        navigator.mediaSession.setActionHandler('play', () => { document.getElementById('audio-player').play(); });
-        navigator.mediaSession.setActionHandler('pause', () => { document.getElementById('audio-player').pause(); });
+        // 7.87: play/pause — общие обработчики (кнопка ▶ экрана), заданы один раз при запуске
         navigator.mediaSession.setActionHandler('stop', () => {
           const a = document.getElementById('audio-player');
           a.pause(); a.src = '';
