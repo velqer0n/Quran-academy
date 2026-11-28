@@ -5973,3 +5973,9 @@ body:has(.audio-bar.visible:not(.collapsed)) #ayah-scroll-rail, body:has(.audio-
 .c2-wdim{color:var(--text-muted)}
 .c2-wf.found{background:var(--accent);color:#fff}
 .c2-mc.c2-glow{box-shadow:0 0 0 3px var(--warning)}
+
+/* 7.88: «Произнеси», «Узнай аят» */
+.c2-saytxt .c2-ar{font-size:2.6rem;line-height:1.7}
+.c2-saytr{text-align:center;color:var(--accent);font-style:italic;margin:-0.3rem 0 0.4rem}
+.c2-ayq{text-align:center;font-size:1.9rem;line-height:1.9;margin:0.4rem 0 0.7rem}
+.c2-opts.c2-col .c2-opt .c2-ar{font-size:1.4rem;line-height:1.8}
