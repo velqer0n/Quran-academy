@@ -5753,3 +5753,4 @@ body:has(.audio-bar.visible:not(.collapsed)) #ayah-scroll-rail, body:has(.audio-
 .rl-row.rec { border-color: #c94a4a; box-shadow: 0 0 0 2px #c94a4a44; }
 .rl-ch { font-size: 1.7rem; width: 2.4rem; text-align: center; }
 .rl-nm { flex: 1; }
+.tw-mark { display: inline-block; font-size: 2.6em; line-height: 0.9; vertical-align: -0.3em; color: var(--accent); padding: 0 0.1em; }
