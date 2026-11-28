@@ -2804,6 +2804,15 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
 
     // 7.55: разделы убранной онлайн-части (вход, переписки, форум, группы, админка)
     var ONLINE_REMOVED_VIEWS = { online:1, registration:1, reports:1, notifications:1, storagelimits:1, feedback:1, myqa:1, forum:1, publicchat:1, dmlist:1, dm:1, friends:1, usersearch:1, chatsearch:1, blockedlist:1, myreports:1, groups:1, groupchat:1, account:1, login:1, register:1, forgot:1, help:1, ask:1 }; // 7.56: «Справка» и «Черновик вопроса» убраны
+    // 7.89: разделы на проверке — доступны, но с честной плашкой
+    var QA_REVIEW = ['aqidah', 'names', 'hadiths', 'stories', 'sins', 'adab', 'sunnahs', 'topics', 'ramadan', 'hajj', 'calendar', 'family', 'sadaqa'];
+    function qaReviewBanner(name) {
+      if (QA_REVIEW.indexOf(name) < 0) return;
+      var v = document.getElementById('view-' + name); if (!v) return;
+      var kk = isKk(), b = v.querySelector(':scope > .qa-review');
+      if (!b) { b = document.createElement('div'); b.className = 'qa-review'; v.insertBefore(b, v.firstChild); }
+      b.innerHTML = '🧪 ' + (kk ? '<b>Бөлім тексеріліп жатыр</b> — дәлсіздіктер болуы мүмкін. Білетін адамдармен және сенімді дереккөздермен салыстырыңыз.' : '<b>Раздел проверяется</b> — возможны неточности. Сверяйте со знающими людьми и надёжными источниками.');
+    }
     function showView(name, isBack) {
       try { name = applyViewAlias(name); } catch (e) {}
       try { if (name === 'home' && !isBack && (window._surahHomeTab === 'study' || window._surahHomeTab === 'tajweed')) showSurahHomeTab('surahs'); } catch (e) {}
@@ -3078,6 +3087,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
       if (name === 'sunnahs') try { renderSunnahs(); } catch(e) {}
       if (name === 'stories') try { renderStories(); injectSectionQuizButton(document.getElementById('stories-body'), 'stories'); } catch(e) {}
       if (name === 'hadiths') try { renderHadiths(); } catch(e) {}
+      try { qaReviewBanner(name); } catch(e) {}
       if (name === 'cache') try { renderCacheManager(); } catch(e) {}
       if (name === 'sins') try { renderSins(); injectSectionQuizButton(document.getElementById('sins-body'), 'sins'); } catch(e) {}
       if (name === 'aqidah') try { renderAqidah(); injectSectionQuizButton(document.getElementById('aqidah-body'), 'aqidah'); } catch(e) {}
@@ -4101,7 +4111,7 @@ function hbLabel(id) { return ((typeof isKk === 'function' && isKk()) && HEADER_
     });
     function _bl(ico, lab) { return '<i class="bi" aria-hidden="true">' + ico + '</i><span class="bl">' + lab + '</span>'; }
     async function openSurah(num, focusAyah) {
-      num = +num;
+      num = +num; window._qsSurah = num; // 7.89: для учёта времени в суре
       // второй аргумент — номер аята для прокрутки (из поиска / закладок)
       if (focusAyah != null && focusAyah !== '') focusAyah = +focusAyah;
       else focusAyah = null;
@@ -13113,6 +13123,8 @@ function speakLetter(ch, name, ttsOnly) {
         '<button type="button" class="btn c2-later" data-c2="' + (ret ? 'back' : 'home') + '"' + (ret ? ' data-ret="' + ret + '"' : '') + '>' + (ret ? c2T('Назад к практике', 'Машықтануға оралу') : c2T('К карте курса', 'Курс картасына')) + '</button></div>';
     }
     window.c2ArcadeStart = c2ArcadeStart;
+    // 7.90: коротко о курсе — для статистики
+    window.c2Summary = function () { try { var S = c2St(), kd = c2KnownDone(), all = c2AllLessons(); return { done: all.filter(function (l) { return S.done[l.id]; }).length, all: all.length, letters: kd.letters.length, rules: kd.rules.length, rulesAll: all.filter(function (l) { return l.type === 'rule'; }).length, words: c2ReadableWords({ letters: kd.letters, marks: kd.marks, rules: kd.rules }).length, today: all.filter(function (l) { var t = S.done[l.id]; return t && new Date(t).toDateString() === new Date().toDateString(); }).length }; } catch (e) { return null; } };
     // ---------- 7.85: «Игры курса» в Практике — те же игры, уровень по прогрессу курса, разминка на уровень ниже ----------
     function c2ChDoneN(c) { var cc = c2Chapter(c), S = c2St(); return cc ? cc.lessons.filter(function (l) { return S.done[l.id]; }).length : 0; }
     function c2ChAll(c) { var cc = c2Chapter(c), S = c2St(); return cc ? cc.lessons.every(function (l) { return S.done[l.id]; }) : false; }
@@ -22227,6 +22239,8 @@ function renderMistakes() {
       // намерение
       h += '<div class="card st-niyya">🤍 ' + T('Учитесь ради довольства Аллаха, а не ради цифр. Эта страница видна только вам: чтобы видеть, где вы растёте и что стоит повторить. «Поистине, дела — по намерениям» (аль-Бухари 1; Муслим 1907).',
         'Аллаһтың ризалығы үшін оқыңыз, сандар үшін емес. Бұл бетті тек сіз көресіз: қай жерде өсіп келе жатқаныңызды және нені қайталау керегін көру үшін. «Шын мәнінде, амалдар ниетке байланысты» (әл-Бұхари 1; Мүслим 1907).') + '</div>';
+      // 7.90: новая статистика сверху
+      try { h += qsDashHtml(kk); } catch (e) {}
       // сегодня
       h += '<div class="card st-today"><div class="st-ring"><svg viewBox="0 0 72 72" aria-hidden="true"><circle cx="36" cy="36" r="' + R + '" class="st-ring-bg"/><circle cx="36" cy="36" r="' + R + '" class="st-ring-fg" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - pctG)).toFixed(1) + '"/></svg><div><b>' + Math.round(d0.min) + '</b><small>/ ' + goal + ' ' + T('мин', 'мин') + '</small></div></div>' +
         '<div class="st-tbody"><b>' + T('Сегодня', 'Бүгін') + '</b>' +
@@ -22292,6 +22306,299 @@ function renderMistakes() {
         else if (item.ayah) rdMark(rdG(s, a), rdG(s, a), true, 'listen');
       } catch(e) {}
     }
+
+    // ===== 7.89: подробный учёт — слушание до секунды, время в суре, «всего с Кораном», охват сур, чтецы, любимое время, отметки =====
+    function qsS() { if (!state.qs) state.qs = { since: rdDay(), d: {}, hm: {}, s: {}, ay: {}, ask: {}, mk: {} }; var q = state.qs; ['d', 'hm', 's', 'ay', 'ask', 'mk'].forEach(function (k) { if (!q[k]) q[k] = {}; }); return q; }
+    function qsDay(ds) { var q = qsS(); return q.d[ds] || (q.d[ds] = { w: 0, l: 0, r: 0, m: 0 }); }
+    function qsSur(n) { var q = qsS(); return q.s[n] || (q.s[n] = { l: 0, r: 0, st: 0, c: 0, rc: {}, cb: '', ct: 0, wb: '' }); }
+    var _qsAct = Date.now(), _qsVisit = null, _qsPlay = { key: '', counted: false, wall: 0 }, _qsLast = { s: 0, t: 0 }, _qsSaved = Date.now();
+    ['touchstart', 'pointerdown', 'keydown', 'wheel', 'scroll'].forEach(function (ev) { document.addEventListener(ev, function () { _qsAct = Date.now(); }, { passive: true, capture: true }); });
+    function qsReaderSurah() { var v = document.getElementById('view-reader'); return v && v.classList.contains('active') && !document.hidden ? (window._qsSurah || 0) : 0; }
+    function qsHourAdd(sec) { var d = new Date(), mk = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2), q = qsS(); var a = q.hm[mk] || (q.hm[mk] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]); a[d.getHours()] += sec; }
+    function qsCurItem() { try { var it = audioQueue && audioQueue[audioQueueIdx]; return it && !it.ext && it.surah ? it : null; } catch (e) { return null; } }
+    function qsRangesTxt(list) { var out = [], i = 0; list = list.slice().sort(function (a, b) { return a - b; }); while (i < list.length) { var a = list[i], b = a; while (i + 1 < list.length && list[i + 1] === b + 1) { i++; b = list[i]; } out.push(a === b ? String(a) : a + '–' + b); i++; } return out.join(', '); }
+    // каждые 5 с: время в суре (открыта, экран не свёрнут, касание за последние 90 с) и «всего с Кораном» (чтение ИЛИ слушание, без двойного счёта)
+    setInterval(function () {
+      try {
+        var now = Date.now(), sn = qsReaderSurah(), reading = sn && now - _qsAct < 90000, it = qsCurItem(), playing = !!(it && audioEl && !audioEl.paused), ds = rdDay();
+        if (reading) { qsDay(ds).r += 5; qsSur(sn).r += 5; if (_qsVisit && _qsVisit.s === sn) _qsVisit.r += 5; }
+        if (reading || playing) { qsDay(ds).w += 5; qsHourAdd(5); }
+        if (_qsVisit && _qsVisit.s !== sn) qsVisitEnd();
+        if (sn && !_qsVisit) _qsVisit = { s: sn, r: 0, vis: {}, seen: {} };
+        if (now - _qsSaved > 60000) { _qsSaved = now; saveState(); }
+      } catch (e) {}
+    }, 5000);
+    // каждую секунду: какие аяты были на экране достаточно времени (для подсказки «какие аяты прочитали»)
+    setInterval(function () {
+      try {
+        if (!_qsVisit || !qsReaderSurah() || Date.now() - _qsAct > 90000) return;
+        var vh = window.innerHeight || 700, vw = window.innerWidth || 390, got = {};
+        [0.3, 0.5, 0.7].forEach(function (f) { var els = document.elementsFromPoint ? document.elementsFromPoint(vw / 2, vh * f) : []; for (var i = 0; i < els.length; i++) { var a = els[i].closest && els[i].closest('#ayah-list .ayah[data-ayah]'); if (a) { got[a.getAttribute('data-ayah')] = a; break; } } });
+        Object.keys(got).forEach(function (n) { var v = _qsVisit.vis[n] = (_qsVisit.vis[n] || 0) + 1, need = 2 + Math.min(10, ((got[n].querySelector('.arabic,.ayah-ar,[lang="ar"]') || got[n]).textContent || '').length / 30); if (v >= need) _qsVisit.seen[n] = 1; });
+      } catch (e) {}
+    }, 1000);
+    // слушание: настоящее время звучания (пауза и перемотка не считаются), аят засчитан при 80% длины, сура — когда услышано 95% её аятов (можно кусками, в течение 30 дней)
+    function qsStartMaybe(it) { var now = Date.now(), n = +it.surah; if (n !== _qsLast.s || now - _qsLast.t > 30 * 60000) { var S = qsSur(n); S.st++; var rn = ''; try { rn = plRecName(it) || ''; } catch (e) {} if (rn) S.rc[rn] = (S.rc[rn] || 0) + 1; } _qsLast = { s: n, t: now }; }
+    function qsHeard(n, a) {
+      var q = qsS(), S = qsSur(n), N = (typeof SURAH_AYAH_COUNTS !== 'undefined' && SURAH_AYAH_COUNTS[n]) || 0, now = Date.now(); if (!N || !a) return;
+      q.ay[n + ':' + a] = (q.ay[n + ':' + a] || 0) + 1;
+      if (!S.cb || S.cb.length !== N || now - (S.ct || 0) > 30 * 86400000) { S.cb = new Array(N + 1).join('0'); S.ct = now; }
+      S.cb = S.cb.slice(0, a - 1) + '1' + S.cb.slice(a);
+      if ((S.cb.match(/1/g) || []).length >= Math.ceil(N * 0.95)) { S.c++; S.cb = ''; S.ct = 0; }
+    }
+    audioEl.addEventListener('timeupdate', function () {
+      try {
+        var it = qsCurItem(); if (!it || audioEl.paused) { _qsPlay.wall = 0; return; }
+        var now = Date.now(), n = +it.surah;
+        if (_qsPlay.wall) { var dt = Math.min(1.5, (now - _qsPlay.wall) / 1000); qsDay(rdDay()).l += dt; qsSur(n).l += dt; }
+        _qsPlay.wall = now;
+        var key = audioEl.currentSrc || audioEl.src;
+        if (key !== _qsPlay.key) { _qsPlay.key = key; _qsPlay.counted = false; qsStartMaybe(it); }
+        var ct = audioEl.currentTime, du = audioEl.duration;
+        if (_qsPlay.counted && ct < 0.6) _qsPlay.counted = false; // тот же аят заново (повтор)
+        if (!du || !isFinite(du)) return;
+        if (it.whole) { var S = qsSur(n), B = 50; if (!S.wb || S.wb.length !== B) S.wb = new Array(B + 1).join('0'); var bi = Math.min(B - 1, Math.floor(ct / du * B)); if (S.wb.charAt(bi) !== '1') { S.wb = S.wb.slice(0, bi) + '1' + S.wb.slice(bi + 1); if ((S.wb.match(/1/g) || []).length >= 45) { S.c++; S.wb = ''; } } }
+        else if (!_qsPlay.counted && ct / du >= 0.8) { _qsPlay.counted = true; qsHeard(n, +it.ayah); }
+      } catch (e) {}
+    });
+    audioEl.addEventListener('pause', function () { _qsPlay.wall = 0; });
+    // отметка прочитанного: в khatm (как «вручную») и в свою историю по дням
+    function qsMark(n, list) {
+      if (!list.length) return;
+      var q = qsS(), ds = rdDay(), m = q.mk[n] || (q.mk[n] = {}); m[ds] = qsRangesTxt(list); qsDay(ds).m += list.length;
+      list.sort(function (a, b) { return a - b; }); var i = 0; while (i < list.length) { var a = list[i], b = a; while (i + 1 < list.length && list[i + 1] === b + 1) { i++; b = list[i]; } try { rdMark(rdG(n, a), rdG(n, b), true, 'manual'); } catch (e) {} i++; }
+      try { saveState(); } catch (e) {}
+      toast((isKk() ? 'Белгіленді: ' : 'Отмечено: ') + plqNm(n) + ' · ' + (list.length === SURAH_AYAH_COUNTS[n] ? (isKk() ? 'бүкіл сүре' : 'вся сура') : qsRangesTxt(list)));
+    }
+    function qsVisitEnd() {
+      var v = _qsVisit; _qsVisit = null; if (!v || v.r < 120) return;
+      var q = qsS(), ds = rdDay(); if (state.settings && state.settings.qsAsk === false) return; if (q.ask[v.s] === ds) return; q.ask[v.s] = ds;
+      qsAskBar(v.s, Object.keys(v.seen).map(Number));
+    }
+    // тихая полоска внизу: исчезает сама через 6 с, ничего не закрывает
+    function qsAskBar(n, seen) {
+      var kk = isKk(), N = SURAH_AYAH_COUNTS[n] || 0, old = document.getElementById('qs-bar'); if (old) old.remove();
+      var part = seen.length && seen.length < N;
+      var bar = document.createElement('div'); bar.id = 'qs-bar'; bar.className = 'qs-bar';
+      bar.innerHTML = '<div class="qs-bt"><b>' + c2EscQ(plqNm(n)) + '</b>: ' + (kk ? 'оқыдыңыз ба?' : 'прочитали?') + '</div><div class="qs-bb">' +
+        '<button type="button" data-qs="all">' + (kk ? 'Бәрін' : 'Всю') + '</button>' +
+        (part ? '<button type="button" data-qs="part">' + (kk ? 'Аяттар ' : 'Аяты ') + qsRangesTxt(seen) + '</button>' : '<button type="button" data-qs="pick">' + (kk ? 'Аяттарды таңдау' : 'Выбрать аяты') + '</button>') +
+        '<button type="button" data-qs="no">' + (kk ? 'Жоқ' : 'Нет') + '</button><button type="button" class="qs-off" data-qs="off" title="' + (kk ? 'Сұрамау' : 'Не спрашивать') + '">🔕</button></div><i class="qs-tm"></i>';
+      document.body.appendChild(bar);
+      var tm = setTimeout(function () { bar.remove(); }, 6500);
+      bar.addEventListener('pointerdown', function () { clearTimeout(tm); bar.classList.add('hold'); });
+      bar.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-qs]'); if (!b) return; var k = b.getAttribute('data-qs'); bar.remove(); clearTimeout(tm);
+        if (k === 'all') { var all = []; for (var i = 1; i <= N; i++) all.push(i); qsMark(n, all); }
+        else if (k === 'part' || k === 'pick') qsPickSheet(n, k === 'part' ? seen : []);
+        else if (k === 'off') { state.settings.qsAsk = false; saveState(); toast(kk ? 'Енді сұрамаймын. Қайта қосу — Статистикада.' : 'Больше не спрашиваю. Включить — в Статистике.'); }
+      });
+    }
+    function c2EscQ(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    // выбор аятов: касание — отметить/снять, «Готово» — сохранить
+    function qsPickSheet(n, pre) {
+      var kk = isKk(), N = SURAH_AYAH_COUNTS[n] || 0, sel = {}; pre.forEach(function (a) { sel[a] = 1; });
+      var ov = document.createElement('div'); ov.className = 'qs-ov';
+      var paint = function () {
+        var cnt = Object.keys(sel).length;
+        ov.innerHTML = '<div class="qs-sheet"><div class="qs-sh"><b>' + c2EscQ(plqNm(n)) + '</b><button type="button" class="qs-x" data-qp="x">✕</button></div><div class="qs-shint">' + (kk ? 'Оқыған аяттарыңызды белгілеңіз' : 'Отметьте аяты, которые прочитали') + '</div>' +
+          '<div class="qs-grid">' + Array.apply(null, Array(N)).map(function (x, i) { var a = i + 1; return '<button type="button" class="' + (sel[a] ? 'on' : '') + '" data-qa="' + a + '">' + a + '</button>'; }).join('') + '</div>' +
+          '<div class="qs-sf"><button type="button" class="btn btn-sm" data-qp="allon">' + (kk ? 'Бәрі' : 'Все') + '</button><button type="button" class="btn btn-sm" data-qp="alloff">' + (kk ? 'Ешқайсы' : 'Ни одного') + '</button><button type="button" class="btn btn-primary" data-qp="ok">' + (kk ? 'Дайын' : 'Готово') + ' · ' + cnt + '</button></div></div>';
+      };
+      paint(); document.body.appendChild(ov);
+      ov.addEventListener('click', function (e) {
+        if (e.target === ov) { ov.remove(); return; }
+        var a = e.target.closest('[data-qa]'); if (a) { var v = +a.getAttribute('data-qa'); if (sel[v]) delete sel[v]; else sel[v] = 1; paint(); return; }
+        var b = e.target.closest('[data-qp]'); if (!b) return; var k = b.getAttribute('data-qp');
+        if (k === 'x') ov.remove();
+        else if (k === 'allon') { for (var i = 1; i <= N; i++) sel[i] = 1; paint(); }
+        else if (k === 'alloff') { sel = {}; paint(); }
+        else if (k === 'ok') { ov.remove(); qsMark(n, Object.keys(sel).map(Number)); }
+      });
+    }
+    window.qsPickSheet = qsPickSheet;
+    // кнопка в конце суры: «✓ Прочитал(а)» — сразу со всеми аятами (можно снять лишние)
+    (function () {
+      var list = document.getElementById('ayah-list'); if (!list || typeof MutationObserver === 'undefined') return;
+      new MutationObserver(function () {
+        if (list.querySelector('.qs-end') || !list.querySelector('.ayah[data-ayah]') || !window._qsSurah) return;
+        var d = document.createElement('div'); d.className = 'qs-end';
+        d.innerHTML = '<button type="button" class="btn" data-qs-end="1">✓ ' + (isKk() ? 'Оқыдым — белгілеу' : 'Прочитал(а) — отметить') + '</button>';
+        list.appendChild(d);
+      }).observe(list, { childList: true });
+      document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-qs-end]')) { var n = window._qsSurah, all = []; for (var i = 1; i <= (SURAH_AYAH_COUNTS[n] || 0); i++) all.push(i); qsPickSheet(n, all); } });
+    })();
+    window.qsS = qsS; window.qsDay = qsDay;
+
+    // ===== 7.90: «Мои цели на сегодня» — свой список: текст, по желанию число, можно связать с учётом =====
+    var QG_AUTO = { '': ['вручную', 'қолмен'], withq: ['минут с Кораном', 'Құранмен минут'], listen: ['минут слушания', 'тыңдау минуты'], read: ['минут в сурах', 'сүрелердегі минут'], marked: ['аятов отмечено', 'белгіленген аят'], lesson: ['уроков курса', 'курс сабағы'] };
+    function qgList() { if (!Array.isArray(state.goals)) state.goals = []; return state.goals; }
+    function qgLog(ds) { if (!state.goalLog) state.goalLog = {}; return state.goalLog[ds] || (state.goalLog[ds] = {}); }
+    function qgVal(g, ds) {
+      var d = (qsS().d[ds]) || { w: 0, l: 0, r: 0, m: 0 };
+      if (g.auto === 'withq') return Math.floor(d.w / 60); if (g.auto === 'listen') return Math.floor(d.l / 60); if (g.auto === 'read') return Math.floor(d.r / 60); if (g.auto === 'marked') return d.m || 0;
+      if (g.auto === 'lesson') { var c = window.c2Summary && window.c2Summary(); return c ? c.today : 0; }
+      return +(qgLog(ds)[g.id] || 0);
+    }
+    function qgDone(g, ds) { var v = qgVal(g, ds); return g.n ? v >= g.n : v > 0; }
+    function qgRowsHtml(kk, ds, compact) {
+      return qgList().map(function (g) {
+        var v = qgVal(g, ds), ok = qgDone(g, ds), pct = g.n ? Math.min(100, Math.round(v / g.n * 100)) : (ok ? 100 : 0);
+        var ctrl = g.auto ? '<span class="qg-auto" title="' + (kk ? 'өзі есептеледі' : 'считается само') + '">⟳</span>' : g.n ? '<span class="qg-pm"><button type="button" data-qg-m="' + g.id + '">−</button><button type="button" data-qg-p="' + g.id + '">＋</button></span>' : '';
+        return '<div class="qg-row' + (ok ? ' ok' : '') + '"><button type="button" class="qg-chk" data-qg-t="' + g.id + '"' + (g.auto || g.n ? ' disabled' : '') + ' aria-label="✓">' + (ok ? '✓' : '') + '</button>' +
+          '<div class="qg-main"><div class="qg-t">' + c2EscQ(g.t) + '</div>' + (g.n ? '<div class="qg-bar"><i style="width:' + pct + '%"></i></div><div class="qg-v">' + v + ' / ' + g.n + (g.auto ? ' · ' + (kk ? QG_AUTO[g.auto][1] : QG_AUTO[g.auto][0]) : '') + '</div>' : '') + '</div>' + ctrl +
+          (compact ? '' : '<button type="button" class="qg-del" data-qg-del="' + g.id + '" aria-label="✕">✕</button>') + '</div>';
+      }).join('');
+    }
+    function qgCardHtml(kk, compact) {
+      var ds = rdDay(), L = qgList(), done = L.filter(function (g) { return qgDone(g, ds); }).length;
+      return '<div class="card qg-card"><div class="qg-h"><b>🎯 ' + (kk ? 'Бүгінгі мақсаттарым' : 'Мои цели на сегодня') + '</b>' + (L.length ? '<span>' + done + ' / ' + L.length + '</span>' : '') + '</div>' +
+        (L.length ? qgRowsHtml(kk, ds, compact) : '<div class="qg-empty">' + (kk ? 'Әзірге бос. Өзіңізге ыңғайлы мақсат қойыңыз: «1 бет оқу», «3 аят жаттау», «таңғы зікірлер»…' : 'Пока пусто. Поставьте себе удобную цель: «прочитать 1 страницу», «выучить 3 аята», «утренние азкары»…') + '</div>') +
+        '<button type="button" class="btn btn-sm qg-add" data-qg-add="1">＋ ' + (kk ? 'Мақсат қосу' : 'Добавить цель') + '</button></div>';
+    }
+    function qgRefresh() { document.querySelectorAll('[data-qg-host]').forEach(function (h) { h.innerHTML = qgCardHtml(isKk(), h.getAttribute('data-qg-host') === 'home'); }); }
+    function qgAddSheet() {
+      var kk = isKk(), ov = document.createElement('div'); ov.className = 'qs-ov';
+      ov.innerHTML = '<div class="qs-sheet"><div class="qs-sh"><b>🎯 ' + (kk ? 'Жаңа мақсат' : 'Новая цель') + '</b><button type="button" class="qs-x" data-qg-x="1">✕</button></div>' +
+        '<label class="qg-f">' + (kk ? 'Мәтіні' : 'Текст') + '<input type="text" id="qg-t" maxlength="60" placeholder="' + (kk ? 'Мысалы: Мүлк сүресін оқу' : 'Например: прочитать суру аль-Мульк') + '"></label>' +
+        '<label class="qg-f">' + (kk ? 'Сан (қажет болса)' : 'Число (если нужно)') + '<input type="number" id="qg-n" min="0" max="999" inputmode="numeric" placeholder="—"></label>' +
+        '<label class="qg-f">' + (kk ? 'Өзі есептелсін' : 'Считать само') + '<select id="qg-a">' + Object.keys(QG_AUTO).map(function (k) { return '<option value="' + k + '">' + (kk ? QG_AUTO[k][1] : QG_AUTO[k][0]) + '</option>'; }).join('') + '</select></label>' +
+        '<div class="qg-note">' + (kk ? 'Галочка үшін емес — әдет пен Алланың Кітабын түсіну үшін.' : 'Не ради галочки — ради привычки и понимания Книги Аллаха.') + '</div>' +
+        '<div class="qs-sf"><button type="button" class="btn btn-primary" data-qg-save="1">' + (kk ? 'Қосу' : 'Добавить') + '</button></div></div>';
+      document.body.appendChild(ov);
+      try { ov.querySelector('#qg-t').focus(); } catch (e) {}
+      ov.addEventListener('click', function (e) {
+        if (e.target === ov || e.target.closest('[data-qg-x]')) { ov.remove(); return; }
+        if (e.target.closest('[data-qg-save]')) {
+          var t = (ov.querySelector('#qg-t').value || '').trim(), n = Math.max(0, Math.round(+ov.querySelector('#qg-n').value || 0)), a = ov.querySelector('#qg-a').value;
+          if (!t && a) t = kk ? QG_AUTO[a][1] : QG_AUTO[a][0];
+          if (!t) { ov.querySelector('#qg-t').focus(); return; }
+          if (a && !n) n = a === 'lesson' ? 1 : a === 'marked' ? 10 : 10;
+          qgList().push({ id: 'g' + Date.now().toString(36), t: t, n: n, auto: a }); saveState(); ov.remove(); qgRefresh();
+        }
+      });
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+      if (t.closest('[data-qg-add]')) { qgAddSheet(); return; }
+      var b, ds = rdDay(), L = qgLog(ds);
+      if ((b = t.closest('[data-qg-t]'))) { var id = b.getAttribute('data-qg-t'); L[id] = L[id] ? 0 : 1; saveState(); qgRefresh(); return; }
+      if ((b = t.closest('[data-qg-p]'))) { var id2 = b.getAttribute('data-qg-p'); L[id2] = (+L[id2] || 0) + 1; saveState(); qgRefresh(); return; }
+      if ((b = t.closest('[data-qg-m]'))) { var id3 = b.getAttribute('data-qg-m'); L[id3] = Math.max(0, (+L[id3] || 0) - 1); saveState(); qgRefresh(); return; }
+      if ((b = t.closest('[data-qg-del]'))) { var id4 = b.getAttribute('data-qg-del'); state.goals = qgList().filter(function (g) { return g.id !== id4; }); saveState(); qgRefresh(); return; }
+    });
+    // на Главной — только если цели есть
+    window.qgRenderHome = function () {
+      try {
+        var anchor = document.getElementById('dailyhub-teacher'); if (!anchor) return;
+        var w = anchor.closest('[data-dh-widget]') || anchor, host = document.getElementById('dh-goals');
+        if (!qgList().length) { if (host) host.remove(); return; }
+        if (!host) { host = document.createElement('div'); host.id = 'dh-goals'; host.setAttribute('data-qg-host', 'home'); w.parentNode.insertBefore(host, w); }
+        host.innerHTML = qgCardHtml(isKk(), true);
+      } catch (e) {}
+    };
+
+    // ===== 7.90: новая статистика — время с Кораном, календарь, привычка, любимое время, суры и чтецы, итоги =====
+    function qsFmtHM(sec, kk, withS) { sec = Math.round(sec || 0); var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), ss = sec % 60; var H = kk ? ' сағ ' : ' ч ', M = kk ? ' мин' : ' мин', S = kk ? ' с' : ' с'; return (h ? h + H : '') + (h || m ? m + M : '') + (withS || (!h && !m) ? (h || m ? ' ' : '') + ss + S : ''); }
+    function qsDates(per) {
+      var out = [], now = new Date(); now.setHours(12, 0, 0, 0);
+      if (per === 'week') { var wd = (now.getDay() + 6) % 7; for (var i = wd; i >= 0; i--) out.push(rdDay(new Date(now.getTime() - i * 86400000))); }
+      else if (per === 'month') { for (var d = 1; d <= now.getDate(); d++) out.push(rdDay(new Date(now.getFullYear(), now.getMonth(), d, 12))); }
+      else if (per === 'year') { var st = new Date(now.getFullYear(), 0, 1, 12); for (var t = st.getTime(); t <= now.getTime(); t += 86400000) out.push(rdDay(new Date(t))); }
+      else { out = Object.keys(qsS().d).sort(); }
+      return out;
+    }
+    function qsSum(dates) { var q = qsS(), o = { w: 0, l: 0, r: 0, m: 0, days: 0 }; dates.forEach(function (ds) { var d = q.d[ds]; if (!d) return; o.w += d.w; o.l += d.l; o.r += d.r; o.m += d.m || 0; if (d.w >= 60 || d.m) o.days++; }); return o; }
+    function qsBestRun() { var q = qsS(), ks = Object.keys(q.d).filter(function (k) { var d = q.d[k]; return d.w >= 60 || d.m; }).sort(), best = 0, cur = 0, prev = null; ks.forEach(function (k) { var t = new Date(k + 'T12:00:00').getTime(); cur = prev && t - prev <= 86400000 * 1.5 ? cur + 1 : 1; prev = t; if (cur > best) best = cur; }); return best; }
+    function qsHabit() { var q = qsS(), sc = 0, now = new Date(); now.setHours(12, 0, 0, 0); for (var i = 59; i >= 0; i--) { var d = q.d[rdDay(new Date(now.getTime() - i * 86400000))]; sc = sc * 0.92 + ((d && (d.w >= 60 || d.m)) ? 0.08 : 0); } return Math.round(sc / (1 - Math.pow(0.92, 60)) * 100); }
+    function qsHours(per) { var q = qsS(), a = []; for (var i = 0; i < 24; i++) a.push(0); var now = new Date(), keys = Object.keys(q.hm); keys.forEach(function (k) { var y = +k.slice(0, 4), m = +k.slice(5, 7); if (per === 'month' && (y !== now.getFullYear() || m !== now.getMonth() + 1)) return; if ((per === 'year' || per === 'week') && y !== now.getFullYear()) return; q.hm[k].forEach(function (v, i) { a[i] += v; }); }); return a; }
+    function qsTopSuras(n) { var q = qsS(); return Object.keys(q.s).map(function (k) { var x = q.s[k]; return { s: +k, x: x, t: x.l + x.r }; }).filter(function (o) { return o.t >= 30; }).sort(function (a, b) { return b.t - a.t; }).slice(0, n || 5); }
+    function qsTopAyah() { var q = qsS(), best = null; Object.keys(q.ay).forEach(function (k) { if (!best || q.ay[k] > q.ay[best]) best = k; }); return best ? { k: best, n: q.ay[best] } : null; }
+    function qsCalHtml(kk) {
+      var q = qsS(), now = new Date(), y = now.getFullYear(), m = now.getMonth(), first = new Date(y, m, 1), pad = (first.getDay() + 6) % 7, dim = new Date(y, m + 1, 0).getDate(), cells = '', mx = 1;
+      for (var d = 1; d <= dim; d++) { var x = q.d[rdDay(new Date(y, m, d, 12))]; if (x && x.w > mx) mx = x.w; }
+      var wdn = kk ? ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сб', 'Жк'] : ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      for (var i = 0; i < pad; i++) cells += '<i class="qc-e"></i>';
+      for (var dd = 1; dd <= dim; dd++) { var ds = rdDay(new Date(y, m, dd, 12)), xx = q.d[ds], lv = !xx || (xx.w < 60 && !xx.m) ? 0 : Math.min(4, 1 + Math.floor(xx.w / mx * 3.99)); cells += '<i class="qc-d qc-' + lv + (dd === now.getDate() ? ' qc-today' : '') + (dd > now.getDate() ? ' qc-f' : '') + '" title="' + dd + ': ' + (xx ? qsFmtHM(xx.w, kk) : '—') + '"><span>' + dd + '</span></i>'; }
+      var mn = new Intl.DateTimeFormat(kk ? 'kk' : 'ru', { month: 'long' }).format(now);
+      return '<div class="qc-head"><b>' + mn.charAt(0).toUpperCase() + mn.slice(1) + '</b><span class="qc-leg">' + (kk ? 'аз' : 'мало') + ' <i class="qc-1"></i><i class="qc-2"></i><i class="qc-3"></i><i class="qc-4"></i> ' + (kk ? 'көп' : 'много') + '</span></div><div class="qc-grid">' + wdn.map(function (w) { return '<b>' + w + '</b>'; }).join('') + cells + '</div>';
+    }
+    function qsDashHtml(kk) {
+      var T = function (r, k) { return kk ? k : r; }, q = qsS(), per = (state.settings && state.settings.qsPer) || 'month';
+      var dates = qsDates(per), sm = qsSum(dates), h = '';
+      var perL = { week: T('Неделя', 'Апта'), month: T('Месяц', 'Ай'), year: T('Год', 'Жыл'), all: T('Всё время', 'Барлық уақыт') };
+      h += '<div class="qd-per">' + Object.keys(perL).map(function (k) { return '<button type="button" class="' + (k === per ? 'on' : '') + '" data-qd-per="' + k + '">' + perL[k] + '</button>'; }).join('') + '</div>';
+      // главное число
+      h += '<div class="card qd-hero"><div class="qd-hl">' + T('Всего с Кораном', 'Құранмен барлығы') + '</div><div class="qd-hv">' + qsFmtHM(sm.w, kk) + '</div>' +
+        '<div class="qd-tiles"><div><b>' + qsFmtHM(sm.l, kk, true) + '</b><span>🎧 ' + T('слушали', 'тыңдадыңыз') + '</span></div><div><b>' + qsFmtHM(sm.r, kk) + '</b><span>📖 ' + T('в сурах', 'сүрелерде') + '</span></div><div><b>' + sm.m + '</b><span>✓ ' + T('аятов отмечено', 'аят белгіленді') + '</span></div></div>' +
+        '<div class="qd-note">' + T('Чтение и слушание одновременно считаются один раз. Данные собираются с ', 'Бір уақыттағы оқу мен тыңдау бір рет есептеледі. Деректер жиналып келеді: ') + new Date(q.since + 'T12:00:00').toLocaleDateString(kk ? 'kk' : 'ru') + '.</div></div>';
+      // цели
+      h += '<div data-qg-host="stats">' + qgCardHtml(kk, false) + '</div>';
+      // привычка и календарь
+      var hb = qsHabit(), run = qsBestRun(), mdays = qsSum(qsDates('month')).days;
+      h += '<div class="card qd-habit"><div class="qd-row2"><div class="qd-ring" style="--p:' + hb + '"><b>' + hb + '%</b></div><div><b>' + T('Сила привычки', 'Әдет күші') + '</b><div class="qd-sub">' + T('растёт от постоянства и не сгорает из‑за одного пропуска', 'тұрақтылықтан өседі, бір күн өткізіп алудан күйіп кетпейді') + '</div><div class="qd-sub">' + T('В этом месяце: ', 'Осы айда: ') + '<b>' + mdays + '</b> ' + T('дн. с Кораном', 'күн Құранмен') + (run >= 2 ? ' · ' + T('лучший отрезок: ', 'ең ұзақ кезең: ') + '<b>' + run + '</b> ' + T('дн. подряд', 'күн қатарынан') : '') + '</div></div></div>' +
+        qsCalHtml(kk) + '<div class="qd-niyya">🤍 ' + T('Не гонитесь за галочками. Пророк ﷺ сказал: «Самые любимые Аллаху дела — постоянные, пусть и малые» (аль-Бухари, 6464; Муслим, 783).', 'Белгі үшін асықпаңыз. Пайғамбар ﷺ айтты: «Аллаһқа ең сүйкімді амал — аз болса да тұрақты амал» (әл-Бұхари, 6464; Мүслим, 783).') + '</div></div>';
+      // любимое время
+      var hrs = qsHours(per), mxh = Math.max.apply(null, hrs), bi = hrs.indexOf(mxh);
+      if (mxh >= 60) {
+        h += '<div class="card qd-hours"><b>🕰 ' + T('Когда вы с Кораном', 'Құранмен қашан боласыз') + '</b><div class="qd-sub">' + T('Чаще всего — в ', 'Көбінесе — ') + '<b>' + ('0' + bi).slice(-2) + ':00–' + ('0' + ((bi + 1) % 24)).slice(-2) + ':00</b></div><div class="qd-hbars">' +
+          hrs.map(function (v, i) { return '<i class="' + (i === bi ? 'top' : '') + '" style="height:' + Math.max(3, Math.round(v / mxh * 100)) + '%" title="' + ('0' + i).slice(-2) + ':00 — ' + qsFmtHM(v, kk) + '"></i>'; }).join('') + '</div><div class="qd-haxis"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div></div>';
+      }
+      // суры и чтецы
+      var top = qsTopSuras(5);
+      if (top.length) h += '<div class="card qd-suras"><b>📚 ' + T('Ваши суры', 'Сүрелеріңіз') + '</b>' + top.map(function (o, i) {
+        var rc = Object.keys(o.x.rc || {}).sort(function (a, b) { return o.x.rc[b] - o.x.rc[a]; }), mx2 = top[0].t;
+        return '<div class="qd-sr"><div class="qd-srh"><span class="qd-srn">' + (i + 1) + '</span><b>' + c2EscQ(plqNm(o.s)) + '</b><span class="qd-srt">' + qsFmtHM(o.t, kk) + '</span></div><div class="qd-srbar"><i style="width:' + Math.round(o.t / mx2 * 100) + '%"></i></div>' +
+          '<div class="qd-sub">' + (o.x.st ? T('слушали ', 'тыңдалды ') + o.x.st + T(' раз', ' рет') + ' · ' + T('до конца ', 'соңына дейін ') + o.x.c : '') + (o.x.r >= 60 ? (o.x.st ? ' · ' : '') + T('в суре ', 'сүреде ') + qsFmtHM(o.x.r, kk) : '') + (rc.length ? '<br>🎙 ' + rc.slice(0, 2).map(function (n) { return c2EscQ(n) + ' — ' + o.x.rc[n]; }).join(', ') : '') + '</div></div>';
+      }).join('') + '</div>';
+      var ta = qsTopAyah();
+      if (ta && ta.n >= 3) { var p2 = ta.k.split(':'); h += '<div class="card qd-ayah"><b>💎 ' + T('Аят, который вы слушали чаще всего', 'Ең жиі тыңдаған аятыңыз') + '</b><div class="qd-sub">' + c2EscQ(plqNm(+p2[0])) + ' ' + ta.k + ' · ' + ta.n + T(' раз', ' рет') + '</div><button type="button" class="btn btn-sm" data-qd-open="' + ta.k + '">📖 ' + T('Открыть', 'Ашу') + '</button></div>'; }
+      // учёба
+      var cs = window.c2Summary && window.c2Summary();
+      if (cs && cs.done) h += '<div class="card qd-learn"><b>👨‍🏫 ' + T('Учёба', 'Оқу') + '</b>' + [[T('уроков курса', 'курс сабағы'), cs.done, cs.all], [T('букв', 'әріп'), cs.letters, 28], [T('правил', 'ереже'), cs.rules, cs.rulesAll]].map(function (r) { return '<div class="qd-lr"><span>' + r[0] + '</span><div class="qd-srbar"><i style="width:' + Math.round(r[1] / Math.max(1, r[2]) * 100) + '%"></i></div><b>' + r[1] + ' / ' + r[2] + '</b></div>'; }).join('') + '<div class="qd-sub">' + T('Слов из сур курса можете прочитать: ', 'Курс сүрелерінің оқи алатын сөздері: ') + '<b>' + cs.words + '</b></div></div>';
+      // итоги
+      var hasR = qsRamadanDays().length > 0;
+      h += '<div class="card qd-recaps"><b>🎞 ' + T('Итоги', 'Қорытынды') + '</b><div class="qd-rbtns"><button type="button" class="btn btn-sm" data-qd-recap="month">' + T('Итоги месяца', 'Ай қорытындысы') + '</button><button type="button" class="btn btn-sm" data-qd-recap="year">' + T('Итоги года', 'Жыл қорытындысы') + '</button>' + (hasR ? '<button type="button" class="btn btn-sm" data-qd-recap="ramadan">🌙 ' + T('Итоги Рамадана', 'Рамазан қорытындысы') + '</button>' : '') + '</div></div>';
+      // настройка вопроса
+      h += '<label class="qd-ask"><input type="checkbox" data-qd-ask="1"' + (state.settings && state.settings.qsAsk === false ? '' : ' checked') + '> ' + T('Спрашивать «прочитали?» при выходе из суры (если были в ней больше 2 минут)', 'Сүреден шыққанда «оқыдыңыз ба?» деп сұрау (онда 2 минуттан артық болсаңыз)') + '</label>';
+      return '<div class="qd">' + h + '</div>';
+    }
+    function qsRamadanDays() {
+      var q = qsS(), out = [], f; try { f = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { month: 'numeric', year: 'numeric' }); } catch (e) { return []; }
+      var ks = Object.keys(q.d).sort(), lastY = null;
+      ks.forEach(function (k) { try { var parts = f.formatToParts(new Date(k + 'T12:00:00')), mo = +(parts.find(function (p) { return p.type === 'month'; }) || {}).value, yr = (parts.find(function (p) { return p.type === 'year'; }) || {}).value; if (mo === 9) { if (lastY !== yr) { out = []; lastY = yr; } out.push(k); } } catch (e) {} });
+      return out;
+    }
+    // итоги — листаемые карточки
+    function qsRecap(kind) {
+      var kk = isKk(), T = function (r, k) { return kk ? k : r; }, now = new Date();
+      var dates = kind === 'month' ? qsDates('month') : kind === 'year' ? qsDates('year') : qsRamadanDays();
+      var sm = qsSum(dates), q = qsS(), title = kind === 'month' ? new Intl.DateTimeFormat(kk ? 'kk' : 'ru', { month: 'long', year: 'numeric' }).format(now) : kind === 'year' ? String(now.getFullYear()) : T('Рамадан', 'Рамазан');
+      var cards = [];
+      cards.push(['🎞', T('Ваши итоги', 'Қорытындыңыз'), '<div class="qr-big">' + c2EscQ(title) + '</div><div class="qr-sub">' + T('Листайте →', 'Сырғытыңыз →') + '</div>']);
+      cards.push(['⏳', T('Время с Кораном', 'Құранмен уақыт'), '<div class="qr-big">' + qsFmtHM(sm.w, kk) + '</div><div class="qr-sub">🎧 ' + qsFmtHM(sm.l, kk, true) + ' · 📖 ' + qsFmtHM(sm.r, kk) + '</div>']);
+      cards.push(['📅', T('Дни с Кораном', 'Құранмен күндер'), '<div class="qr-big">' + sm.days + '</div><div class="qr-sub">' + T('из ', 'ішінен ') + dates.length + T(' дней', ' күн') + '</div>']);
+      var hrs = [], i; for (i = 0; i < 24; i++) hrs.push(0); var mk = {}; dates.forEach(function (d) { mk[d.slice(0, 7)] = 1; }); Object.keys(mk).forEach(function (k) { (q.hm[k] || []).forEach(function (v, j) { hrs[j] += v; }); });
+      var mx = Math.max.apply(null, hrs); if (mx >= 60) { var b = hrs.indexOf(mx); cards.push(['🕰', T('Ваше время', 'Сіздің уақытыңыз'), '<div class="qr-big">' + ('0' + b).slice(-2) + ':00</div><div class="qr-sub">' + T('чаще всего вы с Кораном в этот час', 'Құранмен көбінесе осы сағатта боласыз') + '</div>']); }
+      var top = qsTopSuras(1)[0]; if (top) { var rc = Object.keys(top.x.rc || {}).sort(function (a, c) { return top.x.rc[c] - top.x.rc[a]; })[0]; cards.push(['📚', T('Сура периода', 'Кезең сүресі'), '<div class="qr-big">' + c2EscQ(plqNm(top.s)) + '</div><div class="qr-sub">' + qsFmtHM(top.t, kk) + (top.x.st ? ' · ' + top.x.st + T(' раз', ' рет') : '') + (rc ? '<br>🎙 ' + c2EscQ(rc) : '') + '</div>']); }
+      var ta = qsTopAyah(); if (ta && ta.n >= 3) cards.push(['💎', T('Ваш аят', 'Сіздің аятыңыз'), '<div class="qr-big">' + ta.k + '</div><div class="qr-sub">' + c2EscQ(plqNm(+ta.k.split(':')[0])) + ' · ' + ta.n + T(' раз', ' рет') + '</div>']);
+      if (sm.m) cards.push(['✓', T('Отмечено прочитанным', 'Оқылды деп белгіленді'), '<div class="qr-big">' + sm.m + '</div><div class="qr-sub">' + T('аятов', 'аят') + '</div>']);
+      var cs = window.c2Summary && window.c2Summary(); if (cs && cs.done) cards.push(['👨‍🏫', T('Учёба', 'Оқу'), '<div class="qr-big">' + cs.done + ' / ' + cs.all + '</div><div class="qr-sub">' + T('уроков курса · букв ', 'курс сабағы · әріп ') + cs.letters + '/28</div>']);
+      var run = qsBestRun(); if (run >= 2) cards.push(['🌱', T('Постоянство', 'Тұрақтылық'), '<div class="qr-big">' + run + '</div><div class="qr-sub">' + T('дней подряд — лучший отрезок', 'күн қатарынан — ең ұзақ кезең') + '</div>']);
+      cards.push(['🤍', T('Главное', 'Ең бастысы'), '<div class="qr-txt">' + T('Цифры — только зеркало. Пусть Аллах примет и сделает Коран весной вашего сердца.', 'Сандар — тек айна. Алла қабыл етіп, Құранды жүрегіңіздің көктемі етсін.') + '</div>']);
+      var ov = document.createElement('div'); ov.className = 'qs-ov qr-ov';
+      ov.innerHTML = '<div class="qr-wrap"><button type="button" class="qs-x qr-x" data-qr-x="1">✕</button><div class="qr-track">' + cards.map(function (c, j) { return '<div class="qr-card qr-c' + (j % 4) + '"><div class="qr-ico">' + c[0] + '</div><div class="qr-t">' + c[1] + '</div>' + c[2] + '<div class="qr-n">' + (j + 1) + ' / ' + cards.length + '</div></div>'; }).join('') + '</div></div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', function (e) { if (e.target === ov || e.target.closest('[data-qr-x]')) ov.remove(); });
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target : null; if (!t) return; var b;
+      if ((b = t.closest('[data-qd-per]'))) { state.settings.qsPer = b.getAttribute('data-qd-per'); saveState(); var host = b.closest('.qd'); if (host) host.outerHTML = qsDashHtml(isKk()); return; }
+      if ((b = t.closest('[data-qd-recap]'))) { qsRecap(b.getAttribute('data-qd-recap')); return; }
+      if ((b = t.closest('[data-qd-open]'))) { var pp = b.getAttribute('data-qd-open').split(':'); try { openSurah(+pp[0], +pp[1]); } catch (er) {} return; }
+    });
+    document.addEventListener('change', function (e) { var c = e.target && e.target.closest && e.target.closest('[data-qd-ask]'); if (c) { state.settings.qsAsk = c.checked ? true : false; saveState(); } });
+    window.qsDashHtml = qsDashHtml;
 
     // build 6.02: разделы «Азкары и дуа» и «Дуа-конструктор» удалены — их заменил «Дуа и зикры» (Хисн аль-муслим)
 
@@ -43546,6 +43853,7 @@ async function renderStats() {
           '<div id="stats-global-body" class="ayah-translation" style="margin-top:0.5rem">'+(kk ? 'Жүктелуде…' : 'Загрузка…')+'</div></div>';
       }
 
+      try { if (window.qsDashHtml) html = window.qsDashHtml(kk) + '<details class="card qd-old"><summary><b>' + (kk ? '📈 Бөлімдер бойынша уақыт (бұрынғы статистика)' : '📈 Время по разделам (прежняя статистика)') + '</b></summary>' + html + '</details>'; } catch (e) {} // 7.90
       el.innerHTML = html;
 
       el.querySelectorAll('.st-who').forEach(function(btn) {
@@ -45047,6 +45355,7 @@ let dailyOffsets = { dua: 0, hadith: 0, sunnah: 0, word: 0, name: 0, story: 0 };
       try { renderAyahOfDay(); } catch(e) {}
       try { renderDailyCommandCard(); } catch(e) {}
       try { renderTeacherNextWidget(); } catch(e) {}
+      try { if (window.qgRenderHome) window.qgRenderHome(); } catch(e) {}
       // 7.59: если карточке урока нечего показать — не оставляем пустой заголовок
       try { var _tw = document.getElementById('dailyhub-teacher'); if (_tw && !_tw.innerHTML.trim()) { var _tww = _tw.closest('[data-dh-widget]'); if (_tww) _tww.style.display = 'none'; } } catch(e) {}
       try { renderStoryOfDay(); } catch(e) {}
@@ -48457,6 +48766,9 @@ c.addEventListener('click', () => {
       // build 6.76: служебное — в подвал и шапку; «Мои ошибки» — в Учёба → Тренировка
       const MORE_TO_FOOTER = ['settings', 'legaldocs'];
       items = items.filter(function (it) { return MORE_TO_FOOTER.indexOf(it.id) < 0; });
+      // 7.89: разделы, тексты которых ещё проверяются, — отдельной группой в самом конце
+      items = items.map(function (it) { return QA_REVIEW.indexOf(it.id) >= 0 ? Object.assign({}, it, { group: 'review' }) : it; });
+      items = items.filter(function (it) { return it.group !== 'review'; }).concat(items.filter(function (it) { return it.group === 'review'; }));
       // группы собираем вместе, даже если сохранённый порядок их перемешал (после переноса разделов между группами)
       if (getMoreGroupsOn() && !moreEditMode) {
         const gOrder = []; items.forEach(function (it) { const g = it.group || 'other'; if (gOrder.indexOf(g) < 0) gOrder.push(g); });
@@ -48472,7 +48784,7 @@ c.addEventListener('click', () => {
         const g = it.group || 'other';
         if (groupsOn && g !== lastG) {
           lastG = g;
-          const gl = ({ system: 'Сайт', games: 'Проверь себя' })[g] || (typeof MORE_GROUP_LABELS !== 'undefined' && MORE_GROUP_LABELS[g]) || '';
+          const gl = ({ system: 'Сайт', games: 'Проверь себя', review: isKk() ? '🧪 Тексеріліп жатыр' : '🧪 Проверяется' })[g] || (typeof MORE_GROUP_LABELS !== 'undefined' && MORE_GROUP_LABELS[g]) || '';
           if (gl) html += '<div class="more-gh"><span>'+(typeof tLabel==='function'?tLabel(gl):gl)+'</span>' +
             (moreEditMode ? '<span><button type="button" class="btn btn-sm" data-gup="'+g+'">↑ группа</button> <button type="button" class="btn btn-sm" data-gdown="'+g+'">↓ группа</button></span>' : '') +
             '</div>';
